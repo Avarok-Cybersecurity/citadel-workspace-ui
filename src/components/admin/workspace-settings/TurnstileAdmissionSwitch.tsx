@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ShieldCheck } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -17,27 +17,39 @@ import type { AdmissionSettingPort } from '@/lib/admission/workspace-setting';
  *
  * Off unless an admin turns it on. Turning it on asks first, because members on
  * an app that predates the check cannot sign in until they update. The switch
- * shows what the server stored, and stays disabled -- with the reason -- for
- * anyone who is not an admin, or on a server without the setting.
+ * shows what the server stored -- asked of it on open, and after a change the
+ * value it answered with -- and stays disabled, with the reason, for anyone who
+ * is not an admin, on a server without the setting, and until the server has
+ * said what it holds.
  */
 export function TurnstileAdmissionSwitch({ port }: { port: AdmissionSettingPort }): JSX.Element {
   const { state } = useWorkspace();
   const workspaceId: string | undefined = state.workspace?.id;
-  const stored: boolean | null = port.read(state.workspace as Readonly<Record<string, unknown>> | undefined);
-  const [saved, setSaved] = useState<boolean | null>(null);
+  // undefined until the server answers; null when it has no such setting.
+  const [stored, setStored] = useState<boolean | null | undefined>(undefined);
   const [confirming, setConfirming] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
   const [problem, setProblem] = useState<string | null>(null);
   const admin: boolean = isAdminRole(state.currentUser?.role);
-  const value: boolean = saved ?? stored ?? false;
+  const value: boolean = stored ?? false;
   const reason: string | null = !admin ? ADMISSION_COPY.adminsOnly : stored === null ? ADMISSION_COPY.serverUnsupported : null;
+
+  useEffect((): (() => void) => {
+    let live: boolean = true;
+    if (workspaceId) {
+      port.read()
+        .then((answer: boolean | null): void => { if (live) setStored(answer); })
+        .catch((error: unknown): void => { if (live) setProblem(describeFailure(error, 'The setting could not be read.')); });
+    }
+    return (): void => { live = false; };
+  }, [port, workspaceId]);
 
   const write = (required: boolean): void => {
     if (!workspaceId) return;
     setSaving(true);
     setProblem(null);
-    port.write(workspaceId, required)
-      .then((): void => setSaved(required))
+    port.write(required)
+      .then((answer: boolean): void => setStored(answer))
       .catch((error: unknown): void => setProblem(describeFailure(error, 'The server did not accept the change.')))
       .finally((): void => setSaving(false));
   };
@@ -56,7 +68,7 @@ export function TurnstileAdmissionSwitch({ port }: { port: AdmissionSettingPort 
         <Switch
           id="require-turnstile"
           checked={value}
-          disabled={reason !== null || saving}
+          disabled={reason !== null || saving || stored === undefined}
           onCheckedChange={(next: boolean): void => { if (next) setConfirming(true); else write(false); }}
           aria-describedby="require-turnstile-hint"
           data-testid="turnstile-admission-toggle"

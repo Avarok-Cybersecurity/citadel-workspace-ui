@@ -8,7 +8,7 @@
 
 // Import the workspace types from internal files instead of a separate file
 // We'll define the types directly here for simplicity since we only need minimal types
-import type { WorkspaceLogoChange } from 'citadel-workspace-client-ts';
+import type { SignInSettings, WorkspaceLogoChange } from 'citadel-workspace-client-ts';
 
 /**
  * The main protocol payload that wraps either a request or response
@@ -160,10 +160,10 @@ export interface WorkspaceProtocolRequestTS {
     chat_enabled?: boolean;
     is_default?: boolean;
   };
-  SetMembersVisible?: {
-    node_id: string;
-    visible: boolean;
-  };
+  SetMembersVisible?: { node_id: string; visible: boolean };
+  // The sign-in settings (lib/workspace-service/sign-in-settings.ts).
+  GetSignInSettings?: null;
+  UpdateSignInSettings?: { settings: SignInSettings };
   DeleteNode?: { node_id: string; cascade: boolean };
   MoveNode?: { node_id: string; new_parent_id: string | null };
   ListNodes?: {

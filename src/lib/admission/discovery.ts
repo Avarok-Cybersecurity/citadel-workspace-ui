@@ -10,7 +10,12 @@
  */
 import type { FetchLike } from '@/lib/onboarding/control-plane-client';
 
-/** Public: the control plane answers it for the workspace this page serves. */
+/**
+ * Public. `<path>/<slug>` answers for that hosted workspace; `<path>` alone, for
+ * a form that cannot know its workspace yet (sign-in names an account, and the
+ * agent knows its server), gives the site key and says nothing is known to be
+ * required -- the server's `admission_required` refusal then shows the check.
+ */
 export const ADMISSION_PATH: '/admission' = '/admission';
 
 export interface Admission {
@@ -30,11 +35,15 @@ export function parseAdmission(body: unknown): Admission | null {
   return { required, siteKey: siteKey.trim() };
 }
 
+/** Where to ask: the workspace's own answer when its slug is known, else the control plane's. */
+export const admissionUrl = (base: string, slug: string | undefined): string =>
+  slug === undefined ? `${base}${ADMISSION_PATH}` : `${base}${ADMISSION_PATH}/${encodeURIComponent(slug)}`;
+
 /** Null when unknown: no control plane, no answer, or an answer that does not parse. */
-export async function discoverAdmission(fetchFn: FetchLike, base: string | undefined): Promise<Admission | null> {
+export async function discoverAdmission(fetchFn: FetchLike, base: string | undefined, slug: string | undefined): Promise<Admission | null> {
   if (base === undefined) return null;
   try {
-    const response: Response = await fetchFn(`${base}${ADMISSION_PATH}`, { method: 'GET', headers: { Accept: 'application/json' } });
+    const response: Response = await fetchFn(admissionUrl(base, slug), { method: 'GET', headers: { Accept: 'application/json' } });
     if (!response.ok) return null;
     return parseAdmission(await response.json());
   } catch {

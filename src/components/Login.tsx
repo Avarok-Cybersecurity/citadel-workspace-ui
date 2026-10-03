@@ -33,7 +33,8 @@ export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.El
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [showSecuritySettings, setShowSecuritySettings] = useState(false);
 
-  const admission: AdmissionGate = useAdmissionGate(ADMISSION_ACTION.signIn);
+  // The account names its server, which only the agent knows: discovery asks for the site key alone.
+  const admission: AdmissionGate = useAdmissionGate(ADMISSION_ACTION.signIn, undefined);
   const h: LoginHandler = useLoginHandler({ onNext, initialUsername, admission });
   const {
     username, setUsername, error, invalidField, loading, securitySettings, setSecuritySettings,

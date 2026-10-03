@@ -27,7 +27,8 @@ export interface AdmissionGate {
   settle: (error: unknown) => boolean;
 }
 
-export function useAdmissionGate(action: string): AdmissionGate {
+/** `serverAddress`: the workspace the form is for, or undefined when it cannot know yet (sign-in). */
+export function useAdmissionGate(action: string, serverAddress: string | undefined): AdmissionGate {
   const [admission, setAdmission] = useState<Admission | null>(null);
   const [forced, setForced] = useState<boolean>(false);
   const [resetSignal, setResetSignal] = useState<number>(0);
@@ -36,11 +37,11 @@ export function useAdmissionGate(action: string): AdmissionGate {
 
   /** Ask the control plane; `onUnknown` runs when it cannot say. */
   const discover: (onUnknown: () => void) => void = useCallback((onUnknown: () => void): void => {
-    browserDiscoverAdmission()
+    browserDiscoverAdmission(serverAddress)
       .then((found: Admission | null): void => { if (found) setAdmission(found); else onUnknown(); })
       // discoverAdmission never rejects; this is the composition root failing, which is no answer either.
       .catch(onUnknown);
-  }, []);
+  }, [serverAddress]);
   // On open, an unknown answer fails open: the form is shown as usual.
   useEffect(() => { discover((): void => undefined); }, [discover]);
 
