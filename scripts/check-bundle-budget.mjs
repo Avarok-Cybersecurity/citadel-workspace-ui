@@ -159,8 +159,13 @@ const dist = join(root, 'dist');
  * landing page by design; DEFERRED_MODULES still passes, so nothing deferred arrived early.
  * 325 -> 326 (2026-10-01), same approval, multi-window sessions (UI #107): the greeting and join check
  * run at start-up; deferring takeover, rejoin, watchers and sender cut 326.5 to 325.2, rest is gzip noise.
+ * 326 -> 327 (2026-10-03), same approval: the 0.8.7 release assembly measured 326.002 at UI 3a13c9fd.
+ * #114 had already moved its update banner off the path (it renders from the lazy AgentUpdateWatcher;
+ * an eager import measured +0.9 KB). The rest is #117 (+49 shared, +28 CSS): a leader tab whose agent
+ * socket never opens now ends the sign-in dialog's wait instead of leaving it blank forever. A
+ * fix on the landing page by design, not a chunk arriving; DEFERRED_MODULES still passes.
  */
-const BUDGET_KB = 326;
+const BUDGET_KB = 327;
 
 /**
  * Modules that must stay OFF the critical path, checked against the source
