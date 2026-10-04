@@ -12,11 +12,13 @@
 import { isResponseType, type InternalServiceResponse } from 'citadel-workspace-client-ts';
 import { eventEmitter } from '@/lib/event-emitter';
 import { extensionFor } from '@/lib/sign-in/challenge-watch';
+import type { AdmissionReason } from '@/lib/admission/refusal';
 
 export type ConnectOutcome =
   | { kind: 'connected'; cid: bigint }
   | { kind: 'already-active'; cid: bigint; username: string; message: string }
-  | { kind: 'failed'; cid: bigint; message: string };
+  /** reasonCode: the server's admission refusal (a human check was required or failed), if that is why. */
+  | { kind: 'failed'; cid: bigint; message: string; reasonCode: AdmissionReason | null };
 
 /**
  * A sign-in that asks for a security key answers only after the touch, so a
@@ -49,7 +51,10 @@ export function awaitConnectOutcome(requestId: string, timeoutMs: number): Promi
         const { cid, username, message: msg } = response.SessionAlreadyActive;
         settle({ kind: 'already-active', cid: cid as bigint, username: username ?? '', message: msg ?? '' });
       } else if (isResponseType(response, 'ConnectFailure') && response.ConnectFailure.request_id === requestId) {
-        settle({ kind: 'failed', cid: response.ConnectFailure.cid, message: response.ConnectFailure.message || 'Connection failed' });
+        settle({
+          kind: 'failed', cid: response.ConnectFailure.cid, message: response.ConnectFailure.message || 'Connection failed',
+          reasonCode: response.ConnectFailure.reason_code ?? null,
+        });
       }
     };
     let timeout: ReturnType<typeof setTimeout> = arm(timeoutMs);

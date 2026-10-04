@@ -27,8 +27,8 @@ const downloads: string[] = [];
 
 function renderSteps(codes: readonly string[]): void {
   onDone = vi.fn();
-  render(<><PostRegistrationSteps cid={alice.cid} username="alice" serverAddress="bench.work.avarok.net"
-    password="correct horse battery" recoveryCodes={codes} onDone={onDone} /><SecurityKeyPrompt /></>);
+  render(<><PostRegistrationSteps session={alice.cid} username="alice" serverAddress="bench.work.avarok.net"
+    password="correct horse battery" recoveryCodes={codes} signIn={vi.fn()} onDone={onDone} /><SecurityKeyPrompt /></>);
 }
 
 beforeEach(() => {

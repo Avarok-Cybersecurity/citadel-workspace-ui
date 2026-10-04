@@ -15,7 +15,7 @@ import type {
 } from '@/types/workspace-protocol';
 import { failOnSocketLoss } from '../websocket/request-response';
 import { websocketService } from '@/lib/websocket-service';
-import { isVariant , type WorkspaceProtocolRequest } from 'citadel-workspace-client-ts';
+import { isVariant , type SignInSettings, type WorkspaceProtocolRequest } from 'citadel-workspace-client-ts';
 import { eventEmitter } from '@/lib/event-emitter';
 import { debugLog, debugEnabled } from '@/lib/debug-config';
 
@@ -25,6 +25,7 @@ import * as ws from './workspace-operations';
 import * as members from './member-operations';
 import * as messaging from './messaging-operations';
 import * as nodes from './node-operations';
+import * as signIn from './sign-in-settings';
 import { updateWorkspaceProfile, type WorkspaceProfileChange } from './workspace-profile';
 
 export class WorkspaceService implements ProtocolSender {
@@ -149,6 +150,8 @@ export class WorkspaceService implements ProtocolSender {
   public getTreeStructure(rootId?: string, maxDepth?: number): Promise<void> { return nodes.getTreeStructure(this, rootId, maxDepth); }
   public getTreeSchema(): Promise<void> { return nodes.getTreeSchema(this); }
   public getServerCapabilities(): Promise<void> { return nodes.getServerCapabilities(this); }
+  public getSignInSettings(): Promise<SignInSettings> { return signIn.getSignInSettings(this); }
+  public updateSignInSettings(settings: SignInSettings): Promise<SignInSettings> { return signIn.updateSignInSettings(this, settings); }
 
   public cleanup(): void { /* Any cleanup needed */ }
 

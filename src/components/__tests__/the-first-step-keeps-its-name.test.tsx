@@ -39,6 +39,9 @@ vi.mock('../useJoinRegistration', () => ({
     handleSubmit: vi.fn(),
     handleConnectModalComplete: vi.fn(),
     handleReturnToLogin: vi.fn(),
+    recoveryCodes: [],
+    awaitingSignIn: null,
+    finishSignIn: vi.fn(),
   } as unknown as JoinRegistration),
 }));
 

@@ -29,11 +29,12 @@ describe('logging a message that carries a secret', () => {
     const err: ReturnType<typeof vi.spyOn> = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     errorLog('x', { SignInManagementSuccess: { outcome: { RecoveryCodes: ['CODE-0003'] } } },
       { SecurityKeyAnswer: { prf_output: [1, 2, 3], credential_id: [9] } },
-      { Connect: { username: 'alice', password: [104, 105], recovery_code: [67] } });
+      { Connect: { username: 'alice', password: [104, 105], recovery_code: [67], admission_token: 'XXXX.DUMMY.TOKEN.7' } });
     const text: string = printed(err);
     expect(text).not.toContain('CODE-0003');
     expect(text).not.toContain('[1,2,3]');
     expect(text).not.toContain('[104,105]');
+    expect(text).not.toContain('DUMMY.TOKEN');
     expect(text).toContain('alice');
     expect(text).toContain('[9]');
   });

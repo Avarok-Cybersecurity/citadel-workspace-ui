@@ -72,6 +72,7 @@ const RECORDED_UNCONSUMED = new Map([
   ['file-transfer:error', 'as cancelled'],
   ['outbound-error', 'duplicates the outbound-ack the caller already receives: channel-messaging calls acknowledge() and emits the ack on the same path'],
   ['group:message:new', 'published beside group:message-received, which is the one the store reads'],
+  ['workspace:sign-in-settings', 'published beside the raw response, which is what the sign-in settings port reads; the kernel broadcasts no changes, so no view needs it yet'],
   ['group:message:edited', 'the edit path settles through awaitWriteResponse, not this event'],
   ['group:message:deleted', 'as group:message:edited'],
   ['group:message:single', 'no consumer; single-message fetch is unused by the UI'],

@@ -8,7 +8,7 @@
 
 import { eventEmitter } from '@/lib/event-emitter';
 import { debugLog } from '@/lib/debug-config';
-import { isVariant , type WorkspaceProtocolResponse } from 'citadel-workspace-client-ts';
+import { isVariant , type SignInSettings, type WorkspaceProtocolResponse } from 'citadel-workspace-client-ts';
 import type { ConnectionInfo } from './workspace-handlers';
 import { mapWasmMember } from './member-mapping';
 import { recordMemberNames } from '@/lib/member-names';
@@ -180,6 +180,15 @@ export function handleGeneratedVariants(
       revfsStorageQuotaMb: Number(caps.revfs_storage_quota_mb),
       connection: connectionInfo,
     });
+    return true;
+  }
+
+  if (isVariant(response, 'SignInSettings')) {
+    const settings: SignInSettings = response.SignInSettings;
+    debugLog('WorkspaceResponseHandler', 'SignInSettings received', settings);
+    eventEmitter.emit('workspace:sign-in-settings', { settings, connection: connectionInfo });
+    // Raw too: GetSignInSettings and UpdateSignInSettings are gated on this variant.
+    eventEmitter.emit('workspace:raw-response', response);
     return true;
   }
 
