@@ -9,6 +9,8 @@ export interface UseP2PMessagesProps {
   peerCid: bigint;
   activeTabIdRef: React.MutableRefObject<string>;
   scrollRef: React.RefObject<HTMLDivElement>;
+  /** Whether the reader is at the bottom; arrivals are read only while it is true. */
+  pinnedRef: React.MutableRefObject<boolean>;
   onUnreadMessage: () => void;
 }
 

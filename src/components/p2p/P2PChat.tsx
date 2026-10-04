@@ -27,7 +27,9 @@ import { useSupervisorState } from './hooks/use-supervisor-state';
 import { useChatInterest } from './hooks/use-chat-interest';
 import type { SupervisorState } from '@/types/agent-supervisor';
 import type { PeerPathReport } from '@/types/ice-servers';
-import { useFollowLatest } from './hooks/use-follow-latest';
+import { useStickToBottom, type StickToBottom } from '@/components/chat/use-stick-to-bottom';
+import { useCatchUpRead } from './hooks/use-catch-up-read';
+import { NewMessagesPill } from '@/components/chat/NewMessagesPill';
 import { usePeerPause, type PeerPauseBinding } from './hooks/use-peer-pause';
 import { PausedBanner } from './PausedBanner';
 import { callCapabilityWhile } from '@/lib/p2p-pause/pause-copy';
@@ -76,6 +78,7 @@ export function P2PChat({
   const displaySenderAvatar: boolean = showSenderAvatar ?? isGroupMode;
 
   const scrollRef: React.RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
+  const pinnedRef: React.MutableRefObject<boolean> = useRef<boolean>(true); // the reader is at the bottom
 
   const [showFileModal, setShowFileModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -92,7 +95,7 @@ export function P2PChat({
     isLoadingMore, isLoadingHistory, hasMorePages, handleScroll, handleRetryMessage,
     handleEditMessage, handleDeleteMessage, handleReactMessage,
   } = useP2PMessages({
-    peerCid, activeTabIdRef, scrollRef,
+    peerCid, activeTabIdRef, scrollRef, pinnedRef,
     onUnreadMessage: useCallback(() => setMessagesHasUnread(true), [setMessagesHasUnread]),
   });
 
@@ -117,7 +120,8 @@ export function P2PChat({
     createDocument: handleCreateDocument,
   });
 
-  useFollowLatest(scrollRef, messages);
+  const onCaughtUp: () => void = useCatchUpRead(peerCid, activeTabIdRef, pinnedRef);
+  const stick: StickToBottom = useStickToBottom(scrollRef, messages, `Messages with ${peerName}`, (m) => m.senderCid === currentUserCid, { pinnedRef, onCaughtUp });
 
   // Paused: the link is down on purpose. Messages still send and queue; calls
   // and files need the live link, so those say why they are unavailable.
@@ -198,6 +202,7 @@ export function P2PChat({
           <LiveDocumentView documentId={activeTab.documentId} documentTitle={activeTab.title} peerCid={peerCid.toString()} peerName={peerName} linkUp={isConnected} currentUserCid={currentUserCid?.toString() || ''} currentUserName={currentUserName} />
         ) : (
           <>
+            <div className="relative flex min-h-0 flex-1 flex-col">
             <P2PMessageList
               ref={scrollRef} messages={messages} currentUserCid={currentUserCid}
               currentUserName={currentUserName} peerName={peerName} peerCid={peerCid}
@@ -215,6 +220,8 @@ export function P2PChat({
               focusComposer={(): void => { inputRef.current?.focus(); }}
               onReactMessage={handleReactMessage}
             />
+            <NewMessagesPill count={stick.unseen} onView={stick.reveal} />
+            </div>
             <ComposeContextBanner
               replyingTo={replyingTo}
               editingMessage={editingMessage}

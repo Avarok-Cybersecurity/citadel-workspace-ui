@@ -20,6 +20,7 @@ import type { P2PMessage, PeerPresence } from '@/lib/p2p';
 import type { UseP2PMessagesProps, UseP2PMessagesReturn } from './useP2PMessages-types';
 import { mergeMessages, prependMessages } from './useP2PMessages-types';
 import { subscribeToConversationEvents } from './useP2PMessages-subscriptions';
+import { readableNow, markReadWhenInFront } from './useP2PMessages-read-gate';
 import { applyRetentionOnOpen } from '@/lib/p2p/retention-sweep';
 import type { ConversationMetadata, P2PConversation, MessagePage } from '@/lib/p2p/p2p-types';
 
@@ -27,6 +28,7 @@ export function useP2PMessages({
   peerCid,
   activeTabIdRef,
   scrollRef,
+  pinnedRef,
   onUnreadMessage,
 }: UseP2PMessagesProps): UseP2PMessagesReturn {
   const [messages, setMessages] = useState<P2PMessage[]>([]);
@@ -106,7 +108,7 @@ export function useP2PMessages({
     });
 
     const unsubscribeConversationEvents: () => void = subscribeToConversationEvents({
-      messenger, peerCid, activeTabIdRef, onUnreadMessage,
+      messenger, peerCid, activeTabIdRef, pinnedRef, onUnreadMessage,
       setMessages, setPeerTyping, setIsConnected, setPeerPresence, setIsRegistered,
     });
 
@@ -119,9 +121,10 @@ export function useP2PMessages({
 
     setIsRegistered(p2pRegistrationService.isPeerRegistered(peerCid));
 
-    if (document.visibilityState === 'visible') {
+    const markRead = (): void => {
       messenger.markMessagesAsRead(peerCid).catch(err => debugLog('UseP2PMessages', 'Error:', err));
-    }
+    };
+    if (readableNow(activeTabIdRef, pinnedRef)) markRead();
 
     const refreshTimeout: NodeJS.Timeout = setTimeout((): void => {
       const conversation: P2PConversation | undefined = messenger.getConversation(peerCid);
@@ -130,20 +133,15 @@ export function useP2PMessages({
       }
     }, 500);
 
-    const handleVisibilityChange = (): void => {
-      if (document.visibilityState === 'visible') {
-        messenger.markMessagesAsRead(peerCid).catch(err => debugLog('UseP2PMessages', 'Error:', err));
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    const stopWatchingWindow: () => void = markReadWhenInFront(activeTabIdRef, pinnedRef, markRead);
 
     return (): void => {
       unsubscribeConversationEvents();
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      stopWatchingWindow();
       clearTimeout(refreshTimeout);
       messenger.stopTypingPolling(peerCid);
     };
-  }, [peerCid, activeTabIdRef, onUnreadMessage, messenger]);
+  }, [peerCid, activeTabIdRef, pinnedRef, onUnreadMessage, messenger]);
 
   const loadOlderMessages: () => Promise<void> = useCallback(async (): Promise<void> => {
     if (isLoadingMore || currentPage === null || currentPage <= 0 || !hasMorePages) return;

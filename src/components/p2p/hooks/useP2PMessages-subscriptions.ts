@@ -12,6 +12,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import type { P2PMessengerManager, P2PMessage, PeerPresence } from '@/lib/p2p';
 import { p2pAutoConnectService } from '@/lib/p2p-auto-connect-service';
 import { eventEmitter } from '@/lib/event-emitter';
+import { readableNow } from './useP2PMessages-read-gate';
 import { debugLog } from '@/lib/debug-config';
 import type { P2PConversation } from '@/lib/p2p/p2p-types';
 import { retained, MESSAGES_EXPIRED_EVENT, type MessagesExpired } from '@/lib/p2p/retention';
@@ -20,6 +21,8 @@ export interface ConversationSubscriptionParams {
   messenger: P2PMessengerManager;
   peerCid: bigint;
   activeTabIdRef: React.RefObject<string>;
+  /** Whether the reader is at the bottom of the chat (see useStickToBottom). */
+  pinnedRef: { readonly current: boolean };
   onUnreadMessage: () => void;
   setMessages: Dispatch<SetStateAction<P2PMessage[]>>;
   setPeerTyping: Dispatch<SetStateAction<boolean>>;
@@ -33,6 +36,7 @@ export function subscribeToConversationEvents({
   messenger,
   peerCid,
   activeTabIdRef,
+  pinnedRef,
   onUnreadMessage,
   setMessages,
   setPeerTyping,
@@ -49,7 +53,7 @@ export function subscribeToConversationEvents({
 
       if (message.senderCid === peerCid) {
         if (activeTabIdRef.current !== 'messages') onUnreadMessage();
-        if (document.visibilityState === 'visible' && activeTabIdRef.current === 'messages') {
+        if (readableNow(activeTabIdRef, pinnedRef)) {
           messenger.markMessagesAsRead(peerCid, [message.id]).catch(err => debugLog('UseP2PMessages', 'Error:', err));
         }
       }
