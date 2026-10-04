@@ -45,7 +45,8 @@ export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.El
     serverAddress: accountServer, reauth: signedOut.some((a) => a.username === typed),
   });
   const h: LoginHandler = useLoginHandler({ onNext, initialUsername, admission });
-  const knownServer: string | undefined = useAccountServer(h.username);
+  const hints: SignInHint[] = useSignInHints();
+  const knownServer: string | undefined = useAccountServer(h.username, hints);
   useEffect((): void => { setAccountServer(knownServer); setTyped(h.username.trim()); }, [knownServer, h.username]);
   const {
     username, setUsername, error, invalidField, loading, securitySettings, setSecuritySettings,
@@ -55,10 +56,10 @@ export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.El
   // Offered before a username is typed: option-A passkeys (to move them to the
   // server) and accounts that sign in key-first here, scoped by tenant and CID.
   const legacyAccounts: string[] = usePasskeyAccounts();
-  const hints: SignInHint[] = useSignInHints();
-  const hintNames: string[] = hints.map((hint: SignInHint) => hint.username);
+  // Key-first only: a key that is a second factor cannot sign in alone, so it follows the password.
+  const hintNames: string[] = hints.filter((hint: SignInHint) => hint.keyFirst).map((hint: SignInHint) => hint.username);
   const deviceAccounts: string[] = [...new Set([...legacyAccounts, ...hintNames])].sort((a, b) => a.localeCompare(b));
-  const typedHasKeys: boolean = passkey.hasKeys || hintNames.includes(username.trim());
+  const typedHasKeys: boolean = passkey.hasKeys || deviceAccounts.includes(username.trim());
   const passkeyAccounts: string[] = mode === 'password' ? passkeyChoices(username, typedHasKeys, deviceAccounts) : [];
   const signInAs = (account: string): void => {
     if (legacyAccounts.includes(account)) void handlePasskeyLogin(account);

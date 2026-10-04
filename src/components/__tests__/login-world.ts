@@ -18,18 +18,21 @@ export const loginWorld: {
   w: World; postAuth: ReturnType<typeof vi.fn>; messaging: ReturnType<typeof vi.fn>;
   /** What the control plane answers about the human check: null is "unknown" (no answer). */
   discovered: Admission | null;
+  /** Its answer for a known workspace (`/admission/<slug>`), by server address; others get `discovered`. */
+  discoveredByServer: Map<string, Admission>;
   /** The workspace the agent says each account is on (GetAccountInformation's server_host). */
   accountServers: Map<string, string>;
   /** Accounts the agent says the server signed out (GetSessions' signed_out). */
   signedOut: SignedOutAccount[];
 } = {
-  w: undefined as unknown as World, postAuth: vi.fn(), messaging: vi.fn(), discovered: null, accountServers: new Map<string, string>(), signedOut: [],
+  w: undefined as unknown as World, postAuth: vi.fn(), messaging: vi.fn(), discovered: null, discoveredByServer: new Map<string, Admission>(), accountServers: new Map<string, string>(), signedOut: [],
 };
 
 /** Discovery is a fetch to the control plane: answered here from `loginWorld.discovered`. */
 export const admissionDouble = async (orig: () => Promise<Record<string, unknown>>): Promise<Record<string, unknown>> => ({
   ...(await orig()),
-  browserDiscoverAdmission: async (): Promise<Admission | null> => loginWorld.discovered,
+  browserDiscoverAdmission: async (server: string | undefined): Promise<Admission | null> =>
+    (server === undefined ? undefined : loginWorld.discoveredByServer.get(server)) ?? loginWorld.discovered,
   browserAccountServers: async (): Promise<ReadonlyMap<string, string>> => loginWorld.accountServers,
 });
 
