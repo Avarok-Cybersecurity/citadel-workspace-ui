@@ -25,7 +25,6 @@ import type { ActiveSession } from '@/types/session-types';
  * Only runs on leader tab to prevent redundant backend queries.
  */
 export function startBackendPolling(state: AutoConnectState): void {
-  if (supervision.get() === true) return; // the agent holds the links; one read at start-up is enough
   if (!instanceManager.isLeader) {
     debugLog('P2PAutoConnectService', '[P2PAutoConnect] Backend polling not started (not leader tab)');
     return;

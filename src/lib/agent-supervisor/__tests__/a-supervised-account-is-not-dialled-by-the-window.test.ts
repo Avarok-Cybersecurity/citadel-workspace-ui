@@ -91,9 +91,15 @@ describe('polling', () => {
     await agent.greet('supervising');
     const state: InstanceType<typeof AutoConnectState> = new AutoConnectState();
     startPolling(state, async (): Promise<void> => undefined);
-    startBackendPolling(state);
     expect(state.pollingInterval).toBeNull();
-    expect(state.backendPollInterval).toBeNull();
+  });
+
+  it('keeps the GetSessions state poll running for a supervised account', async (): Promise<void> => {
+    await agent.greet('supervising');
+    const state: InstanceType<typeof AutoConnectState> = new AutoConnectState();
+    startBackendPolling(state);
+    expect(state.backendPollInterval).not.toBeNull();
+    if (state.backendPollInterval) clearInterval(state.backendPollInterval);
   });
 
   it('starts for an agent that does not supervise', async (): Promise<void> => {
@@ -141,7 +147,7 @@ describe('an agent that says it supervises after polling has started', () => {
       expect(vi.getTimerCount()).toBe(2);
       await agent.greet('supervising');
       await vi.dynamicImportSettled();
-      expect(vi.getTimerCount()).toBe(0);
+      expect(vi.getTimerCount()).toBe(1); // the dial poll is gone; the state poll stays
     } finally {
       vi.useRealTimers();
       p2pAutoConnectService.stopPolling();

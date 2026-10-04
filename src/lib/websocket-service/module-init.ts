@@ -130,7 +130,7 @@ export function createServiceModules(
   };
 }
 
-async function askLeaderForCapabilities(): Promise<AgentCapabilities> {
+export async function askLeaderForCapabilities(): Promise<AgentCapabilities> {
   const requestId: string = crypto.randomUUID();
   instanceInboundRouter.registerPendingRequest(requestId, instanceManager.instanceId);
   const result: AckResult = await instanceChannel.sendToLeader({ __agentCapabilitiesProxy: true }, requestId);
