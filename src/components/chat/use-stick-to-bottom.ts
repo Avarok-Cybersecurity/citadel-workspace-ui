@@ -6,9 +6,9 @@
  *
  * One hook for both chats. The viewport is the Radix ScrollArea Viewport.
  */
-import { useEffect, useLayoutEffect, useRef, useState, useCallback, type RefObject } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useCallback, type RefObject, type MutableRefObject } from 'react';
 import { preferredScrollBehavior } from '@/lib/motion';
-import { step, appendedSince, INITIAL_STICK, type StickState, type StickEvent } from '@/lib/chat-scroll/stick';
+import { step, appendedSince, INITIAL_STICK, type StickState, type StickEvent, type StickStep } from '@/lib/chat-scroll/stick';
 
 export interface StickToBottom {
   /** Messages that arrived while the reader was away from the bottom. */
@@ -22,19 +22,19 @@ export function useStickToBottom<T extends { readonly id: string }>(
   items: readonly T[],
   isOwn?: (item: T) => boolean,
 ): StickToBottom {
-  const [unseen, setUnseen] = useState(0);
-  const state = useRef<StickState>(INITIAL_STICK);
-  const previous = useRef<readonly T[]>([]);
-  const attached = useRef<HTMLElement | null>(null);
-  const cleanup = useRef<(() => void) | null>(null);
+  const [unseen, setUnseen] = useState<number>(0);
+  const state: MutableRefObject<StickState> = useRef<StickState>(INITIAL_STICK);
+  const previous: MutableRefObject<readonly T[]> = useRef<readonly T[]>([]);
+  const attached: MutableRefObject<HTMLElement | null> = useRef<HTMLElement | null>(null);
+  const cleanup: MutableRefObject<(() => void) | null> = useRef<(() => void) | null>(null);
   // Read through a ref: callers pass an inline function, and a changing dependency would re-run the effect below every render.
-  const ownRef = useRef(isOwn);
+  const ownRef: MutableRefObject<((item: T) => boolean) | undefined> = useRef(isOwn);
   ownRef.current = isOwn;
 
-  const dispatch = useCallback((event: StickEvent): void => {
+  const dispatch: (event: StickEvent) => void = useCallback((event: StickEvent): void => {
     const el: HTMLElement | null = attached.current;
     if (!el) return;
-    const result = step(state.current, event);
+    const result: StickStep = step(state.current, event);
     state.current = result.state;
     setUnseen(result.state.unseen);
     if (result.scroll) el.scrollTo({ top: el.scrollHeight, behavior: preferredScrollBehavior() });
@@ -81,6 +81,6 @@ export function useStickToBottom<T extends { readonly id: string }>(
     dispatch({ type: 'appended', count: added.length, own: ownRef.current ? added.some(ownRef.current) : false });
   }, [items, viewportRef, dispatch]);
 
-  const viewLatest = useCallback((): void => dispatch({ type: 'view' }), [dispatch]);
+  const viewLatest: () => void = useCallback((): void => dispatch({ type: 'view' }), [dispatch]);
   return { unseen, viewLatest };
 }

@@ -3,21 +3,21 @@
  * counts, View clears the count, reaching the bottom clears it.
  */
 import { describe, it, expect } from 'vitest';
-import { step, appendedSince, atBottom, unseenLabel, INITIAL_STICK, type StickState, type Geometry } from '../stick';
+import { step, appendedSince, atBottom, unseenLabel, INITIAL_STICK, type StickState, type StickStep, type Geometry } from '../stick';
 
 const at = (scrollTop: number, scrollHeight: number = 1000, clientHeight: number = 400): Geometry => ({ scrollTop, scrollHeight, clientHeight });
 const scrolled = (g: Geometry): { type: 'scrolled'; geometry: Geometry } => ({ type: 'scrolled', geometry: g });
 const arrived = (count: number, own: boolean = false): { type: 'appended'; count: number; own: boolean } => ({ type: 'appended', count, own });
 
-function run(start: StickState, ...events: Parameters<typeof step>[1][]): ReturnType<typeof step> {
-  let result: ReturnType<typeof step> = { state: start, scroll: false };
+function run(start: StickState, ...events: Parameters<typeof step>[1][]): StickStep {
+  let result: StickStep = { state: start, scroll: false };
   for (const e of events) result = step(result.state, e);
   return result;
 }
 
 describe('a pinned reader', () => {
   it('follows a new message', () => {
-    const r = run(INITIAL_STICK, scrolled(at(600)), arrived(1));
+    const r: StickStep = run(INITIAL_STICK, scrolled(at(600)), arrived(1));
     expect(r.scroll).toBe(true);
     expect(r.state.unseen).toBe(0);
   });
@@ -25,7 +25,7 @@ describe('a pinned reader', () => {
   it('is judged by where they were, not by the content that just grew', () => {
     // At the bottom (600 + 400 = 1000). The message then grows scrollHeight to
     // 1300: distance is now 300, but no scroll event has fired.
-    const r = run(INITIAL_STICK, scrolled(at(600)), arrived(1));
+    const r: StickStep = run(INITIAL_STICK, scrolled(at(600)), arrived(1));
     expect(r.state.pinned).toBe(true);
     expect(r.scroll).toBe(true);
   });
@@ -39,7 +39,7 @@ describe('a reader who scrolled up', () => {
   const up: StickState = run(INITIAL_STICK, scrolled(at(100))).state;
 
   it('is not moved by a new message, and the arrivals are counted', () => {
-    const r = run(up, arrived(1), arrived(2));
+    const r: StickStep = run(up, arrived(1), arrived(2));
     expect(r.scroll).toBe(false);
     expect(r.state.unseen).toBe(3);
   });
@@ -49,20 +49,20 @@ describe('a reader who scrolled up', () => {
   });
 
   it('View scrolls to the bottom and clears the count', () => {
-    const r = run(up, arrived(2), { type: 'view' });
+    const r: StickStep = run(up, arrived(2), { type: 'view' });
     expect(r.scroll).toBe(true);
     expect(r.state.unseen).toBe(0);
     expect(r.state.pinned).toBe(true);
   });
 
   it('clears the count on scrolling to the bottom by hand', () => {
-    const r = run(up, arrived(2), scrolled(at(600)));
+    const r: StickStep = run(up, arrived(2), scrolled(at(600)));
     expect(r.state.unseen).toBe(0);
     expect(r.state.pinned).toBe(true);
   });
 
   it('follows their own message', () => {
-    const r = run(up, arrived(1, true));
+    const r: StickStep = run(up, arrived(1, true));
     expect(r.scroll).toBe(true);
     expect(r.state.unseen).toBe(0);
   });
@@ -70,11 +70,11 @@ describe('a reader who scrolled up', () => {
 
 describe('our own smooth scroll', () => {
   it('passing through the middle does not unpin; the reader moving up does', () => {
-    const viewing = run(INITIAL_STICK, scrolled(at(100)), { type: 'view' }).state;
-    const passing = step(viewing, scrolled(at(300))).state;
+    const viewing: StickState = run(INITIAL_STICK, scrolled(at(100)), { type: 'view' }).state;
+    const passing: StickState = step(viewing, scrolled(at(300))).state;
     expect(passing.pinned).toBe(true);
     expect(step(passing, arrived(1)).scroll).toBe(true);
-    const interrupted = step(passing, scrolled(at(250))).state;
+    const interrupted: StickState = step(passing, scrolled(at(250))).state;
     expect(interrupted.pinned).toBe(false);
   });
 });

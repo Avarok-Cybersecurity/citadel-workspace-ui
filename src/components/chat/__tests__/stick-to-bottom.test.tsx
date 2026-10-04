@@ -8,9 +8,9 @@
  * the browser facts the hook reads, and the only stand-ins here.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
-import { useRef } from 'react';
-import { useStickToBottom } from '../use-stick-to-bottom';
+import { render, type RenderResult, screen, fireEvent, act, waitFor } from '@testing-library/react';
+import { useRef, type RefObject } from 'react';
+import { useStickToBottom, type StickToBottom } from '../use-stick-to-bottom';
 import { NewMessagesPill } from '../NewMessagesPill';
 
 interface Item { id: string }
@@ -31,8 +31,8 @@ beforeEach(() => {
 });
 
 function Harness({ items }: { items: Item[] }): JSX.Element {
-  const ref = useRef<HTMLDivElement>(null);
-  const stick = useStickToBottom(ref, items);
+  const ref: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
+  const stick: StickToBottom = useStickToBottom(ref, items);
   return (
     <div style={{ position: 'relative' }}>
       <div
@@ -77,8 +77,8 @@ describe('a reader at the bottom', () => {
 });
 
 describe('a reader who scrolled up', () => {
-  function scrolledUp(): ReturnType<typeof render> {
-    const view = render(<Harness items={items('a', 'b')} />);
+  function scrolledUp(): RenderResult {
+    const view: RenderResult = render(<Harness items={items('a', 'b')} />);
     scrollUserTo(100);
     scrollTo.mockClear();
     return view;
@@ -119,7 +119,7 @@ describe('a reader who scrolled up', () => {
 describe('the notch', () => {
   it('sits in a live region that exists before it does, and View is a real, 44px button', () => {
     const { rerender } = render(<Harness items={items('a', 'b')} />);
-    const live = screen.getByTestId('new-messages-live');
+    const live: HTMLElement = screen.getByTestId('new-messages-live');
     expect(live.getAttribute('aria-live')).toBe('polite');
     scrollUserTo(100);
     rerender(<Harness items={items('a', 'b', 'c')} />);

@@ -14,7 +14,7 @@ import type { InternalServiceRequest, InternalServiceResponse } from 'citadel-wo
 import { renderHook, act } from '@testing-library/react';
 import { P2PMessengerManager, type P2PMessage } from '@/lib/p2p';
 import { registerConversationSender } from '@/lib/agent-conversations/requests';
-import { registerCapabilityRoute, forgetCapabilities, declareOnLeaderSocket, watchGreeting, type DeclaringClient } from '@/lib/agent-conversations/capabilities';
+import { registerCapabilityRoute, forgetCapabilities, declareOnLeaderSocket, watchGreeting, type DeclaringClient, type Greeting } from '@/lib/agent-conversations/capabilities';
 import { eventEmitter } from '@/lib/event-emitter';
 import { ConfirmDialogProvider } from '@/components/shared/confirm-dialog';
 import { instanceManager } from '@/lib/multi-instance';
@@ -42,7 +42,7 @@ function fakeAgentSocket(): DeclaringClient {
 }
 
 async function agentHostsAccount(): Promise<void> {
-  const greeting = watchGreeting();
+  const greeting: Greeting = watchGreeting();
   greeting.observe({ ServiceConnectionAccepted: { cid: 0n, request_id: null, agent_ilm: true } } as never);
   await declareOnLeaderSocket(fakeAgentSocket(), greeting);
 }
@@ -132,21 +132,21 @@ describe('marking a conversation read', () => {
     }
 
     it('is not read by a window that is visible but not focused', async () => {
-      const arrive = await mountAndReceive('messages');
+      const arrive: () => Promise<void> = await mountAndReceive('messages');
       await arrive();
       expect(markReads()).toHaveLength(0);
     });
 
     it('is read when the window is in front on the Messages tab', async () => {
       focused = true;
-      const arrive = await mountAndReceive('messages');
+      const arrive: () => Promise<void> = await mountAndReceive('messages');
       await arrive();
       expect(markReads()).toHaveLength(1);
     });
 
     it('is not read when the window is in front but another tab is showing', async () => {
       focused = true;
-      const arrive = await mountAndReceive('doc-1');
+      const arrive: () => Promise<void> = await mountAndReceive('doc-1');
       await arrive();
       expect(markReads()).toHaveLength(0);
     });

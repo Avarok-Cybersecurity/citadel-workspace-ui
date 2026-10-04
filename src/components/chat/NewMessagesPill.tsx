@@ -6,7 +6,7 @@
  * content is announced unreliably, so only the pill inside it comes and goes.
  * The exit animation needs the pill mounted a moment after the count clears.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { ArrowDown } from 'lucide-react';
 import { unseenLabel } from '@/lib/chat-scroll/stick';
 
@@ -20,7 +20,7 @@ const EXIT_MS: number = 160;
 
 export function NewMessagesPill({ count, onView }: NewMessagesPillProps): JSX.Element {
   const [mounted, setMounted] = useState<boolean>(count > 0);
-  const lastCount = useRef<number>(count);
+  const lastCount: MutableRefObject<number> = useRef<number>(count);
 
   useEffect(() => {
     if (count > 0) {
