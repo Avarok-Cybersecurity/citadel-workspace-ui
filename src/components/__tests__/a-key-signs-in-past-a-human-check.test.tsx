@@ -31,6 +31,8 @@ import { Login } from '../Login';
 import { enrolKey, world } from '@/lib/sign-in/__tests__/helpers';
 import { saveHint } from '@/lib/sign-in/hints';
 import { enrolCredential } from '@/lib/passkey/__tests__/legacy-enrol';
+import { ADMISSION_COPY } from '@/lib/admission/copy';
+import { PASSWORD_THEN_KEY } from '../passkey/passkey-offer';
 import { ALWAYS_PASS, installFakeTurnstile, type FakeTurnstile } from '../admission/__tests__/fake-turnstile';
 import { loginWorld as h } from './login-world';
 
@@ -69,6 +71,7 @@ afterEach(() => {
   delete window.turnstile;
   h.accountServers = new Map<string, string>();
   h.discoveredByServer = new Map();
+  h.pageWorkspace = undefined;
   document.querySelectorAll('script').forEach((s) => s.remove());
 });
 
@@ -113,19 +116,62 @@ describe('a passkey sign-in on a workspace that asks for a human check', () => {
 });
 
 describe('an account whose key follows its password, on a workspace that asks for a human check', () => {
-  it('offers no key-only sign-in it would refuse, and signs in with the password, the check and the touch', async () => {
+  it('its passkey button asks for the password first, never a key-only sign-in, then signs in with the touch', async () => {
     const alice: FakeAccount = h.w.agent.account('alice');
     await enrolKey(h.w, alice);
     alice.policy = 'PasswordAndKey';
     await saveHint(h.w.deps.store, { tenant: SERVER, cid: alice.cid, username: 'alice', keyFirst: false });
     renderLogin();
-    fireEvent.change(document.getElementById('username') as HTMLElement, { target: { value: 'alice' } });
+    fireEvent.click(await screen.findByTestId('login-passkey'));
+    expect(await screen.findByTestId('login-key-next')).toHaveTextContent(PASSWORD_THEN_KEY);
+    expect((document.getElementById('username') as HTMLInputElement).value).toBe('alice');
+    await waitFor(() => expect(document.activeElement).toBe(document.getElementById('password')));
+    expect(connects()).toEqual([]);
     await waitFor(() => expect(turnstile.issued.at(-1)).toMatch(/@bench$/));
-    expect(screen.queryByTestId('login-passkey')).toBeNull();
     fireEvent.change(document.getElementById('password') as HTMLElement, { target: { value: alice.password } });
     fireEvent.click(screen.getByTestId('login-submit'));
     await waitFor(() => expect(onNext).toHaveBeenCalledWith('7'));
-    expect(connects().at(-1)).toMatchObject({ security_key: true });
+    expect(connects()).toHaveLength(1);
+    expect(connects()[0]).toMatchObject({ security_key: true });
+    expect(connects()[0].admission_token).toMatch(/@bench$/);
+  });
+});
+
+/** A password account the agent has no host for, and no hint names: the page or the user must say. */
+async function signInWithAPassword(): Promise<void> {
+  const alice: FakeAccount = h.w.agent.account('alice');
+  h.accountServers = new Map<string, string>();
+  renderLogin();
+  fireEvent.change(document.getElementById('username') as HTMLElement, { target: { value: 'alice' } });
+  fireEvent.change(document.getElementById('password') as HTMLElement, { target: { value: alice.password } });
+  fireEvent.click(screen.getByTestId('login-submit'));
+  await screen.findByTestId('admission-check');
+}
+
+describe('a sign-in whose workspace neither the agent nor this device knows', () => {
+  it('binds the check to the workspace the page is served from', async () => {
+    h.pageWorkspace = SERVER;
+    await signInWithAPassword();
+    await waitFor(() => expect(turnstile.issued.at(-1)).toMatch(/@bench$/));
+    await waitFor(() => expect(screen.getByTestId('login-submit')).toBeEnabled());
+    fireEvent.click(screen.getByTestId('login-submit'));
+    await waitFor(() => expect(onNext).toHaveBeenCalledWith('7'));
+    expect(screen.queryByTestId('admission-workspace')).toBeNull();
+  });
+
+  it('asks for the workspace address, refuses one that is not, and sends nothing unbound', async () => {
+    await signInWithAPassword();
+    const field: HTMLElement = await screen.findByLabelText(ADMISSION_COPY.workspaceLabel);
+    const before: number = connects().length;
+    fireEvent.click(screen.getByTestId('login-submit'));
+    expect(await screen.findByTestId('admission-message')).toHaveTextContent(ADMISSION_COPY.workspaceNeeded);
+    fireEvent.change(field, { target: { value: 'not a workspace' } });
+    expect(await screen.findByTestId('admission-workspace-error')).toHaveTextContent(ADMISSION_COPY.workspaceInvalid);
+    fireEvent.change(field, { target: { value: 'bench.work.avarok.net' } });
+    await waitFor(() => expect(turnstile.issued.at(-1)).toMatch(/@bench$/));
+    expect(connects()).toHaveLength(before);
+    fireEvent.click(screen.getByTestId('login-submit'));
+    await waitFor(() => expect(onNext).toHaveBeenCalledWith('7'));
     expect(connects().at(-1)?.admission_token).toMatch(/@bench$/);
   });
 });
