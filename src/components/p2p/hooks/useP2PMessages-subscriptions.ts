@@ -12,6 +12,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import type { P2PMessengerManager, P2PMessage, PeerPresence } from '@/lib/p2p';
 import { p2pAutoConnectService } from '@/lib/p2p-auto-connect-service';
 import { eventEmitter } from '@/lib/event-emitter';
+import { readableNow } from './useP2PMessages-read-gate';
 import { debugLog } from '@/lib/debug-config';
 import type { P2PConversation } from '@/lib/p2p/p2p-types';
 import { retained, MESSAGES_EXPIRED_EVENT, type MessagesExpired } from '@/lib/p2p/retention';
@@ -49,7 +50,7 @@ export function subscribeToConversationEvents({
 
       if (message.senderCid === peerCid) {
         if (activeTabIdRef.current !== 'messages') onUnreadMessage();
-        if (document.visibilityState === 'visible' && activeTabIdRef.current === 'messages') {
+        if (readableNow(activeTabIdRef)) {
           messenger.markMessagesAsRead(peerCid, [message.id]).catch(err => debugLog('UseP2PMessages', 'Error:', err));
         }
       }
