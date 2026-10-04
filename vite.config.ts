@@ -333,10 +333,16 @@ export default defineConfig(({ mode }) => {
               if (id.includes('@radix-ui')) {
                 return 'vendor-ui';
               }
-              // Rich text editor + Yjs collaboration (combined to avoid circular chunk dependencies)
-              // y-prosemirror bridges yjs and prosemirror, @tiptap's collaboration uses yjs
-              if (id.includes('@tiptap') || id.includes('prosemirror') ||
-                id.includes('/yjs/') || id.includes('y-prosemirror') || id.includes('y-protocols')) {
+              // Yjs on its own. The live-document store, the tabs hook and the P2P
+              // provider use Yjs from the chat page itself, so it cannot ride in the
+              // editor chunk without dragging the editor along with every chat.
+              // One direction only (editor -> yjs), so there is still no cycle.
+              if (id.includes('/yjs/') || id.includes('/lib0/') || id.includes('y-protocols')) {
+                return 'vendor-yjs';
+              }
+              // Rich text editor: loaded when a live document is first opened
+              // (LiveDocumentPane). y-prosemirror bridges yjs and prosemirror.
+              if (id.includes('@tiptap') || id.includes('prosemirror')) {
                 return 'vendor-collab';
               }
               // Serialization and storage
