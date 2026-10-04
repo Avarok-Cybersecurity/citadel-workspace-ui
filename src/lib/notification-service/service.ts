@@ -5,9 +5,7 @@
  */
 import { eventEmitter } from '../event-emitter';
 import { notifyEach } from '@/lib/notify-listeners';
-import { playNotificationChime } from './chime';
-import { showBrowserNotification } from './browser-notification';
-import { mayInterruptTheOs } from './in-front';
+import { interruptTheOs } from './interrupt-os';
 import { v4 as uuidv4 } from 'uuid';
 import { debugLog } from '@/lib/debug-config';
 import type { Notification, NotificationHandler, UnreadCountChange } from './types';
@@ -45,17 +43,9 @@ export class NotificationService {
     this.notifyHandlers(fullNotification);
     this.notifyUnreadChange();
 
-    // Browser notification + sound when the window is not in front; see in-front.ts.
-    if (mayInterruptTheOs()) {
-      showBrowserNotification(fullNotification);
-      this.playNotificationSound();
-    }
+    void interruptTheOs(fullNotification);
 
     return fullNotification;
-  }
-
-  private playNotificationSound(): void {
-    playNotificationChime();
   }
 
   public addMessageNotification(

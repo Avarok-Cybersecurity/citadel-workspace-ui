@@ -18,6 +18,7 @@ import { useRef, type MutableRefObject, type RefObject } from 'react';
 import { ConfirmDialogProvider } from '@/components/shared/confirm-dialog';
 import { notificationService } from '@/lib/notification-service/service';
 import { eventEmitter } from '@/lib/event-emitter';
+import { SESSION_CLAIMED } from '@/lib/multi-instance/claim-relay';
 import { useP2PMessages } from '../useP2PMessages';
 import { installHostingAgent, settle, PEER, OWN, type HostingAgent } from './hosting-agent';
 
@@ -73,6 +74,16 @@ describe('the agent is told which conversation is in front', () => {
     expect(agent.focusReports().at(-1)).toEqual({ session_cid: OWN, peer_cid: PEER, focused: true });
   });
 
+  it('again once the session is claimed on a connection, though nothing in front changed', async () => {
+    // A reconnect, a takeover, or a report refused before the claim: the agent keys focus by
+    // connection, so until this it raised a notice for the chat on screen.
+    await open(PEER);
+    const before: number = agent.focusReports().length;
+    act(() => { eventEmitter.emit(SESSION_CLAIMED, { cid: OWN }); });
+    await settle();
+    expect(agent.focusReports().slice(before)).toEqual([{ session_cid: OWN, peer_cid: PEER, focused: true }]);
+  });
+
   it('and that none is, once the chat closes', async () => {
     const view: RenderResult = await open(PEER);
     view.unmount();
@@ -94,10 +105,14 @@ describe('a message arriving', () => {
     expect(shown).toEqual([]);
   });
 
-  it('for the open conversation while the window is behind another app reaches the OS', async () => {
+  it('for the open conversation while the window is behind another app is in the bell, and the OS is the agent\'s', async () => {
+    // This agent hosts the account, so its native notice is the one (owner.ts); the
+    // browser's own OS notification is proved in one-notification-per-message.test.ts.
     await open(PEER);
     agent.setFocused(false);
+    act(() => { window.dispatchEvent(new Event('blur')); });
     expect(notified(await arrives(PEER))).toBe(true);
-    expect(shown).toHaveLength(1);
+    expect(shown).toEqual([]);
+    expect(agent.focusReports().at(-1)).toEqual({ session_cid: OWN, peer_cid: null, focused: false });
   });
 });

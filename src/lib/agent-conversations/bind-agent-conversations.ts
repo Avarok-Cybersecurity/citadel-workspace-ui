@@ -11,7 +11,8 @@ import { chatAdvancedSettings } from '../p2p/chat-advanced-settings';
 import { agentHostsConversations } from './capabilities';
 import { pushAccountPreferences } from './push-preferences';
 import { onPrivacySettingsSaved } from '../privacy-settings';
-import { createFocusReporter, windowInFront } from './report-focus';
+import { createFocusReporter, windowInFront, type FocusReporter } from './report-focus';
+import { SESSION_CLAIMED, type ClaimedEvent } from '../multi-instance/claim-relay';
 import { sendToAgent } from './sender';
 
 type Listen = (event: string, handler: (data: unknown) => void) => void;
@@ -56,10 +57,13 @@ export function bindAgentConversations(listen: Listen, parts: AgentConversationP
   onPrivacySettingsSaved(told);
 
   // What this window has in front of the user, for the agent's native notices.
-  const report: () => Promise<void> = createFocusReporter({
+  const reporter: FocusReporter = createFocusReporter({
     hosts: agentHostsConversations, ownCid: parts.ownCid, activePeer: parts.activePeer, inFront: windowInFront, send: sendToAgent,
   });
-  const focusChanged = (): void => { report().catch((error: unknown): void => errorLog('AgentConversations', 'could not tell the agent what is in front', error)); };
+  const failed = (error: unknown): void => errorLog('AgentConversations', 'could not tell the agent what is in front', error);
+  const focusChanged = (): void => { reporter.changed().catch(failed); };
+  // Said again on every connection that claims this session: see report-focus.ts.
+  listen(SESSION_CLAIMED, (event: unknown): void => { reporter.claimed((event as ClaimedEvent).cid).catch(failed); });
   window.addEventListener('focus', focusChanged);
   window.addEventListener('blur', focusChanged);
   document.addEventListener('visibilitychange', focusChanged);

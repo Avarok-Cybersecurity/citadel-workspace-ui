@@ -5,6 +5,8 @@
  */
 
 import { requestResponse } from './request-response';
+import { eventEmitter } from '../event-emitter';
+import { SESSION_CLAIMED, type ClaimedEvent } from '../multi-instance/claim-relay';
 import { debugLog } from '../debug-config';
 import { TIMEOUT } from '../timeout-constants';
 import type { WorkspaceClient } from 'citadel-workspace-client-ts';
@@ -111,12 +113,16 @@ export class SessionManagement {
 
     debugLog('SessionManagement', 'Sending ClaimSession request with CID: ' + sessionCidBigInt.toString());
 
-    return requestResponse<SessionManagementResult>({
+    const result: SessionManagementResult = await requestResponse<SessionManagementResult>({
       request, requestId, timeoutMs: TIMEOUT.CLAIM_SESSION_MS,
       sendRequest: this.config.sendRequest,
       operationName: 'ClaimSession',
       matcher: this.connectionManagementMatcher(requestId),
     });
+    // The connection now carries the session; what is said to the agent per connection
+    // (ReportFocus) has to be said again. See multi-instance/claim-relay.ts.
+    eventEmitter.emit<ClaimedEvent>(SESSION_CLAIMED, { cid: sessionCidBigInt });
+    return result;
   }
 
   async disconnectOrphan(sessionCid?: string | bigint | null): Promise<SessionManagementResult> {

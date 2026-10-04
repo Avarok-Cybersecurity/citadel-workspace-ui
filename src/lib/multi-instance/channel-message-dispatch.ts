@@ -21,6 +21,8 @@ import { handleLeaderElection, handleLeaderHeartbeat , type LeaderElectionState 
 import { recordRemoteExecution } from './executed-requests';
 import { applyAgentSocketState, readAgentSocketState, type AgentSocketState } from './agent-socket-state';
 import { instanceManager } from './instance-manager';
+import { eventEmitter } from '../event-emitter';
+import { claimedFromChannel, SESSION_CLAIMED, type ClaimedEvent } from './claim-relay';
 
 export function dispatchChannelMessage(
   message: ChannelMessage,
@@ -53,6 +55,11 @@ export function dispatchChannelMessage(
     case 'request-executed':
       if (message.requestId) recordRemoteExecution(message.requestId);
       break;
+    case 'session-claimed': {
+      const claimed: ClaimedEvent | null = claimedFromChannel(message.payload);
+      if (claimed) eventEmitter.emit<ClaimedEvent>(SESSION_CLAIMED, claimed);
+      break;
+    }
     case 'agent-socket': {
       // The leader applies its own report; a stale one from a demoted tab is not news here.
       const state: AgentSocketState | null = readAgentSocketState(message.payload);
