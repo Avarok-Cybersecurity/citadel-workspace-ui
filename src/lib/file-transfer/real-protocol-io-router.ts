@@ -45,10 +45,16 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
 
   async sendFile(params: SendFileParams): Promise<SendFileResult> {
     const result: SendFileResult = await executeSendFile(params);
-    // Filed so a LATER answer to this request -- a SendFileRequestFailure after the success,
-    // when the SDK refuses the object -- is joined to the transfer (createStatusChangeHandler).
-    this.tickCorrelation.requestIdToTransferId.set(result.requestId, params.transferId);
+    this.noteOutgoingStream(result.requestId, params.transferId);
     return result;
+  }
+
+  /**
+   * Join a SendFile's request id to its chat transfer: the agent names that id on
+   * every sender tick, and on a later SendFileRequestFailure (createStatusChangeHandler).
+   */
+  protected noteOutgoingStream(requestId: string, transferId: string): void {
+    this.tickCorrelation.requestIdToTransferId.set(requestId, transferId);
   }
 
   async cancelTransfer(params: CancelTransferParams): Promise<void> {

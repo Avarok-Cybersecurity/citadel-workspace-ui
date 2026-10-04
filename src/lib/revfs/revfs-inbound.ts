@@ -33,6 +33,8 @@ export interface InboundContext {
   ensureIO: () => RevfsIO;
   getTree: (myCid: bigint, peerCid: bigint) => Promise<RevfsNode>;
   sendOp: (peerCid: bigint, op: RevfsOperation) => Promise<boolean>;
+  /** We uploaded it; they ask us to send it. See share-on-request.ts. */
+  answerShareRequest: (askerCid: bigint, myCid: bigint, op: RevfsOperation) => Promise<void>;
 }
 
 export async function applyInboundOperation(
@@ -121,6 +123,8 @@ export async function applyInboundOperation(
       await answerSyncRequest(false);
       return;
     }
+
+    if (op.op_type === RevfsOpType.ShareRequest) return ctx.answerShareRequest(senderCid, myCid, op);
 
     if (op.op_type === RevfsOpType.SyncResponse && op.tree) {
       const loaded: RevfsNode = await ctx.getTree(myCid, senderCid);
@@ -234,7 +238,8 @@ export function applyInboundOperationSerially(
   myCid: bigint,
   op: RevfsOperation,
 ): Promise<void> {
-  if (op.op_type === RevfsOpType.Ack) {
+  // A ShareRequest mutates no tree either; its answer waits on a pull, which the lock would stall.
+  if (op.op_type === RevfsOpType.Ack || op.op_type === RevfsOpType.ShareRequest) {
     return applyInboundOperation(ctx, senderCid, myCid, op);
   }
   return withSerialLock(peerTreeKey(myCid, senderCid), () =>

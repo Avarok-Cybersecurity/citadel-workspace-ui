@@ -49,7 +49,8 @@ let storage: ReturnType<typeof memoryStorage>;
 let shown: FileDetails[];
 function deps(downloadFile: (path: string) => Promise<string | undefined>): Parameters<typeof downloadVisibly>[1] {
   return {
-    downloadFile, myCid: 1n, sourceCid: 2n, sourceLabel: 'Bob Brown Storage',
+    downloadFile, requestShare: async (): Promise<string> => { throw new Error('not a peer file'); },
+    myCid: 1n, sourceCid: 2n, sourceLabel: 'Bob Brown Storage',
     history: new RevfsDownloadHistory(storage), showFile: (d: FileDetails): void => { shown.push(d); }, now: (): number => 1000,
   };
 }
@@ -90,6 +91,18 @@ describe('downloading a stored file', () => {
     expect(calls.map(c => c.kind)).toEqual(['loading', 'error']);
     expect(calls[1].options.id).toBe('toast-1');
     expect(storage.rows.size).toBe(0);
+  });
+
+  it('asks the uploader for a file the peer uploaded, instead of pulling what it cannot open', async () => {
+    const pull: ReturnType<typeof vi.fn> = vi.fn(async (): Promise<string> => 'never');
+    const d: Parameters<typeof downloadVisibly>[1] = deps(pull);
+    const asked: RevfsNode[] = [];
+    d.requestShare = async (node: RevfsNode): Promise<string> => { asked.push(node); return '/data/transfers/2/notes.txt'; };
+    await downloadVisibly(file(RevfsFileState.Hosted), d);
+    expect(pull).not.toHaveBeenCalled();
+    expect(asked.map((n) => n.path)).toEqual(['/Docs/notes.txt']);
+    expect(calls.map(c => c.kind)).toEqual(['loading', 'success']);
+    expect(String(calls[1].options.description)).toContain('/data/transfers/2/notes.txt');
   });
 
   it('opens a Received file where it already is, without pulling it', async () => {

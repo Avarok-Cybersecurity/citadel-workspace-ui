@@ -28,6 +28,8 @@ import { handleTransferRequest, handleTransferResponse } from './async-transfers
 import { ProtocolOfferCorrelator } from './protocol-offer-correlation';
 import { handleTransferCancel } from './p2p-transfers';
 import { openPeerChannelViaAutoConnect } from './open-peer-channel';
+import { requestedShares } from './requested-shares';
+import { sendAgentFile, type AgentFile } from './send-agent-file';
 import {
   handleProtocolProgress, handleProtocolComplete, handleProtocolStatus,
 } from './protocol-transfer-events';
@@ -96,6 +98,11 @@ export class FileTransferService {
 
   async sendFile(recipientCid: string, file: File, mode: FileTransferMode): Promise<string> {
     return sendFile(this.deps, recipientCid, file, mode);
+  }
+
+  /** Offer `recipientCid` a file the agent holds; see send-agent-file.ts. */
+  async sendAgentFile(senderCid: bigint, recipientCid: string, file: AgentFile, transferId: string): Promise<string> {
+    return sendAgentFile(this.deps, senderCid, recipientCid, file, transferId);
   }
 
   async sendFileWithNativePicker(recipientCid: string, title?: string, allowedExtensions?: string[]): Promise<string> {
@@ -168,6 +175,9 @@ export class FileTransferService {
 
   private setupMessageHandlers(): void {
     eventEmitter.on('p2p:file-transfer-message', this.handleFileTransferMessage.bind(this));
+    const settleShare = (t: FileTransfer): void => requestedShares.settle(t);
+    eventEmitter.on<FileTransfer>(FILE_TRANSFER_EVENTS.COMPLETED, settleShare);
+    eventEmitter.on<FileTransfer>(FILE_TRANSFER_EVENTS.CANCELLED, settleShare);
 
     // The protocol half of every incoming transfer. Without this subscription
     // nothing ever learned the object_id, so accept could not name the transfer
@@ -235,7 +245,9 @@ export class FileTransferService {
       );
       await handleTransferRequest(
         deps, layer, senderCid,
-        (cid) => this.getAutoAccept(cid),
+        // An offer this browser asked for (a peer-storage share) is accepted
+        // like an auto-accepted one: same size limit, no prompt.
+        (cid) => this.getAutoAccept(cid) || requestedShares.isExpected(layer.transfer_id),
         (id) => this.acceptTransfer(id)
       );
     } else if (isFileTransferResponse(layer)) {

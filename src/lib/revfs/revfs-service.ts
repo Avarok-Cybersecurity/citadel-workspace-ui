@@ -25,6 +25,9 @@ import { wireDrainOnChannelReady } from './drain-on-channel-ready';
 import { wireTransferRecords } from './transfer-records';
 import { applyInboundOperationSerially, type InboundContext } from './revfs-inbound';
 import { awaitTreeChange } from './await-tree-change';
+import { answerShareRequest } from './share-on-request';
+import { requestShare } from './request-share';
+import { sendSharedFile, expectShare, forgetShare } from './share-io';
 
 /** What asking a peer for its tree came to. */
 export type SyncOutcome =
@@ -153,7 +156,24 @@ export class RevfsService {
       ensureIO: () => this.ensureIO(),
       getTree: (mine: bigint, peer: bigint) => this.getTree(mine, peer),
       sendOp: (peer: bigint, operation: RevfsOperation) => this.sendOp(peer, operation),
+      answerShareRequest: (asker: bigint, mine: bigint, op: RevfsOperation) => answerShareRequest({
+        getTree: (m: bigint, p: bigint) => this.getTree(m, p),
+        findFileInTree: (tree: RevfsNode, path: string) => this.findFileInTree(tree, path),
+        pull: (m: bigint, p: bigint, path: string) => this.downloadFileFromPeer(m, p, path),
+        sendAgentFile: sendSharedFile,
+        sendOp: (p: bigint, o: RevfsOperation) => this.sendOp(p, o),
+      }, asker, mine, op),
     };
+  }
+
+  /** Ask the uploader of a file in our shared storage to send it. See request-share.ts. */
+  requestShare(ownerCid: bigint, ownerLabel: string, path: string): Promise<string | undefined> {
+    return requestShare({
+      expectShare, forgetShare,
+      registerAck: (opId: string, timeoutMs: number) => this.state.registerAck(opId, timeoutMs),
+      cancelAck: (opId: string) => this.state.cancelAck(opId),
+      sendOp: (p: bigint, o: RevfsOperation) => this.sendOp(p, o),
+    }, ownerCid, ownerLabel, path);
   }
 
   // ── Sync ──────────────────────────────────────────────────────────────

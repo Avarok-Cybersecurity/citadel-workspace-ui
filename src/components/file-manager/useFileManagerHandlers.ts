@@ -88,8 +88,14 @@ export function useFileManagerHandlers({
       .catch(err => toast.error(`Failed to create folder: ${describeError(err)}`));
   }, [mkdir, prompt]);
 
+  const requestShare: (node: RevfsNode) => Promise<string | undefined> = useCallback(async (node: RevfsNode): Promise<string | undefined> => {
+    const owner: bigint | undefined = node.fileMetadata?.uploadedByCid;
+    if (owner === undefined) throw new Error(`${node.name} does not say who uploaded it.`);
+    return revfsService.requestShare(owner, storageLabel, node.path);
+  }, [storageLabel]);
+
   const handleDownload: (node: RevfsNode) => void = useFileManagerDownload({
-    downloadFile, myCid, sourceCid: storageMode === TreeScope.Peer ? selectedPeerCid : null,
+    downloadFile, requestShare, myCid, sourceCid: storageMode === TreeScope.Peer ? selectedPeerCid : null,
     sourceLabel: storageLabel, history: downloadHistory, showFile, now: Date.now,
   });
 

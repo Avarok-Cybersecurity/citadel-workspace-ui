@@ -202,6 +202,8 @@ export class FileTransferIO extends RealProtocolIORouter {
     // The send runs inside the ack promise so a send failure settles the same
     // promise: created side by side, a failed send left the ack orphaned to
     // reject unheard at its timeout, leaking the listener for 30s.
+    // Before the send: the WebSocket is ordered, so no tick can precede it.
+    this.noteOutgoingStream(requestId, intent.transferId);
     return awaitSendFileAck(requestId, () => websocketService.sendMessage(request));
   }
 }
