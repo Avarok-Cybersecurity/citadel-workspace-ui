@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, cleanup, act } from '@testing-library/react';
 import { createCollaboratorCursor } from '../CollaboratorCursor';
 import { CursorAvatars } from '../CursorAvatars';
+import { avatarSlotsSnapshot } from '../cursor-avatar-slots';
 import { AVATAR_COLORS, usernameAvatarColor } from '@/lib/avatar-color';
 
 /**
@@ -44,13 +45,14 @@ describe('a remote cursor tag', () => {
     expect(colours.size).toBeGreaterThan(1);
   });
 
-  it('removes its avatar when the cursor leaves the document', async () => {
+  it('releases its avatar slot when the cursor leaves the document', async () => {
+    const before: number = avatarSlotsSnapshot().length;
     const cursor: HTMLElement = mountCursor('Dave', '#000');
-    const { container } = render(<CursorAvatars />);
-    expect(container.ownerDocument.querySelector('[data-testid="member-avatar-Dave"]')).not.toBeNull();
+    render(<CursorAvatars />);
+    expect(avatarSlotsSnapshot()).toHaveLength(before + 1);
     cursor.remove();
     await act(async () => { await new Promise((r) => setTimeout(r, 1100)); });
-    expect(document.querySelector('[data-testid="member-avatar-Dave"]')).toBeNull();
+    expect(avatarSlotsSnapshot()).toHaveLength(before);
   });
 
   it('keeps the caret line thin and the tag out of the text flow', () => {

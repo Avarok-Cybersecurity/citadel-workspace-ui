@@ -68,6 +68,7 @@ describe('a rename travels through the Yjs map', () => {
 
   it('ignores other attribute changes', () => {
     const [a] = peers();
+    writeDocTitle(a, 'Fixed');
     const seen: string[] = [];
     observeDocTitle(a, (t) => seen.push(t));
     a.getMap('cdoc').set('author', 'x');
