@@ -66,6 +66,9 @@ export function resolveTransferForProtocolEvent(
     .filter(
       (t) =>
         !isTerminalTransferState(t.state) &&
+        // A staged offer's bytes went through RE-VFS, never a protocol
+        // stream, so no tick can be its; it took a live send's for good.
+        t.state !== 'staged' &&
         matchesDirection(t, event.direction) &&
         ownCidOf(t) === own &&
         peerCidOf(t) === peer
