@@ -144,7 +144,7 @@ describe('the notch', () => {
     render(<Harness items={items('a')} />);
     const viewport: HTMLElement = screen.getByTestId('viewport');
     expect(viewport.tabIndex).toBe(0);
-    expect(viewport.className).toContain('focus-visible:ring-2');
+    expect(viewport.className).toContain('focus-visible:outline-2');
     expect(viewport.getAttribute('role')).toBe('region');
     expect(viewport.getAttribute('aria-label')).toBe('Messages with Alice');
   });

@@ -10,8 +10,8 @@ import { useEffect, useLayoutEffect, useRef, useState, useCallback, type RefObje
 import { preferredScrollBehavior } from '@/lib/motion';
 import { step, appendedSince, INITIAL_STICK, type StickState, type StickEvent, type StickStep } from '@/lib/chat-scroll/stick';
 
-/** Visible keyboard focus for the scrollable region (the same ring as the View button). */
-const FOCUS_RING: readonly string[] = ['focus-visible:outline-none', 'focus-visible:ring-2', 'focus-visible:ring-inset', 'focus-visible:ring-ring'];
+/** Visible keyboard focus for the scrollable region (an inset outline in the ring colour). */
+const FOCUS_RING: readonly string[] = ['focus-visible:outline', 'focus-visible:outline-2', 'focus-visible:outline-offset-[-2px]', 'focus-visible:outline-ring'];
 
 export interface StickToBottom {
   /** Messages that arrived while the reader was away from the bottom. */
@@ -84,7 +84,9 @@ export function useStickToBottom<T extends { readonly id: string }>(
     el.tabIndex = 0;
     el.setAttribute('role', 'region');
     el.setAttribute('aria-label', label);
-    // The browser's own 1px focus edge is under 3:1 in dark themes and WebKit.
+    // The browser's own 1px focus edge is under 3:1 in dark themes and WebKit. An inset
+    // outline, not a ring: a box-shadow paints under content and a bubble cut off at the
+    // top edge would cover it.
     el.classList.add(...FOCUS_RING);
     el.scrollTop = el.scrollHeight; // a newly attached viewport opens on the latest
     // A viewport that came back (the chat showed a document tab meanwhile) opens
