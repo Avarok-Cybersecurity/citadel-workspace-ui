@@ -43,7 +43,7 @@ export function NewMessagesPill({ count, onView }: NewMessagesPillProps): JSX.El
         <div
           data-testid="new-messages-pill"
           data-state={open ? 'open' : 'closed'}
-          className="pointer-events-auto flex min-h-11 items-center gap-1 rounded-t-2xl border border-b-0 border-border/70 bg-background/80 pl-4 pr-1.5 text-sm text-foreground shadow-[0_-4px_24px_-8px_hsl(var(--foreground)/0.35)] backdrop-blur-xl backdrop-saturate-150 data-[state=open]:animate-notch-in data-[state=closed]:animate-notch-out"
+          className="pointer-events-auto flex min-h-11 items-center gap-1 rounded-t-2xl border border-b-0 border-border/70 bg-background/80 ps-4 pe-1.5 text-sm text-foreground shadow-[0_-4px_24px_-8px_hsl(var(--foreground)/0.35)] backdrop-blur-xl backdrop-saturate-150 data-[state=open]:animate-notch-in data-[state=closed]:animate-notch-out"
         >
           <span>{unseenLabel(open ? count : lastCount.current)}</span>
           <button

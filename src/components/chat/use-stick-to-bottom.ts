@@ -15,6 +15,12 @@ export interface StickToBottom {
   unseen: number;
   /** Scroll smoothly to the newest message and clear the count. */
   viewLatest: () => void;
+  /**
+   * viewLatest for the "View" button: also moves keyboard focus into the
+   * message area, because the button unmounts and focus would fall to <body>,
+   * sending the next Tab back to the top of the page.
+   */
+  reveal: () => void;
 }
 
 export function useStickToBottom<T extends { readonly id: string }>(
@@ -53,6 +59,7 @@ export function useStickToBottom<T extends { readonly id: string }>(
     state.current = INITIAL_STICK;
     setUnseen(0);
     if (!el) return;
+    el.tabIndex = -1; // focusable by script only, so reveal() has somewhere to put focus
     el.scrollTop = el.scrollHeight; // a newly attached viewport opens on the latest
     const onScroll = (): void => dispatch({
       type: 'scrolled',
@@ -82,5 +89,9 @@ export function useStickToBottom<T extends { readonly id: string }>(
   }, [items, viewportRef, dispatch]);
 
   const viewLatest: () => void = useCallback((): void => dispatch({ type: 'view' }), [dispatch]);
-  return { unseen, viewLatest };
+  const reveal: () => void = useCallback((): void => {
+    dispatch({ type: 'view' });
+    attached.current?.focus({ preventScroll: true });
+  }, [dispatch]);
+  return { unseen, viewLatest, reveal };
 }

@@ -81,7 +81,11 @@ export function appendedSince<T extends { readonly id: string }>(previous: reado
   return at === -1 ? [] : next.slice(at + 1);
 }
 
-/** "3 new messages" / "1 new message". */
+/** Beyond this the exact number stops helping and only widens the pill. */
+export const LABEL_CAP: number = 99;
+
+/** "3 new messages" / "1 new message" / "99+ new messages". */
 export function unseenLabel(count: number): string {
-  return `${count} new ${count === 1 ? 'message' : 'messages'}`;
+  const shown: string = count > LABEL_CAP ? `${LABEL_CAP}+` : String(count);
+  return `${shown} new ${count === 1 ? 'message' : 'messages'}`;
 }

@@ -46,7 +46,7 @@ function Harness({ items }: { items: Item[] }): JSX.Element {
         }}
         data-testid="viewport"
       ><div /></div>
-      <NewMessagesPill count={stick.unseen} onView={stick.viewLatest} />
+      <NewMessagesPill count={stick.unseen} onView={stick.reveal} />
     </div>
   );
 }
@@ -106,6 +106,16 @@ describe('a reader who scrolled up', () => {
     fireEvent.click(screen.getByRole('button', { name: /view/i }));
     expect(scrollTo).toHaveBeenCalledWith(expect.objectContaining({ top: 1000 }));
     await waitFor(() => expect(screen.queryByTestId('new-messages-pill')).toBeNull());
+  });
+
+  it('keeps keyboard focus in the message area when View unmounts, instead of dropping it to the page', async () => {
+    const { rerender } = scrolledUp();
+    rerender(<Harness items={items('a', 'b', 'c')} />);
+    const view: HTMLElement = screen.getByRole('button', { name: /view/i });
+    view.focus();
+    fireEvent.click(view);
+    await waitFor(() => expect(screen.queryByTestId('new-messages-pill')).toBeNull());
+    expect(document.activeElement).toBe(screen.getByTestId('viewport'));
   });
 
   it('loses the notch on scrolling to the bottom by hand', async () => {

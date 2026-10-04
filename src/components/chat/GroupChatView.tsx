@@ -143,7 +143,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
           )}
         </div>
       </ScrollArea>
-      <NewMessagesPill count={chat.stick.unseen} onView={chat.stick.viewLatest} />
+      <NewMessagesPill count={chat.stick.unseen} onView={chat.stick.reveal} />
       </div>
 
       {/* Reply indicator */}

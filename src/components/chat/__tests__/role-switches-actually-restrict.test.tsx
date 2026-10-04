@@ -72,7 +72,7 @@ vi.mock('../useGroupChat', () => ({
     handleEditMessage: (): void => {},
     handleDeleteMessage: (): void => {},
     loadMoreMessages: (): void => {},
-    stick: { unseen: 0, viewLatest: (): void => {} },
+    stick: { unseen: 0, viewLatest: (): void => {}, reveal: (): void => {} },
     scrollAreaRef: { current: null },
   }),
 }));

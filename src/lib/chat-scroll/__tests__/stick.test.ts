@@ -98,6 +98,8 @@ describe('labels and thresholds', () => {
   it('pluralises', () => {
     expect(unseenLabel(1)).toBe('1 new message');
     expect(unseenLabel(2)).toBe('2 new messages');
+    expect(unseenLabel(99)).toBe('99 new messages');
+    expect(unseenLabel(151)).toBe('99+ new messages');
   });
   it('treats a few pixels of slack as the bottom', () => {
     expect(atBottom(at(590))).toBe(true);

@@ -211,7 +211,7 @@ export function P2PChat({
               focusComposer={(): void => { inputRef.current?.focus(); }}
               onReactMessage={handleReactMessage}
             />
-            <NewMessagesPill count={stick.unseen} onView={stick.viewLatest} />
+            <NewMessagesPill count={stick.unseen} onView={stick.reveal} />
             </div>
             <ComposeContextBanner
               replyingTo={replyingTo}
