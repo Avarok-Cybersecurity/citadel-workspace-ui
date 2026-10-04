@@ -47,6 +47,7 @@ function captureStatusHandler(): { statusHandler: (id: string, status: string) =
     messenger,
     peerCid: 42n,
     activeTabIdRef: { current: 'messages' },
+    pinnedRef: { current: true },
     onUnreadMessage: () => {},
     setMessages: ((updater: (prev: P2PMessage[]) => P2PMessage[]) => {
       updates.push(updater);

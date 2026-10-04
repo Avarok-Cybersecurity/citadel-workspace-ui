@@ -23,10 +23,19 @@ export interface StickToBottom {
   reveal: () => void;
 }
 
+/** Optional ties from the reader's position to what else the chat does. */
+export interface StickLinks {
+  /** Kept equal to "the reader is at the bottom" -- the position BEFORE any new content. */
+  pinnedRef: MutableRefObject<boolean>;
+  /** Called when the count of unseen messages drops to zero (View, or reaching the bottom). */
+  onCaughtUp: () => void;
+}
+
 export function useStickToBottom<T extends { readonly id: string }>(
   viewportRef: RefObject<HTMLElement>,
   items: readonly T[],
   isOwn?: (item: T) => boolean,
+  links?: StickLinks,
 ): StickToBottom {
   const [unseen, setUnseen] = useState<number>(0);
   const state: MutableRefObject<StickState> = useRef<StickState>(INITIAL_STICK);
@@ -36,13 +45,18 @@ export function useStickToBottom<T extends { readonly id: string }>(
   // Read through a ref: callers pass an inline function, and a changing dependency would re-run the effect below every render.
   const ownRef: MutableRefObject<((item: T) => boolean) | undefined> = useRef(isOwn);
   ownRef.current = isOwn;
+  const linksRef: MutableRefObject<StickLinks | undefined> = useRef(links);
+  linksRef.current = links;
 
   const dispatch: (event: StickEvent) => void = useCallback((event: StickEvent): void => {
     const el: HTMLElement | null = attached.current;
     if (!el) return;
     const result: StickStep = step(state.current, event);
+    const hadUnseen: boolean = state.current.unseen > 0;
     state.current = result.state;
     setUnseen(result.state.unseen);
+    if (linksRef.current) linksRef.current.pinnedRef.current = result.state.pinned;
+    if (hadUnseen && result.state.unseen === 0) linksRef.current?.onCaughtUp();
     if (result.scroll) el.scrollTo({ top: el.scrollHeight, behavior: preferredScrollBehavior() });
   }, []);
 

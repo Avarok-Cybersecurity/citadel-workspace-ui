@@ -28,6 +28,7 @@ export function useP2PMessages({
   peerCid,
   activeTabIdRef,
   scrollRef,
+  pinnedRef,
   onUnreadMessage,
 }: UseP2PMessagesProps): UseP2PMessagesReturn {
   const [messages, setMessages] = useState<P2PMessage[]>([]);
@@ -107,7 +108,7 @@ export function useP2PMessages({
     });
 
     const unsubscribeConversationEvents: () => void = subscribeToConversationEvents({
-      messenger, peerCid, activeTabIdRef, onUnreadMessage,
+      messenger, peerCid, activeTabIdRef, pinnedRef, onUnreadMessage,
       setMessages, setPeerTyping, setIsConnected, setPeerPresence, setIsRegistered,
     });
 
@@ -123,7 +124,7 @@ export function useP2PMessages({
     const markRead = (): void => {
       messenger.markMessagesAsRead(peerCid).catch(err => debugLog('UseP2PMessages', 'Error:', err));
     };
-    if (readableNow(activeTabIdRef)) markRead();
+    if (readableNow(activeTabIdRef, pinnedRef)) markRead();
 
     const refreshTimeout: NodeJS.Timeout = setTimeout((): void => {
       const conversation: P2PConversation | undefined = messenger.getConversation(peerCid);
@@ -132,7 +133,7 @@ export function useP2PMessages({
       }
     }, 500);
 
-    const stopWatchingWindow: () => void = markReadWhenInFront(activeTabIdRef, markRead);
+    const stopWatchingWindow: () => void = markReadWhenInFront(activeTabIdRef, pinnedRef, markRead);
 
     return (): void => {
       unsubscribeConversationEvents();
@@ -140,7 +141,7 @@ export function useP2PMessages({
       clearTimeout(refreshTimeout);
       messenger.stopTypingPolling(peerCid);
     };
-  }, [peerCid, activeTabIdRef, onUnreadMessage, messenger]);
+  }, [peerCid, activeTabIdRef, pinnedRef, onUnreadMessage, messenger]);
 
   const loadOlderMessages: () => Promise<void> = useCallback(async (): Promise<void> => {
     if (isLoadingMore || currentPage === null || currentPage <= 0 || !hasMorePages) return;

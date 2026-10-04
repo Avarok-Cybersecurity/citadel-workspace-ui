@@ -25,6 +25,7 @@ import { useP2PCompose } from './hooks/useP2PCompose';
 import { useConnectionRoute } from './hooks/use-connection-route';
 import type { PeerPathReport } from '@/types/ice-servers';
 import { useStickToBottom, type StickToBottom } from '@/components/chat/use-stick-to-bottom';
+import { useCatchUpRead } from './hooks/use-catch-up-read';
 import { NewMessagesPill } from '@/components/chat/NewMessagesPill';
 import { usePeerPause, type PeerPauseBinding } from './hooks/use-peer-pause';
 import { PausedBanner } from './PausedBanner';
@@ -74,6 +75,7 @@ export function P2PChat({
   const displaySenderAvatar: boolean = showSenderAvatar ?? isGroupMode;
 
   const scrollRef: React.RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
+  const pinnedRef: React.MutableRefObject<boolean> = useRef<boolean>(true); // the reader is at the bottom
 
   const [showFileModal, setShowFileModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -90,7 +92,7 @@ export function P2PChat({
     isLoadingMore, isLoadingHistory, hasMorePages, handleScroll, handleRetryMessage,
     handleEditMessage, handleDeleteMessage, handleReactMessage,
   } = useP2PMessages({
-    peerCid, activeTabIdRef, scrollRef,
+    peerCid, activeTabIdRef, scrollRef, pinnedRef,
     onUnreadMessage: useCallback(() => setMessagesHasUnread(true), [setMessagesHasUnread]),
   });
 
@@ -113,7 +115,8 @@ export function P2PChat({
     createDocument: handleCreateDocument,
   });
 
-  const stick: StickToBottom = useStickToBottom(scrollRef, messages, (m) => m.senderCid === currentUserCid);
+  const onCaughtUp: () => void = useCatchUpRead(peerCid, activeTabIdRef, pinnedRef);
+  const stick: StickToBottom = useStickToBottom(scrollRef, messages, (m) => m.senderCid === currentUserCid, { pinnedRef, onCaughtUp });
 
   // Paused: the link is down on purpose. Messages still send and queue; calls
   // and files need the live link, so those say why they are unavailable.
