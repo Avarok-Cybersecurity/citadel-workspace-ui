@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback , type RefObject  } from 'react';
-import { preferredScrollBehavior } from '@/lib/motion';
+import { useStickToBottom, type StickToBottom } from './use-stick-to-bottom';
 import { groupSendTransport } from '@/lib/group-conversations/group-send-transport';
 import { sendGroupMessageAnywhere } from '@/lib/group-conversations/send-group-message';
 import { restoreGroupTranscript } from '@/lib/group-conversations/group-transcript-store';
@@ -17,17 +17,20 @@ import { debugLog } from '@/lib/debug-config';
 import { armLoadingDeadline, cancelLoadingDeadline } from '@/lib/loading-flag-timeout';
 import type { Dispatch, SetStateAction } from 'react';
 
-export function useGroupChat(groupId: string): { scrollAreaRef: RefObject<HTMLDivElement>; messagesEndRef: RefObject<HTMLDivElement>; messages: GroupMessage[]; hasMore: boolean; loading: boolean; loadingMore: boolean; sending: boolean; inputValue: string; setInputValue: Dispatch<SetStateAction<string>>; replyToId: string | null; setReplyToId: Dispatch<SetStateAction<string | null>>; editingId: string | null; setEditingId: Dispatch<SetStateAction<string | null>>; editContent: string; setEditContent: Dispatch<SetStateAction<string>>; loadMoreMessages: () => Promise<void>; handleSendMessage: () => Promise<void>; handleEditMessage: () => Promise<void>; handleDeleteMessage: (messageId: string) => Promise<void>; messagesByDate: Record<string, GroupMessage[]>; handleKeyPress: (e: React.KeyboardEvent) => void; } {
+export function useGroupChat(groupId: string): { scrollAreaRef: RefObject<HTMLDivElement>; stick: StickToBottom; messages: GroupMessage[]; hasMore: boolean; loading: boolean; loadingMore: boolean; sending: boolean; inputValue: string; setInputValue: Dispatch<SetStateAction<string>>; replyToId: string | null; setReplyToId: Dispatch<SetStateAction<string | null>>; editingId: string | null; setEditingId: Dispatch<SetStateAction<string | null>>; editContent: string; setEditContent: Dispatch<SetStateAction<string>>; loadMoreMessages: () => Promise<void>; handleSendMessage: () => Promise<void>; handleEditMessage: () => Promise<void>; handleDeleteMessage: (messageId: string) => Promise<void>; messagesByDate: Record<string, GroupMessage[]>; handleKeyPress: (e: React.KeyboardEvent) => void; } {
   const { toast } = useToast();
   const confirm: ReturnType<typeof useConfirm> = useConfirm();
   const scrollAreaRef: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
-  const messagesEndRef: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
 
   const [messages, setMessages] = useState<GroupMessage[]>([]);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [sending, setSending] = useState(false);
+
+  // Follows new messages only for a reader at the bottom; otherwise counts them
+  // (the unconditional scroll this replaces yanked readers of older messages).
+  const stick: StickToBottom = useStickToBottom(scrollAreaRef, messages);
 
   const [inputValue, setInputValue] = useState('');
   const [replyToId, setReplyToId] = useState<string | null>(null);
@@ -96,11 +99,6 @@ export function useGroupChat(groupId: string): { scrollAreaRef: RefObject<HTMLDi
               }
               return [...prev, newMsg];
             });
-            setTimeout(() => {
-              // See preferredScrollBehavior: an explicit behaviour overrides the
-              // reduced-motion CSS, so the preference is read there.
-              messagesEndRef.current?.scrollIntoView({ behavior: preferredScrollBehavior() });
-            }, 100);
           }
           break;
         }
@@ -166,6 +164,7 @@ export function useGroupChat(groupId: string): { scrollAreaRef: RefObject<HTMLDi
       await sendGroupMessageAnywhere(groupId, inputValue.trim(), replyToId || undefined);
       setInputValue('');
       setReplyToId(null);
+      stick.viewLatest(); // your own message is always worth seeing
     } catch (error) {
       debugLog('GroupChatView', 'Failed to send message:', error);
       toast({
@@ -233,7 +232,7 @@ export function useGroupChat(groupId: string): { scrollAreaRef: RefObject<HTMLDi
   };
 
   return {
-    scrollAreaRef, messagesEndRef,
+    scrollAreaRef, stick,
     messages, hasMore, loading, loadingMore, sending,
     inputValue, setInputValue,
     replyToId, setReplyToId,

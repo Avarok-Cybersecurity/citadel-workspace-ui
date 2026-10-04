@@ -10,12 +10,12 @@
  */
 import { windowInFront } from '@/lib/agent-conversations/report-focus';
 
-export function readableNow(activeTabIdRef: { readonly current: string }): boolean {
+export function readableNow(activeTabIdRef: { readonly current: string | null }): boolean {
   return windowInFront() && activeTabIdRef.current === 'messages';
 }
 
 /** Calls `markRead` when the window comes to the front; returns the unsubscribe. */
-export function markReadWhenInFront(activeTabIdRef: { readonly current: string }, markRead: () => void): () => void {
+export function markReadWhenInFront(activeTabIdRef: { readonly current: string | null }, markRead: () => void): () => void {
   const onChange = (): void => {
     if (readableNow(activeTabIdRef)) markRead();
   };

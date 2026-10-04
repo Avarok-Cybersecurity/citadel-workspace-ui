@@ -18,31 +18,19 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-// The effect moved into its own hook when P2PChat reached its length ceiling;
-// the chat is checked for calling it, so the move cannot drop the behaviour.
-const HOOK: string = 'src/components/p2p/hooks/use-follow-latest.ts';
-
+// The follow logic is the shared useStickToBottom (pure rules in lib/chat-scroll/stick,
+// behaviour tested there and in components/chat/__tests__/stick-to-bottom.test.tsx);
+// the chat is checked for calling it, so the wiring cannot be dropped.
 describe('the chat scroll', () => {
-  it('is the chat’s own: P2PChat runs the follow hook', () => {
+  it('is the chat’s own: P2PChat runs the shared stick-to-bottom hook over its messages', () => {
     const chat: string = readFileSync(join(process.cwd(), 'src/components/p2p/P2PChat.tsx'), 'utf8');
-    expect(chat).toMatch(/useFollowLatest\(scrollRef,\s*messages\)/);
-  });
-
-  it('measures distance from the bottom before following', () => {
-    const src: string = readFileSync(join(process.cwd(), HOOK), 'utf8');
-
-    // The unconditional form was:
-    //   scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    // with no read of scrollTop or clientHeight anywhere near it.
-    expect(src).toMatch(/scrollHeight\s*-\s*el\.scrollTop\s*-\s*el\.clientHeight/);
+    expect(chat).toMatch(/useStickToBottom\(scrollRef,\s*messages/);
   });
 
   it('still lands on the newest message when a conversation is first opened', () => {
-    const src: string = readFileSync(join(process.cwd(), HOOK), 'utf8');
-
+    const src: string = readFileSync(join(process.cwd(), 'src/components/chat/use-stick-to-bottom.ts'), 'utf8');
     // scrollTop is 0 on first paint, so a pure near-the-bottom test would open
-    // every conversation at the TOP of its history — a worse bug than the one
-    // being fixed.
-    expect(src).toMatch(/hasJumpedToLatest/);
+    // every conversation at the TOP of its history.
+    expect(src).toMatch(/el\.scrollTop = el\.scrollHeight/);
   });
 });

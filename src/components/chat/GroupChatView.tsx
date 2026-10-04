@@ -11,6 +11,7 @@ import { quoteGroupReply } from './shared/reply-quote';
 import { groupMessageActions, type GroupMessageActions } from '@/lib/group-conversations/group-message-actions';
 import { DateSeparator } from './shared/DateSeparator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { NewMessagesPill } from './NewMessagesPill';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Send, Loader2 } from 'lucide-react';
@@ -74,6 +75,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
       )}
 
       {/* Messages area */}
+      <div className="relative flex min-h-0 flex-1 flex-col">
       <ScrollArea className="flex-1" ref={chat.scrollAreaRef}>
         {/* The log region is OUTSIDE the loading branch on purpose.
             A live region has to pre-exist its content: created together with a
@@ -137,11 +139,12 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
               </div>
             )}
 
-              <div ref={chat.messagesEndRef} />
             </>
           )}
         </div>
       </ScrollArea>
+      <NewMessagesPill count={chat.stick.unseen} onView={chat.stick.viewLatest} />
+      </div>
 
       {/* Reply indicator */}
       {chat.replyToId && (

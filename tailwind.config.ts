@@ -150,6 +150,14 @@ export default {
           "0%": { transform: "translateX(0)" },
           "100%": { transform: "translateX(100%)" },
         },
+        "notch-in": {
+          "0%": { transform: "translateY(100%)", opacity: "0" },
+          "100%": { transform: "translateY(0)", opacity: "1" },
+        },
+        "notch-out": {
+          "0%": { transform: "translateY(0)", opacity: "1" },
+          "100%": { transform: "translateY(100%)", opacity: "0" },
+        },
         "shake": {
           "0%, 100%": { transform: "translateX(0)" },
           "10%, 30%, 50%, 70%, 90%": { transform: "translateX(-4px)" },
@@ -172,6 +180,9 @@ export default {
         // part-way through — which is how the a11y scan started reading white
         // text at partial opacity as a #34353f contrast failure.
         "fade-in": "fade-in 0.3s ease-out forwards",
+        // The notch of the new-messages pill; `forwards` holds the end state, as above.
+        "notch-in": "notch-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) forwards",
+        "notch-out": "notch-out 0.16s ease-in forwards",
         "fade-out": "fade-out 0.3s ease-out",
         "slide-in": "slide-in 0.3s ease-out",
         "slide-out": "slide-out 0.3s ease-out",
