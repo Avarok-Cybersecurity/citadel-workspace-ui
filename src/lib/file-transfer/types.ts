@@ -120,6 +120,8 @@ export interface SendCancelIntent {
   transferId: string;
   targetCid: string;
   reason: string;
+  /** It failed here; the peer shows "failed", not "cancelled". */
+  failed: boolean;
 }
 
 export interface PickFileIntent {

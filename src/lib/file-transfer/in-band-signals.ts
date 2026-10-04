@@ -63,17 +63,18 @@ export async function sendTransferResponseSignal(
   );
 }
 
-/** Tell the peer this transfer is cancelled. */
+/** Tell the peer this transfer is over: cancelled, or `failed` on this side. */
 export async function sendTransferCancelSignal(
   ownCid: bigint,
   peerCid: bigint,
   transferId: string,
-  reason?: string
+  reason: string | undefined,
+  failed: boolean
 ): Promise<void> {
   debugLog('in-band-signals', 'sending transfer cancel', {
     transferId, peerCid: peerCid.toString(),
   });
   await sendLayerPayload(
-    buildLayerPayload(createFileTransferCancel(transferId, reason), ownCid, peerCid)
+    buildLayerPayload(createFileTransferCancel(transferId, reason, failed), ownCid, peerCid)
   );
 }

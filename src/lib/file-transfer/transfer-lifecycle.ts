@@ -132,6 +132,7 @@ export async function cancelTransfer(deps: LifecycleDeps, transferId: string): P
     transferId,
     targetCid: transfer.recipientCid,
     reason: 'Sender cancelled transfer',
+    failed: false,
   });
   if (!isStillOpen(deps.state, transfer)) return;
 

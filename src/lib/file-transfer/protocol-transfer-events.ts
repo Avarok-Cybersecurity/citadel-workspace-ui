@@ -122,10 +122,32 @@ export async function handleProtocolComplete(
 ): Promise<void> {
   const transfer: FileTransfer | undefined = resolveTransferForProtocolEvent(deps.state, event);
   if (!transfer) return;
+  const wasOpen: boolean = !isTerminalTransferState(transfer.state);
   await applyTransferOutcome(deps, transfer.id, {
     success: event.success,
     downloadPath: event.downloadPath,
     errorMessage: event.errorMessage,
+  });
+  // A reception that fails here is invisible to the sender otherwise: its
+  // bubble stayed "Sending…" or "waiting for acceptance" for a file that
+  // was never going to arrive.
+  if (wasOpen && !event.success && transfer.isIncoming) {
+    await tellPeerItFailed(deps, transfer);
+  }
+}
+
+/**
+ * Only this side saw the failure, so only this side learns of it unless it is
+ * said. The local reason stays local: it can name this machine's paths or
+ * configuration.
+ */
+async function tellPeerItFailed(deps: P2PTransferDeps, transfer: FileTransfer): Promise<void> {
+  await deps.io.executeIntent({
+    type: 'send-cancel',
+    transferId: transfer.id,
+    targetCid: peerCidOf(transfer),
+    reason: 'The transfer failed on the other device.',
+    failed: true,
   });
 }
 
@@ -152,15 +174,7 @@ export async function handleProtocolStatus(
       success: false,
       errorMessage: event.message ?? 'The Citadel agent rejected the transfer response.',
     });
-    // Only this side's agent refused, so only this side learns of it: without the signal the
-    // peer's offer stayed "Waiting…" for a transfer that can no longer happen. The agent's
-    // reason stays local; it can name this machine's configuration.
-    await deps.io.executeIntent({
-      type: 'send-cancel',
-      transferId: transfer.id,
-      targetCid: peerCidOf(transfer),
-      reason: 'The transfer failed on the other device.',
-    });
+    await tellPeerItFailed(deps, transfer);
     return;
   }
 

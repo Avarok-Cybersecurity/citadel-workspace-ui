@@ -140,7 +140,8 @@ export class FileTransferIO extends RealProtocolIORouter {
       ownCid,
       BigInt(intent.targetCid),
       intent.transferId,
-      intent.reason
+      intent.reason,
+      intent.failed
     );
     await this.cancelTransfer({
       transferId: intent.transferId,

@@ -23,7 +23,7 @@ import { FILE_TRANSFER_EVENTS } from './events';
 import type { FileTransferState } from './state';
 import type { FileTransferIO } from './io';
 import type { FileTransfer } from './types';
-import { isTerminalTransferState } from './transfer-outcome';
+import { applyTransferOutcome, isTerminalTransferState } from './transfer-outcome';
 
 export interface P2PTransferDeps {
   state: FileTransferState;
@@ -45,6 +45,13 @@ export async function handleTransferCancel(
   // set, not a local list — the hand-rolled copy here omitted 'expired', so a
   // late cancel rewrote an expired offer's history to 'cancelled'.
   if (isTerminalTransferState(transfer.state)) {
+    return;
+  }
+
+  // The peer's side FAILED (it says so; older peers only ever cancel). The
+  // sender showed this as "cancelled", as if someone had chosen to stop.
+  if (data.failed === true) {
+    await applyTransferOutcome(deps, transfer.id, { success: false, errorMessage: data.reason });
     return;
   }
 
