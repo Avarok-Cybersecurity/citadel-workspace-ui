@@ -21,6 +21,7 @@ import type { UseP2PMessagesProps, UseP2PMessagesReturn } from './useP2PMessages
 import { mergeMessages, prependMessages } from './useP2PMessages-types';
 import { subscribeToConversationEvents } from './useP2PMessages-subscriptions';
 import { readableNow, markReadWhenInFront } from './useP2PMessages-read-gate';
+import { useOpenConversation } from './use-open-conversation';
 import { applyRetentionOnOpen } from '@/lib/p2p/retention-sweep';
 import type { ConversationMetadata, P2PConversation, MessagePage } from '@/lib/p2p/p2p-types';
 
@@ -54,6 +55,7 @@ export function useP2PMessages({
 
   const messenger: P2PMessengerManager = P2PMessengerManager.getInstance();
   const confirm: ReturnType<typeof useConfirm> = useConfirm();
+  useOpenConversation(peerCid);
 
   // Main effect for conversation loading and subscriptions
   useEffect(() => {

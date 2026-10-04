@@ -36,6 +36,7 @@ import { bindPeerConnectionState } from './bind-peer-connection-state';
 import { syncConnectionsFromBackend, updateFileTransferState, updateUnreadCount, autoRegisterPeer } from './messenger-compatibility';
 import { bindOutgoingFileOffers } from './record-outgoing-file-transfer';
 import { debugLog } from '@/lib/debug-config';
+import { conversationInFront } from '@/lib/notification-service/in-front';
 import { TIMEOUT } from '../timeout-constants';
 import type { MessagePage, ConversationMetadata } from '@/lib/p2p/p2p-types';
 
@@ -61,7 +62,7 @@ export class P2PMessengerManager extends EventListenerManager {
     const cm: ConversationManager = this.conversationManager;
     // The toast for a message that arrived elsewhere: the browser path and the agent's events share it.
     const arrival: ArrivalNotice = {
-      shouldShowNotification: (peerCid): boolean => this.activeConversationPeerCid !== peerCid,
+      shouldShowNotification: (peerCid): boolean => !conversationInFront(this.activeConversationPeerCid === peerCid),
       getConversations: (): Map<bigint, P2PConversation> => cm.getConversationsMap(),
       addNotification: (title, body, senderId, messageId, recipientCid, options): AppNotification =>
         notificationService.addMessageNotification(title, body, senderId, messageId, recipientCid, options),

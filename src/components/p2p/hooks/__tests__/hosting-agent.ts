@@ -22,6 +22,14 @@ export interface HostingAgent {
   clear: () => void;
   /** The ConversationMarkRead requests that reached the agent. */
   markReads: () => unknown[];
+  /** What each ReportFocus said, in order. */
+  focusReports: () => Array<{ session_cid: bigint; peer_cid: bigint | null; focused: boolean }>;
+}
+
+type FocusReport = { session_cid: bigint; peer_cid: bigint | null; focused: boolean };
+function focusReportOf(request: Record<string, unknown>): FocusReport | null {
+  const command: unknown = (request.ConnectionManagement as { management_command?: { ReportFocus?: FocusReport } } | undefined)?.management_command;
+  return (command as { ReportFocus?: FocusReport } | undefined)?.ReportFocus ?? null;
 }
 
 function fakeAgentSocket(): DeclaringClient {
@@ -61,6 +69,7 @@ export async function installHostingAgent(): Promise<HostingAgent> {
     setFocused: (f: boolean): void => { focused = f; },
     clear: (): void => { sent = []; },
     markReads: (): unknown[] => sent.filter((r) => 'ConversationMarkRead' in r),
+    focusReports: (): FocusReport[] => sent.map(focusReportOf).filter((r): r is FocusReport => r !== null),
   };
 }
 
