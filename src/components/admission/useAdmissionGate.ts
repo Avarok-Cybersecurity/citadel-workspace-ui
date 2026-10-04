@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { browserDiscoverAdmission, isAdmissionRefusal, type Admission } from '@/lib/admission';
 import { ADMISSION_COPY } from '@/lib/admission/copy';
+import { hostedWorkspaceSlug } from '@/lib/onboarding/billing-portal';
 
 export interface AdmissionGate {
   /** The check is on screen. */
@@ -18,6 +19,8 @@ export interface AdmissionGate {
   /** Null while unknown; with `visible`, the check cannot load until it is known. */
   siteKey: string | null;
   action: string;
+  /** The workspace the token is bound to (its slug), which the server requires; null when unknown. */
+  cData: string | null;
   resetSignal: number;
   message: string | null;
   onToken: (token: string | undefined) => void;
@@ -49,7 +52,7 @@ export function useAdmissionGate(action: string, serverAddress: string | undefin
   const siteKey: string | null = admission?.siteKey || null;
 
   return {
-    visible, siteKey, action, resetSignal, message,
+    visible, siteKey, action, cData: hostedWorkspaceSlug(serverAddress) ?? null, resetSignal, message,
     onToken: (next: string | undefined): void => {
       token.current = next ?? null;
       if (next) setMessage(null);

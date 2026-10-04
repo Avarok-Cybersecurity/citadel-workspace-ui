@@ -49,7 +49,7 @@ beforeEach(() => {
   h.postAuth.mockReset();
   h.messaging.mockReset().mockResolvedValue(true);
 });
-afterEach(() => { h.w.stop(); delete window.turnstile; document.querySelectorAll('script').forEach((s) => s.remove()); });
+afterEach(() => { h.w.stop(); delete window.turnstile; h.accountServers = new Map<string, string>(); document.querySelectorAll('script').forEach((s) => s.remove()); });
 
 describe('a workspace that does not ask', () => {
   it('shows no check and never loads Cloudflare', async () => {
@@ -75,6 +75,16 @@ describe('a workspace that asks', () => {
     signIn();
     await waitFor(() => expect(onNext).toHaveBeenCalled());
     expect(connects()[0]).toMatchObject({ admission_token: turnstile.issued[0] });
+  });
+
+  it('binds the check to the account\'s workspace once the agent says which it is', async () => {
+    h.accountServers = new Map([['alice', 'bench.work.avarok.net']]);
+    h.discovered = { required: true, siteKey: ALWAYS_PASS };
+    renderLogin();
+    await waitFor(() => expect(turnstile.rendered.length).toBeGreaterThan(0));
+    expect(turnstile.rendered[0]).not.toHaveProperty('cData');
+    type('username', 'alice');
+    await waitFor(() => expect(turnstile.rendered.at(-1)).toMatchObject({ action: 'sign-in', cData: 'bench' }));
   });
 
   it('sends nothing until the check is done', async () => {

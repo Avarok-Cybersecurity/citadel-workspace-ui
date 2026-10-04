@@ -17,13 +17,17 @@ export const loginWorld: {
   w: World; postAuth: ReturnType<typeof vi.fn>; messaging: ReturnType<typeof vi.fn>;
   /** What the control plane answers about the human check: null is "unknown" (no answer). */
   discovered: Admission | null;
+  /** The workspace the agent says each account is on (GetAccountInformation's server_host). */
+  accountServers: Map<string, string>;
 } = {
-  w: undefined as unknown as World, postAuth: vi.fn(), messaging: vi.fn(), discovered: null,
+  w: undefined as unknown as World, postAuth: vi.fn(), messaging: vi.fn(), discovered: null, accountServers: new Map<string, string>(),
 };
 
 /** Discovery is a fetch to the control plane: answered here from `loginWorld.discovered`. */
 export const admissionDouble = async (orig: () => Promise<Record<string, unknown>>): Promise<Record<string, unknown>> => ({
-  ...(await orig()), browserDiscoverAdmission: async (): Promise<Admission | null> => loginWorld.discovered,
+  ...(await orig()),
+  browserDiscoverAdmission: async (): Promise<Admission | null> => loginWorld.discovered,
+  browserAccountServers: async (): Promise<ReadonlyMap<string, string>> => loginWorld.accountServers,
 });
 
 export async function websocketServiceDouble(): Promise<Record<string, unknown>> {

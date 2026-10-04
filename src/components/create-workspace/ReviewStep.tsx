@@ -72,7 +72,7 @@ export function ReviewStep({ displayName, slug, plan, onBack, onSubmit }: Review
 
       <div className="mt-6">
         <p className="mb-2 text-sm font-medium text-foreground">Verify you are human</p>
-        <TurnstileWidget sitekey={TURNSTILE_SITEKEY} action={TURNSTILE_ACTION} onToken={setToken} resetSignal={resetSignal} />
+        <TurnstileWidget sitekey={TURNSTILE_SITEKEY} action={TURNSTILE_ACTION} cData={null} onToken={setToken} resetSignal={resetSignal} />
       </div>
 
       {error && (

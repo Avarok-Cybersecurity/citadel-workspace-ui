@@ -9,6 +9,8 @@ export interface TurnstileWidgetProps {
   readonly sitekey: string;
   /** Must match what the verifying server expects for this form. */
   readonly action: string;
+  /** The workspace the token is for (its slug, Turnstile `cData`), or null for one not bound to any. */
+  readonly cData: string | null;
   /** Receives a fresh token, or `undefined` when the last one expired or failed. */
   readonly onToken: (token: string | undefined) => void;
   /** Change it to discard the current token and ask again -- after a refused request. */
@@ -25,7 +27,7 @@ type LoadState = { readonly kind: 'loading' } | { readonly kind: 'ready' } | { r
  * single-use at siteverify, so the parent resets the widget after any refused
  * request instead of re-sending a token the server has already spent.
  */
-export function TurnstileWidget({ sitekey, action, onToken, resetSignal }: TurnstileWidgetProps): JSX.Element {
+export function TurnstileWidget({ sitekey, action, cData, onToken, resetSignal }: TurnstileWidgetProps): JSX.Element {
   const container: React.RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
   const api: React.MutableRefObject<{ turnstile: TurnstileApi; widgetId: string } | undefined> = useRef(undefined);
   const tokenSink: React.MutableRefObject<(token: string | undefined) => void> = useRef(onToken);
@@ -44,6 +46,7 @@ export function TurnstileWidget({ sitekey, action, onToken, resetSignal }: Turns
         const widgetId: string = turnstile.render(container.current, {
           sitekey,
           action,
+          ...(cData === null ? {} : { cData }),
           theme,
           callback: (token: string) => tokenSink.current(token),
           'expired-callback': () => tokenSink.current(undefined),
@@ -64,7 +67,7 @@ export function TurnstileWidget({ sitekey, action, onToken, resetSignal }: Turns
       if (mounted) mounted.turnstile.remove(mounted.widgetId);
       tokenSink.current(undefined);
     };
-  }, [attempt, theme, sitekey, action]);
+  }, [attempt, theme, sitekey, action, cData]);
 
   useEffect(() => {
     if (resetSignal === 0) return;

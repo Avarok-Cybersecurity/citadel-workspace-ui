@@ -20,6 +20,7 @@ import type { SignInHint } from "@/lib/sign-in";
 import { SIGN_IN_COPY } from "@/lib/sign-in/copy";
 import { AdmissionCheck } from "./admission/AdmissionCheck";
 import { useAdmissionGate, type AdmissionGate } from "./admission/useAdmissionGate";
+import { useAccountServer } from "./admission/useAccountServer";
 import { ADMISSION_ACTION } from "@/lib/admission/copy";
 
 interface LoginProps {
@@ -33,9 +34,12 @@ export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.El
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [showSecuritySettings, setShowSecuritySettings] = useState(false);
 
-  // The account names its server, which only the agent knows: discovery asks for the site key alone.
-  const admission: AdmissionGate = useAdmissionGate(ADMISSION_ACTION.signIn, undefined);
+  // The account names its server, which only the agent knows: the check binds to it once it says.
+  const [accountServer, setAccountServer] = useState<string | undefined>(undefined);
+  const admission: AdmissionGate = useAdmissionGate(ADMISSION_ACTION.signIn, accountServer);
   const h: LoginHandler = useLoginHandler({ onNext, initialUsername, admission });
+  const knownServer: string | undefined = useAccountServer(h.username);
+  useEffect((): void => setAccountServer(knownServer), [knownServer]);
   const {
     username, setUsername, error, invalidField, loading, securitySettings, setSecuritySettings,
     handleLogin, passkey, handlePasskeyLogin, handleKeyLogin, keyOffer, recoverySession, mode,

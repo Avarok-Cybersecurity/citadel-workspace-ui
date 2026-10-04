@@ -11,7 +11,7 @@ export function AdmissionCheck({ gate }: { gate: AdmissionGate }): JSX.Element |
   return (
     <div className="space-y-2" data-testid="admission-check">
       {gate.siteKey !== null && (
-        <TurnstileWidget sitekey={gate.siteKey} action={gate.action} onToken={gate.onToken} resetSignal={gate.resetSignal} />
+        <TurnstileWidget sitekey={gate.siteKey} action={gate.action} cData={gate.cData} onToken={gate.onToken} resetSignal={gate.resetSignal} />
       )}
       {gate.message && <p role="alert" className="text-sm text-destructive-emphasis" data-testid="admission-message">{gate.message}</p>}
     </div>

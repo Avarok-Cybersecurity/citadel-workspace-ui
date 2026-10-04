@@ -27,6 +27,8 @@ export const TURNSTILE_LOAD_TIMEOUT_MS: number = 15_000;
 export interface TurnstileRenderOptions {
   sitekey: string;
   action: string;
+  /** What the token is bound to, echoed by siteverify as `cdata` (a workspace's slug). */
+  cData?: string;
   theme: 'light' | 'dark' | 'auto';
   callback: (token: string) => void;
   'expired-callback': () => void;

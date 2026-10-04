@@ -49,7 +49,8 @@ describe('registering where a human check is required', () => {
     h.discovered = { required: true, siteKey: ALWAYS_PASS };
     renderJoin();
     await waitFor(() => expect(turnstile.issued).toHaveLength(1));
-    expect(turnstile.rendered[0]).toMatchObject({ sitekey: ALWAYS_PASS, action: 'register' });
+    // Bound to the workspace being joined: the server refuses a token rendered for another.
+    expect(turnstile.rendered[0]).toMatchObject({ sitekey: ALWAYS_PASS, action: 'register', cData: 'bench' });
     register();
     await waitFor(() => expect(h.w.agent.accounts.map((a) => a.username)).toContain('alice'));
     expect(registers()[0]).toMatchObject({ admission_token: turnstile.issued[0] });
