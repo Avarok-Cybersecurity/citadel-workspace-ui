@@ -6,6 +6,8 @@ export interface TabIdentity {
   username?: string;
   fullName?: string;
   cid?: bigint;
+  /** The server the session lives on: its tenant, for anything scoped by tenant and CID. */
+  serverAddress?: string;
 }
 
 /**
@@ -38,6 +40,7 @@ export function tabIdentity(
     username: selection?.selectedUsername ?? session?.username,
     fullName: session?.fullName,
     cid: selection?.selectedCid ?? session?.cid,
+    serverAddress: selection?.selectedServerAddress || session?.serverAddress,
   };
 }
 

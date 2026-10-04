@@ -33,6 +33,9 @@ function renderJoin(formData: Partial<JoinRegistration['formData']>): { onOption
     handleSubmit: vi.fn(),
     handleConnectModalComplete: vi.fn(),
     handleReturnToLogin: vi.fn(),
+    recoveryCodes: [],
+    awaitingSignIn: null,
+    finishSignIn: vi.fn(),
   };
   render(
     <MemoryRouter>

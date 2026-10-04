@@ -19,6 +19,7 @@ function harness(): { handler: (raw: unknown) => void; resolve: ReturnType<typeo
   const handler: (raw: unknown) => void = createRegistrationResponseHandler(REQ, resolve, reject, cleanup, {
     handleConnectSuccess: async (_p, res) => res({ cid: '42' }),
     setShowNotInitializedModal: vi.fn(),
+    onRecoveryCodes: vi.fn(),
   });
   return { handler, resolve, reject, cleanup };
 }

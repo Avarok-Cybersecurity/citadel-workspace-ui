@@ -37,6 +37,9 @@ export const SUCCESS_RESPONSES: Record<string, readonly string[]> = {
   CreateNode: ['Node'],
   UpdateNode: ['Node'],
   SetMembersVisible: ['Node'],
+  // The sign-in settings, read and written; both answered with what the server holds.
+  GetSignInSettings: ['SignInSettings'],
+  UpdateSignInSettings: ['SignInSettings'],
   DeleteNode: ['NodeDeleted'],
   MoveNode: ['NodeMoved'],
 

@@ -15,6 +15,8 @@ import { instanceManager } from '../multi-instance';
 import { stringToBytes } from '../utils/encoding-utils';
 import type { PreSharedKey } from '@avarok/citadel-protocol-types';
 import type { HeaderObfuscatorSettings } from '@/lib/security-utils';
+import { connectFactorFields } from '../sign-in/factors';
+import type { ConnectFactorFields, SignInFactors } from '../sign-in/types';
 
 export interface AuthConfig {
   init: () => Promise<void>;
@@ -33,7 +35,7 @@ export class AuthOperations {
   async connect(
     requestId: string,
     username: string,
-    password: string,
+    factors: SignInFactors,
     sessionSecuritySettings?: SessionSecuritySettings
   ): Promise<void> {
     await this.config.init();
@@ -70,10 +72,11 @@ export class AuthOperations {
     // Use provided settings or defaults (snake_case from SessionSecuritySettings)
     const settings: SessionSecuritySettings = sessionSecuritySettings ?? getDefaultSecuritySettings();
 
-    const connectOptions: { request_id: string; username: string; password: number[]; connect_mode: { Standard: { force_login: boolean; }; }; udp_mode: string; keep_alive_timeout: null; session_security_settings: { security_level: string; secrecy_mode: string; header_obfuscator_settings: HeaderObfuscatorSettings; crypto_params: { encryption_algorithm: string; kem_algorithm: string; sig_algorithm: string; }; }; } = {
+    const connectOptions: ConnectFactorFields & { request_id: string; username: string; connect_mode: { Standard: { force_login: boolean; }; }; udp_mode: string; keep_alive_timeout: null; session_security_settings: { security_level: string; secrecy_mode: string; header_obfuscator_settings: HeaderObfuscatorSettings; crypto_params: { encryption_algorithm: string; kem_algorithm: string; sig_algorithm: string; }; }; } = {
       request_id: requestId,
       username,
-      password: stringToBytes(password),
+      // Which factors this window offers; the server's policy decides which it needs.
+      ...connectFactorFields(factors),
       connect_mode: { Standard: { force_login: true } },
       udp_mode: "Disabled",
       keep_alive_timeout: null,
@@ -85,7 +88,7 @@ export class AuthOperations {
       },
     };
 
-    const connectRequest: { Connect: { request_id: string; username: string; password: number[]; connect_mode: { Standard: { force_login: boolean; }; }; udp_mode: string; keep_alive_timeout: null; session_security_settings: { security_level: string; secrecy_mode: string; header_obfuscator_settings: HeaderObfuscatorSettings; crypto_params: { encryption_algorithm: string; kem_algorithm: string; sig_algorithm: string; }; }; }; } = { Connect: connectOptions };
+    const connectRequest: { Connect: ConnectFactorFields & { request_id: string; username: string; connect_mode: { Standard: { force_login: boolean; }; }; udp_mode: string; keep_alive_timeout: null; session_security_settings: { security_level: string; secrecy_mode: string; header_obfuscator_settings: HeaderObfuscatorSettings; crypto_params: { encryption_algorithm: string; kem_algorithm: string; sig_algorithm: string; }; }; }; } = { Connect: connectOptions };
 
     debugLog('AuthOperations', `[Connect] Sending Connect request with request_id: ${requestId}`);
     debugLog('AuthOperations', `[Connect] isLeader: ${instanceManager.isLeader}`);
@@ -105,6 +108,8 @@ export class AuthOperations {
     password: string,
     fullName: string,
     serverAddr: string,
+    /** A Turnstile token when the workspace asks for a human check; single-use. */
+    admissionToken: string | null,
     serverPassword?: string,
     sessionSecuritySettings?: SessionSecuritySettings
   ): Promise<void> {
@@ -117,7 +122,7 @@ export class AuthOperations {
     // Use provided settings or defaults (snake_case from SessionSecuritySettings)
     const settings: SessionSecuritySettings = sessionSecuritySettings ?? getDefaultSecuritySettings();
 
-    const registerOptions: { request_id: string; server_addr: string; full_name: string; username: string; proposed_password: number[]; connect_after_register: boolean; session_security_settings: { security_level: string; secrecy_mode: string; header_obfuscator_settings: HeaderObfuscatorSettings; crypto_params: { encryption_algorithm: string; kem_algorithm: string; sig_algorithm: string; }; }; server_password: { passwords: number[][]; } | null; } = {
+    const registerOptions: { request_id: string; server_addr: string; full_name: string; username: string; proposed_password: number[]; connect_after_register: boolean; session_security_settings: { security_level: string; secrecy_mode: string; header_obfuscator_settings: HeaderObfuscatorSettings; crypto_params: { encryption_algorithm: string; kem_algorithm: string; sig_algorithm: string; }; }; server_password: { passwords: number[][]; } | null; admission_token: string | null; } = {
       request_id: requestId,
       server_addr: resolvedAddr,
       full_name: fullName,
@@ -146,7 +151,8 @@ export class AuthOperations {
       // also pinned in `auth-operations-register.test.ts`.
       server_password: serverPassword
         ? ({ passwords: [stringToBytes(serverPassword)] } satisfies PreSharedKey)
-        : null
+        : null,
+      admission_token: admissionToken,
     };
 
     // Redact secrets before logging: registerOptions carries the account
@@ -159,7 +165,7 @@ export class AuthOperations {
       server_password: registerOptions.server_password ? '<redacted>' : null,
     });
 
-    const registerRequest: { Register: { request_id: string; server_addr: string; full_name: string; username: string; proposed_password: number[]; connect_after_register: boolean; session_security_settings: { security_level: string; secrecy_mode: string; header_obfuscator_settings: HeaderObfuscatorSettings; crypto_params: { encryption_algorithm: string; kem_algorithm: string; sig_algorithm: string; }; }; server_password: { passwords: number[][]; } | null; }; } = { Register: registerOptions };
+    const registerRequest: { Register: { request_id: string; server_addr: string; full_name: string; username: string; proposed_password: number[]; connect_after_register: boolean; session_security_settings: { security_level: string; secrecy_mode: string; header_obfuscator_settings: HeaderObfuscatorSettings; crypto_params: { encryption_algorithm: string; kem_algorithm: string; sig_algorithm: string; }; }; server_password: { passwords: number[][]; } | null; admission_token: string | null; }; } = { Register: registerOptions };
 
     debugLog('AuthOperations', `[Register] isLeader: ${instanceManager.isLeader}`);
 

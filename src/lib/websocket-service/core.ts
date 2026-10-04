@@ -21,6 +21,7 @@ import { pausedOutboxOver } from './paused-outbox';
 import type { PausedOutbox, ReliableSendOptions } from '@/lib/p2p-pause/outbox';
 import type { ChatSecurityLevel } from '@/lib/p2p/chat-advanced-settings';
 import type { SendDelivery } from '@/lib/p2p/send-failure';
+import type { SignInFactors } from '@/lib/sign-in/types';
 
 export class WebSocketServiceCore {
   client: WorkspaceClient | null = null;
@@ -86,16 +87,14 @@ export class WebSocketServiceCore {
 
   // ============== Auth ==============
 
-  async connect(
-    requestId: string, username: string, password: string,
-    sessionSecuritySettings?: SessionSecuritySettings
-  ): Promise<void> { return this.modules.authOps.connect(requestId, username, password, sessionSecuritySettings) }
+  async connect(requestId: string, username: string, factors: SignInFactors, sessionSecuritySettings?: SessionSecuritySettings,
+  ): Promise<void> { return this.modules.authOps.connect(requestId, username, factors, sessionSecuritySettings) }
 
   async register(
     requestId: string, username: string, password: string,
-    fullName: string, serverAddr: string, serverPassword?: string,
+    fullName: string, serverAddr: string, admissionToken: string | null, serverPassword?: string,
     sessionSecuritySettings?: SessionSecuritySettings
-  ): Promise<void> { return this.modules.authOps.register(requestId, username, password, fullName, serverAddr, serverPassword, sessionSecuritySettings) }
+  ): Promise<void> { return this.modules.authOps.register(requestId, username, password, fullName, serverAddr, admissionToken, serverPassword, sessionSecuritySettings) }
 
   // ============== Workspace ==============
 

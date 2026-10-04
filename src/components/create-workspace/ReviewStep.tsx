@@ -6,6 +6,7 @@ import { STORAGE_ADDON, formatUsd, isPaid, quote, tierById, type PlanSelection, 
 import { INTERVAL_NAME } from './PlanStep';
 import { StepHeading } from './StepHeading';
 import { TurnstileWidget } from './TurnstileWidget';
+import { TURNSTILE_ACTION, TURNSTILE_SITEKEY } from '@/lib/onboarding/turnstile';
 
 export interface ReviewStepProps {
   readonly displayName: string;
@@ -71,7 +72,7 @@ export function ReviewStep({ displayName, slug, plan, onBack, onSubmit }: Review
 
       <div className="mt-6">
         <p className="mb-2 text-sm font-medium text-foreground">Verify you are human</p>
-        <TurnstileWidget onToken={setToken} resetSignal={resetSignal} />
+        <TurnstileWidget sitekey={TURNSTILE_SITEKEY} action={TURNSTILE_ACTION} cData={null} onToken={setToken} resetSignal={resetSignal} />
       </div>
 
       {error && (

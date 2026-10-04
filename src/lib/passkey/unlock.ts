@@ -15,7 +15,7 @@ import { type Bytes, bytesEqual, randomBytes } from './bytes';
 import { type Assertion, type AuthenticatorPort, PasskeyError } from './authenticator';
 import { type CredentialBinding, EnvelopeError, deriveKek, openPassword, unwrapDek } from './envelope';
 import type { AccountRecord, CredentialRecord } from './records';
-import { type PasskeyStore, listCredentials, loadAccount, saveCredential } from './repository';
+import { type PasskeyStore, listCredentials, loadAccount } from './repository';
 
 export interface PasskeyDeps {
   store: PasskeyStore;
@@ -79,15 +79,17 @@ export async function unlockAccount(deps: PasskeyDeps, username: string, extract
   }
 }
 
-/** Unlock, then sign in with the existing password login. */
+/**
+ * Unlock, then sign in with the existing password login.
+ *
+ * Read-only since option A was retired: the sign-in that follows moves the
+ * account to a server-verified key and deletes these records
+ * (lib/sign-in/legacy.ts). Writing "last used" here would put back a record the
+ * migration had just removed.
+ */
 export async function signInWithPasskey(
   deps: PasskeyDeps, username: string, login: (username: string, password: string) => Promise<void>,
 ): Promise<void> {
   const unlocked: Unlocked = await unlockAccount(deps, username, false);
   await login(username, unlocked.password);
-  try {
-    await saveCredential(deps.store, { ...unlocked.credential, lastUsedAt: deps.now() });
-  } catch (error) {
-    debugLog('Passkey', 'Could not record when this key was last used', error);
-  }
 }

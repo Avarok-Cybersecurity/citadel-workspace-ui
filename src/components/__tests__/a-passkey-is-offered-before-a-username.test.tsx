@@ -14,7 +14,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { testDeps } from '@/lib/passkey/__tests__/fakes';
-import { enrolCredential } from '@/lib/passkey/enrol';
+import { enrolCredential } from '@/lib/passkey/__tests__/legacy-enrol';
 
 const h: { deps: ReturnType<typeof testDeps> } = vi.hoisted((): { deps: ReturnType<typeof testDeps> } => ({
   deps: undefined as unknown as ReturnType<typeof testDeps>,

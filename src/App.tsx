@@ -16,6 +16,7 @@ import { ThemeColorSync } from "./components/theme/ThemeColorSync";
 import { OfflineBanner } from "./components/pwa/OfflineBanner";
 import { PersistFailureNotice } from "./components/PersistFailureNotice";
 import { PeerRefusalNotice } from "./components/PeerRefusalNotice";
+import { SecurityKeyPromptHost } from "./components/sign-in/SecurityKeyPromptHost";
 import { CallLayer } from "./components/call/CallLayer";
 import { OngoingCallBar } from "./components/call/OngoingCallBar";
 
@@ -104,6 +105,7 @@ const App: () => JSX.Element = (): JSX.Element => {
             <OfflineBanner />
             <PersistFailureNotice />
             <PeerRefusalNotice />
+            <SecurityKeyPromptHost />
             {/*
               Opt into the v7 behaviours now. Both were logging deprecation
               warnings on every boot; adopting them here means the eventual

@@ -2,14 +2,15 @@ import { useEffect, useRef, useState, type JSX } from 'react';
 import { useTheme } from 'next-themes';
 import { AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  TURNSTILE_ACTION,
-  TURNSTILE_SITEKEY,
-  loadTurnstile,
-  type TurnstileApi,
-} from '@/lib/onboarding/turnstile';
+import { loadTurnstile, type TurnstileApi } from '@/lib/onboarding/turnstile';
 
 export interface TurnstileWidgetProps {
+  /** Whose check this is: the hosted create-workspace key, or a workspace's own for sign-in. */
+  readonly sitekey: string;
+  /** Must match what the verifying server expects for this form. */
+  readonly action: string;
+  /** The workspace the token is for (its slug, Turnstile `cData`), or null for one not bound to any. */
+  readonly cData: string | null;
   /** Receives a fresh token, or `undefined` when the last one expired or failed. */
   readonly onToken: (token: string | undefined) => void;
   /** Change it to discard the current token and ask again -- after a refused request. */
@@ -26,7 +27,7 @@ type LoadState = { readonly kind: 'loading' } | { readonly kind: 'ready' } | { r
  * single-use at siteverify, so the parent resets the widget after any refused
  * request instead of re-sending a token the server has already spent.
  */
-export function TurnstileWidget({ onToken, resetSignal }: TurnstileWidgetProps): JSX.Element {
+export function TurnstileWidget({ sitekey, action, cData, onToken, resetSignal }: TurnstileWidgetProps): JSX.Element {
   const container: React.RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
   const api: React.MutableRefObject<{ turnstile: TurnstileApi; widgetId: string } | undefined> = useRef(undefined);
   const tokenSink: React.MutableRefObject<(token: string | undefined) => void> = useRef(onToken);
@@ -43,8 +44,9 @@ export function TurnstileWidget({ onToken, resetSignal }: TurnstileWidgetProps):
       (turnstile: TurnstileApi) => {
         if (cancelled || !container.current) return;
         const widgetId: string = turnstile.render(container.current, {
-          sitekey: TURNSTILE_SITEKEY,
-          action: TURNSTILE_ACTION,
+          sitekey,
+          action,
+          ...(cData === null ? {} : { cData }),
           theme,
           callback: (token: string) => tokenSink.current(token),
           'expired-callback': () => tokenSink.current(undefined),
@@ -65,7 +67,7 @@ export function TurnstileWidget({ onToken, resetSignal }: TurnstileWidgetProps):
       if (mounted) mounted.turnstile.remove(mounted.widgetId);
       tokenSink.current(undefined);
     };
-  }, [attempt, theme]);
+  }, [attempt, theme, sitekey, action, cData]);
 
   useEffect(() => {
     if (resetSignal === 0) return;

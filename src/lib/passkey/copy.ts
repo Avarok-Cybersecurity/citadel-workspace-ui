@@ -8,8 +8,7 @@ import type { PasskeyFailure } from './authenticator';
 export const PASSKEY_COPY: {
   readonly signInButton: 'Use passkey or security key';
   readonly orPassword: 'or use your password';
-  readonly enrolSwitch: 'Unlock with a passkey or security key next time';
-  readonly enrolPitch: string;
+  readonly enrolSwitch: 'Add a security key after I sign in';
   readonly addButton: 'Add a passkey or security key';
   readonly sectionTitle: 'Sign-in keys';
   readonly pinNote: string;
@@ -18,10 +17,7 @@ export const PASSKEY_COPY: {
 } = {
   signInButton: 'Use passkey or security key',
   orPassword: 'or use your password',
-  enrolSwitch: 'Unlock with a passkey or security key next time',
-  enrolPitch:
-    "Sign in with Touch ID, your phone, or a security key instead of typing your password. " +
-    "Your password still works, and it's how you'll get back in if you lose every key.",
+  enrolSwitch: 'Add a security key after I sign in',
   addButton: 'Add a passkey or security key',
   sectionTitle: 'Sign-in keys',
   pinNote: 'Security keys need a PIN set first — we require it so a lost key can\'t be used on its own.',
@@ -29,11 +25,8 @@ export const PASSKEY_COPY: {
   chooseAccount: 'Sign in with a passkey as:',
 } as const;
 
-export const enrolledCopy = (label: string, username: string): string =>
-  `${label} can now unlock ${username} on this device.`;
-
 export const removeCopy = (label: string): string =>
-  `Remove ${label}? It will no longer sign you in on this device. ` +
+  `Remove ${label}? It will no longer sign you in. ` +
   'It may still appear in your passkey list; you can delete it there too.';
 
 export function failureCopy(failure: PasskeyFailure): string {
