@@ -142,7 +142,6 @@ describe('a send that completes during the cancel signal', () => {
       emitStateChange: (): void => undefined,
       saveTransfer: async (): Promise<void> => undefined,
       saveSettings: async (): Promise<void> => undefined,
-      handleAsyncSend: async (): Promise<void> => undefined,
       // Cancel never opens a channel; present because the port requires it.
       openPeerChannel: async (): Promise<boolean> => true,
     };

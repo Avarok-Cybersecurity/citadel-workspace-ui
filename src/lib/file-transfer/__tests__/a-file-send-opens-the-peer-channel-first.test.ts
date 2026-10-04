@@ -50,7 +50,6 @@ function deps(opened: boolean): LifecycleDeps {
     saveTransfer: async (): Promise<void> => undefined,
     emitStateChange: (): void => undefined,
     saveSettings: async (): Promise<void> => undefined,
-    handleAsyncSend: async (): Promise<void> => { calls.push('intent:async'); },
     openPeerChannel: async (cid: bigint): Promise<boolean> => { calls.push(`channel:${cid}`); return opened; },
   } as unknown as LifecycleDeps;
 }
@@ -65,9 +64,9 @@ describe('a file send', () => {
     expect(calls).toEqual(['channel:900', 'intent:send-transfer-request']);
   });
 
-  it('does the same for the RE-VFS push', async () => {
+  it('does the same for a standard send', async () => {
     await sendFile(deps(true), '900', file, 'async');
-    expect(calls).toEqual(['channel:900', 'intent:async']);
+    expect(calls).toEqual(['channel:900', 'intent:send-transfer-request']);
   });
 
   it('still sends when the channel is not confirmed, so the send reports the real outcome', async () => {

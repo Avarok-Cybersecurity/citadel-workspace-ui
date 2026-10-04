@@ -24,7 +24,7 @@ import type {
   TransferModePreference, IncomingFileTransferMessage,
 } from './types';
 import { debugLog } from '@/lib/debug-config';
-import { handleAsyncSend, handleTransferRequest, handleTransferResponse } from './async-transfers';
+import { handleTransferRequest, handleTransferResponse } from './async-transfers';
 import { ProtocolOfferCorrelator } from './protocol-offer-correlation';
 import { handleTransferCancel } from './p2p-transfers';
 import { openPeerChannelViaAutoConnect } from './open-peer-channel';
@@ -90,7 +90,6 @@ export class FileTransferService {
       emitStateChange: this.emitStateChange.bind(this),
       saveTransfer: this.saveTransfer.bind(this),
       saveSettings: this.saveSettings.bind(this),
-      handleAsyncSend: (t: FileTransfer, f: File): Promise<void> => handleAsyncSend(this.deps, t, f),
       openPeerChannel: openPeerChannelViaAutoConnect,
     };
   }
@@ -221,7 +220,7 @@ export class FileTransferService {
   private async handleFileTransferMessage(message: IncomingFileTransferMessage): Promise<void> {
     const { layer: rawLayer, senderCid } = message;
     const layer: MessagingLayer = rawLayer as MessagingLayer;
-    const deps: { state: FileTransferState; io: FileTransferIO; emitStateChange: (transfer: FileTransfer) => void; saveTransfer: (transfer: FileTransfer) => Promise<void>; saveSettings: (peerCid: string, settings: FileTransferSettings) => Promise<void>; handleAsyncSend: (t: FileTransfer, f: File) => Promise<void>; } = this.deps;
+    const deps: { state: FileTransferState; io: FileTransferIO; emitStateChange: (transfer: FileTransfer) => void; saveTransfer: (transfer: FileTransfer) => Promise<void>; saveSettings: (peerCid: string, settings: FileTransferSettings) => Promise<void>; } = this.deps;
 
     if (isFileTransferRequest(layer)) {
       // Join the two halves BEFORE handleTransferRequest, because auto-accept

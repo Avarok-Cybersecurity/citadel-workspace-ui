@@ -48,7 +48,6 @@ function harness(): Harness {
     saveTransfer: async (): Promise<void> => undefined,
     emitStateChange: (): void => undefined,
     saveSettings: async (): Promise<void> => undefined,
-    handleAsyncSend: async (): Promise<void> => undefined,
     // The channel opens at once here; a-file-send-opens-the-peer-channel-first covers it.
     openPeerChannel: async (): Promise<boolean> => true,
   } as unknown as LifecycleDeps;

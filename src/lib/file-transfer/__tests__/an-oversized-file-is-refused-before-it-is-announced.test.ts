@@ -92,3 +92,13 @@ describe('a p2p send above the inline cap', () => {
     expect(announcedWhenBytesWent, 'the byte send went out before the announcement').toBe(1);
   });
 });
+
+describe('the inline-payload cap', () => {
+  it('mirrors the service-side ByteContents cap exactly', () => {
+    // The authority is MAX_BYTE_CONTENTS_BYTES in the internal service's
+    // requests/file/upload.rs. If that changes, this must change with it --
+    // otherwise sends fail on arrival instead of failing here with a message
+    // that tells the user what to do instead.
+    expect(MAX_BYTE_CONTENTS_BYTES).toBe(16 * 1024 * 1024);
+  });
+});

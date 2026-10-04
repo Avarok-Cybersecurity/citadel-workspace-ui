@@ -122,18 +122,6 @@ export interface SendCancelIntent {
   reason: string;
 }
 
-export interface UploadToServerIntent {
-  type: 'upload-to-server';
-  file: File;
-  transferId: string;
-  recipientCid: string;
-}
-
-export interface DownloadFromServerIntent {
-  type: 'download-from-server';
-  transfer: FileTransfer;
-}
-
 export interface PickFileIntent {
   type: 'pick-file';
   cid: bigint;
@@ -163,8 +151,6 @@ export type FileTransferIntent =
   | SendTransferRequestIntent
   | SendResponseIntent
   | SendCancelIntent
-  | UploadToServerIntent
-  | DownloadFromServerIntent
   | PickFileIntent
   | SendFileViaProtocolIntent;
 

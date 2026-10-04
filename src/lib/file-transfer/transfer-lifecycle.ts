@@ -6,7 +6,6 @@ import { getMimeType, formatBytes } from './transfer-format';
 import { type FileTransferMode, FILE_TRANSFER_REQUEST_TTL_MS } from '@/types/messaging-layer';
 import { FILE_TRANSFER_EVENTS } from './events';
 import { isTerminalTransferState, isStillOpen } from './transfer-outcome';
-import { completeStagedDownload } from './server-download';
 import type { FileTransferState } from './state';
 import type { FileTransferIO } from './io';
 import type { FileTransfer, FileTransferSettings } from './types';
@@ -19,7 +18,6 @@ export interface LifecycleDeps {
   emitStateChange: (transfer: FileTransfer) => void;
   saveTransfer: (transfer: FileTransfer) => Promise<void>;
   saveSettings: (peerCid: string, settings: FileTransferSettings) => Promise<void>;
-  handleAsyncSend: (transfer: FileTransfer, file: File) => Promise<void>;
   /** Opens the peer's P2P channel if needed; resolves whether it opened. See open-peer-channel. */
   openPeerChannel: (peerCid: bigint) => Promise<boolean>;
 }
@@ -77,7 +75,7 @@ export async function sendFile(
     fileType: file.type,
     thumbnail,
     mode,
-    state: mode === 'async' ? 'uploading' : 'pending',
+    state: 'pending',
     progress: 0,
     senderCid: senderCid.toString(),
     recipientCid,
@@ -90,30 +88,25 @@ export async function sendFile(
   deps.state.setTransfer(transfer);
   await deps.saveTransfer(transfer);
 
-  if (mode === 'async') {
-    await deps.handleAsyncSend(transfer, file);
-  } else {
-    // `wrapInMemory` brands the File for the intent's `file?: InMemoryOnly<File>`
-    // contract — see `types.ts` for why a raw `File` would be a TS error here.
-    // The bytes leave inside this call (SendFile ByteContents); there is no
-    // stashed copy to stream later — the chunk-streaming plane that once
-    // consumed one is gone.
-    //
-    // Marked failed on a throw, like its two siblings. The async branch
-    // (`handleAsyncSend`) and the native-picker path both catch and record the
-    // error; this one did not, so a refused send left the record at 'pending'
-    // for ever with nothing shown to the user. The record was already saved
-    // above, so there is always something to mark.
-    try {
-      await deps.io.executeIntent({ type: 'send-transfer-request', transfer, file: wrapInMemory(file) });
-    } catch (error) {
-      transfer.state = 'error';
-      transfer.errorMessage = error instanceof Error ? error.message : 'SendFile failed';
-      transfer.updatedAt = Date.now();
-      await deps.saveTransfer(transfer);
-      deps.emitStateChange(transfer);
-      throw error;
-    }
+  // Both modes hand the bytes to the protocol's FileTransfer -- the one route
+  // whose result the recipient can open. "Standard" used to stage them as a
+  // RE-VFS push into the recipient's node and have the recipient pull them
+  // back; a RE-VFS object is retrievable only by the node that pushed it, so
+  // that pull read the SENDER's disk and failed with its "file not found".
+  //
+  // `wrapInMemory` brands the File for the intent's `file?: InMemoryOnly<File>`
+  // contract — see `types.ts` for why a raw `File` would be a TS error here.
+  // Marked failed on a throw: the record was saved above, and a refused send
+  // must not sit on 'pending' with nothing shown to the user.
+  try {
+    await deps.io.executeIntent({ type: 'send-transfer-request', transfer, file: wrapInMemory(file) });
+  } catch (error) {
+    transfer.state = 'error';
+    transfer.errorMessage = error instanceof Error ? error.message : 'SendFile failed';
+    transfer.updatedAt = Date.now();
+    await deps.saveTransfer(transfer);
+    deps.emitStateChange(transfer);
+    throw error;
   }
 
   deps.emitStateChange(transfer);
@@ -167,47 +160,27 @@ export async function acceptTransfer(deps: LifecycleDeps, transferId: string): P
     );
   }
 
-  // An async transfer has nothing to respond TO.
-  //
-  // `send-response` needs the protocol `object_id`, which the correlator only
-  // learns from a `FileTransferRequestNotification` whose
-  // `metadata.transfer_type === 'FileTransfer'`. Async mode stages through
-  // RE-VFS, which the internal service auto-accepts and never announces that
-  // way -- so `resolveObjectId` returned undefined and this threw "has not been
-  // announced over the protocol yet" for EVERY async transfer.
-  //
-  // It threw here, above the staged-download branch below, which is why
-  // `completeStagedDownload` was unreachable. Async is the mode the UI labels
-  // "Recommended", so the default way to send a file could not be accepted at
-  // all: both buttons threw, the decline signal was never sent, and the
-  // recipient's bubble sat waiting for ever.
-  const isStaged: boolean = transfer.mode === 'async';
-  if (isStaged && !transfer.virtualPath) {
-    // Fail loudly rather than silently doing neither half.
+  // A 'staged' record is a standard offer from before standard sends used the
+  // protocol: its bytes were a RE-VFS push this side can never open.
+  if (transfer.state === 'staged') {
     throw new Error(
-      'This staged transfer carries no server path, so it cannot be downloaded. ' +
-        'Ask the sender to resend it.'
+      'This file was offered by an older version of Citadel and cannot be opened. ' +
+        'Ask the sender to send it again.'
     );
   }
 
-  if (!isStaged) {
-    await deps.io.executeIntent({
-      type: 'send-response',
-      transferId,
-      targetCid: transfer.senderCid,
-      accepted: true,
-    });
-  }
+  await deps.io.executeIntent({
+    type: 'send-response',
+    transferId,
+    targetCid: transfer.senderCid,
+    accepted: true,
+  });
   if (!isStillOpen(deps.state, transfer)) return;
 
   transfer.state = 'transferring';
   transfer.updatedAt = Date.now();
   await deps.saveTransfer(transfer);
   deps.emitStateChange(transfer);
-
-  if (isStaged) {
-    await completeStagedDownload(deps, transfer);
-  }
 }
 
 export async function declineTransfer(
@@ -224,11 +197,9 @@ export async function declineTransfer(
     throw new Error('Cannot decline outgoing transfer');
   }
 
-  // Same reason as accept: a staged transfer has no protocol object_id to
-  // name, so issuing the response threw and the decline was never recorded
-  // either. Declining a staged file is local -- the bytes sit on the server
-  // until they expire, and the sender's own transfer completed at staging.
-  if (transfer.mode !== 'async') {
+  // A staged record (see accept) has no protocol offer to answer; declining
+  // it is local.
+  if (transfer.state !== 'staged') {
     await deps.io.executeIntent({
       type: 'send-response',
       transferId,

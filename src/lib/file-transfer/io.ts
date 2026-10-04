@@ -18,8 +18,6 @@ import type {
   FileTransferIntent,
   SendResponseIntent,
   SendCancelIntent,
-  UploadToServerIntent,
-  DownloadFromServerIntent,
   PickFileIntent,
   SendFileViaProtocolIntent,
   FilePickerResult,
@@ -27,8 +25,7 @@ import type {
 import { debugLog } from '@/lib/debug-config';
 import { announceTransfer, executeSendTransferRequest } from './send-transfer-request';
 import { sendTransferCancelSignal, sendTransferResponseSignal } from './in-band-signals';
-import { awaitSendFileAck, uploadFileToServer } from './server-upload';
-import { downloadFileFromServer } from './server-download';
+import { awaitSendFileAck } from './server-upload';
 
 /**
  * @deprecated Use RealProtocolIORouter with IFileTransferIORouter interface instead.
@@ -47,10 +44,6 @@ export class FileTransferIO extends RealProtocolIORouter {
         return this.executeSendResponse(intent);
       case 'send-cancel':
         return this.executeSendCancel(intent);
-      case 'upload-to-server':
-        return this.uploadToServer(intent);
-      case 'download-from-server':
-        return this.downloadFromServer(intent);
       case 'pick-file':
         return this.pickFile(intent);
       case 'send-file-via-protocol':
@@ -154,30 +147,6 @@ export class FileTransferIO extends RealProtocolIORouter {
       targetCid: BigInt(intent.targetCid),
       reason: intent.reason,
     });
-  }
-
-  // ============================================================================
-  // Server Operations (keep original implementation)
-  // ============================================================================
-
-  private async uploadToServer(intent: UploadToServerIntent): Promise<string> {
-    const { file, transferId, recipientCid } = intent;
-    const ownCid: bigint | null = await this.getCurrentCid();
-    if (ownCid === null) {
-      throw new Error('No active session to send this file from.');
-    }
-    // The staging upload's sender-side ticks come back stamped with the
-    // upload's own request_id; register it as foreign so they cannot complete
-    // or fail the pending chat transfer for the same peer (tick-events.ts).
-    return uploadFileToServer(file, transferId, recipientCid, ownCid, (requestId: string): void =>
-      this.markForeignOutgoingStream(requestId)
-    );
-  }
-
-  private async downloadFromServer(
-    intent: DownloadFromServerIntent
-  ): Promise<string | undefined> {
-    return downloadFileFromServer(intent.transfer);
   }
 
   // ============================================================================
