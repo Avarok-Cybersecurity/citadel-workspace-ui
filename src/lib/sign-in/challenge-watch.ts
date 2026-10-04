@@ -12,6 +12,7 @@
  * prompt that answers are different components.
  */
 import { eventEmitter } from '@/lib/event-emitter';
+import { notifyEach } from '@/lib/notify-listeners';
 import type { SecurityKeyChallengeNotification } from './types';
 
 type Listener = () => void;
@@ -21,8 +22,9 @@ let open: readonly SecurityKeyChallengeNotification[] = [];
 const listeners: Set<Listener> = new Set<Listener>();
 let installed: boolean = false;
 
+/** Isolated: a prompt that throws must not stop another hearing of the challenge. */
 function notify(): void {
-  for (const listener of listeners) listener();
+  notifyEach(listeners, 'key-challenge');
 }
 
 function unwrap(message: unknown): Record<string, unknown> | null {
