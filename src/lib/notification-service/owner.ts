@@ -12,10 +12,11 @@
  * notifier is attached; everything else is the browser's. Handing it to the
  * agent on hosting alone left a hosted message with no notification at all.
  *
- * The agent knows whether one is attached (`NoticeHub::is_heard`) but does not
- * tell its windows, so callers pass `notifierAttached: false` until it does:
- * the browser owns every notification, and a Mac running the menu-bar app may
- * see a message twice -- a duplicate, not a silence.
+ * The agent says whether one is attached (`notices_heard`, kept current by
+ * `NoticesHeardNotification`; agent kernel/notices/heard.rs), and the window
+ * holds it in `noticesHeard` (capabilities.ts). An older agent never says, which
+ * reads as none attached: the browser shows it -- a duplicate at worst, never a
+ * silence.
  *
  * Pure: the caller finds out what the agent does (capabilities.ts).
  */

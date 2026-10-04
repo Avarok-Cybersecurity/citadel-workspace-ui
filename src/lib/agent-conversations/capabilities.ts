@@ -36,14 +36,26 @@ export interface AgentCapabilities {
   supervisesP2p: boolean;
 }
 
+/** What the leader tells a follower: its agent's capabilities, and `noticesHeard` as it stands. */
+export type LeaderAnswer = AgentCapabilities & { noticesHeard: boolean };
+
 /** Set once by the websocket service: which tab this is, and how a follower asks the leader. */
 export interface CapabilityRoute {
   isLeader: () => boolean;
-  askLeader: () => Promise<AgentCapabilities>;
+  askLeader: () => Promise<LeaderAnswer>;
 }
 
 /** Whether the agent supervises peer links: null until the agent has said. */
 export const supervision: ValueStore<boolean | null> = createValueStore<boolean | null>('agent-supervises-p2p', null);
+
+/**
+ * Whether something on the agent's side shows its native notices: the menu-bar
+ * app is subscribed (agent kernel/notices/heard.rs). Said in the declaration's
+ * answer and again on every change. False until the agent says otherwise --
+ * an older agent never does, and Windows and Linux have no notifier -- because
+ * a hosted message left to an agent that shows nothing reaches nobody.
+ */
+export const noticesHeard: ValueStore<boolean> = createValueStore<boolean>('agent-notices-heard', false);
 
 /** Watches a new socket's first message, the agent's greeting, for what it offers. */
 export interface Greeting {
@@ -69,6 +81,9 @@ export function watchGreeting(): Greeting {
     observe: (message: unknown): void => {
       const greeting: Record<string, unknown> | undefined = inner(message, 'ServiceConnectionAccepted');
       if (greeting) settle({ agentIlm: greeting.agent_ilm === true, supervisesP2p: greetingSupervises(greeting) });
+      // The socket's every message passes here; the agent's change of notifier is one.
+      const heard: Record<string, unknown> | undefined = inner(message, 'NoticesHeardNotification');
+      if (heard) noticesHeard.set(heard.heard === true);
     },
   };
 }
@@ -82,12 +97,12 @@ function declareRequest(requestId: string): InternalServiceRequest {
   };
 }
 
-/** `true` from an AgentCapabilities answering `requestId` that offers agent ILM. */
-export function answeredWithAgentIlm(message: unknown, requestId: string): boolean | undefined {
+/** The AgentCapabilities answering `requestId`, if `message` is it. */
+function capabilitiesAnswering(message: unknown, requestId: string): Record<string, unknown> | undefined {
   const answer: Record<string, unknown> | undefined = inner(message, 'AgentCapabilities');
-  if (!answer || answer.request_id !== requestId) return undefined;
-  return answer.agent_ilm === true;
+  return answer && answer.request_id === requestId ? answer : undefined;
 }
+
 
 function bounded<T>(promise: Promise<T>, what: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -101,12 +116,15 @@ async function declare(client: DeclaringClient, greeting: Greeting): Promise<Age
   supervision.set(offers.supervisesP2p);
   if (!offers.agentIlm) return offers;
   const requestId: string = crypto.randomUUID();
-  const answer: Promise<boolean> = client.nextResponse(
-    (message: InternalServiceResponse) => answeredWithAgentIlm(message, requestId),
+  const answer: Promise<Record<string, unknown>> = client.nextResponse(
+    (message: InternalServiceResponse) => capabilitiesAnswering(message, requestId),
     TIMEOUT.SESSION_MANAGEMENT_MS,
   );
   await client.sendDirectToInternalService(declareRequest(requestId));
-  return { ...offers, agentIlm: await answer };
+  const answered: Record<string, unknown> = await answer;
+  // Absent from an older agent's answer, which is a "no".
+  noticesHeard.set(answered.notices_heard === true);
+  return { ...offers, agentIlm: answered.agent_ilm === true };
 }
 
 /** The leader's socket just opened: declare on it if the agent offers, and let every caller wait for the answer. */
@@ -141,8 +159,10 @@ function capabilities(): Promise<AgentCapabilities> {
   // The leader's own socket has not declared yet: its answer is the one.
   if (route.isLeader()) return new Promise<AgentCapabilities>((resolve, reject) => { leaderWaiters.push((a) => a.then(resolve, reject)); });
   const asked: Promise<AgentCapabilities> = route.askLeader().then(
-    (caps: AgentCapabilities): AgentCapabilities => {
+    ({ noticesHeard: heard, ...caps }: LeaderAnswer): AgentCapabilities => {
       supervision.set(caps.supervisesP2p);
+      // Kept current afterwards by the leader's broadcast (notices-heard-relay.ts).
+      noticesHeard.set(heard);
       return caps;
     },
     (error: unknown): never => {
@@ -168,4 +188,5 @@ export function agentSupervisesP2p(): Promise<boolean> {
 export function forgetCapabilities(): void {
   decided = null;
   supervision.set(null);
+  noticesHeard.set(false);
 }

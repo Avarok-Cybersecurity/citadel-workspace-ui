@@ -27,7 +27,9 @@ export type ChannelMessageType =
   // The leader's socket to the agent went down or came back; see agent-socket-state.ts.
   | 'agent-socket'
   // A session was claimed on the leader's connection; see claim-relay.ts.
-  | 'session-claimed';
+  | 'session-claimed'
+  // Whether anything shows the agent's notices changed; see notices-heard-relay.ts.
+  | 'notices-heard';
 
 export interface ChannelMessage {
   type: ChannelMessageType;

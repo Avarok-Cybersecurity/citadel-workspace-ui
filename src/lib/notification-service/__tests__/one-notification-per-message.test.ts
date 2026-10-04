@@ -18,13 +18,14 @@ vi.mock('../chime', () => ({ playNotificationChime: (): void => { chimes.count +
 import { notificationOwner } from '../owner';
 import { NotificationType } from '../types';
 import { notificationService } from '../service';
-import { registerCapabilityRoute, forgetCapabilities } from '@/lib/agent-conversations/capabilities';
+import { registerCapabilityRoute, forgetCapabilities, noticesHeard } from '@/lib/agent-conversations/capabilities';
 
 const shown: string[] = [];
 
-function agentHosts(agentIlm: boolean): void {
+/** A follower's view: the leader says what its agent hosts, and whether a notifier is attached. */
+function agentHosts(agentIlm: boolean, noticesHeard: boolean): void {
   forgetCapabilities();
-  registerCapabilityRoute({ isLeader: () => false, askLeader: async () => ({ agentIlm, supervisesP2p: false }) });
+  registerCapabilityRoute({ isLeader: () => false, askLeader: async () => ({ agentIlm, supervisesP2p: false, noticesHeard }) });
 }
 
 
@@ -59,14 +60,33 @@ describe('a message for a window that is not in front', () => {
   // A hosted message the browser stayed silent for reached nobody on Windows, and
   // reaches nobody on any platform until the agent says a notifier is attached.
   it('still reaches the OS, with its chime, when the agent hosts the conversation', async () => {
-    agentHosts(true);
+    agentHosts(true, false);
     notificationService.addMessageNotification('Alice', 'hi', '9', 'owned-1', '5', { peerCid: '9' });
     await vi.waitFor(() => expect(shown).toEqual(['Alice']));
     expect(chimes.count).toBe(1);
   });
 
+  it('is left to the agent when a notifier is attached to it: one notification, not two', async () => {
+    agentHosts(true, true);
+    notificationService.addMessageNotification('Alice', 'hi', '9', 'owned-3', '5', { peerCid: '9' });
+    await vi.waitFor(() => expect(noticesHeard.get()).toBe(true));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(shown).toEqual([]);
+    expect(chimes.count).toBe(0);
+  });
+
+  it('reaches the OS again once the agent says its notifier went away', async () => {
+    agentHosts(true, true);
+    notificationService.addMessageNotification('Alice', 'hi', '9', 'owned-4', '5', { peerCid: '9' });
+    await vi.waitFor(() => expect(noticesHeard.get()).toBe(true));
+    noticesHeard.set(false);
+    notificationService.addMessageNotification('Alice', 'again', '9', 'owned-5', '5', { peerCid: '9' });
+    await vi.waitFor(() => expect(shown).toEqual(['Alice']));
+    expect(chimes.count).toBe(1);
+  });
+
   it('reaches the OS, with its chime, when the browser runs messaging', async () => {
-    agentHosts(false);
+    agentHosts(false, false);
     notificationService.addMessageNotification('Alice', 'hi', '9', 'owned-2', '5', { peerCid: '9' });
     await vi.waitFor(() => expect(shown).toEqual(['Alice']));
     expect(chimes.count).toBe(1);

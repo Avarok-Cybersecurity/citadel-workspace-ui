@@ -91,7 +91,7 @@ describe('declaring agent hosting', () => {
 
     forgetCapabilities();
     let asked: number = 0;
-    registerCapabilityRoute({ isLeader: () => false, askLeader: async () => { asked += 1; return { agentIlm: true, supervisesP2p: false }; } });
+    registerCapabilityRoute({ isLeader: () => false, askLeader: async () => { asked += 1; return { agentIlm: true, supervisesP2p: false, noticesHeard: false }; } });
     expect(await agentHostsConversations()).toBe(true);
     expect(await agentHostsConversations()).toBe(true);
     expect(asked).toBe(1);

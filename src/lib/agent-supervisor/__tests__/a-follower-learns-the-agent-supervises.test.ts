@@ -15,14 +15,14 @@ beforeEach((): void => forgetCapabilities());
 
 describe('a follower tab', () => {
   it('learns from the leader that the agent supervises', async (): Promise<void> => {
-    registerCapabilityRoute({ isLeader: () => false, askLeader: async () => ({ agentIlm: true, supervisesP2p: true }) });
+    registerCapabilityRoute({ isLeader: () => false, askLeader: async () => ({ agentIlm: true, supervisesP2p: true, noticesHeard: false }) });
     expect(await agentSupervisesP2p()).toBe(true);
     expect(await agentHostsConversations()).toBe(true);
     expect(supervision.get()).toBe(true);
   });
 
   it('learns that it does not, from a leader that says so', async (): Promise<void> => {
-    registerCapabilityRoute({ isLeader: () => false, askLeader: async () => ({ agentIlm: true, supervisesP2p: false }) });
+    registerCapabilityRoute({ isLeader: () => false, askLeader: async () => ({ agentIlm: true, supervisesP2p: false, noticesHeard: false }) });
     expect(await agentSupervisesP2p()).toBe(false);
     expect(supervision.get()).toBe(false);
   });

@@ -6,15 +6,15 @@ import { playNotificationChime } from './chime';
 import { showBrowserNotification } from './browser-notification';
 import { mayInterruptTheOs } from './in-front';
 import { notificationOwner } from './owner';
-import { agentHostsConversations } from '@/lib/agent-conversations/capabilities';
+import { agentHostsConversations, noticesHeard } from '@/lib/agent-conversations/capabilities';
 import type { Notification } from './types';
 
 export async function interruptTheOs(notification: Notification): Promise<void> {
   if (!mayInterruptTheOs()) return;
   // Unknown is not hosted: a failed capability answer must not silence the browser too.
   const hosts: boolean = await agentHostsConversations().catch((): boolean => false);
-  // The agent does not yet say whether a notifier is attached to it; see owner.ts.
-  if (notificationOwner(notification, { hostsConversations: hosts, notifierAttached: false }) !== 'browser') return;
+  // Read after the await: the agent's answer, and every change since, set it (capabilities.ts).
+  if (notificationOwner(notification, { hostsConversations: hosts, notifierAttached: noticesHeard.get() }) !== 'browser') return;
   showBrowserNotification(notification);
   playNotificationChime();
 }
