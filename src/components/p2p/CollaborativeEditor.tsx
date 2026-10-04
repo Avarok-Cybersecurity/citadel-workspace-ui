@@ -70,7 +70,7 @@ export function CollaborativeEditor({
     editorProps: {
       attributes: {
         // Top padding leaves room for a collaborator's name tag above the first line.
-        class: 'prose dark:prose-invert prose-sm max-w-none focus:outline-none min-h-[300px] px-4 pb-4 pt-9 [&_p]:leading-8 [&_li]:leading-8',
+        class: 'prose dark:prose-invert prose-sm max-w-none focus:outline-none min-h-[300px] px-4 pb-4 pt-9 [&_p]:leading-9 [&_li]:leading-9',
       },
     },
   }, [doc, provider]);

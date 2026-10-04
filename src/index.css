@@ -522,7 +522,9 @@ h1, h2, h3, h4, h5, h6 {
 .collaborator-cursor__tooltip {
   position: fixed;
   white-space: nowrap;
-  padding: 1px 9px 1px 2px;
+  /* 18px tall (16px avatar + border): the most that fits between two lines at the
+     editor's 36px line pitch, so the tag never covers the line above it. */
+  padding: 0 9px 0 0;
   border-radius: 9999px;
   /* A size meant as a floor belongs in the unit the standard is written in. */
   font-size: max(12px, 0.75rem);

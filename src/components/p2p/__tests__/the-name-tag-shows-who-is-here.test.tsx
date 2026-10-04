@@ -83,4 +83,13 @@ describe('a remote cursor tag', () => {
     fireEvent.click(input);
     expect(cursor.querySelector('textarea')?.value).toBe('draft');
   });
+
+  it('keeps its keystrokes away from the editor that contains it', () => {
+    const cursor: HTMLElement = mountCursor('Hana', '#000');
+    const reached: string[] = [];
+    document.body.addEventListener('keydown', (e) => reached.push(e.key));
+    const label: HTMLButtonElement = cursor.querySelector('button.collaborator-cursor__label') as HTMLButtonElement;
+    fireEvent.keyDown(label, { key: 'Enter' });
+    expect(reached).toEqual([]);
+  });
 });

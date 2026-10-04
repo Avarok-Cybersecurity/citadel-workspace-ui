@@ -66,6 +66,12 @@ export function createCollaboratorCursor(user: CursorUser): HTMLElement {
   label.append(avatarSlot, nameEl);
   tooltip.appendChild(label);
 
+  // The tag lives inside the ProseMirror DOM, so its keystrokes would otherwise reach
+  // the editor: Enter on the focused tag split a paragraph in the shared document.
+  for (const type of ['keydown', 'keypress', 'keyup', 'beforeinput', 'input'] as const) {
+    tooltip.addEventListener(type, (e: Event) => e.stopPropagation());
+  }
+
   const unregisterAvatar: () => void = registerAvatarSlot(avatarSlot, user.name);
 
   let rafId: number | null = null;
