@@ -48,6 +48,9 @@ const registration: JoinRegistration = {
   handleSubmit: vi.fn(),
   handleConnectModalComplete: vi.fn(),
   handleReturnToLogin: vi.fn(),
+  recoveryCodes: [],
+  awaitingSignIn: null,
+  finishSignIn: vi.fn(),
 } as unknown as JoinRegistration;
 
 let overrides: Partial<JoinRegistration> = {};

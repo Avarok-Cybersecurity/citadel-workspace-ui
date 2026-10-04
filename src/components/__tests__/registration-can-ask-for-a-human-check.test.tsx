@@ -54,6 +54,31 @@ describe('registering where a human check is required', () => {
     register();
     await waitFor(() => expect(h.w.agent.accounts.map((a) => a.username)).toContain('alice'));
     expect(registers()[0]).toMatchObject({ admission_token: turnstile.issued[0] });
+    expect(turnstile.rendered[0]).toMatchObject({ cData: 'bench' });
+  });
+
+  it('signs in with a fresh check after registering, as the next step and not as an error', async () => {
+    h.discovered = { required: true, siteKey: ALWAYS_PASS };
+    renderJoin();
+    await waitFor(() => expect(turnstile.issued).toHaveLength(1));
+    register();
+    // The codes come first: the account exists, and they are shown once.
+    fireEvent.click(await screen.findByTestId('recovery-codes-saved'));
+    fireEvent.click(screen.getByTestId('recovery-codes-done'));
+    const issuedBefore: number = turnstile.issued.length;
+    expect(await screen.findByTestId('finish-sign-in')).toBeInTheDocument();
+    expect(screen.queryByTestId('admission-message')).toBeNull();
+    expect(toasts.titles.filter((t) => /fail|error/i.test(t))).toEqual([]);
+    await waitFor(() => expect(turnstile.rendered.at(-1)).toMatchObject({ action: 'sign-in', cData: 'bench' }));
+    await waitFor(() => expect(turnstile.issued.length).toBeGreaterThan(issuedBefore));
+    const fresh: string | undefined = turnstile.issued.at(-1);
+    fireEvent.click(screen.getByTestId('finish-sign-in-continue'));
+    // Signed in: the optional key step, then the workspace.
+    expect(await screen.findByTestId('add-security-key')).toBeInTheDocument();
+    const connect: Record<string, unknown> | undefined = h.w.agent.sent.find(([v]) => v === 'Connect')?.[1];
+    // The sign-in widget's own token: fresh, never the one Register spent.
+    expect(connect).toMatchObject({ username: 'alice', admission_token: fresh });
+    expect(connect?.admission_token).not.toBe(registers()[0].admission_token);
   });
 
   it('answers a refusal on the check, not with a failure toast, when discovery could not say', async () => {

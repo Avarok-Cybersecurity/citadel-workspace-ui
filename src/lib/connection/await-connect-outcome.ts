@@ -12,7 +12,7 @@
 import { isResponseType, type InternalServiceResponse } from 'citadel-workspace-client-ts';
 import { eventEmitter } from '@/lib/event-emitter';
 import { extensionFor } from '@/lib/sign-in/challenge-watch';
-import { admissionReasonOf, type AdmissionReason } from '@/lib/admission/refusal';
+import type { AdmissionReason } from '@/lib/admission/refusal';
 
 export type ConnectOutcome =
   | { kind: 'connected'; cid: bigint }
@@ -53,7 +53,7 @@ export function awaitConnectOutcome(requestId: string, timeoutMs: number): Promi
       } else if (isResponseType(response, 'ConnectFailure') && response.ConnectFailure.request_id === requestId) {
         settle({
           kind: 'failed', cid: response.ConnectFailure.cid, message: response.ConnectFailure.message || 'Connection failed',
-          reasonCode: admissionReasonOf(response.ConnectFailure as unknown as Record<string, unknown>),
+          reasonCode: response.ConnectFailure.reason_code ?? null,
         });
       }
     };

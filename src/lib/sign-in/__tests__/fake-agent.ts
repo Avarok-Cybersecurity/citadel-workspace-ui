@@ -118,6 +118,8 @@ export class FakeAgent {
     const account: FakeAccount = this.account(body.username as string, 'Password', 100n + BigInt(this.accounts.length));
     account.password = this.text(body.proposed_password) ?? '';
     this.emit('RegisterSuccess', { cid: account.cid, request_id: body.request_id, recovery_codes: [...account.recoveryCodes] });
+    // connect_after_register has no token left: the Register spent it (agent #112, Register.admission_token).
+    if (this.admission.required) { this.emit('ConnectFailure', { cid: 0n, request_id: body.request_id, message: 'A human check is required', reason_code: 'admission_required' }); return; }
     this.emit('ConnectSuccess', { cid: account.cid, request_id: body.request_id });
   }
 

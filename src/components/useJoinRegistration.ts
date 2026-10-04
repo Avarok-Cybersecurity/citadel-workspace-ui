@@ -19,6 +19,8 @@ import { BLANK_JOIN_FORM } from './join-form-blank';
 import { serverPasswordMismatchMessage } from '@/lib/server-password-error';
 import { describeFailure } from '@/lib/failure-message';
 import type { AdmissionGate } from './admission/useAdmissionGate';
+import { RegisteredAwaitingSignIn } from '@/lib/admission/refusal';
+import { connectAfterRegistration } from './sign-in/connect-after-registration';
 
 /** The required credentials plus the optional profile fields sent after registration. */
 export interface JoinFormData extends SignupProfileFields {
@@ -57,6 +59,8 @@ export function useJoinRegistration(
   const [registeredCid, setRegisteredCid] = useState<string | null>(null);
   /** Shown once by the caller, then gone: never stored, never logged. */
   const [recoveryCodes, setRecoveryCodes] = useState<readonly string[]>([]);
+  /** Registered on a workspace that checks, and the follow-up connect still needs a fresh check. */
+  const [awaitingSignIn, setAwaitingSignIn] = useState<bigint | null>(null);
 
   const [formData, setFormData] = useState<JoinFormData>(
     draft?.initial ?? BLANK_JOIN_FORM,
@@ -194,6 +198,7 @@ export function useJoinRegistration(
     } catch (error: unknown) {
       debugLog('Join', 'Registration Error:', error);
       setShowConnectModal(false);
+      if (error instanceof RegisteredAwaitingSignIn) { setAwaitingSignIn(error.cid); return; } // Not a failure: see PostRegistrationSteps.
       if (admission.settle(error)) return; // Shown on the human check itself.
       const wrongServerPassword: string | null = serverPasswordMismatchMessage(describeFailure(error, ''), Boolean(serverPassword));
       toast({ title: wrongServerPassword ? 'Wrong server password' : getErrorTitle(error), description: wrongServerPassword ?? getUserFriendlyErrorMessage(error), variant: "destructive" });
@@ -228,5 +233,12 @@ export function useJoinRegistration(
     handleConnectModalComplete,
     handleReturnToLogin,
     recoveryCodes,
+    awaitingSignIn,
+    finishSignIn: async (admissionToken: string): Promise<bigint> => {
+      const cid: bigint = await connectAfterRegistration(formData.username, formData.password, admissionToken, mapSecuritySettings(securitySettings));
+      await new Promise<void>((done, fail) => { void handleConnectSuccess({ cid }, (): void => done(), fail); });
+      startSignupProfile({ avatarData: formData.avatarData, email: formData.email, title: formData.title });
+      return cid;
+    },
   };
 }

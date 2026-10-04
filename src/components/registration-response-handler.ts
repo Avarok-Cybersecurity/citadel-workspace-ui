@@ -6,7 +6,7 @@
  */
 import { narrowWebSocketMessage, hasVariant, getVariant } from '@/lib/ws-message-boundary';
 import { debugLog } from '@/lib/debug-config';
-import { AdmissionRefusal, admissionReasonOf, type AdmissionReason } from '@/lib/admission/refusal';
+import { AdmissionRefusal, RegisteredAwaitingSignIn, admissionReasonOf, type AdmissionReason } from '@/lib/admission/refusal';
 import type { WebSocketMessage } from '@/types/ws-message-types';
 
 export interface RegistrationHandlerDeps {
@@ -31,8 +31,12 @@ export function createRegistrationResponseHandler(
   deps: RegistrationHandlerDeps
 ) {
   const { handleConnectSuccess, setShowNotInitializedModal, onRecoveryCodes } = deps;
+  /** The account RegisterSuccess created, once it has arrived. */
+  let registered: bigint | null = null;
   const takeCodes = (v: Record<string, unknown> | undefined): void => {
-    if (v && matchId(v) && Array.isArray(v.recovery_codes)) onRecoveryCodes(v.recovery_codes.filter((c: unknown): c is string => typeof c === 'string'));
+    if (!v || !matchId(v)) return;
+    if (typeof v.cid === 'bigint') registered = v.cid;
+    if (Array.isArray(v.recovery_codes)) onRecoveryCodes(v.recovery_codes.filter((c: unknown): c is string => typeof c === 'string'));
   };
   const matchId = (v: Record<string, unknown>): boolean => v.request_id === requestId;
   const rejectWith = (v: Record<string, unknown>, fallback: string): void => {
@@ -40,6 +44,8 @@ export function createRegistrationResponseHandler(
     const message: string = (v.message as string) || fallback;
     // A human check the workspace asked for, missing or failed: the form shows or resets it.
     const admission: AdmissionReason | null = admissionReasonOf(v);
+    // After RegisterSuccess, an admission refusal is the follow-up Connect's: the register token was spent.
+    if (admission === 'admission_required' && registered !== null) { reject(new RegisteredAwaitingSignIn(registered)); return; }
     reject(admission ? new AdmissionRefusal(admission, message) : new Error(message));
   };
   return (raw: unknown): void => {

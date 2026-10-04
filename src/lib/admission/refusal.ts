@@ -6,7 +6,10 @@
  * - `admission_failed`: a check came and did not verify (failed, expired, or a
  *   token already spent: each one is single-use).
  */
-export type AdmissionReason = 'admission_required' | 'admission_failed';
+import type { FailureReason } from 'citadel-workspace-client-ts';
+
+/** The generated `FailureReason` (agent #112): the only two reason codes there are. */
+export type AdmissionReason = FailureReason;
 
 const REASONS: ReadonlySet<string> = new Set<string>(['admission_required', 'admission_failed'] satisfies AdmissionReason[]);
 
@@ -26,3 +29,18 @@ export class AdmissionRefusal extends Error {
 }
 
 export const isAdmissionRefusal = (error: unknown): error is AdmissionRefusal => error instanceof AdmissionRefusal;
+
+/**
+ * Registered, but not signed in: with connect_after_register on a workspace that
+ * checks, the register token is spent and the follow-up Connect is refused with
+ * admission_required. Not a failure -- the account exists; the window signs in
+ * with a fresh `sign-in` token.
+ */
+export class RegisteredAwaitingSignIn extends Error {
+  readonly cid: bigint;
+  constructor(cid: bigint) {
+    super('Registered; signing in needs a fresh human check');
+    this.name = 'RegisteredAwaitingSignIn';
+    this.cid = cid;
+  }
+}

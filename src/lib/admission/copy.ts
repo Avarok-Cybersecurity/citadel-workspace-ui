@@ -10,6 +10,9 @@ export const ADMISSION_COPY: {
   readonly failed: string;
   readonly unavailable: string;
   readonly completeFirst: string;
+  readonly signInAgain: string;
+  readonly finishTitle: string;
+  readonly finishBody: string;
 } = {
   settingLabel: 'Require a human check (Cloudflare Turnstile) to sign in',
   settingHint: 'Everyone signing in or creating an account here completes a quick check first, which stops automated password guessing.',
@@ -21,6 +24,9 @@ export const ADMISSION_COPY: {
   failed: "That check didn't go through — please try again",
   unavailable: "This workspace asks for a human check, but it couldn't be loaded. Check your connection and try again.",
   completeFirst: 'Complete the human check first.',
+  signInAgain: 'Please sign in again',
+  finishTitle: 'Finish signing in',
+  finishBody: 'Your account is ready. This workspace asks for one more quick check before you sign in.',
 } as const;
 
 /** Must match what the workspace server's siteverify expects for each form. */

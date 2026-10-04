@@ -30,7 +30,7 @@ interface JoinProps {
 export const Join = ({ onNext, onBack, defaultWorkspace, serverAddress, serverPassword, securitySettings, profileDraft }: JoinProps): JSX.Element => {
   // The account exists from here; the key and recovery-code steps come before the workspace.
   const [joinedCid, setJoinedCid] = useState<string | null>(null);
-  const admission: AdmissionGate = useAdmissionGate(ADMISSION_ACTION.register, serverAddress);
+  const admission: AdmissionGate = useAdmissionGate(ADMISSION_ACTION.register, { serverAddress, reauth: false });
   const {
     formData,
     isRegistering,
@@ -45,6 +45,8 @@ export const Join = ({ onNext, onBack, defaultWorkspace, serverAddress, serverPa
     handleConnectModalComplete,
     handleReturnToLogin,
     recoveryCodes,
+    awaitingSignIn,
+    finishSignIn,
   } = useJoinRegistration(onBack, setJoinedCid, serverAddress, serverPassword, admission, securitySettings, profileDraft);
 
   /**
@@ -73,11 +75,11 @@ export const Join = ({ onNext, onBack, defaultWorkspace, serverAddress, serverPa
    * visible-but-blurred underneath the one being read -- which is alarming on
    * its own, and makes the message on top easy to take for a glitch.
    */
-  if (joinedCid !== null) {
+  if (joinedCid !== null || awaitingSignIn !== null) {
     return (
       <PostRegistrationSteps
-        cid={BigInt(joinedCid)} username={formData.username} serverAddress={serverAddress}
-        password={formData.password} recoveryCodes={recoveryCodes} onDone={() => onNext(joinedCid)}
+        session={joinedCid === null ? null : BigInt(joinedCid)} username={formData.username} serverAddress={serverAddress}
+        password={formData.password} recoveryCodes={recoveryCodes} signIn={finishSignIn} onDone={(cid: bigint) => onNext(cid.toString())}
       />
     );
   }

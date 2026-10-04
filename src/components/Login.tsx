@@ -22,6 +22,8 @@ import { AdmissionCheck } from "./admission/AdmissionCheck";
 import { useAdmissionGate, type AdmissionGate } from "./admission/useAdmissionGate";
 import { useAccountServer } from "./admission/useAccountServer";
 import { ADMISSION_ACTION } from "@/lib/admission/copy";
+import { useSignedOutAccounts } from "./signed-out/use-signed-out-accounts";
+import type { SignedOutAccount } from "@/types/session-types";
 
 interface LoginProps {
   onNext: (connectionId: string) => void;
@@ -34,12 +36,17 @@ export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.El
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [showSecuritySettings, setShowSecuritySettings] = useState(false);
 
-  // The account names its server, which only the agent knows: the check binds to it once it says.
+  // The account names its server, which only the agent knows: the check binds to it once it
+  // says, and an account the server signed out is told so.
   const [accountServer, setAccountServer] = useState<string | undefined>(undefined);
-  const admission: AdmissionGate = useAdmissionGate(ADMISSION_ACTION.signIn, accountServer);
+  const [typed, setTyped] = useState<string>(initialUsername ?? '');
+  const signedOut: SignedOutAccount[] = useSignedOutAccounts();
+  const admission: AdmissionGate = useAdmissionGate(ADMISSION_ACTION.signIn, {
+    serverAddress: accountServer, reauth: signedOut.some((a) => a.username === typed),
+  });
   const h: LoginHandler = useLoginHandler({ onNext, initialUsername, admission });
   const knownServer: string | undefined = useAccountServer(h.username);
-  useEffect((): void => setAccountServer(knownServer), [knownServer]);
+  useEffect((): void => { setAccountServer(knownServer); setTyped(h.username.trim()); }, [knownServer, h.username]);
   const {
     username, setUsername, error, invalidField, loading, securitySettings, setSecuritySettings,
     handleLogin, passkey, handlePasskeyLogin, handleKeyLogin, keyOffer, recoverySession, mode,

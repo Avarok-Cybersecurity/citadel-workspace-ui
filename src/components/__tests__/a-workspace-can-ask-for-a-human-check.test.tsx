@@ -31,9 +31,9 @@ import { loginWorld as h } from './login-world';
 
 let onNext: ReturnType<typeof vi.fn>;
 let turnstile: FakeTurnstile;
-function renderLogin(): void {
+function renderLogin(initialUsername: string | undefined = undefined): void {
   onNext = vi.fn();
-  render(<MemoryRouter><Login onNext={onNext} onCancel={() => {}} initialUsername={undefined} /></MemoryRouter>);
+  render(<MemoryRouter><Login onNext={onNext} onCancel={() => {}} initialUsername={initialUsername} /></MemoryRouter>);
 }
 const type = (id: string, value: string): void => { fireEvent.change(document.getElementById(id) as HTMLElement, { target: { value } }); };
 function signIn(): void {
@@ -46,6 +46,7 @@ beforeEach(() => {
   h.w = world(false);
   h.w.agent.account('alice');
   h.discovered = null;
+  h.signedOut = [];
   h.postAuth.mockReset();
   h.messaging.mockReset().mockResolvedValue(true);
 });
@@ -127,6 +128,18 @@ describe('a workspace that asks', () => {
     signIn();
     expect(await screen.findByTestId('admission-message')).toHaveTextContent(ADMISSION_COPY.unavailable);
     expect(onNext).not.toHaveBeenCalled();
+  });
+
+  it('an account the server signed out is asked plainly to sign in again, with the check', async () => {
+    h.discovered = { required: true, siteKey: ALWAYS_PASS };
+    h.signedOut = [{ cid: 7n, username: 'alice', reason: 'the server asked for a human check' }];
+    renderLogin('alice');
+    expect(await screen.findByTestId('admission-message')).toHaveTextContent(ADMISSION_COPY.signInAgain);
+    expect(screen.getByTestId('admission-check')).toBeInTheDocument();
+    await waitFor(() => expect(turnstile.issued).toHaveLength(1));
+    type('password', 'correct horse battery');
+    fireEvent.click(screen.getByTestId('login-submit'));
+    await waitFor(() => expect(onNext).toHaveBeenCalled());
   });
 
   it('a check the server rejects is reset with the retry message', async () => {

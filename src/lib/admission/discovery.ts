@@ -51,3 +51,4 @@ export async function discoverAdmission(fetchFn: FetchLike, base: string | undef
     return null;
   }
 }
+
