@@ -105,14 +105,13 @@ describe('a message arriving', () => {
     expect(shown).toEqual([]);
   });
 
-  it('for the open conversation while the window is behind another app is in the bell, and the OS is the agent\'s', async () => {
-    // This agent hosts the account, so its native notice is the one (owner.ts); the
-    // browser's own OS notification is proved in one-notification-per-message.test.ts.
+  it('for the open conversation while the window is behind another app reaches the OS', async () => {
+    // Hosted, but the agent does not say a notifier is attached, so the browser owns it (owner.ts).
     await open(PEER);
     agent.setFocused(false);
     act(() => { window.dispatchEvent(new Event('blur')); });
     expect(notified(await arrives(PEER))).toBe(true);
-    expect(shown).toEqual([]);
+    expect(shown).toHaveLength(1);
     expect(agent.focusReports().at(-1)).toEqual({ session_cid: OWN, peer_cid: null, focused: false });
   });
 });

@@ -1,10 +1,10 @@
 /**
- * One notification per message.
+ * One notification per message, and never none.
  *
- * An agent that hosts the account raises its own native notice for a message
- * (kernel/notices). The browser raised an OS notification and a chime for the
- * same message, so a backgrounded window announced everything twice. The agent
- * owns what it hosts; the browser owns the rest.
+ * An agent that hosts the account raises a native notice for a message
+ * (kernel/notices), but only a notifier attached to the agent shows it -- the
+ * macOS menu-bar app; Windows has none. So the agent owns a hosted message only
+ * with a notifier attached; until the agent says so, the browser owns it.
  *
  * Stand-ins: the agent's capability answer (as a follower asks the leader), the
  * platform's `Notification` constructor, `document.hasFocus`, and the chime --
@@ -27,7 +27,6 @@ function agentHosts(agentIlm: boolean): void {
   registerCapabilityRoute({ isLeader: () => false, askLeader: async () => ({ agentIlm, supervisesP2p: false }) });
 }
 
-const settle = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 
 beforeEach(() => {
   shown.length = 0;
@@ -40,28 +39,33 @@ afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); Reflect.deletePro
 
 describe('who owns a notification', () => {
   const p2p: { type: NotificationType; data: Record<string, unknown> } = { type: NotificationType.MESSAGE, data: { peerCid: '9' } };
-  it('a hosted conversation\'s message is the agent\'s', () => {
-    expect(notificationOwner(p2p, true)).toBe('agent');
+  it('a hosted conversation\'s message is the agent\'s when a notifier is attached to it', () => {
+    expect(notificationOwner(p2p, { hostsConversations: true, notifierAttached: true })).toBe('agent');
   });
-  it('without a hosting agent, the browser\'s', () => {
-    expect(notificationOwner(p2p, false)).toBe('browser');
+  it('the browser\'s when nothing on the agent\'s side would show it (Windows has no notifier)', () => {
+    expect(notificationOwner(p2p, { hostsConversations: true, notifierAttached: false })).toBe('browser');
+  });
+  it('the browser\'s without a hosting agent', () => {
+    expect(notificationOwner(p2p, { hostsConversations: false, notifierAttached: true })).toBe('browser');
   });
   it('what the agent does not host stays the browser\'s', () => {
-    expect(notificationOwner({ type: NotificationType.MESSAGE, data: { groupId: 'g' } }, true)).toBe('browser');
-    expect(notificationOwner({ type: NotificationType.SYSTEM }, true)).toBe('browser');
+    const both: { hostsConversations: boolean; notifierAttached: boolean } = { hostsConversations: true, notifierAttached: true };
+    expect(notificationOwner({ type: NotificationType.MESSAGE, data: { groupId: 'g' } }, both)).toBe('browser');
+    expect(notificationOwner({ type: NotificationType.SYSTEM }, both)).toBe('browser');
   });
 });
 
 describe('a message for a window that is not in front', () => {
-  it('raises no OS notification and no chime when the agent hosts the conversation', async () => {
+  // A hosted message the browser stayed silent for reached nobody on Windows, and
+  // reaches nobody on any platform until the agent says a notifier is attached.
+  it('still reaches the OS, with its chime, when the agent hosts the conversation', async () => {
     agentHosts(true);
     notificationService.addMessageNotification('Alice', 'hi', '9', 'owned-1', '5', { peerCid: '9' });
-    await settle();
-    expect(shown).toEqual([]);
-    expect(chimes.count).toBe(0);
+    await vi.waitFor(() => expect(shown).toEqual(['Alice']));
+    expect(chimes.count).toBe(1);
   });
 
-  it('raises one, with its chime, when the browser runs messaging', async () => {
+  it('reaches the OS, with its chime, when the browser runs messaging', async () => {
     agentHosts(false);
     notificationService.addMessageNotification('Alice', 'hi', '9', 'owned-2', '5', { peerCid: '9' });
     await vi.waitFor(() => expect(shown).toEqual(['Alice']));

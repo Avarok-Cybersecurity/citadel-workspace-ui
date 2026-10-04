@@ -13,7 +13,8 @@ export async function interruptTheOs(notification: Notification): Promise<void> 
   if (!mayInterruptTheOs()) return;
   // Unknown is not hosted: a failed capability answer must not silence the browser too.
   const hosts: boolean = await agentHostsConversations().catch((): boolean => false);
-  if (notificationOwner(notification, hosts) !== 'browser') return;
+  // The agent does not yet say whether a notifier is attached to it; see owner.ts.
+  if (notificationOwner(notification, { hostsConversations: hosts, notifierAttached: false }) !== 'browser') return;
   showBrowserNotification(notification);
   playNotificationChime();
 }
