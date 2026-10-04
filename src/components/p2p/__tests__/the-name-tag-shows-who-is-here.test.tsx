@@ -46,13 +46,14 @@ describe('a remote cursor tag', () => {
   });
 
   it('releases its avatar slot when the cursor leaves the document', async () => {
-    const before: number = avatarSlotsSnapshot().length;
+    // Counted by name: the registry is module-wide and earlier tests' cursors release theirs on their own timers.
+    const slotsFor = (name: string): number => avatarSlotsSnapshot().filter((s) => s.name === name).length;
     const cursor: HTMLElement = mountCursor('Dave', '#000');
     render(<CursorAvatars />);
-    expect(avatarSlotsSnapshot()).toHaveLength(before + 1);
+    expect(slotsFor('Dave')).toBe(1);
     cursor.remove();
     await act(async () => { await new Promise((r) => setTimeout(r, 1100)); });
-    expect(avatarSlotsSnapshot()).toHaveLength(before);
+    expect(slotsFor('Dave')).toBe(0);
   });
 
   it('keeps the caret line thin and the tag out of the text flow', () => {
