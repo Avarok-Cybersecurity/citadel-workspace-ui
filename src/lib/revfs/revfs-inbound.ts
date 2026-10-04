@@ -17,6 +17,7 @@ import { peerTreeKey } from './tree-queries';
 import { withSerialLock } from '@/lib/serial-queue';
 import { persistTree } from './persist-tree';
 import { applyRemoteOp, mergeTrees } from './tree-operations';
+import { withoutLocalRecords } from './local-records';
 import { applyRemoteOpWithOutcome } from './tree-sync';
 import type { RemoteOpOutcome } from './remote-op-outcome';
 import { isNewOperation, forgetOperation } from './seen-operations';
@@ -61,7 +62,7 @@ export async function applyInboundOperation(
         op_id: crypto.randomUUID(),
         op_type: RevfsOpType.SyncResponse,
         path: '/',
-        tree,
+        tree: withoutLocalRecords(tree),
         timestamp: Date.now(),
       };
       await ctx.sendOp(senderCid, syncResponse);
@@ -150,7 +151,7 @@ export async function applyInboundOperation(
       );
       const merged: RevfsNode = mergeTrees(
         currentTree,
-        applyRemoteOp(currentTree, op, myCid),
+        applyRemoteOp(currentTree, { ...op, tree: withoutLocalRecords(op.tree) }, myCid),
         pendingRemovals,
       );
       ctx.state.setTree(key, merged);

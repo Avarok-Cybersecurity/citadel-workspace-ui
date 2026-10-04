@@ -22,6 +22,7 @@ import { RevfsState, type TreeChangedCallback } from './revfs-state';
 import { RevfsIO, type RevfsIODeps } from './revfs-io';
 import { retryPendingOps, sendAndAwaitAck, type RetryOutcome } from './revfs-retry';
 import { wireDrainOnChannelReady } from './drain-on-channel-ready';
+import { wireTransferRecords } from './transfer-records';
 import { applyInboundOperationSerially, type InboundContext } from './revfs-inbound';
 import { awaitTreeChange } from './await-tree-change';
 
@@ -58,6 +59,8 @@ export class RevfsService {
       getCurrentCid: deps.getCurrentCid,
       retryPendingOps: (key: TreeKey, peerCid: bigint) => this.retryPendingOps(key, peerCid),
     });
+    // Completed chat transfers fill Sent Files / Received Files.
+    wireTransferRecords(this);
   }
 
   private ensureIO(): RevfsIO {
