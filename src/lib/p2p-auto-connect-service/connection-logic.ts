@@ -15,7 +15,8 @@ import { debugLog } from '@/lib/debug-config';
 import type { AutoConnectState } from './state';
 import { BASE_DELAY_MS, MAX_DELAY_MS, POLL_INTERVAL_MS } from './constants';
 import { getCurrentCid } from './cid-resolver';
-import { refreshOnlineStatus } from './polling';
+import { refreshFromBackend, refreshOnlineStatus } from './polling';
+import { supervisedByAgent } from '../agent-supervisor/supervised';
 import type { PeerConnectionInfo, ConnectionAttempt } from '@/lib/p2p-auto-connect/types';
 
 /**
@@ -35,6 +36,12 @@ export async function connectToPeer(
 
   if (!instanceManager.isLeader) {
     debugLog('P2PAutoConnectService', `[P2PAutoConnect] connectToPeer skipped for ${peerCid?.toString().slice(0, 8)} (not leader tab)`);
+    return;
+  }
+
+  // The supervising agent is the only dialler: no dial, and no retry left behind.
+  if (await supervisedByAgent()) {
+    state.cancelRetry(peerCid);
     return;
   }
 
@@ -156,6 +163,12 @@ export async function connectToAllRegisteredPeers(state: AutoConnectState): Prom
 
   if (!currentCid || currentCid === 0n) {
     debugLog('P2PAutoConnectService', 'connectToAllRegisteredPeers: SKIPPED - no valid CID');
+    return;
+  }
+
+  // One read of what the agent holds, so a page loaded mid-heal knows its links; no dialling.
+  if (await supervisedByAgent()) {
+    await refreshFromBackend(state, currentCid);
     return;
   }
 

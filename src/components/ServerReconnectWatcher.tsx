@@ -12,6 +12,7 @@ import {
 } from '@/lib/reconnect/server-reconnect';
 import { debugLog } from '@/lib/debug-config';
 import { postAuthSetup } from '@/lib/post-auth-setup';
+import { supervisedByAgent } from '@/lib/agent-supervisor/supervised';
 
 /**
  * Connects the agent's server-link notifications to this tab (server-reconnect.ts).
@@ -29,6 +30,8 @@ export function ServerReconnectWatcher(): null {
       },
       setReconnecting: reconnectingTo.set,
       resumePeers: async (): Promise<void> => {
+        // A supervising agent redials the peers it lost itself.
+        if (await supervisedByAgent()) return;
         // The drop took every P2P link with it; the reset forgets them and puts
         // this side in initiator mode, as the startup path does after a claim.
         await p2pAutoConnectService.resetConnectionState();
