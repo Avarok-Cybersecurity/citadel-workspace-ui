@@ -11,6 +11,9 @@ import { seedDocument } from '@/lib/live-document-store/seed-document';
 import { liveDocumentStore } from '@/lib/live-document-store';
 import { P2PMessengerManager } from '@/lib/p2p';
 import { debugLog } from '@/lib/debug-config';
+import { writeDocTitle } from '@/lib/live-document-store/doc-title';
+import { renameLiveDocument, DOC_TITLE_CHANGED_EVENT, type DocTitleChanged } from '@/lib/live-document-store/rename';
+import * as Y from 'yjs';
 import { ChatTab, MESSAGES_TAB, createLiveDocumentTab } from '../ChatTabBar';
 import type { DocumentMetadata } from '@/lib/live-document-store/types';
 import type { Dispatch, SetStateAction } from 'react';
@@ -20,7 +23,7 @@ interface UseP2PTabsOptions {
   currentUserCid?: bigint;
 }
 
-export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions): { tabs: ChatTab[]; activeTabId: string; activeTabIdRef: MutableRefObject<string>; tabsWithUnread: { hasUnread: boolean; id: string; type: "messages" | "live_document"; title: string; documentId?: string; }[]; activeTab: ChatTab | undefined; setMessagesHasUnread: Dispatch<SetStateAction<boolean>>; handleTabSelect: (tabId: string) => void; handleCloseTab: (tabId: string) => void; handleOpenDocument: (docId: string, title: string) => void; handleCreateDocument: (title: string, initialContent: string) => Promise<void>; } {
+export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions): { tabs: ChatTab[]; activeTabId: string; activeTabIdRef: MutableRefObject<string>; tabsWithUnread: { hasUnread: boolean; id: string; type: "messages" | "live_document"; title: string; documentId?: string; }[]; activeTab: ChatTab | undefined; setMessagesHasUnread: Dispatch<SetStateAction<boolean>>; handleTabSelect: (tabId: string) => void; handleCloseTab: (tabId: string) => void; handleOpenDocument: (docId: string, title: string) => void; handleCreateDocument: (title: string, initialContent: string) => Promise<void>; handleRenameDocument: (documentId: string, title: string) => Promise<void>; } {
   const [tabs, setTabs] = useState<ChatTab[]>([MESSAGES_TAB]);
   const [activeTabId, setActiveTabId] = useState('messages');
   const [messagesHasUnread, setMessagesHasUnread] = useState(false);
@@ -54,6 +57,17 @@ export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions): { ta
     };
     eventEmitter.on('yjs:p2p-command', handleYjsCommand);
     return (): void => { eventEmitter.off('yjs:p2p-command', handleYjsCommand); };
+  }, []);
+
+  // The tab title follows the document: a rename by this user or by a peer
+  // reaches here once, through the metadata mirror (see rename.ts).
+  useEffect(() => {
+    const handleTitle = (change?: DocTitleChanged): void => {
+      if (!change) return;
+      setTabs(prev => prev.map(t => (t.documentId === change.documentId && t.title !== change.title ? { ...t, title: change.title } : t)));
+    };
+    eventEmitter.on(DOC_TITLE_CHANGED_EVENT, handleTitle);
+    return (): void => { eventEmitter.off(DOC_TITLE_CHANGED_EVENT, handleTitle); };
   }, []);
 
   const handleTabSelect: (tabId: string) => void = useCallback((tabId: string): void => {
@@ -97,23 +111,35 @@ export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions): { ta
     if (!currentUserCid) throw new Error('Cannot create a document before the session has a CID');
 
     // The typed message, which this parameter used to ignore entirely.
+    // The creator seeds the title into the document so the CRDT carries it from
+    // revision zero. Only the creator does: a peer's own seed would be a
+    // concurrent write that could outrank a later rename.
+    const seeded: Y.Doc = initialContent ? seedDocument(initialContent) : new Y.Doc();
+    const cleanTitle: string = writeDocTitle(seeded, title);
     const metadata: DocumentMetadata = await liveDocumentStore.createDocument(
-      title,
+      cleanTitle,
       peerCid.toString(),
       currentUserCid.toString(),
-      initialContent ? seedDocument(initialContent) : undefined,
+      seeded,
     );
-    await messenger.sendMessage(peerCid, `Created live document: ${title}`, {
+    await messenger.sendMessage(peerCid, `Created live document: ${cleanTitle}`, {
       messageType: 'live_document',
       documentId: metadata.id,
-      documentTitle: title,
+      documentTitle: cleanTitle,
     });
-    handleOpenDocument(metadata.id, title);
+    handleOpenDocument(metadata.id, cleanTitle);
     // No catch: LiveDocumentModal was written to render this failure
     // ("Could not create the document…"), and swallowing it here made that
     // branch unreachable — the modal closed normally, the title and the typed
     // content were discarded, and no tab opened.
   }, [peerCid, currentUserCid, handleOpenDocument, messenger]);
+
+  const handleRenameDocument: (documentId: string, title: string) => Promise<void> = useCallback(
+    async (documentId: string, title: string): Promise<void> => {
+      await renameLiveDocument(documentId, title);
+    },
+    [],
+  );
 
   const tabsWithUnread: { hasUnread: boolean; id: string; type: "messages" | "live_document"; title: string; documentId?: string; }[] = tabs.map(tab => ({
     ...tab,
@@ -133,5 +159,6 @@ export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions): { ta
     handleCloseTab,
     handleOpenDocument,
     handleCreateDocument,
+    handleRenameDocument,
   };
 }

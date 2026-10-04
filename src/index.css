@@ -482,13 +482,16 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
-/* The collaborator cursor paints its own surfaces from `user.color` — a colour
-   assigned per collaborator, not a theme token (see CollaboratorCursor.tsx,
-   which sets backgroundColor from it directly). The white and near-white values
-   below are contrast partners for THAT surface, so they are deliberately literal
-   and must not be migrated to tokens: a token here would follow the workspace
-   theme while the surface underneath followed the user, and the pair would come
-   apart. */
+/* The collaborator cursor.
+ *
+ * The caret line and the tag's border/avatar ring take `--cursor-color`: a
+ * PERSON's colour (usernameAvatarColor), not a theme role, so it stays literal
+ * and does not follow the workspace palette (see docs/THEMING.md).
+ *
+ * The tag's SURFACE and TEXT are theme tokens, deliberately not the person's
+ * colour. A name drawn in an arbitrary hue on an arbitrary document cannot
+ * promise AA contrast in both themes; --foreground on a translucent
+ * --background does, because that pair is the page's own text-on-page. */
 .collaborator-cursor {
   position: relative;
   display: inline;
@@ -513,39 +516,92 @@ h1, h2, h3, h4, h5, h6 {
   50% { opacity: 0; }
 }
 
-/* Tooltip with username - uses fixed positioning to escape overflow containers */
+/* Name tag: a glass pill. Fixed positioning escapes overflow containers; the
+   position itself is computed by cursor-tag-placement.ts (above the line,
+   flipped below only at the top edge). */
 .collaborator-cursor__tooltip {
   position: fixed;
   white-space: nowrap;
-  padding: 2px 8px;
-  border-radius: 4px;
-  /* See the note on .tap-target: a size meant as a floor belongs in the unit
-     the standard is written in. These were flat 10px and 11px -- below the
-     12px legibility floor, and, being absolute, deaf to the font-size setting
-     too, so a user who raised the app to 18px still got a 10px timestamp. */
+  /* 18px tall (16px avatar + border): the most that fits between two lines at the
+     editor's 36px line pitch, so the tag never covers the line above it. */
+  padding: 0 9px 0 0;
+  border-radius: 9999px;
+  /* A size meant as a floor belongs in the unit the standard is written in. */
   font-size: max(12px, 0.75rem);
   font-weight: 500;
-  color: white;
+  line-height: 1.25;
+  color: hsl(var(--foreground));
+  background: hsl(var(--background) / 0.8);
+  -webkit-backdrop-filter: blur(10px) saturate(1.4);
+  backdrop-filter: blur(10px) saturate(1.4);
+  border: 1px solid var(--cursor-color);
+  border-color: color-mix(in srgb, var(--cursor-color) 60%, transparent);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.12), 0 4px 12px rgb(0 0 0 / 0.12);
   pointer-events: auto;
   cursor: pointer;
   user-select: none;
-  transition: all 0.15s ease;
-  z-index: 99999; /* Higher than toolbar to ensure visibility on first line */
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: box-shadow 0.15s ease;
+  /* Above the editor and its toolbar, BELOW dialogs and menus (z-50): the tag is
+     clamped to the editor, so it never needs to outrank an overlay. */
+  z-index: 30;
 }
 
 .collaborator-cursor__tooltip:hover {
-  transform: scale(1.02);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 2px 4px rgb(0 0 0 / 0.16), 0 8px 20px rgb(0 0 0 / 0.18);
 }
 
-/* Expanded tooltip for flash comment input */
+.collaborator-cursor__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  border-radius: 9999px;
+}
+
+.collaborator-cursor__label:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+.collaborator-cursor__label[hidden] {
+  display: none;
+}
+
+.collaborator-cursor__avatar {
+  display: inline-flex;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  box-shadow: 0 0 0 1.5px var(--cursor-color);
+}
+
+/* One initial at the 12px text floor: two would not fit a 16px circle (see CursorAvatars). */
+.collaborator-cursor__avatar * {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.collaborator-cursor__name {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Expanded tag: the flash-comment composer. */
 .collaborator-cursor__tooltip[data-expanded="true"] {
   white-space: normal;
   padding: 0;
   min-width: 240px;
   max-width: 300px;
-  border-radius: 8px;
+  border-radius: 12px;
+  background: hsl(var(--background) / 0.92);
+  cursor: default;
 }
 
 .collaborator-cursor__input-container {
@@ -553,38 +609,42 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .collaborator-cursor__input-header {
-  font-size: 12px;
+  font-size: max(12px, 0.75rem);
   font-weight: 600;
   margin-bottom: 8px;
-  color: white;
 }
 
 .collaborator-cursor__input {
   width: 100%;
   min-height: 60px;
   padding: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.2);
-  color: white;
-  font-size: 12px;
+  border: 1px solid hsl(var(--foreground) / 0.25);
+  border-radius: 6px;
+  background: hsl(var(--surface));
+  color: hsl(var(--foreground));
+  font-size: max(12px, 0.75rem);
   resize: none;
   outline: none;
 }
 
 .collaborator-cursor__input:focus {
-  border-color: rgba(255, 255, 255, 0.4);
+  border-color: var(--cursor-color);
+  box-shadow: 0 0 0 2px hsl(var(--ring) / 0.5);
 }
 
 .collaborator-cursor__input::placeholder {
-  color: rgba(255, 255, 255, 0.5);
+  color: hsl(var(--muted-foreground));
 }
 
 .collaborator-cursor__word-count {
   font-size: max(12px, 0.75rem);
-  color: #9ca3af;
+  color: hsl(var(--muted-foreground));
   text-align: right;
   margin-top: 4px;
+}
+
+.collaborator-cursor__word-count[data-over] {
+  color: hsl(var(--destructive-emphasis));
 }
 
 .collaborator-cursor__buttons {
@@ -597,30 +657,30 @@ h1, h2, h3, h4, h5, h6 {
 .collaborator-cursor__send-btn,
 .collaborator-cursor__cancel-btn {
   padding: 4px 12px;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: max(12px, 0.75rem);
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease;
   border: none;
 }
 
 .collaborator-cursor__send-btn {
-  background: white;
-  color: #1a1b26;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
 }
 
 .collaborator-cursor__send-btn:hover {
-  background: #f0f0f0;
+  background: hsl(var(--primary) / 0.85);
 }
 
 .collaborator-cursor__cancel-btn {
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
+  background: hsl(var(--foreground) / 0.08);
+  color: hsl(var(--foreground));
 }
 
 .collaborator-cursor__cancel-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: hsl(var(--foreground) / 0.16);
 }
 
 /* Selection highlighting for other users */

@@ -11,7 +11,7 @@ import { notificationService } from '@/lib/notification-service';
 import { MessageCircle } from 'lucide-react';
 import { ChatTabBar } from './ChatTabBar';
 import { ComposeContextBanner } from './ComposeContextBanner';
-import { LiveDocumentView } from './LiveDocumentView';
+import { LiveDocumentPane } from './LiveDocumentPane';
 import { LiveDocumentModal } from './LiveDocumentModal';
 import { FileTransferModal } from './FileTransferModal';
 import { ChatSettingsPanel } from './ChatSettingsPanel';
@@ -86,7 +86,7 @@ export function P2PChat({
   const {
     activeTabId, activeTabIdRef, tabsWithUnread, activeTab,
     setMessagesHasUnread, handleTabSelect, handleCloseTab,
-    handleOpenDocument, handleCreateDocument,
+    handleOpenDocument, handleCreateDocument, handleRenameDocument,
   } = useP2PTabs({ peerCid, currentUserCid });
 
   // Messages hook
@@ -189,7 +189,7 @@ export function P2PChat({
           onLeave={callBinding.leave}
         />
       )}
-      <ChatTabBar tabs={tabsWithUnread} activeTabId={activeTabId} onTabSelect={handleTabSelect} onTabClose={handleCloseTab} />
+      <ChatTabBar tabs={tabsWithUnread} activeTabId={activeTabId} onTabSelect={handleTabSelect} onTabClose={handleCloseTab} onTabRename={handleRenameDocument} />
 
       {rules && (
         <div className="px-4 py-2 bg-primary/20 border-b border-primary/40">
@@ -199,7 +199,7 @@ export function P2PChat({
 
       <div className="flex-1 p-0 flex flex-col overflow-hidden">
         {isViewingDocument && activeTab?.documentId ? (
-          <LiveDocumentView documentId={activeTab.documentId} documentTitle={activeTab.title} peerCid={peerCid.toString()} peerName={peerName} linkUp={isConnected} currentUserCid={currentUserCid?.toString() || ''} currentUserName={currentUserName} />
+          <LiveDocumentPane documentId={activeTab.documentId} documentTitle={activeTab.title} onRename={handleRenameDocument} peerCid={peerCid.toString()} peerName={peerName} linkUp={isConnected} currentUserCid={currentUserCid?.toString() || ''} currentUserName={currentUserName} />
         ) : (
           <>
             <div className="relative flex min-h-0 flex-1 flex-col">

@@ -1,5 +1,6 @@
 import { CollaborativeEditor } from './CollaborativeEditor';
-import { FileText, Download, RefreshCw } from 'lucide-react';
+import { FileText, Download, Pencil, RefreshCw } from 'lucide-react';
+import { RenameDocumentDialog } from './RenameDocumentDialog';
 import { Button } from '@/components/ui/button';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { useState, useCallback } from 'react';
@@ -14,6 +15,8 @@ interface LiveDocumentViewProps {
   linkUp: boolean;
   currentUserCid: string;
   currentUserName: string;
+  /** Renames the document for every peer; rejects with the reason when the title is refused. */
+  onRename: (documentId: string, title: string) => Promise<void>;
   onSave?: (documentId: string, content: string) => void;
 }
 
@@ -25,10 +28,12 @@ export function LiveDocumentView({
   linkUp,
   currentUserCid,
   currentUserName,
+  onRename,
   onSave,
 }: LiveDocumentViewProps): JSX.Element {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [renaming, setRenaming] = useState<boolean>(false);
 
   const handleSave: (content: string) => void = useCallback((content: string): void => {
     // setLastSaved used to run unconditionally, outside this guard — and no
@@ -67,7 +72,19 @@ export function LiveDocumentView({
             <FileText className="h-5 w-5 text-primary-accent" />
           </div>
           <div>
-            <h2 className="text-base font-semibold text-foreground">{documentTitle}</h2>
+            <div className="flex items-center gap-1 min-w-0">
+              <h2 className="text-base font-semibold text-foreground truncate" data-testid="live-doc-title-heading">{documentTitle}</h2>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+                onClick={() => setRenaming(true)}
+                aria-label="Rename document"
+                data-testid="live-doc-rename"
+              >
+                <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+              </Button>
+            </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span>Editing with {peerName}</span>
               {lastSaved && (
@@ -134,6 +151,12 @@ export function LiveDocumentView({
           />
         </ErrorBoundary>
       </div>
+      <RenameDocumentDialog
+        open={renaming}
+        currentTitle={documentTitle}
+        onRename={(title) => onRename(documentId, title)}
+        onClose={() => setRenaming(false)}
+      />
     </div>
   );
 }

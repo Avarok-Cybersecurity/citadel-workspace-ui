@@ -1,10 +1,9 @@
 import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
 import { liveDocSyncLabel, type LiveDocSyncLabel } from './live-doc-sync-label';
-import Collaboration from '@tiptap/extension-collaboration';
-import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
 import { useEffect, useCallback } from 'react';
-import { createCollaboratorCursor, type CursorUser } from './CollaboratorCursor';
+import { CURSOR_BOUNDS_ATTRIBUTE } from './CollaboratorCursor';
+import { CursorAvatars } from './CursorAvatars';
+import { collaborativeExtensions } from './editor-extensions';
 import { buildContextMenuFlashComment } from './collaborator-cursor-helpers';
 import { MessageSquare } from 'lucide-react';
 import { useCollaborativeEditor } from './useCollaborativeEditor';
@@ -67,27 +66,11 @@ export function CollaborativeEditor({
   const syncLabel: LiveDocSyncLabel = liveDocSyncLabel(syncState, linkUp, peerName);
 
   const editor: Editor | null = useEditor({
-    extensions: [
-      StarterKit.configure({
-        history: false,
-      }),
-      Collaboration.configure({
-        document: doc,
-      }),
-      ...(provider ? [
-        CollaborationCursor.configure({
-          provider: provider as unknown as { awareness: typeof provider.awareness },
-          user: {
-            name: currentUserName,
-            color: userColor,
-          },
-          render: (user: CursorUser) => createCollaboratorCursor(user),
-        }),
-      ] : []),
-    ],
+    extensions: collaborativeExtensions(doc, provider ? { provider, user: { name: currentUserName, color: userColor } } : undefined),
     editorProps: {
       attributes: {
-        class: 'prose dark:prose-invert prose-sm max-w-none focus:outline-none min-h-[300px] p-4',
+        // Top padding leaves room for a collaborator's name tag above the first line.
+        class: 'prose dark:prose-invert prose-sm max-w-none focus:outline-none min-h-[300px] px-4 pb-4 pt-9 [&_p]:leading-9 [&_li]:leading-9',
       },
     },
   }, [doc, provider]);
@@ -151,7 +134,7 @@ export function CollaborativeEditor({
       <div className="h-full flex flex-col bg-background">
         <div className="flex items-center gap-2 px-4 py-2 border-b border-surface/50 bg-background relative z-10">
           <span className="text-xs text-muted-foreground">Collaborators:</span>
-          <span className="px-2 py-0.5 rounded-full text-xs bg-primary/30 text-primary-accent ring-2 ring-success ring-offset-1 ring-offset-background">
+          <span className="px-2 py-0.5 rounded-full text-xs bg-primary/30 text-foreground ring-2 ring-success ring-offset-1 ring-offset-background">
             {currentUserName}
           </span>
         </div>
@@ -175,7 +158,7 @@ export function CollaborativeEditor({
             <span
               key={i}
               className={`
-                px-2 py-0.5 rounded-full text-xs bg-primary/30 text-primary-accent
+                px-2 py-0.5 rounded-full text-xs bg-primary/30 text-foreground
                 transition-all duration-200
                 ${user.isActive
                   ? 'ring-2 ring-success ring-offset-2 ring-offset-background'
@@ -199,11 +182,13 @@ export function CollaborativeEditor({
       {/* Editor content */}
       <div
         ref={editorContainerRef}
+        {...{ [CURSOR_BOUNDS_ATTRIBUTE]: '' }}
         className="flex-1 overflow-auto relative"
         onContextMenu={handleContextMenu}
         key={`editor-${documentId}`}
       >
         <EditorContent editor={editor} className="h-full" />
+        <CursorAvatars />
 
         {/* Flash Comments Display */}
         {flashComments.map((comment) => (

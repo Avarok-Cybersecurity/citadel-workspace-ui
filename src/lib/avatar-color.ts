@@ -44,3 +44,17 @@ export function memberAvatarColor(
 ): string {
   return member?.role?.color || avatarColor(index);
 }
+
+/**
+ * Stable colour for a PERSON, derived from their username alone.
+ *
+ * `memberAvatarColor` rotates by list position, so it cannot give one person one
+ * colour across screens. Surfaces that show a person without a list around them
+ * (the collaborator cursor) use this: the same username hashes to the same index
+ * in the same palette on every device, with no colour carried over the wire.
+ */
+export function usernameAvatarColor(username: string): string {
+  let hash: number = 0;
+  for (const ch of username) hash = (Math.imul(hash, 31) + (ch.codePointAt(0) ?? 0)) >>> 0;
+  return avatarColor(hash);
+}

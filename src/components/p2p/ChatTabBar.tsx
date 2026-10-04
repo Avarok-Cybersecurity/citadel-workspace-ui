@@ -1,4 +1,7 @@
-import { MessageSquare, FileText, X, type LucideIcon } from 'lucide-react';
+import { useState } from 'react';
+import { MessageSquare, FileText, Pencil, X, type LucideIcon } from 'lucide-react';
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
+import { RenameDocumentDialog } from './RenameDocumentDialog';
 
 export interface ChatTab {
   id: string;
@@ -13,6 +16,8 @@ interface ChatTabBarProps {
   activeTabId: string;
   onTabSelect: (tabId: string) => void;
   onTabClose: (tabId: string) => void;
+  /** Renames the document behind a tab; rejects with the reason when the title is refused. */
+  onTabRename: (documentId: string, title: string) => Promise<void>;
 }
 
 interface TabProps {
@@ -20,13 +25,14 @@ interface TabProps {
   active: boolean;
   onSelect: () => void;
   onClose?: () => void;
+  onRename?: () => void;
 }
 
-function Tab({ tab, active, onSelect, onClose }: TabProps): JSX.Element {
+function Tab({ tab, active, onSelect, onClose, onRename }: TabProps): JSX.Element {
   const Icon: LucideIcon = tab.type === 'messages' ? MessageSquare : FileText;
   const showNotificationDot: boolean | undefined = tab.hasUnread && !active;
 
-  return (
+  const body: JSX.Element = (
     // The tab and its close control are SIBLINGS. A real <button> nested inside
     // a role="button" is the nested-interactive pattern this project's own
     // lib/a11y.ts forbids: assistive technology reports one control where there
@@ -44,6 +50,9 @@ function Tab({ tab, active, onSelect, onClose }: TabProps): JSX.Element {
       <button
         type="button"
         onClick={onSelect}
+        // F2 is the rename key in every file manager and tab strip; the context
+        // menu is the pointer route and the header pencil the discoverable one.
+        onKeyDown={onRename ? (e): void => { if (e.key === 'F2') { e.preventDefault(); onRename(); } } : undefined}
         aria-current={active ? 'page' : undefined}
         className="flex items-center gap-1.5 px-3 py-2 cursor-pointer bg-transparent text-inherit"
       >
@@ -76,9 +85,24 @@ function Tab({ tab, active, onSelect, onClose }: TabProps): JSX.Element {
       )}
     </div>
   );
+
+  if (!onRename) return body;
+  return (
+    <ContextMenu modal={false}>
+      <ContextMenuTrigger asChild>{body}</ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem onSelect={onRename} data-testid="tab-rename">
+          <Pencil className="mr-2 h-4 w-4" aria-hidden="true" />
+          Rename
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
+  );
 }
 
-export function ChatTabBar({ tabs, activeTabId, onTabSelect, onTabClose }: ChatTabBarProps): JSX.Element {
+export function ChatTabBar({ tabs, activeTabId, onTabSelect, onTabClose, onTabRename }: ChatTabBarProps): JSX.Element {
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const renaming: ChatTab | undefined = tabs.find((t) => t.id === renamingId);
   return (
     <div className="flex items-center border-b border-surface/50 bg-background overflow-x-auto">
       {tabs.map((tab) => (
@@ -88,8 +112,15 @@ export function ChatTabBar({ tabs, activeTabId, onTabSelect, onTabClose }: ChatT
           active={tab.id === activeTabId}
           onSelect={() => onTabSelect(tab.id)}
           onClose={tab.type === 'live_document' ? (): void => onTabClose(tab.id) : undefined}
+          onRename={tab.type === 'live_document' ? (): void => setRenamingId(tab.id) : undefined}
         />
       ))}
+      <RenameDocumentDialog
+        open={renaming !== undefined}
+        currentTitle={renaming?.title ?? ''}
+        onRename={(title) => onTabRename(renaming?.documentId ?? '', title)}
+        onClose={() => setRenamingId(null)}
+      />
     </div>
   );
 }
