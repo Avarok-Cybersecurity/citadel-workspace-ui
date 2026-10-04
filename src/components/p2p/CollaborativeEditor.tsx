@@ -1,10 +1,9 @@
 import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
 import { liveDocSyncLabel, type LiveDocSyncLabel } from './live-doc-sync-label';
-import Collaboration from '@tiptap/extension-collaboration';
-import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
 import { useEffect, useCallback } from 'react';
-import { createCollaboratorCursor, type CursorUser } from './CollaboratorCursor';
+import { CURSOR_BOUNDS_ATTRIBUTE } from './CollaboratorCursor';
+import { CursorAvatars } from './CursorAvatars';
+import { collaborativeExtensions } from './editor-extensions';
 import { buildContextMenuFlashComment } from './collaborator-cursor-helpers';
 import { MessageSquare } from 'lucide-react';
 import { useCollaborativeEditor } from './useCollaborativeEditor';
@@ -67,24 +66,7 @@ export function CollaborativeEditor({
   const syncLabel: LiveDocSyncLabel = liveDocSyncLabel(syncState, linkUp, peerName);
 
   const editor: Editor | null = useEditor({
-    extensions: [
-      StarterKit.configure({
-        history: false,
-      }),
-      Collaboration.configure({
-        document: doc,
-      }),
-      ...(provider ? [
-        CollaborationCursor.configure({
-          provider: provider as unknown as { awareness: typeof provider.awareness },
-          user: {
-            name: currentUserName,
-            color: userColor,
-          },
-          render: (user: CursorUser) => createCollaboratorCursor(user),
-        }),
-      ] : []),
-    ],
+    extensions: collaborativeExtensions(doc, provider ? { provider, user: { name: currentUserName, color: userColor } } : undefined),
     editorProps: {
       attributes: {
         class: 'prose dark:prose-invert prose-sm max-w-none focus:outline-none min-h-[300px] p-4',
@@ -199,11 +181,13 @@ export function CollaborativeEditor({
       {/* Editor content */}
       <div
         ref={editorContainerRef}
+        {...{ [CURSOR_BOUNDS_ATTRIBUTE]: '' }}
         className="flex-1 overflow-auto relative"
         onContextMenu={handleContextMenu}
         key={`editor-${documentId}`}
       >
         <EditorContent editor={editor} className="h-full" />
+        <CursorAvatars />
 
         {/* Flash Comments Display */}
         {flashComments.map((comment) => (

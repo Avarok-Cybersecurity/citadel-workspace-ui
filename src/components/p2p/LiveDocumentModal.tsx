@@ -13,6 +13,7 @@ import { FileText } from 'lucide-react';
 import { isEnterCommit } from '@/lib/keyboard-commit';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
+import { DOC_TITLE_MAX_LENGTH } from '@/lib/live-document-store/doc-title';
 
 interface LiveDocumentModalProps {
   isOpen: boolean;
@@ -79,6 +80,7 @@ export function LiveDocumentModal({
           <Input
             placeholder="Document title..."
             data-testid="live-doc-title"
+            maxLength={DOC_TITLE_MAX_LENGTH}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={handleKeyDown}

@@ -17,21 +17,21 @@ afterEach(cleanup);
 
 describe('the toolbar Undo and Redo buttons', () => {
   it('are disabled until there is something to undo, then work', () => {
-    let editor: Editor | null = null;
-    render(<Harness doc={new Y.Doc()} onEditor={(e) => { editor = e; }} />);
+    const held: { editor: Editor | null } = { editor: null };
+    render(<Harness doc={new Y.Doc()} onEditor={(e) => { held.editor = e; }} />);
     const undo: HTMLElement = screen.getByRole('button', { name: 'Undo' });
     const redo: HTMLElement = screen.getByRole('button', { name: 'Redo' });
     expect(undo).toBeDisabled();
     expect(redo).toBeDisabled();
 
-    act(() => { editor?.commands.insertContent('draft'); });
+    act(() => { held.editor?.commands.insertContent('draft'); });
     expect(undo).toBeEnabled();
 
     fireEvent.click(undo);
-    expect(editor?.getText()).toBe('');
+    expect(held.editor?.getText()).toBe('');
     expect(redo).toBeEnabled();
 
     fireEvent.click(redo);
-    expect(editor?.getText()).toBe('draft');
+    expect(held.editor?.getText()).toBe('draft');
   });
 });

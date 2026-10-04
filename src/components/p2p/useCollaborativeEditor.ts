@@ -6,6 +6,8 @@ import { eventEmitter } from '@/lib/event-emitter';
 import type { FlashComment } from './CollaboratorCursor';
 import { flashCommentsFrom } from './collaborator-cursor-helpers';
 import { useDocumentPersistence } from './useDocumentPersistence';
+import { useDocumentTitle } from './useDocumentTitle';
+import { usernameAvatarColor } from '@/lib/avatar-color';
 
 /** Shape of awareness state entries set via provider.setLocalState() */
 interface AwarenessState {
@@ -13,14 +15,6 @@ interface AwarenessState {
   cursor?: unknown;
   lastUpdate?: number;
   flashComment?: FlashComment | null;
-}
-
-function getRandomColor(): string {
-  const colors: string[] = [
-    '#6E59A5', '#3B82F6', '#10B981', '#F59E0B', '#EF4444',
-    '#8B5CF6', '#EC4899', '#14B8A6', '#F97316', '#6366F1'
-  ];
-  return colors[Math.floor(Math.random() * colors.length)];
 }
 
 interface UseCollaborativeEditorParams {
@@ -54,7 +48,7 @@ export function useCollaborativeEditor({
 }: UseCollaborativeEditorParams): UseCollaborativeEditorResult {
   const [doc] = useState<Y.Doc>(() => new Y.Doc());
   const [provider, setProvider] = useState<YjsP2PProvider | null>(null);
-  const [userColor] = useState<string>(() => getRandomColor());
+  const [userColor] = useState<string>(() => usernameAvatarColor(currentUserName));
   const [connectedUsers, setConnectedUsers] = useState<{ name: string; isActive: boolean }[]>([{ name: currentUserName, isActive: true }]);
   const [syncState, setSyncState] = useState<EditorSyncState>('connecting');
   const [flashComments, setFlashComments] = useState<FlashComment[]>([]);
@@ -62,6 +56,7 @@ export function useCollaborativeEditor({
   const editorContainerRef: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
 
   useDocumentPersistence(documentId, doc);
+  useDocumentTitle(documentId, doc);
 
   // Create provider on mount
   useEffect(() => {
