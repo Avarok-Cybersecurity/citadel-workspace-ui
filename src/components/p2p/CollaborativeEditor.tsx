@@ -69,7 +69,8 @@ export function CollaborativeEditor({
     extensions: collaborativeExtensions(doc, provider ? { provider, user: { name: currentUserName, color: userColor } } : undefined),
     editorProps: {
       attributes: {
-        class: 'prose dark:prose-invert prose-sm max-w-none focus:outline-none min-h-[300px] p-4',
+        // Top padding leaves room for a collaborator's name tag above the first line.
+        class: 'prose dark:prose-invert prose-sm max-w-none focus:outline-none min-h-[300px] px-4 pb-4 pt-9',
       },
     },
   }, [doc, provider]);

@@ -60,6 +60,7 @@ export function RenameDocumentDialog({ open, currentTitle, onRename, onClose }: 
             value={value}
             onChange={(e) => { setValue(e.target.value); setTouched(true); setFailure(null); }}
             aria-invalid={problem ? true : undefined}
+            className={problem ? 'border-destructive-emphasis' : undefined}
             aria-describedby={problem ? 'rename-document-problem' : undefined}
             maxLength={DOC_TITLE_MAX_LENGTH * 2}
           />
