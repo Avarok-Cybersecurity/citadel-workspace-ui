@@ -49,14 +49,20 @@ export function createCollaboratorCursor(user: CursorUser): HTMLElement {
   tooltip.setAttribute('data-expanded', 'false');
   tooltip.setAttribute('data-side', 'above');
 
-  const label: HTMLSpanElement = document.createElement('span');
+  // A real button: the tag is the way into the flash-comment composer, so it must be
+  // reachable and operable from the keyboard, and say whether the composer is open.
+  const label: HTMLButtonElement = document.createElement('button');
+  label.type = 'button';
   label.className = 'collaborator-cursor__label';
+  label.setAttribute('aria-expanded', 'false');
+  label.setAttribute('aria-label', `Flash comment to ${user.name}`);
   const avatarSlot: HTMLSpanElement = document.createElement('span');
   avatarSlot.className = 'collaborator-cursor__avatar';
   avatarSlot.setAttribute('aria-hidden', 'true');
   const nameEl: HTMLSpanElement = document.createElement('span');
   nameEl.className = 'collaborator-cursor__name';
   nameEl.textContent = user.name;
+  nameEl.title = user.name;
   label.append(avatarSlot, nameEl);
   tooltip.appendChild(label);
 
@@ -90,6 +96,16 @@ export function createCollaboratorCursor(user: CursorUser): HTMLElement {
 
   setTimeout(updateTooltipPosition, 0);
 
+  // A remote caret moves by ProseMirror editing the document DOM, which fires no
+  // scroll or resize; without this the tag stays where the caret used to be.
+  let moveObserver: MutationObserver | null = null;
+  setTimeout(() => {
+    const root: Element | null = cursor.closest('.ProseMirror');
+    if (!root) return;
+    moveObserver = new MutationObserver(schedulePositionUpdate);
+    moveObserver.observe(root, { childList: true, subtree: true, characterData: true });
+  }, 0);
+
   const scrollHandler = (): void => schedulePositionUpdate();
   document.addEventListener('scroll', scrollHandler, true);
 
@@ -103,6 +119,7 @@ export function createCollaboratorCursor(user: CursorUser): HTMLElement {
       if (rafId !== null) {
         cancelAnimationFrame(rafId);
       }
+      moveObserver?.disconnect();
       unregisterAvatar();
       return true;
     }
@@ -121,17 +138,24 @@ export function createCollaboratorCursor(user: CursorUser): HTMLElement {
     inputContainer?.remove();
     inputContainer = null;
     label.hidden = false;
+    label.setAttribute('aria-expanded', 'false');
     tooltip.setAttribute('data-expanded', 'false');
     schedulePositionUpdate();
   };
 
   tooltip.addEventListener('click', (e) => {
     e.stopPropagation();
+    // Clicks inside the composer are for the composer: collapsing here discarded the draft.
+    if (inputContainer?.contains(e.target as Node)) return;
     e.preventDefault();
-    if (inputContainer) return collapse();
+    if (inputContainer) {
+      collapse();
+      label.focus();
+      return;
+    }
 
     inputContainer = buildFlashInput(user, {
-      onCancel: collapse,
+      onCancel: (): void => { collapse(); label.focus(); },
       onSend: (text: string): void => {
         const cursorRect: DOMRect = cursor.getBoundingClientRect();
         const flashComment: FlashComment = {
@@ -146,9 +170,11 @@ export function createCollaboratorCursor(user: CursorUser): HTMLElement {
         // Subscriber: useCollaborativeEditor.ts (handleSendFlashComment).
         eventEmitter.emit('flash-comment:send', flashComment);
         collapse();
+        label.focus();
       },
     });
     label.hidden = true;
+    label.setAttribute('aria-expanded', 'true');
     tooltip.setAttribute('data-expanded', 'true');
     tooltip.appendChild(inputContainer);
     schedulePositionUpdate();

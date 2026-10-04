@@ -88,7 +88,7 @@ function Tab({ tab, active, onSelect, onClose, onRename }: TabProps): JSX.Elemen
 
   if (!onRename) return body;
   return (
-    <ContextMenu>
+    <ContextMenu modal={false}>
       <ContextMenuTrigger asChild>{body}</ContextMenuTrigger>
       <ContextMenuContent>
         <ContextMenuItem onSelect={onRename} data-testid="tab-rename">

@@ -13,7 +13,7 @@ export type TagSide = 'above' | 'below';
 export interface TagPlacement { top: number; left: number; side: TagSide }
 
 /** Clear space between the caret line and the tag, in CSS px. */
-export const TAG_GAP_PX: 6 = 6;
+export const TAG_GAP_PX: 2 = 2;
 /** Minimum distance the tag keeps from the edge of the visible area, in CSS px. */
 export const TAG_EDGE_MARGIN_PX: 4 = 4;
 

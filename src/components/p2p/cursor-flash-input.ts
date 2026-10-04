@@ -56,6 +56,8 @@ export function buildFlashInput(user: CursorUser, handlers: FlashInputHandlers):
   buttons.append(send, cancel);
   container.appendChild(buttons);
 
+  container.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); handlers.onCancel(); } });
+
   // Focus after insertion: the container is not in the document yet.
   setTimeout(() => input.focus(), 10);
   return container;

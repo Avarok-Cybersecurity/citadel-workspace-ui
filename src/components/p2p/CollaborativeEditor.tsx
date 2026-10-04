@@ -70,7 +70,7 @@ export function CollaborativeEditor({
     editorProps: {
       attributes: {
         // Top padding leaves room for a collaborator's name tag above the first line.
-        class: 'prose dark:prose-invert prose-sm max-w-none focus:outline-none min-h-[300px] px-4 pb-4 pt-9',
+        class: 'prose dark:prose-invert prose-sm max-w-none focus:outline-none min-h-[300px] px-4 pb-4 pt-9 [&_p]:leading-8 [&_li]:leading-8',
       },
     },
   }, [doc, provider]);
@@ -134,7 +134,7 @@ export function CollaborativeEditor({
       <div className="h-full flex flex-col bg-background">
         <div className="flex items-center gap-2 px-4 py-2 border-b border-surface/50 bg-background relative z-10">
           <span className="text-xs text-muted-foreground">Collaborators:</span>
-          <span className="px-2 py-0.5 rounded-full text-xs bg-primary/30 text-primary-accent ring-2 ring-success ring-offset-1 ring-offset-background">
+          <span className="px-2 py-0.5 rounded-full text-xs bg-primary/30 text-foreground ring-2 ring-success ring-offset-1 ring-offset-background">
             {currentUserName}
           </span>
         </div>
@@ -158,7 +158,7 @@ export function CollaborativeEditor({
             <span
               key={i}
               className={`
-                px-2 py-0.5 rounded-full text-xs bg-primary/30 text-primary-accent
+                px-2 py-0.5 rounded-full text-xs bg-primary/30 text-foreground
                 transition-all duration-200
                 ${user.isActive
                   ? 'ring-2 ring-success ring-offset-2 ring-offset-background'

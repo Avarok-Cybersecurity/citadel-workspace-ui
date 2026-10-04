@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type MutableRefObject } from 'react';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -20,6 +20,8 @@ export function RenameDocumentDialog({ open, currentTitle, onRename, onClose }: 
   const [touched, setTouched] = useState<boolean>(false);
   const [busy, setBusy] = useState<boolean>(false);
   const [failure, setFailure] = useState<string | null>(null);
+  const [announcement, setAnnouncement] = useState<string>('');
+  const invoker: MutableRefObject<HTMLElement | null> = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (open) { setValue(currentTitle); setTouched(false); setFailure(null); }
@@ -37,6 +39,7 @@ export function RenameDocumentDialog({ open, currentTitle, onRename, onClose }: 
     setFailure(null);
     try {
       await onRename(check.title);
+      setAnnouncement(`Document renamed to ${check.title}`);
       onClose();
     } catch (error: unknown) {
       setFailure(error instanceof Error ? error.message : 'Could not rename the document.');
@@ -46,8 +49,18 @@ export function RenameDocumentDialog({ open, currentTitle, onRename, onClose }: 
   };
 
   return (
+    <>
+    {/* Present before it is written, so the rename is announced after the dialog is gone. */}
+    <span className="sr-only" role="status">{announcement}</span>
     <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
-      <DialogContent className="sm:max-w-md" data-testid="rename-document-dialog">
+      <DialogContent
+        className="sm:max-w-md"
+        data-testid="rename-document-dialog"
+        // Focus goes back to whatever opened the dialog (tab, F2 target or pencil),
+        // not to <body>: Radix only restores to a trigger it owns.
+        onOpenAutoFocus={() => { invoker.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; }}
+        onCloseAutoFocus={(e) => { if (invoker.current?.isConnected) { e.preventDefault(); invoker.current.focus(); } }}
+      >
         <DialogHeader>
           <DialogTitle>Rename document</DialogTitle>
           <DialogDescription>Everyone editing this document sees the new title.</DialogDescription>
@@ -81,5 +94,6 @@ export function RenameDocumentDialog({ open, currentTitle, onRename, onClose }: 
         </form>
       </DialogContent>
     </Dialog>
+    </>
   );
 }

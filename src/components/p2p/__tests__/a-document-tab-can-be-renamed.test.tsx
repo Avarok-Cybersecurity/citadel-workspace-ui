@@ -68,4 +68,16 @@ describe('renaming from the tab', () => {
     fireEvent.keyDown(screen.getByRole('button', { name: /^Messages$/ }), { key: 'F2' });
     expect(screen.queryByTestId('rename-document-dialog')).toBeNull();
   });
+
+  it('returns focus to the tab it was opened from, and announces the result', async () => {
+    setup(vi.fn(async () => undefined));
+    const tab: HTMLElement = docTab();
+    tab.focus();
+    fireEvent.keyDown(tab, { key: 'F2' });
+    fireEvent.change(await screen.findByTestId('rename-document-input'), { target: { value: 'Renamed' } });
+    fireEvent.click(screen.getByTestId('rename-document-confirm'));
+    await waitFor(() => expect(screen.queryByTestId('rename-document-dialog')).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(tab));
+    expect(screen.getByRole('status').textContent).toBe('Document renamed to Renamed');
+  });
 });

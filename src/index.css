@@ -522,7 +522,7 @@ h1, h2, h3, h4, h5, h6 {
 .collaborator-cursor__tooltip {
   position: fixed;
   white-space: nowrap;
-  padding: 2px 9px 2px 3px;
+  padding: 1px 9px 1px 2px;
   border-radius: 9999px;
   /* A size meant as a floor belongs in the unit the standard is written in. */
   font-size: max(12px, 0.75rem);
@@ -539,7 +539,9 @@ h1, h2, h3, h4, h5, h6 {
   cursor: pointer;
   user-select: none;
   transition: box-shadow 0.15s ease;
-  z-index: 99999; /* Higher than toolbar to ensure visibility on first line */
+  /* Above the editor and its toolbar, BELOW dialogs and menus (z-50): the tag is
+     clamped to the editor, so it never needs to outrank an overlay. */
+  z-index: 30;
 }
 
 .collaborator-cursor__tooltip:hover {
@@ -550,6 +552,18 @@ h1, h2, h3, h4, h5, h6 {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  border-radius: 9999px;
+}
+
+.collaborator-cursor__label:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
 }
 
 .collaborator-cursor__label[hidden] {

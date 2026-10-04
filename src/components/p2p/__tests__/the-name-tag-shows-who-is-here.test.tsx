@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, cleanup, act } from '@testing-library/react';
+import { render, cleanup, act, fireEvent } from '@testing-library/react';
 import { createCollaboratorCursor } from '../CollaboratorCursor';
 import { CursorAvatars } from '../CursorAvatars';
 import { avatarSlotsSnapshot } from '../cursor-avatar-slots';
@@ -60,5 +60,27 @@ describe('a remote cursor tag', () => {
     const cursor: HTMLElement = mountCursor('Eve', '#000');
     expect(cursor.querySelector('.collaborator-cursor__line')).not.toBeNull();
     expect(cursor.querySelector('.collaborator-cursor__tooltip')?.getAttribute('data-side')).toBe('above');
+  });
+
+  it('opens the flash-comment composer from the keyboard and closes it with Escape', async () => {
+    const cursor: HTMLElement = mountCursor('Frank', '#000');
+    const label: HTMLButtonElement = cursor.querySelector('button.collaborator-cursor__label') as HTMLButtonElement;
+    expect(label.getAttribute('aria-expanded')).toBe('false');
+    label.click(); // what Enter or Space on a button does
+    expect(label.getAttribute('aria-expanded')).toBe('true');
+    const input: HTMLTextAreaElement = cursor.querySelector('textarea') as HTMLTextAreaElement;
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(cursor.querySelector('textarea')).toBeNull();
+    expect(label.getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(label);
+  });
+
+  it('keeps a half-written comment when the person clicks into the box', () => {
+    const cursor: HTMLElement = mountCursor('Gail', '#000');
+    (cursor.querySelector('button.collaborator-cursor__label') as HTMLButtonElement).click();
+    const input: HTMLTextAreaElement = cursor.querySelector('textarea') as HTMLTextAreaElement;
+    input.value = 'draft';
+    fireEvent.click(input);
+    expect(cursor.querySelector('textarea')?.value).toBe('draft');
   });
 });
