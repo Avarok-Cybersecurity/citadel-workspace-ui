@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PASSKEY_COPY } from '@/lib/passkey/copy';
 import { browserSignInDeps } from '@/lib/sign-in';
-import { keyFailureCopy, SIGN_IN_COPY } from '@/lib/sign-in/copy';
+import { keyFailureCopy, PRF_COPY, SIGN_IN_COPY } from '@/lib/sign-in/copy';
 import { setUpSecurityKey, type KeyPolicy } from '@/lib/sign-in/set-up-key';
 import { passkeysAvailableHere } from '@/lib/passkey';
 import type { AccountRef, StepUp } from '@/lib/sign-in/types';
@@ -32,8 +32,18 @@ export function AddSecurityKeyCard({ account, stepUp, title, body, onFinished }:
   const [busy, setBusy] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const headingRef: React.RefObject<HTMLHeadingElement> = useRef<HTMLHeadingElement>(null);
-  const available: boolean = passkeysAvailableHere();
+  const webAuthn: boolean = passkeysAvailableHere();
+  // Known only when the browser says so; until then, and when it cannot say, the ceremony decides.
+  const [prfRuledOut, setPrfRuledOut] = useState<boolean>(false);
+  const available: boolean = webAuthn && !prfRuledOut;
   useEffect(() => { headingRef.current?.focus(); }, []);
+  useEffect(() => {
+    if (!webAuthn) return undefined;
+    let live: boolean = true;
+    browserSignInDeps().authenticator.prfRuledOut()
+      .then((ruledOut: boolean): void => { if (live) setPrfRuledOut(ruledOut); }, (): void => undefined);
+    return (): void => { live = false; };
+  }, [webAuthn]);
 
   const add = (): void => {
     setBusy(true);
@@ -51,8 +61,10 @@ export function AddSecurityKeyCard({ account, stepUp, title, body, onFinished }:
         <h2 id="add-security-key-title" ref={headingRef} tabIndex={-1} className="text-lg font-bold text-foreground outline-none">{title}</h2>
       </div>
       <p className="text-sm text-muted-foreground">{body}</p>
-      {!available ? (
+      {!webAuthn ? (
         <p className="text-sm text-muted-foreground">{PASSKEY_COPY.unavailableHere}</p>
+      ) : prfRuledOut ? (
+        <p className="text-sm text-muted-foreground" data-testid="add-security-key-unsupported">{PRF_COPY.unavailableHere}</p>
       ) : (
         <>
           <div className="space-y-1.5">

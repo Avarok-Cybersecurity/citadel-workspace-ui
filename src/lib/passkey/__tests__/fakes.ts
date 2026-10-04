@@ -45,6 +45,8 @@ export class FakeAuthenticator implements AuthenticatorPort {
   cancelNext: boolean = false;
   /** When set, get() answers with this credential if it is allowed. */
   preferId: Bytes | null = null;
+  /** The browser says it has no PRF at all (getClientCapabilities). */
+  browserHasNoPrf: boolean = false;
 
   private async prf(secret: Bytes, salt: Bytes): Promise<Bytes> {
     const hmac: HmacImportParams = { name: HMAC, hash: 'SHA-256' };
@@ -83,6 +85,10 @@ export class FakeAuthenticator implements AuthenticatorPort {
       credentialId: device.id,
       prfFirst: this.prfMode === 'none' ? null : await this.prf(device.secret, pick.prfSalt),
     };
+  }
+
+  async prfRuledOut(): Promise<boolean> {
+    return this.browserHasNoPrf;
   }
 
   async signalUnknownCredential(_rpId: string, credentialId: Bytes): Promise<void> {

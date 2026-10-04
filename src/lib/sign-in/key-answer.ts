@@ -17,7 +17,8 @@ export const PRF_OUTPUT_BYTES: 32 = 32;
 export const KEY_ANSWER_TIMEOUT_MS: 10000 = 10000;
 
 export const NO_PRF_REASON: string =
-  "This key can't sign in here: it doesn't support the PRF extension that post-quantum sign-in needs.";
+  "This passkey can't sign you in: its passkey manager didn't provide the PRF output Citadel needs to derive " +
+  'your post-quantum sign-in key. Use your password, or a passkey or security key that supports PRF.';
 export const CANCELLED_REASON: string = 'The security key request was cancelled.';
 
 export type Send = (request: Record<string, unknown>) => Promise<void>;

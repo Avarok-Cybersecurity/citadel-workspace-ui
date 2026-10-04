@@ -58,8 +58,28 @@ function asPublicKeyCredential(value: Credential | null): PublicKeyCredential {
   return value as PublicKeyCredential;
 }
 
-export function createBrowserAuthenticator(credentials: CredentialsContainer): AuthenticatorPort {
+/** The browser's `PublicKeyCredential.getClientCapabilities`, or null where it does not exist. */
+export type ClientCapabilities = (() => Promise<Record<string, boolean>>) | null;
+
+export function readClientCapabilities(): ClientCapabilities {
+  const read: (() => Promise<Record<string, boolean>>) | undefined = typeof PublicKeyCredential === 'undefined'
+    ? undefined
+    : (PublicKeyCredential as unknown as { getClientCapabilities?: () => Promise<Record<string, boolean>> }).getClientCapabilities;
+  return read ? (): Promise<Record<string, boolean>> => read.call(PublicKeyCredential) : null;
+}
+
+export function createBrowserAuthenticator(credentials: CredentialsContainer, capabilities: ClientCapabilities): AuthenticatorPort {
   return {
+    async prfRuledOut(): Promise<boolean> {
+      if (capabilities === null) return false;
+      try {
+        return (await capabilities())['extension:prf'] === false;
+      } catch {
+        // Not knowing is not a "no": the ceremony's own PRF result still decides.
+        return false;
+      }
+    },
+
     async create(ceremony: CreateCeremony): Promise<CreatedCredential> {
       let credential: PublicKeyCredential;
       try {

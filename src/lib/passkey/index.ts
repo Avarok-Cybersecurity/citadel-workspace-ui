@@ -1,5 +1,5 @@
 /** Composition root: the passkey deps wired to the browser and the agent. */
-import { createBrowserAuthenticator } from './browser-authenticator';
+import { createBrowserAuthenticator, readClientCapabilities } from './browser-authenticator';
 import { agentPasskeyStore } from './agent-store';
 import { RP_NAME, resolveRpId, webAuthnAvailable } from './rp-id';
 import type { PasskeyDeps } from './unlock';
@@ -11,7 +11,7 @@ export function passkeysAvailableHere(): boolean {
 export function browserPasskeyDeps(): PasskeyDeps {
   return {
     store: agentPasskeyStore,
-    authenticator: createBrowserAuthenticator(window.navigator.credentials),
+    authenticator: createBrowserAuthenticator(window.navigator.credentials, readClientCapabilities()),
     rpId: resolveRpId(window.location.hostname),
     rpName: RP_NAME,
     now: (): number => Date.now(),
