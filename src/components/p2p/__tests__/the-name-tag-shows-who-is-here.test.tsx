@@ -24,7 +24,7 @@ describe('a remote cursor tag', () => {
     render(<CursorAvatars />);
     const slot: HTMLElement | null = cursor.querySelector('.collaborator-cursor__avatar');
     expect(slot?.querySelector('[data-testid="member-avatar-Alice Smith"]')).not.toBeNull();
-    expect(slot?.textContent).toBe('AS'); // initials fallback, no picture set
+    expect(slot?.textContent).toBe('A'); // one initial: two do not fit 16px at a legible size
     expect(cursor.querySelector('.collaborator-cursor__name')?.textContent).toBe('Alice Smith');
     expect(slot?.getAttribute('aria-hidden')).toBe('true'); // the name beside it is the label
     expect(slot?.querySelector('.h-4.w-4')).not.toBeNull(); // 16px

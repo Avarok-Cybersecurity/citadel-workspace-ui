@@ -565,9 +565,9 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 0 0 1.5px var(--cursor-color);
 }
 
-/* Initials in a 16px circle: decorative (the name is beside it), so below the text floor. */
+/* One initial at the 12px text floor: two would not fit a 16px circle (see CursorAvatars). */
 .collaborator-cursor__avatar * {
-  font-size: 8px;
+  font-size: 12px;
   line-height: 1;
 }
 

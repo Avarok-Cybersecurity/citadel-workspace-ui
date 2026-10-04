@@ -5,6 +5,7 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import * as Y from 'yjs';
+import type { DocumentMetadata } from '../types';
 
 const saved: Map<string, unknown> = new Map<string, unknown>();
 vi.mock('../persistence', () => ({
@@ -34,19 +35,19 @@ function listenForTitles(): Array<{ documentId: string; title: string }> {
 
 describe('renameLiveDocument', () => {
   it('rejects a blank or over-long title before touching anything', async () => {
-    const meta = await liveDocumentStore.createDocument('Old', 'p', 'c');
+    const meta: DocumentMetadata = await liveDocumentStore.createDocument('Old', 'p', 'c');
     await expect(renameLiveDocument(meta.id, '   ')).rejects.toThrow();
     await expect(renameLiveDocument(meta.id, 'z'.repeat(81))).rejects.toThrow();
     expect((await liveDocumentStore.getDocumentMetadata(meta.id))?.title).toBe('Old');
   });
 
   it('with the editor mounted: writes the live doc, which the observer mirrors', async () => {
-    const meta = await liveDocumentStore.createDocument('Old', 'p', 'c');
+    const meta: DocumentMetadata = await liveDocumentStore.createDocument('Old', 'p', 'c');
     const live: Y.Doc = new Y.Doc();
     unsubs.push(registerMountedDoc(meta.id, live));
     // What useDocumentTitle does for a mounted editor.
     unsubs.push(observeDocTitle(live, (t) => { void mirrorTitle(meta.id, t); }));
-    const seen = listenForTitles();
+    const seen: Array<{ documentId: string; title: string }> = listenForTitles();
 
     await renameLiveDocument(meta.id, '  New name ');
     await vi.waitFor(async () => {
@@ -57,8 +58,8 @@ describe('renameLiveDocument', () => {
   });
 
   it('with the editor closed: renames the stored state, metadata and tab', async () => {
-    const meta = await liveDocumentStore.createDocument('Old', 'p', 'c');
-    const seen = listenForTitles();
+    const meta: DocumentMetadata = await liveDocumentStore.createDocument('Old', 'p', 'c');
+    const seen: Array<{ documentId: string; title: string }> = listenForTitles();
 
     await renameLiveDocument(meta.id, 'Closed rename');
 

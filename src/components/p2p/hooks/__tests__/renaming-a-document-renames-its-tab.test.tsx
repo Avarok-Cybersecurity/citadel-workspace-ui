@@ -27,7 +27,7 @@ const { observeDocTitle, writeDocTitle } = await import('@/lib/live-document-sto
 const { registerMountedDoc, mirrorTitle } = await import('@/lib/live-document-store/rename');
 
 async function openedDoc(): Promise<{ result: { current: ReturnType<typeof useP2PTabs> }; docId: string }> {
-  const hook = renderHook(() => useP2PTabs({ peerCid: 7n, currentUserCid: 9n }));
+  const hook: ReturnType<typeof renderHook<ReturnType<typeof useP2PTabs>, unknown>> = renderHook(() => useP2PTabs({ peerCid: 7n, currentUserCid: 9n }));
   await act(async () => { await hook.result.current.handleCreateDocument('Draft', ''); });
   const docId: string = hook.result.current.tabs[1].documentId ?? '';
   return { result: hook.result, docId };
