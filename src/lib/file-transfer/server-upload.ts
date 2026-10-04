@@ -13,7 +13,6 @@
 
 import { eventEmitter } from '../event-emitter';
 import { failOnSocketLoss } from '../websocket/request-response';
-import { websocketService } from '../websocket-service';
 import { debugLog } from '@/lib/debug-config';
 import { TIMEOUT } from '../timeout-constants';
 
