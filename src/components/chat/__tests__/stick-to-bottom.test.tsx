@@ -139,4 +139,12 @@ describe('the notch', () => {
     expect(view.className).toContain('min-w-11');
     expect(view.tabIndex).toBe(0);
   });
+
+  it('makes the scrollable message area a keyboard-focusable, named region', () => {
+    render(<Harness items={items('a')} />);
+    const viewport: HTMLElement = screen.getByTestId('viewport');
+    expect(viewport.tabIndex).toBe(0);
+    expect(viewport.getAttribute('role')).toBe('region');
+    expect(viewport.getAttribute('aria-label')).toBe('Messages');
+  });
 });

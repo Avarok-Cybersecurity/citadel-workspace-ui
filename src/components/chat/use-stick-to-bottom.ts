@@ -41,6 +41,7 @@ export function useStickToBottom<T extends { readonly id: string }>(
   const state: MutableRefObject<StickState> = useRef<StickState>(INITIAL_STICK);
   const previous: MutableRefObject<readonly T[]> = useRef<readonly T[]>([]);
   const attached: MutableRefObject<HTMLElement | null> = useRef<HTMLElement | null>(null);
+  const hasBeenAttached: MutableRefObject<boolean> = useRef<boolean>(false);
   const cleanup: MutableRefObject<(() => void) | null> = useRef<(() => void) | null>(null);
   // Read through a ref: callers pass an inline function, and a changing dependency would re-run the effect below every render.
   const ownRef: MutableRefObject<((item: T) => boolean) | undefined> = useRef(isOwn);
@@ -73,8 +74,17 @@ export function useStickToBottom<T extends { readonly id: string }>(
     state.current = INITIAL_STICK;
     setUnseen(0);
     if (!el) return;
-    el.tabIndex = -1; // focusable by script only, so reveal() has somewhere to put focus
+    // A scrollable region must be keyboard-focusable (axe scrollable-region-focusable), and
+    // reveal() needs somewhere to put focus when the View button unmounts.
+    el.tabIndex = 0;
+    el.setAttribute('role', 'region');
+    el.setAttribute('aria-label', 'Messages');
     el.scrollTop = el.scrollHeight; // a newly attached viewport opens on the latest
+    // A viewport that came back (the chat showed a document tab meanwhile) opens
+    // at the bottom, so the reader is caught up: whatever was counted is seen.
+    if (linksRef.current) linksRef.current.pinnedRef.current = true;
+    if (hasBeenAttached.current) linksRef.current?.onCaughtUp();
+    hasBeenAttached.current = true;
     const onScroll = (): void => dispatch({
       type: 'scrolled',
       geometry: { scrollTop: el.scrollTop, scrollHeight: el.scrollHeight, clientHeight: el.clientHeight },

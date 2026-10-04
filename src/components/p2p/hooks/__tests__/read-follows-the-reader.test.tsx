@@ -24,7 +24,7 @@ let agent: HostingAgent;
 const onUnreadMessage: () => void = (): void => {};
 let deliver: ((m: P2PMessage) => void) | null;
 
-function Chat(): JSX.Element {
+function Chat({ hidden = false }: { hidden?: boolean }): JSX.Element {
   const viewport: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
   const tab: MutableRefObject<string> = useRef<string>('messages');
   const pinnedRef: MutableRefObject<boolean> = useRef<boolean>(true);
@@ -33,7 +33,7 @@ function Chat(): JSX.Element {
   const stick: StickToBottom = useStickToBottom(viewport, messages, undefined, { pinnedRef, onCaughtUp });
   return (
     <div>
-      <div
+      {!hidden && <div
         data-testid="viewport"
         ref={(el) => {
           (viewport as { current: HTMLDivElement | null }).current = el;
@@ -43,7 +43,7 @@ function Chat(): JSX.Element {
           }
           el.scrollTo = vi.fn() as unknown as typeof el.scrollTo;
         }}
-      ><div /></div>
+      ><div /></div>}
       <NewMessagesPill count={stick.unseen} onView={stick.reveal} />
     </div>
   );
@@ -66,8 +66,9 @@ async function arrive(): Promise<void> {
 }
 
 /** A conversation with history: the first message into an empty one is a first paint, not an arrival. */
+let view: RenderResult;
 async function mountWithHistory(): Promise<void> {
-  await mountChat();
+  view = await mountChat();
   await arrive();
 }
 
@@ -130,5 +131,21 @@ describe('a message arriving in a window that is in front', () => {
     act(() => { window.dispatchEvent(new Event('focus')); });
     await settle();
     expect(agent.markReads()).toHaveLength(0);
+  });
+
+  it('is read when the reader returns to the Messages tab, and later arrivals are read too', async () => {
+    await mountWithHistory();
+    await scrollTo(100);
+    await arrive();
+    agent.clear();
+    view.rerender(<ConfirmDialogProvider><Chat hidden /></ConfirmDialogProvider>); // a document tab is showing
+    await settle();
+    expect(agent.markReads()).toHaveLength(0);
+    view.rerender(<ConfirmDialogProvider><Chat /></ConfirmDialogProvider>); // back at the bottom
+    await settle();
+    expect(agent.markReads()).toHaveLength(1);
+    agent.clear();
+    await arrive();
+    expect(agent.markReads()).toHaveLength(1);
   });
 });
