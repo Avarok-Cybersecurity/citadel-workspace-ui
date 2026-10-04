@@ -68,12 +68,16 @@ export const SIGN_IN_COPY: {
  * manager gives none can never sign in; it is refused, never enrolled.
  */
 export const PRF_COPY: { readonly notAdded: string; readonly unavailableHere: string } = {
+  // Checked 2026-10-04: Windows Hello gives PRF only on Windows 11 24H2/25H2 from the February 2026
+  // update (KB5077181) with Chrome/Edge 147+ or Firefox 148+; hmac-secret security keys work on any
+  // Windows; iCloud Keychain from macOS 15 / iOS 18.
   notAdded:
     "This passkey can't sign you in to Citadel, so it was not added to your account. Citadel derives your " +
-    "post-quantum sign-in key from the passkey's PRF feature, and the passkey manager you chose doesn't " +
-    "provide it (Windows Hello and some password managers don't yet). Your password still works. To add a " +
-    'passkey, use iCloud Keychain, Google Password Manager, or a security key such as a YubiKey in Chrome or ' +
-    'Firefox. You can delete the unused passkey from your passkey manager.',
+    "post-quantum sign-in key from the passkey's PRF feature, and the passkey manager you chose didn't " +
+    'provide it. Your password still works. To add a passkey on Windows, use a security key such as a ' +
+    'YubiKey 5, or Windows Hello on Windows 11 with the February 2026 update or later and a current ' +
+    'Chrome, Edge or Firefox. On a Mac or iPhone, iCloud Keychain works. You can delete the unused ' +
+    'passkey from your passkey manager.',
   unavailableHere:
     "This browser can't make a passkey that signs in to Citadel: it doesn't support the PRF feature Citadel " +
     'uses to derive your post-quantum sign-in key. Your password still works. To add a passkey, open ' +

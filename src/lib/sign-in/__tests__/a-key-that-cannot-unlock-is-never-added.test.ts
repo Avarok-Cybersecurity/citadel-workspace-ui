@@ -50,5 +50,7 @@ describe('a key that cannot give PRF output', () => {
     expect(said).toMatch(/not added/i);
     expect(said).toMatch(/password still works/i);
     expect(said).toMatch(/security key/i);
+    // Windows, where it was refused live: the options that work there today.
+    expect(said).toMatch(/Windows 11 with the February 2026 update/);
   });
 });
