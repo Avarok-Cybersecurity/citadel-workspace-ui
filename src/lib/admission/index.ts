@@ -1,6 +1,7 @@
 /** Composition root: discovery wired to this page's control plane and fetch. */
 import { readControlPlaneBase } from '@/lib/onboarding/control-plane-config';
 import { hostedWorkspaceSlug } from '@/lib/onboarding/billing-portal';
+import { isTenantHost } from '@/lib/workspace-address';
 import { discoverAdmission, type Admission } from './discovery';
 import { readAccountServers } from './account-servers';
 import { requestResponse } from '@/lib/websocket/request-response';
@@ -12,6 +13,12 @@ import { debugLog } from '@/lib/debug-config';
 export function browserDiscoverAdmission(serverAddress: string | undefined): Promise<Admission | null> {
   const fetchFn = (input: string, init?: RequestInit): Promise<Response> => window.fetch(input, init);
   return discoverAdmission(fetchFn, readControlPlaneBase(document), hostedWorkspaceSlug(serverAddress));
+}
+
+/** The workspace this page is served from (`acme.work.avarok.net`); undefined on work.avarok.net itself. */
+export function browserPageWorkspace(): string | undefined {
+  const host: string = window.location.hostname.toLowerCase();
+  return isTenantHost(host) ? host : undefined;
 }
 
 /**

@@ -65,11 +65,17 @@ describe('a workspace that does not ask', () => {
 });
 
 describe('a workspace that asks', () => {
-  beforeEach(() => { h.w.agent.admission.required = true; turnstile = installFakeTurnstile(); });
+  beforeEach(() => {
+    h.w.agent.admission.required = true;
+    turnstile = installFakeTurnstile();
+    // The agent recorded alice's workspace, so her check binds to it (a-key-signs-in-past-a-human-check
+    // covers an account whose workspace nobody knows).
+    h.accountServers = new Map([['alice', 'bench.work.avarok.net']]);
+  });
 
   it('shows the check, with its site key, and sends its token in Connect', async () => {
     h.discovered = { required: true, siteKey: ALWAYS_PASS };
-    renderLogin();
+    renderLogin('alice');
     expect(await screen.findByTestId('admission-check')).toBeInTheDocument();
     await waitFor(() => expect(turnstile.issued).toHaveLength(1));
     expect(turnstile.rendered[0]).toMatchObject({ sitekey: ALWAYS_PASS, action: 'sign-in' });
@@ -99,7 +105,7 @@ describe('a workspace that asks', () => {
 
   it('spends a token once: the next attempt gets a fresh one', async () => {
     h.discovered = { required: true, siteKey: ALWAYS_PASS };
-    renderLogin();
+    renderLogin('alice');
     await waitFor(() => expect(turnstile.issued).toHaveLength(1));
     type('username', 'alice'); type('password', 'wrong'); fireEvent.click(screen.getByTestId('login-submit'));
     await waitFor(() => expect(turnstile.issued).toHaveLength(2));
@@ -144,7 +150,7 @@ describe('a workspace that asks', () => {
 
   it('a check the server rejects is reset with the retry message', async () => {
     h.discovered = { required: true, siteKey: ALWAYS_PASS };
-    renderLogin();
+    renderLogin('alice');
     await waitFor(() => expect(turnstile.issued).toHaveLength(1));
     h.w.agent.admission.spent.add(turnstile.issued[0]);
     signIn();

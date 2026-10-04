@@ -13,6 +13,10 @@ export const ADMISSION_COPY: {
   readonly signInAgain: string;
   readonly finishTitle: string;
   readonly finishBody: string;
+  readonly workspaceLabel: string;
+  readonly workspaceHint: string;
+  readonly workspaceNeeded: string;
+  readonly workspaceInvalid: string;
 } = {
   settingLabel: 'Require a human check (Cloudflare Turnstile) to sign in',
   settingHint: 'Everyone signing in or creating an account here completes a quick check first, which stops automated password guessing.',
@@ -27,6 +31,10 @@ export const ADMISSION_COPY: {
   signInAgain: 'Please sign in again',
   finishTitle: 'Finish signing in',
   finishBody: 'Your account is ready. This workspace asks for one more quick check before you sign in.',
+  workspaceLabel: 'Workspace address',
+  workspaceHint: 'The check is tied to your workspace. Enter its address, like acme.work.avarok.net.',
+  workspaceNeeded: 'Enter your workspace address so the human check can be tied to it.',
+  workspaceInvalid: "That isn't a workspace address. It looks like acme.work.avarok.net.",
 } as const;
 
 /** Must match what the workspace server's siteverify expects for each form. */

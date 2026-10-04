@@ -16,7 +16,7 @@ export function FinishSignInStep({ tenantAddress, signIn, onSignedIn }: {
   signIn: (admissionToken: string) => Promise<bigint>;
   onSignedIn: (cid: bigint) => void;
 }): JSX.Element {
-  const gate: AdmissionGate = useAdmissionGate(ADMISSION_ACTION.signIn, { serverAddress: tenantAddress, reauth: false });
+  const gate: AdmissionGate = useAdmissionGate(ADMISSION_ACTION.signIn, { serverAddress: tenantAddress, reauth: false, accountNamed: false });
   const [busy, setBusy] = useState<boolean>(false);
   const [problem, setProblem] = useState<string | null>(null);
   const headingRef: React.RefObject<HTMLHeadingElement> = useRef<HTMLHeadingElement>(null);

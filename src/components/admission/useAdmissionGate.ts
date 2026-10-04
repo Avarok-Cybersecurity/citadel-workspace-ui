@@ -18,6 +18,8 @@ export interface AdmissionContext {
   serverAddress: string | undefined;
   /** The server signed this account out (a reconnect it refused): the check says "sign in again". */
   reauth: boolean;
+  /** An account is named, so a check with no workspace to bind to asks for its address. */
+  accountNamed: boolean;
 }
 
 export interface AdmissionGate {
@@ -37,6 +39,10 @@ export interface AdmissionGate {
   settle: (error: unknown) => boolean;
   /** Show the check without a refusal: the form already knows the workspace asks for one. */
   require: () => void;
+  /** The account's workspace is unknown: the check asks for its address before it can bind. */
+  needsWorkspace: boolean;
+  /** What the user typed for it, and why it is not one yet (null when it is, or nothing is typed). */
+  workspace: { value: string; error: string | null; set: (value: string) => void };
 }
 
 export function useAdmissionGate(action: string, context: AdmissionContext): AdmissionGate {
@@ -45,14 +51,17 @@ export function useAdmissionGate(action: string, context: AdmissionContext): Adm
   const [resetSignal, setResetSignal] = useState<number>(0);
   const [message, setMessage] = useState<string | null>(null);
   const token: React.MutableRefObject<string | null> = useRef<string | null>(null);
+  const [typedWorkspace, setTypedWorkspace] = useState<string>('');
+  const named: string | undefined = hostedWorkspaceSlug(typedWorkspace.trim()) === undefined ? undefined : typedWorkspace.trim();
+  const serverAddress: string | undefined = context.serverAddress ?? named;
 
   /** Ask the control plane; `onUnknown` runs when it cannot say. */
   const discover: (onUnknown: () => void) => void = useCallback((onUnknown: () => void): void => {
-    browserDiscoverAdmission(context.serverAddress)
+    browserDiscoverAdmission(serverAddress)
       .then((found: Admission | null): void => { if (found) setAdmission(found); else onUnknown(); })
       // discoverAdmission never rejects; this is the composition root failing, which is no answer either.
       .catch(onUnknown);
-  }, [context.serverAddress]);
+  }, [serverAddress]);
   // On open, an unknown answer fails open: the form is shown as usual.
   useEffect(() => { discover((): void => undefined); }, [discover]);
 
@@ -67,15 +76,25 @@ export function useAdmissionGate(action: string, context: AdmissionContext): Adm
     // Required, but its site key is unknown: ask again, and say so if there is still no answer.
     if (siteKey === null) discover((): void => setMessage(ADMISSION_COPY.unavailable));
   }, [siteKey, discover]);
+  // Only a workspace nobody knows: a self-hosted server's address is known and binds nothing.
+  const needsWorkspace: boolean = visible && context.accountNamed && context.serverAddress === undefined;
+  const unbound: boolean = needsWorkspace && named === undefined;
   return {
-    require,
-    visible, siteKey, action, cData: hostedWorkspaceSlug(context.serverAddress) ?? null, resetSignal, message: shown,
+    require, needsWorkspace,
+    workspace: {
+      value: typedWorkspace,
+      error: typedWorkspace.trim() !== '' && named === undefined ? ADMISSION_COPY.workspaceInvalid : null,
+      set: setTypedWorkspace,
+    },
+    visible, siteKey, action, cData: hostedWorkspaceSlug(serverAddress) ?? null, resetSignal, message: shown,
     onToken: (next: string | undefined): void => {
       token.current = next ?? null;
       if (next) setMessage(null);
     },
     take: (): string | null | 'missing' => {
       if (!visible) return null;
+      // Never an unbound token: the server refuses it, and the user would only be told to retry.
+      if (unbound) { setMessage(ADMISSION_COPY.workspaceNeeded); return 'missing'; }
       const taken: string | null = token.current;
       if (taken === null) { setMessage(ADMISSION_COPY.completeFirst); return 'missing'; }
       // Spent by this attempt whatever happens to it.
