@@ -8,7 +8,6 @@
  * This service maintains the authoritative peer connection state for the frontend.
  * The `connectedPeers` Map (in AutoConnectState) is the single source of truth.
  */
-
 import { broadcastChannelService } from '../broadcast-channel-service';
 import { instanceManager } from '../multi-instance';
 import { eventEmitter } from '../event-emitter';
@@ -17,6 +16,7 @@ import type { PeerConnectionInfo } from './types';
 import { PEER_CONNECTED_CHECK_INTERVAL_MS, WAIT_FOR_PEER_TIMEOUT_MS, LISTENER_CLEANUP_BUFFER_MS } from './constants';
 import { AutoConnectState } from './state';
 import { getCurrentCid } from './cid-resolver';
+import { keepThroughAgent } from '../agent-supervisor/supervised';
 import { setupEventListeners } from './event-handlers';
 import {
   connectToPeer as connectToPeerFn,
@@ -199,6 +199,7 @@ export class P2PAutoConnectService {
       return;
     }
 
+    if (await keepThroughAgent(currentCid, peerCid)) return; // the agent dials
     if (this.state.hasConnectionAttempt(peerCid)) {
       debugLog('P2PAutoConnectService', `P2PAutoConnect: Connection attempt already in progress for ${peerCid.toString().slice(0, 8)}...`);
       return;

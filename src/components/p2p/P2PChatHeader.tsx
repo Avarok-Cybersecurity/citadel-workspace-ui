@@ -15,6 +15,7 @@ import { MessagingLayerType } from '@/types/messaging-layer';
 import type { PeerPresence } from '@/lib/p2p';
 import { PAUSE_COPY } from '@/lib/p2p-pause/pause-copy';
 import type { PeerPathReport } from '@/types/ice-servers';
+import type { SupervisorState } from '@/types/agent-supervisor';
 import { ConnectionPathLabel } from './ConnectionPathLabel';
 
 interface P2PChatHeaderProps {
@@ -27,6 +28,8 @@ interface P2PChatHeaderProps {
   paused: boolean;
   /** How messages reach the peer now; shown only while the link is up. */
   connectionRoute: PeerPathReport | null;
+  /** What the agent's supervisor says it is doing about the link; shown even while it is down. */
+  supervisor: SupervisorState | null;
   onSettingsClick: () => void;
   /** Omitted where calling is not wired up, so the header stays usable. */
   call?: {
@@ -94,6 +97,7 @@ export function P2PChatHeader({
   isRegistered,
   paused,
   connectionRoute,
+  supervisor,
   onSettingsClick,
   call,
 }: P2PChatHeaderProps): JSX.Element {
@@ -121,7 +125,7 @@ export function P2PChatHeader({
                 style={statusDisplay.customColor ? { backgroundColor: statusDisplay.customColor } : undefined}
               />
               <span className={statusDisplay.textColor}>{statusDisplay.text}</span>
-              {isConnected && !paused && <ConnectionPathLabel route={connectionRoute} />}
+              {(isConnected || supervisor === 'healing') && !paused && <ConnectionPathLabel route={connectionRoute} supervisor={supervisor} />}
               {/* Permanently mounted so the region pre-exists its text; a live
                   region created together with its content is announced
                   inconsistently or not at all. The pulse was purely visual. */}

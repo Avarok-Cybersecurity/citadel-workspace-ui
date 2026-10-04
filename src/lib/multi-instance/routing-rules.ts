@@ -7,6 +7,7 @@
 
 import { INTERVAL } from '../timeout-constants';
 import type { ResponseType } from 'citadel-workspace-client-ts';
+import { SUPERVISOR_NOTIFICATION } from '@/types/agent-supervisor';
 import { AGENT_RECONNECT_NOTIFICATIONS, type AgentReconnectNotification } from '@/types/agent-reconnect';
 
 // Message types that should be broadcast to all instances.
@@ -34,7 +35,7 @@ export const REQUEST_TRACKING_TIMEOUT_MS: number = INTERVAL.REQUEST_TRACKING_MS;
  * These messages have a request_id that belongs to the SENDER, but the message
  * should be delivered to the RECIPIENT (identified by the 'cid' field).
  */
-export const CID_ROUTED_NOTIFICATIONS: Set<ResponseType | AgentReconnectNotification> = new Set<ResponseType | AgentReconnectNotification>([
+export const CID_ROUTED_NOTIFICATIONS: Set<ResponseType | AgentReconnectNotification | typeof SUPERVISOR_NOTIFICATION> = new Set<ResponseType | AgentReconnectNotification | typeof SUPERVISOR_NOTIFICATION>([
   'PeerRegisterNotification',         // cid = recipient, request_id = sender's
   'PeerConnectNotification',          // cid = recipient, request_id = sender's
   'MessageNotification',              // cid = recipient, request_id = sender's (from SendMessage)
@@ -66,6 +67,9 @@ export const CID_ROUTED_NOTIFICATIONS: Set<ResponseType | AgentReconnectNotifica
   // tab's "Reconnecting…" and send the wrong account to sign-in. Not generated
   // variants yet; see types/agent-reconnect.ts.
   ...AGENT_RECONNECT_NOTIFICATIONS,
+  // cid = the session whose links the supervisor is healing; unsolicited, so
+  // without cid routing it would reach no tab (types/agent-supervisor.ts).
+  SUPERVISOR_NOTIFICATION,
   // Multi-window (agent 0.8.6): addressed to the account, never to a request.
   // A ConversationEvent's request_id names the window's own send; routed by it,
   // the event would consume the pending entry the send's answer is waiting on.

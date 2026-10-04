@@ -164,15 +164,28 @@ const dist = join(root, 'dist');
  * an eager import measured +0.9 KB). The rest is #117 (+49 shared, +28 CSS): a leader tab whose agent
  * socket never opens now ends the sign-in dialog's wait instead of leaving it blank forever. A
  * fix on the landing page by design, not a chunk arriving; DEFERRED_MODULES still passes.
+ * 327 -> 328 (2026-10-04), the connection supervisor's UI side: 326.3 -> 327.2. The capability the
+ * agent declares (`supervises_p2p`) decides, on the landing path, whether every dial, poll and retry
+ * runs at all, so reading it (capabilities.ts, its gates in connection-logic/polling/service) cannot be
+ * deferred. Everything else was: Interest, the status listener and the stand-down wiring are lazy and
+ * listed in DEFERRED_MODULES, the chat pill's copy moved out of the shared path-copy module, and the
+ * Interest builder lives in the lazy module rather than the wire-name module. Measured, not guessed:
+ * source-map attribution of app-services put the remaining +1.7 KB raw in capabilities.ts (346 B),
+ * supervised.ts (347 B), the wire names (154 B), and the follower's answer (107 B).
  */
-const BUDGET_KB = 327;
+const BUDGET_KB = 328;
 
 /**
  * Modules that must stay OFF the critical path, checked against the source
  * maps of the assets index.html loads. Each must also appear in SOME map, so a
  * rename cannot turn this into a check of nothing.
  */
-const DEFERRED_MODULES = ['src/lib/p2p/p2p-messenger-manager.ts'];
+const DEFERRED_MODULES = [
+  'src/lib/p2p/p2p-messenger-manager.ts',
+  'src/lib/agent-supervisor/interest.ts',
+  'src/lib/agent-supervisor/status.ts',
+  'src/lib/agent-supervisor/wire-up.ts',
+];
 
 /**
  * This measures dist/ and does not build it, so a dist/ older than the source

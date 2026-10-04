@@ -10,7 +10,8 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { P2PChatHeader } from '../P2PChatHeader';
-import { CHAT_PATH_COPY, CONNECTION_PATH_COPY, chatPathLabel } from '@/lib/ice-servers/path-copy';
+import { CONNECTION_PATH_COPY } from '@/lib/ice-servers/path-copy';
+import { CHAT_PATH_COPY, chatPathLabel } from '@/lib/ice-servers/chat-path-copy';
 import { MessagingLayerType } from '@/types/messaging-layer';
 import type { PeerPathReport } from '@/types/ice-servers';
 
@@ -21,7 +22,7 @@ function renderHeader(route: PeerPathReport | null, opts: { connected?: boolean;
     <P2PChatHeader
       peerName="ada" peerPresence={{ status: MessagingLayerType.Online, lastUpdate: 0 }} peerTyping={false}
       isConnected={opts.connected ?? true} isRegistered paused={opts.paused ?? false}
-      connectionRoute={route} onSettingsClick={vi.fn()}
+      connectionRoute={route} supervisor={null} onSettingsClick={vi.fn()}
     />,
   );
 }
@@ -34,11 +35,11 @@ describe('the chat header path label', () => {
     [{ path: 'server_relay', upgrading: false }, 'Relayed', CONNECTION_PATH_COPY.server_relay],
     [{ path: 'turn', upgrading: false }, 'Relayed', CONNECTION_PATH_COPY.turn],
   ] as const)('reads %o as %s', (route: PeerPathReport, text: string, tooltip: string | null) => {
-    expect(chatPathLabel(route)).toEqual({ text, tooltip, direct: route.path === 'direct' });
+    expect(chatPathLabel(route, null)).toEqual({ text, tooltip, direct: route.path === 'direct' });
   });
 
   it('says nothing when no path has been reported', () => {
-    expect(chatPathLabel(null)).toBeNull();
+    expect(chatPathLabel(null, null)).toBeNull();
   });
 
   it('shows "Direct" with no explanation to hover for', () => {

@@ -15,6 +15,7 @@ import type { AutoConnectState } from './state';
 import { ONLINE_STATUS_CACHE_TTL_MS, POLL_INTERVAL_MS } from './constants';
 import { getCurrentCid } from './cid-resolver';
 import { linkAdmitted } from './pause-gate';
+import { supervision } from '../agent-conversations/capabilities';
 import type { PeerConnectionInfo } from '@/lib/p2p-auto-connect/types';
 import type { PeerInfoResponse } from '@/lib/p2p-registration-service/types';
 import type { ActiveSession } from '@/types/session-types';
@@ -24,6 +25,7 @@ import type { ActiveSession } from '@/types/session-types';
  * Only runs on leader tab to prevent redundant backend queries.
  */
 export function startBackendPolling(state: AutoConnectState): void {
+  if (supervision.get() === true) return; // the agent holds the links; one read at start-up is enough
   if (!instanceManager.isLeader) {
     debugLog('P2PAutoConnectService', '[P2PAutoConnect] Backend polling not started (not leader tab)');
     return;
@@ -158,6 +160,7 @@ export function poll(connectAll: () => Promise<void>): void {
 
 /** Start periodic background polling for auto-reconnection. Only runs on leader tab. */
 export function startPolling(state: AutoConnectState, connectAll: () => Promise<void>): void {
+  if (supervision.get() === true) return; // the agent supervises: nothing for a poll to dial
   if (!instanceManager.isLeader) {
     debugLog('P2PAutoConnectService', '[P2PAutoConnect] Polling not started (not leader tab)');
     return;

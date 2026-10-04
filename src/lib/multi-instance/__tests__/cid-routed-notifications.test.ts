@@ -61,6 +61,9 @@ describe('CID_ROUTED_NOTIFICATIONS — every entry has extractable CID', () => {
     ServerConnectionLost: { cid: targetCid, reconnecting: true, request_id: null },
     ServerReconnected: { cid: targetCid, request_id: null },
     ServerReconnectFailed: { cid: targetCid, reason: 'The server did not accept the session', request_id: null },
+    // The connection supervisor's report (types/agent-supervisor.ts): unsolicited,
+    // so `cid` is the only route to the tab that holds the session it names.
+    SupervisorNotification: { cid: targetCid, peer_cid: senderCid, state: 'Healing', request_id: null },
     // Multi-window (agent 0.8.6). A conversation change goes to every window of
     // the account; its request_id, when set, is the asking window's send, and
     // routed by it the event would consume the pending entry its answer needs.
@@ -104,6 +107,7 @@ describe('CID_ROUTED_NOTIFICATIONS — every entry has extractable CID', () => {
         'ServerReconnectFailed',
         'ServerReconnected',
         'SessionRoleNotification',
+        'SupervisorNotification',
       ].sort(),
     );
   });

@@ -34,6 +34,7 @@ function renderHeader(): RenderResult {
       isConnected
       isRegistered
       connectionRoute={null}
+      supervisor={null}
       onSettingsClick={vi.fn()}
       call={callProps}
     />,

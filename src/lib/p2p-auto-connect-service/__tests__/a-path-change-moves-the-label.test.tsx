@@ -31,7 +31,7 @@ function Harness(): JSX.Element {
   return (
     <P2PChatHeader
       peerName="ada" peerPresence={{ status: MessagingLayerType.Online, lastUpdate: 0 }} peerTyping={false}
-      isConnected isRegistered paused={false} connectionRoute={route} onSettingsClick={vi.fn()}
+      isConnected isRegistered paused={false} connectionRoute={route} supervisor={null} onSettingsClick={vi.fn()}
     />
   );
 }
