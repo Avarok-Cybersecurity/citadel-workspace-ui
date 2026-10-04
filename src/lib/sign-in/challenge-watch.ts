@@ -85,6 +85,16 @@ export function subscribeChallenges(listener: Listener): () => void {
 }
 
 /**
+ * The challenge's touch window, in milliseconds, as a number. The agent's field
+ * is a u64, and the WASM client hands every u64 to JavaScript as a BigInt
+ * (serialize_large_number_types_as_bigints), whatever the generated type says:
+ * arithmetic on it as it arrives throws, and threw in the prompt's render.
+ */
+export function touchWindowMs(challenge: SecurityKeyChallengeNotification): number {
+  return Number(challenge.expires_in_ms);
+}
+
+/**
  * How much longer a request may wait because a challenge for it arrived: the
  * touch window plus the request's own budget, so the user's touch is never cut
  * short by a timeout written for a password round trip. Null for anything else.
@@ -92,5 +102,5 @@ export function subscribeChallenges(listener: Listener): () => void {
 export function extensionFor(message: unknown, requestId: string, budgetMs: number): number | null {
   const challenge: SecurityKeyChallengeNotification | null = challengeIn(message);
   if (!challenge || challenge.request_id !== requestId) return null;
-  return challenge.expires_in_ms + budgetMs;
+  return touchWindowMs(challenge) + budgetMs;
 }
