@@ -116,7 +116,7 @@ export function P2PChat({
   });
 
   const onCaughtUp: () => void = useCatchUpRead(peerCid, activeTabIdRef, pinnedRef);
-  const stick: StickToBottom = useStickToBottom(scrollRef, messages, (m) => m.senderCid === currentUserCid, { pinnedRef, onCaughtUp });
+  const stick: StickToBottom = useStickToBottom(scrollRef, messages, `Messages with ${peerName}`, (m) => m.senderCid === currentUserCid, { pinnedRef, onCaughtUp });
 
   // Paused: the link is down on purpose. Messages still send and queue; calls
   // and files need the live link, so those say why they are unavailable.

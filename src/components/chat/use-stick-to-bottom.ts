@@ -10,6 +10,9 @@ import { useEffect, useLayoutEffect, useRef, useState, useCallback, type RefObje
 import { preferredScrollBehavior } from '@/lib/motion';
 import { step, appendedSince, INITIAL_STICK, type StickState, type StickEvent, type StickStep } from '@/lib/chat-scroll/stick';
 
+/** Visible keyboard focus for the scrollable region (the same ring as the View button). */
+const FOCUS_RING: readonly string[] = ['focus-visible:outline-none', 'focus-visible:ring-2', 'focus-visible:ring-inset', 'focus-visible:ring-ring'];
+
 export interface StickToBottom {
   /** Messages that arrived while the reader was away from the bottom. */
   unseen: number;
@@ -34,6 +37,8 @@ export interface StickLinks {
 export function useStickToBottom<T extends { readonly id: string }>(
   viewportRef: RefObject<HTMLElement>,
   items: readonly T[],
+  /** The region's accessible name; unique per conversation ("Messages with Alice"). */
+  label: string,
   isOwn?: (item: T) => boolean,
   links?: StickLinks,
 ): StickToBottom {
@@ -78,7 +83,9 @@ export function useStickToBottom<T extends { readonly id: string }>(
     // reveal() needs somewhere to put focus when the View button unmounts.
     el.tabIndex = 0;
     el.setAttribute('role', 'region');
-    el.setAttribute('aria-label', 'Messages');
+    el.setAttribute('aria-label', label);
+    // The browser's own 1px focus edge is under 3:1 in dark themes and WebKit.
+    el.classList.add(...FOCUS_RING);
     el.scrollTop = el.scrollHeight; // a newly attached viewport opens on the latest
     // A viewport that came back (the chat showed a document tab meanwhile) opens
     // at the bottom, so the reader is caught up: whatever was counted is seen.

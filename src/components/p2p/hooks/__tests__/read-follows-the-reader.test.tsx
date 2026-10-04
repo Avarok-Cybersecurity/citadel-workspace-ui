@@ -30,7 +30,7 @@ function Chat({ hidden = false }: { hidden?: boolean }): JSX.Element {
   const pinnedRef: MutableRefObject<boolean> = useRef<boolean>(true);
   const { messages } = useP2PMessages({ peerCid: PEER, activeTabIdRef: tab, scrollRef: viewport, pinnedRef, onUnreadMessage });
   const onCaughtUp: () => void = useCatchUpRead(PEER, tab, pinnedRef);
-  const stick: StickToBottom = useStickToBottom(viewport, messages, undefined, { pinnedRef, onCaughtUp });
+  const stick: StickToBottom = useStickToBottom(viewport, messages, 'Messages with Alice', undefined, { pinnedRef, onCaughtUp });
   return (
     <div>
       {!hidden && <div

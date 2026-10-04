@@ -32,7 +32,7 @@ beforeEach(() => {
 
 function Harness({ items }: { items: Item[] }): JSX.Element {
   const ref: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
-  const stick: StickToBottom = useStickToBottom(ref, items);
+  const stick: StickToBottom = useStickToBottom(ref, items, 'Messages with Alice');
   return (
     <div style={{ position: 'relative' }}>
       <div
@@ -144,7 +144,8 @@ describe('the notch', () => {
     render(<Harness items={items('a')} />);
     const viewport: HTMLElement = screen.getByTestId('viewport');
     expect(viewport.tabIndex).toBe(0);
+    expect(viewport.className).toContain('focus-visible:ring-2');
     expect(viewport.getAttribute('role')).toBe('region');
-    expect(viewport.getAttribute('aria-label')).toBe('Messages');
+    expect(viewport.getAttribute('aria-label')).toBe('Messages with Alice');
   });
 });

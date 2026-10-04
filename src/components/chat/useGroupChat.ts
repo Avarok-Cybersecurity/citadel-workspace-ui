@@ -30,7 +30,7 @@ export function useGroupChat(groupId: string): { scrollAreaRef: RefObject<HTMLDi
 
   // Follows new messages only for a reader at the bottom; otherwise counts them
   // (the unconditional scroll this replaces yanked readers of older messages).
-  const stick: StickToBottom = useStickToBottom(scrollAreaRef, messages);
+  const stick: StickToBottom = useStickToBottom(scrollAreaRef, messages, 'Group messages');
 
   const [inputValue, setInputValue] = useState('');
   const [replyToId, setReplyToId] = useState<string | null>(null);
