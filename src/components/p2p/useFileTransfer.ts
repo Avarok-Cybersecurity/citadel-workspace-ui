@@ -4,6 +4,8 @@ import { fileTransferService } from '@/lib/file-transfer';
 import { MAX_BYTE_CONTENTS_SIZE_BYTES } from '@/lib/file-transfer/send-operations';
 import { debugLog } from '@/lib/debug-config';
 import { failureDescription } from '@/lib/p2p/peer-failure-detail';
+import { sharedStorageRefusal } from '@/lib/revfs/send-to-their-storage';
+import { sendToTheirStorageNow } from '@/lib/revfs/send-to-their-storage-io';
 
 interface UseFileTransferOptions {
   onClose: () => void;
@@ -31,6 +33,9 @@ export interface UseFileTransferResult {
   handleNativePickerClick: () => Promise<void>;
   handleRemoveFile: () => void;
   handleSend: () => Promise<void>;
+  /** Why the chosen file cannot go to shared storage, or null when it can. */
+  storageRefusal: string | null;
+  handleSendToStorage: () => Promise<void>;
   handleClose: () => void;
 }
 
@@ -174,6 +179,24 @@ export function useFileTransfer({
     }
   };
 
+  // A separate action, not a way of sending: see lib/revfs/send-to-their-storage.
+  const storageRefusal: string | null = selectedFile ? sharedStorageRefusal(selectedFile) : null;
+  const handleSendToStorage = async (): Promise<void> => {
+    if (!selectedFile || storageRefusal !== null) return;
+    setIsSending(true);
+    setError(null);
+    try {
+      const stored: boolean = await sendToTheirStorageNow(BigInt(peerCid), selectedFile);
+      if (!stored) throw new Error('Their agent did not confirm it stored the file; it was not added.');
+      handleRemoveFile();
+      onClose();
+    } catch (err) {
+      setError(failureDescription(err, 'Could not put the file in shared storage.'));
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   const handleClose = (): void => {
     if (!isSending) {
       handleRemoveFile();
@@ -200,6 +223,8 @@ export function useFileTransfer({
     handleNativePickerClick,
     handleRemoveFile,
     handleSend,
+    storageRefusal,
+    handleSendToStorage,
     handleClose,
   };
 }

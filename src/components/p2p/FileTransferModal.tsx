@@ -7,7 +7,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Paperclip, Upload } from 'lucide-react';
+import { Paperclip, Upload, HardDrive } from 'lucide-react';
 import { useFileTransfer } from './useFileTransfer';
 import { FileDropZone } from './FileDropZone';
 
@@ -45,6 +45,8 @@ export function FileTransferModal({
     handleNativePickerClick,
     handleRemoveFile,
     handleSend,
+    storageRefusal,
+    handleSendToStorage,
     handleClose,
   } = useFileTransfer({ onClose, onSendFile, peerCid, maxFileSizeMb });
 
@@ -88,6 +90,10 @@ export function FileTransferModal({
             className="hidden"
           />
 
+          {selectedFile && storageRefusal && (
+            <p className="text-xs text-muted-foreground" data-testid="storage-refusal">{storageRefusal}</p>
+          )}
+
           {error && (
             <p role="alert" className="text-sm text-destructive-emphasis bg-destructive/10 p-2 rounded">
               {error}
@@ -103,6 +109,18 @@ export function FileTransferModal({
             className="text-muted-foreground hover:text-foreground hover:bg-foreground/5"
           >
             Cancel
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleSendToStorage}
+            disabled={!selectedFile || isSending || storageRefusal !== null}
+            title={storageRefusal ?? 'Puts it in the storage you share with them (File Manager). They open it by asking you, so you must be online then.'}
+            data-testid="send-to-their-storage"
+          >
+            <span className="flex items-center gap-2">
+              <HardDrive className="h-4 w-4" />
+              Send to their storage
+            </span>
           </Button>
           <Button
             onClick={handleSend}

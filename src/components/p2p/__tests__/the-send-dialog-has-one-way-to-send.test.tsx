@@ -20,3 +20,12 @@ describe('the send dialog', () => {
     expect(screen.getByText(new RegExp(`Maximum size: ${limit}`))).toBeInTheDocument();
   });
 });
+
+describe('Send to their storage', () => {
+  it('is a separate action, offered only once a file is chosen', () => {
+    render(<FileTransferModal isOpen onClose={vi.fn()} onSendFile={vi.fn()} peerCid="42" />);
+    const action: HTMLElement = screen.getByTestId('send-to-their-storage');
+    expect(action).toHaveTextContent('Send to their storage');
+    expect(action).toBeDisabled();
+  });
+});
