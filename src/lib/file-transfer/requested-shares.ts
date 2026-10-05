@@ -9,6 +9,8 @@
  * request settles with the transfer's outcome.
  */
 import type { FileTransfer } from './types';
+import { eventEmitter } from '../event-emitter';
+import { FILE_TRANSFER_EVENTS } from './events';
 import { isTerminalTransferState } from './transfer-outcome';
 
 interface Waiter {
