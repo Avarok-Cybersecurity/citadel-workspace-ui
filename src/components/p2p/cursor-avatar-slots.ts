@@ -8,6 +8,8 @@
  * registered slot through a portal, inside the app's own tree.
  */
 
+import { notifyEach } from '@/lib/notify-listeners';
+
 export interface AvatarSlot { id: number; element: HTMLElement; name: string }
 
 type Listener = () => void;
@@ -17,7 +19,7 @@ const listeners: Set<Listener> = new Set<Listener>();
 
 function publish(next: readonly AvatarSlot[]): void {
   slots = next;
-  listeners.forEach((l) => l());
+  notifyEach(listeners, 'avatar slots');
 }
 
 /** Registers a slot; the returned function removes it. */
