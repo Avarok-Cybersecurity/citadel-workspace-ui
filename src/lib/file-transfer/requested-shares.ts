@@ -55,3 +55,10 @@ export class RequestedShares {
 }
 
 export const requestedShares: RequestedShares = new RequestedShares();
+
+/** A share settles with its transfer: completed (success or failure) or cancelled. */
+export function settleSharesOnOutcome(): void {
+  const settle = (t: FileTransfer): void => requestedShares.settle(t);
+  eventEmitter.on<FileTransfer>(FILE_TRANSFER_EVENTS.COMPLETED, settle);
+  eventEmitter.on<FileTransfer>(FILE_TRANSFER_EVENTS.CANCELLED, settle);
+}

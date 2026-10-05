@@ -138,10 +138,7 @@ export interface FileTransferCompleteData {
 export interface FileTransferCancelData {
   transfer_id: string;
   reason?: string;
-  /**
-   * True when the transfer FAILED on the signalling side rather than being
-   * stopped by a person. Absent from older peers, which only ever cancelled.
-   */
+  /** It FAILED on the signalling side, not stopped by a person; older peers omit it. */
   failed?: boolean;
   timestamp: number;
 }
@@ -410,16 +407,10 @@ export function createFileTransferResponse(
  * @param reason - Optional reason for cancellation
  * @param failed - Whether it failed here, as opposed to being cancelled
  */
-export function createFileTransferCancel(
-  transfer_id: string,
-  reason: string | undefined,
-  failed: boolean
-): MessagingLayer {
+export function createFileTransferCancel(transfer_id: string, reason: string | undefined, failed: boolean): MessagingLayer {
   return {
     type: MessagingLayerType.FileTransferCancel,
-    transfer_id,
-    reason,
-    failed,
+    transfer_id, reason, failed,
     timestamp: Date.now()
   };
 }
