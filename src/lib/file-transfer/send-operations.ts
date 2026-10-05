@@ -75,10 +75,13 @@ export async function executeSendFile(
     source = { Path: params.source };
   } else if (params.pickFileRequestId) {
     source = { PickFileRef: { pick_file_request_id: params.pickFileRequestId } };
+  } else if (params.stagedUploadId !== undefined) {
+    // Staged on the agent in acknowledged chunks before the offer (send-transfer-request).
+    source = { StagedUpload: { upload_id: params.stagedUploadId } };
   } else if (params.source instanceof File && params.source.size > 0) {
-    // Size guard: refuse payloads that would OOM the tab when converted
-    // to a boxed-number JS array. Check BEFORE calling arrayBuffer() so
-    // we fail fast without allocating the buffer at all.
+    // An agent that does not stage takes the file inline, in one frame. Size
+    // guard first: refuse payloads that would OOM the tab when converted to a
+    // boxed-number JS array, before arrayBuffer() allocates anything.
     assertInlineSendable(params.source);
 
     // Read browser File as bytes and send as ByteContents
@@ -115,7 +118,7 @@ export async function executeSendFile(
   // file as a `data: number[]`, which would dump (potentially secret) file
   // contents into dev logs and allocate/format a huge array on every inline
   // transfer. Log a redacted summary instead.
-  const sourceSummary: { Path: string; } | { PickFileRef: { pick_file_request_id: string; }; } | { kind: "ByteContents"; fileName: string; byteLength: number; } =
+  const sourceSummary: Exclude<FileSource, { ByteContents: unknown }> | { kind: "ByteContents"; fileName: string; byteLength: number; } =
     'ByteContents' in source
       ? {
           kind: 'ByteContents' as const,

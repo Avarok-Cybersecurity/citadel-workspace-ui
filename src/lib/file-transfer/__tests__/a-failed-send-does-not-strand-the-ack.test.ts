@@ -2,8 +2,8 @@
  * Two SendFile sites created their ack promise BESIDE the send instead of
  * wiring the send into it.
  *
- * `server-upload.ts` (staging upload) and `io.ts#sendFileViaProtocol` both
- * did `const ack = awaitSendFileAck(id); await sendMessage(request); await
+ * `server-upload.ts` (the since-removed staging upload) and
+ * `io.ts#sendFileViaProtocol` both did `const ack = awaitSendFileAck(id); await sendMessage(request); await
  * ack`. When the send threw, the caller rejected correctly — but the ack
  * promise was orphaned with its 'websocket-message' listener still attached
  * and its 30s timeout still armed; the timeout then rejected a promise nobody
@@ -35,22 +35,13 @@ vi.mock('../../websocket-service', () => ({
 }));
 
 const { eventEmitter } = await import('../../event-emitter');
-const { uploadFileToServer } = await import('../server-upload');
 const { FileTransferIO } = await import('../io');
 import type { FileTransfer } from '../types';
-
-function browserFile(): File {
-  return {
-    name: 'notes.md',
-    size: 4,
-    arrayBuffer: async (): Promise<ArrayBuffer> => new Uint8Array([1, 2, 3, 4]).buffer,
-  } as unknown as File;
-}
 
 function chatTransfer(): FileTransfer {
   return {
     id: 'transfer-1', fileName: 'notes.md', fileSize: 4, fileType: 'text/markdown',
-    mode: 'p2p', state: 'pending', progress: 0,
+    state: 'pending', progress: 0,
     senderCid: '7', recipientCid: '42',
     createdAt: 0, updatedAt: 0, isIncoming: false,
   };
@@ -76,17 +67,6 @@ afterEach((): void => {
 });
 
 describe('when the SendFile frame itself fails to send', () => {
-  it('the staging upload rejects with the send error and leaves no listener or timer behind', async () => {
-    const before: Baseline = listenerBaseline();
-
-    await expect(
-      uploadFileToServer(browserFile(), 'transfer-1', '42', 7n, (): void => undefined),
-    ).rejects.toThrow(/socket send failed/);
-
-    expect(listenerBaseline(), 'the orphaned ack kept listening for a response to a request that never went out').toEqual(before);
-    expect(vi.getTimerCount(), 'the ack timeout stayed armed, due to reject unheard 30s later').toBe(0);
-  });
-
   it('the native-picker protocol send rejects with the send error and leaves no listener or timer behind', async () => {
     const io: InstanceType<typeof FileTransferIO> = new FileTransferIO();
     const before: Baseline = listenerBaseline();
@@ -113,9 +93,15 @@ describe('when the SendFile frame itself fails to send', () => {
       });
     });
 
+    const io: InstanceType<typeof FileTransferIO> = new FileTransferIO();
     await expect(
-      uploadFileToServer(browserFile(), 'transfer-1', '42', 7n, (): void => undefined),
-    ).resolves.toBe('/transfers/transfer-1/notes.md');
+      io.executeIntent({
+        type: 'send-file-via-protocol',
+        cid: '7', peerCid: '42', filePath: '/home/alice/report.pdf',
+        transferId: 'transfer-1', transfer: chatTransfer(),
+      }),
+    ).resolves.toBeUndefined();
     expect(vi.getTimerCount()).toBe(0);
+    io.dispose();
   });
 });

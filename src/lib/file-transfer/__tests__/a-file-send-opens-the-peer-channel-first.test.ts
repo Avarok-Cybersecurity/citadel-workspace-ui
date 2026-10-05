@@ -38,6 +38,7 @@ import { openPeerChannelViaAutoConnect, FILE_SEND_CONNECT_TIMEOUT_MS } from '../
 import { buildTransferAnnouncement } from '../transfer-announcement';
 import type { FileTransfer } from '../types';
 import { fileTransferService } from '../service';
+import { ONLINE_PEER_QUEUE } from './online-peer-queue';
 
 function deps(opened: boolean): LifecycleDeps {
   return {
@@ -50,8 +51,10 @@ function deps(opened: boolean): LifecycleDeps {
     saveTransfer: async (): Promise<void> => undefined,
     emitStateChange: (): void => undefined,
     saveSettings: async (): Promise<void> => undefined,
-    handleAsyncSend: async (): Promise<void> => { calls.push('intent:async'); },
     openPeerChannel: async (cid: bigint): Promise<boolean> => { calls.push(`channel:${cid}`); return opened; },
+    // An agent that does not stage uploads: the inline route, 16 MB.
+    agentStagesUploads: async (): Promise<boolean> => false,
+    queue: ONLINE_PEER_QUEUE,
   } as unknown as LifecycleDeps;
 }
 
@@ -61,17 +64,17 @@ beforeEach((): void => { calls.length = 0; world.failFirstSend = false; });
 
 describe('a file send', () => {
   it('opens the recipient\'s P2P channel before sending anything', async () => {
-    await sendFile(deps(true), '900', file, 'p2p');
+    await sendFile(deps(true), '900', file);
     expect(calls).toEqual(['channel:900', 'intent:send-transfer-request']);
   });
 
-  it('does the same for the RE-VFS push', async () => {
-    await sendFile(deps(true), '900', file, 'async');
-    expect(calls).toEqual(['channel:900', 'intent:async']);
+  it('does the same for a standard send', async () => {
+    await sendFile(deps(true), '900', file);
+    expect(calls).toEqual(['channel:900', 'intent:send-transfer-request']);
   });
 
   it('still sends when the channel is not confirmed, so the send reports the real outcome', async () => {
-    await sendFile(deps(false), '900', file, 'p2p');
+    await sendFile(deps(false), '900', file);
     expect(calls).toEqual(['channel:900', 'intent:send-transfer-request']);
   });
 
@@ -98,7 +101,7 @@ describe('a file send', () => {
 
 describe('an in-band file signal', () => {
   const transfer: FileTransfer = {
-    id: 'x', fileName: 'a.txt', fileSize: 3, fileType: 'text/plain', mode: 'p2p', state: 'pending', progress: 0,
+    id: 'x', fileName: 'a.txt', fileSize: 3, fileType: 'text/plain', state: 'pending', progress: 0,
     senderCid: '100', recipientCid: '900', createdAt: 0, updatedAt: 0, isIncoming: false,
   };
 

@@ -13,6 +13,7 @@ import type { P2PMessagingLayerPayload } from '@/types/p2p-types';
 import type { P2PMessage } from './p2p-types';
 import { fileTransferMessage } from './file-transfer-message';
 import { FILE_TRANSFER_EVENTS, type OfferAnnounced } from '../file-transfer/events';
+import { toStoredState } from '../file-transfer/stored-state';
 import { debugLog } from '@/lib/debug-config';
 
 export interface RecordOutgoingFileTransferDeps {
@@ -57,7 +58,7 @@ export function bindOutgoingFileOffers(
   deps: RecordOutgoingFileTransferDeps,
 ): void {
   listen(FILE_TRANSFER_EVENTS.OFFER_ANNOUNCED, ({ announcement, transferState }: OfferAnnounced): void => {
-    recordOutgoingFileTransfer(deps, announcement, transferState).catch((error: unknown): void => {
+    recordOutgoingFileTransfer(deps, announcement, toStoredState(transferState)).catch((error: unknown): void => {
       debugLog('RecordOutgoingFileTransfer', `Could not record the sent offer ${announcement.message_id}:`, error);
     });
   });

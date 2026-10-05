@@ -52,6 +52,7 @@ import type { VirtualObjectMetadata } from '../protocol-types';
 import { FileTransferState } from '../state';
 import { cancelTransfer, type LifecycleDeps } from '../transfer-lifecycle';
 import { applyTransferOutcome } from '../transfer-outcome';
+import { ONLINE_PEER_QUEUE } from './online-peer-queue';
 
 const BOB: bigint = 7n;
 const ALICE: bigint = 42n;
@@ -125,8 +126,7 @@ describe('a send that completes during the cancel signal', () => {
   it('keeps its completion rather than being rewritten as cancelled', async () => {
     const state: FileTransferState = new FileTransferState();
     const outgoing: FileTransfer = {
-      id: 'out-1', fileName: 'a.bin', fileSize: 3000, fileType: '', mode: 'p2p',
-      state: 'transferring', progress: 0, senderCid: '7', recipientCid: '42',
+      id: 'out-1', fileName: 'a.bin', fileSize: 3000, fileType: '',       state: 'transferring', progress: 0, senderCid: '7', recipientCid: '42',
       createdAt: 0, updatedAt: 0, isIncoming: false,
     };
     state.setTransfer(outgoing);
@@ -142,9 +142,11 @@ describe('a send that completes during the cancel signal', () => {
       emitStateChange: (): void => undefined,
       saveTransfer: async (): Promise<void> => undefined,
       saveSettings: async (): Promise<void> => undefined,
-      handleAsyncSend: async (): Promise<void> => undefined,
       // Cancel never opens a channel; present because the port requires it.
       openPeerChannel: async (): Promise<boolean> => true,
+      // An agent that does not stage uploads: the inline route, 16 MB.
+      agentStagesUploads: async (): Promise<boolean> => false,
+      queue: ONLINE_PEER_QUEUE,
     };
 
     await cancelTransfer(deps, 'out-1');

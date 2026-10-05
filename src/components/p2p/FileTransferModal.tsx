@@ -1,3 +1,4 @@
+import { offlineHoldNote } from '@/lib/file-transfer/send-queue';
 import {
   Dialog,
   DialogContent,
@@ -7,35 +8,26 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Paperclip, Upload, Zap, Cloud } from 'lucide-react';
-import type { FileTransferMode } from '@/types/messaging-layer';
+import { Paperclip, Upload, HardDrive } from 'lucide-react';
 import { useFileTransfer } from './useFileTransfer';
 import { FileDropZone } from './FileDropZone';
-import { TRANSFER_METHOD_COPY } from './transfer-method-copy';
-import { nativePickerBlockedReason } from './native-picker-reason';
 
 interface FileTransferModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSendFile: (file: File, mode: FileTransferMode) => Promise<void>;
-  onSendWithNativePicker?: (mode: FileTransferMode) => Promise<void>;
+  onSendFile: (file: File) => Promise<void>;
   peerCid: string;
-  maxFileSizeMb?: number;
 }
 
 export function FileTransferModal({
   isOpen,
   onClose,
   onSendFile,
-  onSendWithNativePicker: _onSendWithNativePicker,
   peerCid,
-  maxFileSizeMb = 100,
 }: FileTransferModalProps): JSX.Element {
   const {
     selectedFile,
     previewUrl,
-    transferMode,
-    setTransferMode,
     isDragging,
     isSending,
     isPickingFile,
@@ -43,6 +35,8 @@ export function FileTransferModal({
     nativePickerAvailable,
     fileInputRef,
     maxFileSizeBytes,
+    ceilingFailure,
+    isStoring,
     formatBytes,
     handleDrop,
     handleDragOver,
@@ -52,8 +46,10 @@ export function FileTransferModal({
     handleNativePickerClick,
     handleRemoveFile,
     handleSend,
+    storageRefusal,
+    handleSendToStorage,
     handleClose,
-  } = useFileTransfer({ onClose, onSendFile, peerCid, maxFileSizeMb });
+  } = useFileTransfer({ onClose, onSendFile, peerCid, isOpen });
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
@@ -66,8 +62,9 @@ export function FileTransferModal({
             <DialogTitle className="text-lg font-semibold">Send File</DialogTitle>
           </div>
           <DialogDescription className="text-muted-foreground">
-            Choose a file to send to your peer. Maximum size: {formatBytes(maxFileSizeBytes)}
+            Sent over the Citadel protocol, encrypted end to end. {maxFileSizeBytes === null ? 'Checking how large a file your agent takes…' : `Maximum size: ${formatBytes(maxFileSizeBytes)}`}
           </DialogDescription>
+          <p className="text-xs text-muted-foreground" data-testid="offline-hold-note">{offlineHoldNote()}</p>
         </DialogHeader>
 
         <div className="py-4 space-y-4">
@@ -75,10 +72,9 @@ export function FileTransferModal({
             selectedFile={selectedFile}
             previewUrl={previewUrl}
             isDragging={isDragging}
-            isSending={isSending}
+            isSending={isSending || isStoring}
             isPickingFile={isPickingFile}
             nativePickerAvailable={nativePickerAvailable}
-            nativePickerBlockedReason={nativePickerBlockedReason(transferMode)}
             maxFileSizeBytes={maxFileSizeBytes}
             formatBytes={formatBytes}
             onDrop={handleDrop}
@@ -96,57 +92,18 @@ export function FileTransferModal({
             className="hidden"
           />
 
-          {/* Transfer mode selector */}
-          <div className="space-y-2">
-            <p className="text-sm text-foreground/80 font-medium">Transfer Method</p>
+          {selectedFile && storageRefusal && (
+            <p className="text-xs text-muted-foreground" data-testid="storage-refusal">{storageRefusal}</p>
+          )}
 
-            <button
-              onClick={() => setTransferMode('async')}
-              className={`w-full flex items-start gap-3 p-3 rounded-lg border transition-colors ${
-                transferMode === 'async'
-                  ? 'border-primary-accent bg-primary-accent/10'
-                  : 'border-surface hover:border-primary'
-              }`}
-            >
-              <div className={`p-2 rounded-lg ${transferMode === 'async' ? 'bg-primary-accent/20' : 'bg-surface'}`}>
-                <Cloud className={`h-5 w-5 ${transferMode === 'async' ? 'text-primary-accent' : 'text-muted-foreground'}`} />
-              </div>
-              <div className="flex-1 text-left">
-                <div className="flex items-center gap-2">
-                  <span className={`font-medium ${transferMode === 'async' ? 'text-foreground' : 'text-foreground/80'}`}>
-                    Send File
-                  </span>
-                  <span className="text-xs text-success-emphasis bg-success/10 px-1.5 py-0.5 rounded">
-                    Recommended
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {TRANSFER_METHOD_COPY.async}
-                </p>
-              </div>
-            </button>
+          {/* Always present, so a screen reader announces the text when it arrives. */}
+          <p role="status" className={ceilingFailure ? 'text-sm text-warning-emphasis bg-warning/10 p-2 rounded' : 'sr-only'}>
+            {ceilingFailure ?? ''}
+          </p>
 
-            <button
-              onClick={() => setTransferMode('p2p')}
-              className={`w-full flex items-start gap-3 p-3 rounded-lg border transition-colors ${
-                transferMode === 'p2p'
-                  ? 'border-warning bg-warning/10'
-                  : 'border-surface hover:border-primary'
-              }`}
-            >
-              <div className={`p-2 rounded-lg ${transferMode === 'p2p' ? 'bg-warning/20' : 'bg-surface'}`}>
-                <Zap className={`h-5 w-5 ${transferMode === 'p2p' ? 'text-warning-emphasis' : 'text-muted-foreground'}`} />
-              </div>
-              <div className="flex-1 text-left">
-                <span className={`font-medium ${transferMode === 'p2p' ? 'text-foreground' : 'text-foreground/80'}`}>
-                  P2P Only Transfer
-                </span>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {TRANSFER_METHOD_COPY.p2p}
-                </p>
-              </div>
-            </button>
-          </div>
+          <p id="send-to-storage-help" className="text-xs text-muted-foreground">
+            Send to their storage puts it in the storage you share with them (File Manager). They open it by asking you, so you must be online then.
+          </p>
 
           {error && (
             <p role="alert" className="text-sm text-destructive-emphasis bg-destructive/10 p-2 rounded">
@@ -159,23 +116,31 @@ export function FileTransferModal({
           <Button
             variant="ghost"
             onClick={handleClose}
-            disabled={isSending}
+            disabled={isSending || isStoring}
             className="text-muted-foreground hover:text-foreground hover:bg-foreground/5"
           >
             Cancel
           </Button>
           <Button
+            variant="outline"
+            onClick={handleSendToStorage}
+            disabled={!selectedFile || isSending || isStoring || storageRefusal !== null}
+            aria-describedby="send-to-storage-help"
+            data-testid="send-to-their-storage"
+          >
+            <span className="flex items-center gap-2">
+              <HardDrive className="h-4 w-4" />
+              {isStoring ? 'Putting it there...' : 'Send to their storage'}
+            </span>
+          </Button>
+          <Button
             onClick={handleSend}
-            disabled={!selectedFile || isSending}
-            className={`text-foreground ${
-              transferMode === 'p2p'
-                ? 'bg-warning hover:bg-warning/90'
-                : 'bg-primary'
-            }`}
+            disabled={!selectedFile || isSending || isStoring}
+            className="text-primary-foreground bg-primary"
           >
             {isSending ? 'Sending...' : (
               <span className="flex items-center gap-2">
-                {transferMode === 'p2p' ? <Zap className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
+                <Upload className="h-4 w-4" />
                 Send
               </span>
             )}

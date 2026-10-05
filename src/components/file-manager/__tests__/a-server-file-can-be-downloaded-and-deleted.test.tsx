@@ -30,9 +30,11 @@ describe('a file context menu', () => {
     expect(items.some((t: string) => /^Delete/.test(t))).toBe(true);
   });
 
-  it('still offers a hosted file for deletion but not for download', () => {
+  // Downloadable since the uploader can be asked to send it (lib/revfs/request-share.ts);
+  // before, the peer's file in shared storage could not be opened at all.
+  it('offers a hosted file for download and for deletion', () => {
     const items: string[] = menuFor(RevfsFileState.Hosted);
-    expect(items.some((t: string) => /^Download/.test(t))).toBe(false);
+    expect(items.some((t: string) => /^Download/.test(t))).toBe(true);
     expect(items.some((t: string) => /^Delete/.test(t))).toBe(true);
   });
 });

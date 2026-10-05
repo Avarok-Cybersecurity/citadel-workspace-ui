@@ -31,7 +31,7 @@ function marker(title: string): void { notificationService.addSystemNotification
 /** A follower's view: the leader says what its agent hosts, and whether a notifier is attached. */
 function agentHosts(agentIlm: boolean, noticesHeard: boolean): void {
   forgetCapabilities();
-  registerCapabilityRoute({ isLeader: () => false, askLeader: async () => ({ agentIlm, supervisesP2p: false, noticesHeard }) });
+  registerCapabilityRoute({ isLeader: () => false, askLeader: async () => ({ agentIlm, supervisesP2p: false, stagesUploads: false, noticesHeard }) });
 }
 
 

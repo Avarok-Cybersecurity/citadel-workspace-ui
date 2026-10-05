@@ -25,9 +25,9 @@ import type { P2PMessage } from '../../p2p/p2p-types';
 function transfer(): FileTransfer {
   return {
     id: 'transfer-1', fileName: 'notes.md', fileSize: 4, fileType: 'text/markdown',
-    mode: 'async', state: 'staged', progress: 0,
+    state: 'pending', progress: 0,
     senderCid: '7', recipientCid: '42',
-    createdAt: 0, updatedAt: 0, isIncoming: false, virtualPath: '/transfers/transfer-1/notes.md',
+    createdAt: 0, updatedAt: 0, isIncoming: false,
   };
 }
 
@@ -51,7 +51,7 @@ describe('announcing an offer', () => {
     );
 
     try {
-      await announceTransfer(transfer());
+      await announceTransfer(transfer(), false);
       await vi.waitFor(() => expect(added).toHaveLength(1));
     } finally {
       for (const handler of handlers) eventEmitter.off('file-transfer:offer-announced', handler);
@@ -62,6 +62,6 @@ describe('announcing an offer', () => {
     expect(added[0].peer).toBe(42n);
     expect(added[0].message.id, 'the recorded entry is not the offer that was sent').toBe(wire.message_id);
     expect(added[0].message.senderCid).toBe(7n);
-    expect(added[0].message.transfer_state).toBe('staged');
+    expect(added[0].message.transfer_state).toBe('pending');
   });
 });

@@ -11,12 +11,13 @@ import type { LifecycleDeps } from './transfer-lifecycle';
  * "No messaging handle found" ("Peer Connection Not Found" in the DM dialog,
  * "failed" in a group share), until something else happened to reopen it.
  *
- * Not opening in time is logged, not thrown: the connection tracker can lag
- * the agent, and the send itself then reports the real outcome.
+ * Not opening in time is reported, not thrown: the caller decides whether to
+ * send anyway or hold the send for the peer (send-queue.ts).
  */
-export async function openChannelBeforeSending(deps: Pick<LifecycleDeps, 'openPeerChannel'>, recipientCid: string): Promise<void> {
+export async function openChannelBeforeSending(deps: Pick<LifecycleDeps, 'openPeerChannel'>, recipientCid: string): Promise<boolean> {
   const opened: boolean = await deps.openPeerChannel(BigInt(recipientCid));
-  if (!opened) debugLog('TransferLifecycle', 'P2P channel not confirmed open; sending anyway', { recipientCid });
+  if (!opened) debugLog('TransferLifecycle', 'P2P channel not confirmed open', { recipientCid });
+  return opened;
 }
 
 /**

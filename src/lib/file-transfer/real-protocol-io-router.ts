@@ -10,6 +10,7 @@ import type {
   TransferCompleteEvent, TransferStatusEvent,
 } from './io-router-types';
 import type { FileTransfer } from './types';
+import { toStoredState } from './stored-state';
 import { executeSendFile, executeCancelTransfer } from './send-operations';
 import {
   executeRespondToTransfer, executeDownloadFile, createTransferRequestHandler,
@@ -45,10 +46,16 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
 
   async sendFile(params: SendFileParams): Promise<SendFileResult> {
     const result: SendFileResult = await executeSendFile(params);
-    // Filed so a LATER answer to this request -- a SendFileRequestFailure after the success,
-    // when the SDK refuses the object -- is joined to the transfer (createStatusChangeHandler).
-    this.tickCorrelation.requestIdToTransferId.set(result.requestId, params.transferId);
+    this.noteOutgoingStream(result.requestId, params.transferId);
     return result;
+  }
+
+  /**
+   * Join a SendFile's request id to its chat transfer: the agent names that id on
+   * every sender tick, and on a later SendFileRequestFailure (createStatusChangeHandler).
+   */
+  protected noteOutgoingStream(requestId: string, transferId: string): void {
+    this.tickCorrelation.requestIdToTransferId.set(requestId, transferId);
   }
 
   async cancelTransfer(params: CancelTransferParams): Promise<void> {
@@ -179,7 +186,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
   notifyStateChange(transfer: FileTransfer): void {
     const peerCid: string = transfer.isIncoming ? transfer.senderCid : transfer.recipientCid;
     p2pMessengerManager.updateFileTransferState(BigInt(peerCid), transfer.id, {
-      transfer_state: transfer.state,
+      transfer_state: toStoredState(transfer.state),
       transfer_progress: transfer.progress,
     });
   }

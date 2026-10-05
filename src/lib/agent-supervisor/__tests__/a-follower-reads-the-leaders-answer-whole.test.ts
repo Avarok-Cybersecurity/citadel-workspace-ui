@@ -16,28 +16,33 @@ afterEach((): void => { vi.restoreAllMocks(); });
 describe('the follower\'s reading of the leader\'s ack', () => {
   it('takes both capabilities', async (): Promise<void> => {
     leaderSays({ agentIlm: true, supervisesP2p: true });
-    expect(await askLeaderForCapabilities()).toEqual({ agentIlm: true, supervisesP2p: true, noticesHeard: false });
+    expect(await askLeaderForCapabilities()).toEqual({ agentIlm: true, supervisesP2p: true, noticesHeard: false, stagesUploads: false });
     leaderSays({ agentIlm: false, supervisesP2p: true });
-    expect(await askLeaderForCapabilities()).toEqual({ agentIlm: false, supervisesP2p: true, noticesHeard: false });
+    expect(await askLeaderForCapabilities()).toEqual({ agentIlm: false, supervisesP2p: true, noticesHeard: false, stagesUploads: false });
     leaderSays({ agentIlm: true, supervisesP2p: false });
-    expect(await askLeaderForCapabilities()).toEqual({ agentIlm: true, supervisesP2p: false, noticesHeard: false });
+    expect(await askLeaderForCapabilities()).toEqual({ agentIlm: true, supervisesP2p: false, noticesHeard: false, stagesUploads: false });
   });
 
   it('reads a leader that predates the capability as not supervising', async (): Promise<void> => {
     leaderSays({ agentIlm: true });
-    expect(await askLeaderForCapabilities()).toEqual({ agentIlm: true, supervisesP2p: false, noticesHeard: false });
+    expect(await askLeaderForCapabilities()).toEqual({ agentIlm: true, supervisesP2p: false, noticesHeard: false, stagesUploads: false });
+  });
+
+  it('takes whether the agent stages uploads', async (): Promise<void> => {
+    leaderSays({ agentIlm: true, supervisesP2p: false, stagesUploads: true });
+    expect(await askLeaderForCapabilities()).toEqual({ agentIlm: true, supervisesP2p: false, noticesHeard: false, stagesUploads: true });
   });
 
   it('takes whether a notifier is attached to the agent, and a leader that does not say as none', async (): Promise<void> => {
-    leaderSays({ agentIlm: true, supervisesP2p: false, noticesHeard: true });
-    expect(await askLeaderForCapabilities()).toEqual({ agentIlm: true, supervisesP2p: false, noticesHeard: true });
+    leaderSays({ agentIlm: true, supervisesP2p: false, noticesHeard: true, stagesUploads: false });
+    expect(await askLeaderForCapabilities()).toEqual({ agentIlm: true, supervisesP2p: false, noticesHeard: true, stagesUploads: false });
     leaderSays({ agentIlm: true, supervisesP2p: false });
-    expect(await askLeaderForCapabilities()).toEqual({ agentIlm: true, supervisesP2p: false, noticesHeard: false });
+    expect(await askLeaderForCapabilities()).toEqual({ agentIlm: true, supervisesP2p: false, noticesHeard: false, stagesUploads: false });
   });
 
   it('reads an empty ack as neither', async (): Promise<void> => {
     leaderSays(undefined);
-    expect(await askLeaderForCapabilities()).toEqual({ agentIlm: false, supervisesP2p: false, noticesHeard: false });
+    expect(await askLeaderForCapabilities()).toEqual({ agentIlm: false, supervisesP2p: false, noticesHeard: false, stagesUploads: false });
   });
 
   it('fails when the leader could not answer', async (): Promise<void> => {

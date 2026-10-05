@@ -50,7 +50,7 @@ describe('offer expiry', () => {
     }
   });
 
-  it('lapses a staged offer too, not only a pending one', () => {
-    expect(expiredTransferIds([offer({ state: 'staged' })], 2_000)).toEqual(['t-1']);
+  it('lapses a held send too, not only a pending offer', () => {
+    expect(expiredTransferIds([offer({ state: 'queued' })], 2_000)).toEqual(['t-1']);
   });
 });

@@ -4,7 +4,7 @@
  * Type definitions for file transfer functionality.
  */
 
-import type { FileTransferState, FileTransferMode } from '@/types/messaging-layer';
+import type { FileTransferState } from '@/types/messaging-layer';
 
 // ============================================================================
 // Core Types
@@ -16,27 +16,23 @@ export interface FileTransfer {
   fileSize: number;
   fileType: string;
   thumbnail?: string;
-  mode: FileTransferMode;
   state: FileTransferState;
   progress: number; // 0-100
   senderCid: string;
   recipientCid: string;
-  virtualPath?: string;
   downloadPath?: string;
   errorMessage?: string;
   createdAt: number;
   updatedAt: number;
   expiresAt?: number;
   isIncoming: boolean; // true if we are the recipient
+  /** Who a 'queued' send waits for, by name, for "Will send when {name} is online". */
+  waitingFor?: string;
 }
-
-export type TransferModePreference = 'browser' | 'protocol';
 
 export interface FileTransferSettings {
   autoAccept: boolean;
   maxFileSize: number;
-  // Transfer mode preference
-  transferMode: TransferModePreference; // 'browser' = in-browser (default), 'protocol' = Citadel Protocol
   // RE-VFS settings
   allowRevfsStorage: boolean;
   revfsQuota: number;
@@ -105,6 +101,17 @@ export interface SendTransferRequestIntent {
    * loudly (io.ts does).
    */
   file?: InMemoryOnly<File>;
+  /** True when the sender's own bubble already shows this offer (a held send, released). */
+  offerAlreadyShown: boolean;
+  /** For a browser file: the staging's stop signal and progress (deliver-send.ts). */
+  staging: StagingHooks;
+}
+
+export interface StagingHooks {
+  signal: AbortSignal;
+  onProgress: (stagedBytes: number, totalBytes: number) => void;
+  /** The agent holds the whole file: the offer goes out next. */
+  onStaged: () => void;
 }
 
 export interface SendResponseIntent {
@@ -120,18 +127,8 @@ export interface SendCancelIntent {
   transferId: string;
   targetCid: string;
   reason: string;
-}
-
-export interface UploadToServerIntent {
-  type: 'upload-to-server';
-  file: File;
-  transferId: string;
-  recipientCid: string;
-}
-
-export interface DownloadFromServerIntent {
-  type: 'download-from-server';
-  transfer: FileTransfer;
+  /** It failed here; the peer shows "failed", not "cancelled". */
+  failed: boolean;
 }
 
 export interface PickFileIntent {
@@ -163,8 +160,6 @@ export type FileTransferIntent =
   | SendTransferRequestIntent
   | SendResponseIntent
   | SendCancelIntent
-  | UploadToServerIntent
-  | DownloadFromServerIntent
   | PickFileIntent
   | SendFileViaProtocolIntent;
 

@@ -23,9 +23,12 @@ import { isDownloadableState } from '@/lib/revfs/file-states';
 import { RevfsFileState, type RevfsNode } from '@/types/revfs-types';
 import type { RevfsDownloadHistory, RevfsDownloadRecord } from '@/lib/revfs/download-history';
 import { revfsDownloadDetails, type FileDetails } from '@/components/layout/sidebar/file-details';
+import { downloadCopy, type DownloadCopy } from './download-copy';
 
 export interface DownloadDeps {
   downloadFile: (path: string) => Promise<string | undefined>;
+  /** For a file the PEER uploaded: ask them to send it (lib/revfs/request-share.ts). */
+  requestShare: (node: RevfsNode) => Promise<string | undefined>;
   myCid: bigint | null;
   /** The peer holding the bytes, or null for server storage. */
   sourceCid: bigint | null;
@@ -53,17 +56,17 @@ export async function downloadVisibly(node: RevfsNode, deps: DownloadDeps): Prom
     deps.showFile(revfsDownloadDetails(recordFor(node, node.fileMetadata?.virtualDirectory ?? '', deps)).details);
     return;
   }
-  if (!isDownloadableState(node.fileState)) {
-    toast.info(`${node.name} — ${node.fileState === RevfsFileState.Hosted ? 'Hosted for peer (encrypted, cannot open)' : 'Info only'}`);
+  const isPeers: boolean = node.fileState === RevfsFileState.Hosted;
+  if (!isPeers && !isDownloadableState(node.fileState)) {
+    toast.info(`${node.name} — Info only`);
     return;
   }
 
-  const id: string | number = toast.loading(`Downloading ${node.name}…`, {
-    description: `Your agent is fetching it from ${deps.sourceLabel}.`,
-  });
+  const copy: DownloadCopy = downloadCopy(node.fileState, node.name, deps.sourceLabel);
+  const id: string | number = toast.loading(copy.title, { description: copy.description });
   let savedTo: string;
   try {
-    savedTo = (await deps.downloadFile(node.path)) ?? '';
+    savedTo = (await (isPeers ? deps.requestShare(node) : deps.downloadFile(node.path))) ?? '';
   } catch (err: unknown) {
     toast.error(`Download failed: ${describeError(err)}`, { id, description: undefined });
     return;
@@ -89,8 +92,8 @@ export async function downloadVisibly(node: RevfsNode, deps: DownloadDeps): Prom
 }
 
 export function useFileManagerDownload(deps: DownloadDeps): (node: RevfsNode) => void {
-  const { downloadFile, myCid, sourceCid, sourceLabel, history, showFile, now } = deps;
+  const { downloadFile, requestShare, myCid, sourceCid, sourceLabel, history, showFile, now } = deps;
   return useCallback((node: RevfsNode): void => {
-    void downloadVisibly(node, { downloadFile, myCid, sourceCid, sourceLabel, history, showFile, now });
-  }, [downloadFile, myCid, sourceCid, sourceLabel, history, showFile, now]);
+    void downloadVisibly(node, { downloadFile, requestShare, myCid, sourceCid, sourceLabel, history, showFile, now });
+  }, [downloadFile, requestShare, myCid, sourceCid, sourceLabel, history, showFile, now]);
 }

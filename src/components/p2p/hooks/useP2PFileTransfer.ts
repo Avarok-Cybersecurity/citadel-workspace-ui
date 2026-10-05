@@ -11,7 +11,6 @@ import type { FileTransfer } from '@/lib/file-transfer/types';
 import { failureDescription } from '@/lib/p2p/peer-failure-detail';
 import { fileTransferService } from '@/lib/file-transfer';
 import { useToast } from '@/hooks/use-toast';
-import type { FileTransferMode } from '@/types/messaging-layer';
 import { debugLog } from '@/lib/debug-config';
 
 interface UseP2PFileTransferProps {
@@ -20,7 +19,7 @@ interface UseP2PFileTransferProps {
 }
 
 interface UseP2PFileTransferReturn {
-  handleSendFile: (file: File, mode: FileTransferMode) => Promise<void>;
+  handleSendFile: (file: File) => Promise<void>;
   handleAcceptTransfer: (transferId: string) => Promise<void>;
   handleDeclineTransfer: (transferId: string) => Promise<void>;
   handleCancelTransfer: (transferId: string) => Promise<void>;
@@ -36,13 +35,15 @@ export function useP2PFileTransfer({
 }: UseP2PFileTransferProps): UseP2PFileTransferReturn {
   const { toast } = useToast();
 
-  const handleSendFile: (file: File, mode: FileTransferMode) => Promise<void> = useCallback(async (file: File, mode: FileTransferMode): Promise<void> => {
+  const handleSendFile: (file: File) => Promise<void> = useCallback(async (file: File): Promise<void> => {
     try {
-      await fileTransferService.sendFile(peerCid.toString(), file, mode);
-      toast({
-        title: 'File Sent',
-        description: `Sending ${file.name} to ${peerName}`,
-      });
+      const id: string = await fileTransferService.sendFile(peerCid.toString(), file);
+      // The bubble now carries the send: preparing, then offered. "File Sent" said it was
+      // done while it was still uploading from this tab, and said nothing of a held send.
+      const held: boolean = fileTransferService.getTransfer(id)?.state === 'queued';
+      toast(held
+        ? { title: `Will send ${file.name} when ${peerName} is online`, description: 'Keep this browser open; it goes by itself.' }
+        : { title: `Preparing to send ${file.name}`, description: `Keep this tab open until ${peerName} is offered it.` });
     } catch (error) {
       debugLog('UseP2PFileTransfer', 'Failed to send file:', error);
       toast({

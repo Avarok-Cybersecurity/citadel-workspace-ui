@@ -73,6 +73,8 @@ export enum RevfsOpType {
   Ack = 'Ack',
   SyncRequest = 'SyncRequest',
   SyncResponse = 'SyncResponse',
+  /** Ask the uploader of the file at `path` to send it; see share-on-request.ts. */
+  ShareRequest = 'ShareRequest',
 }
 
 // ============================================================================

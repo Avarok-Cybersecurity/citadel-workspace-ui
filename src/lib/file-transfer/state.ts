@@ -69,13 +69,13 @@ export class FileTransferState {
 
   getPendingIncoming(): FileTransfer[] {
     return Array.from(this.transfers.values()).filter(
-      t => t.isIncoming && (t.state === 'pending' || t.state === 'staged')
+      t => t.isIncoming && t.state === 'pending'
     );
   }
 
   getActiveTransfers(): FileTransfer[] {
     return Array.from(this.transfers.values()).filter(
-      t => ['pending', 'uploading', 'staged', 'transferring'].includes(t.state)
+      t => ['queued', 'preparing', 'pending', 'transferring'].includes(t.state)
     );
   }
 
@@ -87,7 +87,6 @@ export class FileTransferState {
   static readonly DEFAULT_SETTINGS: FileTransferSettings = {
     autoAccept: false,
     maxFileSize: FILE_TRANSFER_DEFAULT_MAX_SIZE_BYTES,
-    transferMode: 'browser',
     allowRevfsStorage: true, // Default to true for RE-VFS file browser functionality
     revfsQuota: REVFS_DEFAULT_QUOTA_BYTES,
   };
@@ -103,7 +102,13 @@ export class FileTransferState {
     // disabling RE-VFS for that peer, and `revfsQuota` shows as `NaN` MB in the
     // settings UI. Nothing has shipped in that state yet — this closes the class
     // before the next field does it.
-    return { ...FileTransferState.DEFAULT_SETTINGS, ...stored };
+    // Known fields only: a field a later version removed (the old per-peer
+    // `transferMode`) is dropped on load rather than carried forward.
+    const merged: FileTransferSettings = { ...FileTransferState.DEFAULT_SETTINGS };
+    for (const key of Object.keys(merged) as Array<keyof FileTransferSettings>) {
+      if (stored?.[key] !== undefined) (merged as unknown as Record<string, unknown>)[key] = stored[key];
+    }
+    return merged;
   }
 
   setSettings(peerCid: string, settings: FileTransferSettings): void {

@@ -68,8 +68,6 @@ const RECORDED_UNCONSUMED = new Map([
   ['file-transfer:request-received', 'the receiver is prompted by the chat bubble, which reads the message; state-changed drives the sidebar'],
   ['file-transfer:request-sent', 'as request-received'],
   ['file-transfer:progress-updated', 'progress is rendered from the transfer record; state-changed drives the sidebar'],
-  ['file-transfer:cancelled', 'cancellation also emits state-changed, which the sidebar listens to'],
-  ['file-transfer:error', 'as cancelled'],
   ['outbound-error', 'duplicates the outbound-ack the caller already receives: channel-messaging calls acknowledge() and emits the ack on the same path'],
   ['group:message:new', 'published beside group:message-received, which is the one the store reads'],
   ['workspace:sign-in-settings', 'published beside the raw response, which is what the sign-in settings port reads; the kernel broadcasts no changes, so no view needs it yet'],

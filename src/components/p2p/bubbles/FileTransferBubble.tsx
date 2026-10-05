@@ -1,4 +1,4 @@
-import { X, Check, Zap } from 'lucide-react';
+import { X, Check } from 'lucide-react';
 import { getBubbleStyles, BUBBLE_MAX_WIDTH , type FileTransferBubbleProps } from './types';
 import { BubbleFooter } from './BubbleFooter';
 import { debugLog } from '@/lib/debug-config';
@@ -11,9 +11,8 @@ import type { TransferView } from '@/lib/file-transfer/transfer-view';
  * FileTransferBubble - Displays file transfer messages with state-dependent UI
  *
  * States (sender view):
+ * - queued: "Will send when {name} is online" + Cancel button
  * - pending: "Waiting for acceptance..." + Cancel button
- * - uploading: "Uploading to server..." + progress bar
- * - staged: "File ready, waiting for acceptance..." + Cancel button
  * - transferring: Progress bar with percentage
  * - complete: "Sent successfully"
  * - declined: "Transfer declined"
@@ -22,7 +21,7 @@ import type { TransferView } from '@/lib/file-transfer/transfer-view';
  * - error: Error message
  *
  * States (receiver view):
- * - pending/staged: Accept/Decline buttons
+ * - pending: Accept/Decline buttons
  * - transferring: "Downloading..." + progress bar
  * - complete: "Downloaded" (clickable to open)
  * - declined: "You declined this file"
@@ -55,7 +54,6 @@ export function FileTransferBubble({
   const fileName: string = message.file_name || 'Unknown file';
   const fileSize: number = message.file_size || 0;
   const fileType: string = message.file_type || 'application/octet-stream';
-  const transferMode: "async" | "p2p" = message.transfer_mode || 'async';
 
   const status: StatusContent = getStatusContent(state, isOwn, view.reason);
 
@@ -106,14 +104,8 @@ export function FileTransferBubble({
           {/* File details */}
           <div className="flex-1 min-w-0">
             <p className="font-medium text-sm truncate">{fileName}</p>
-            <div className="flex items-center gap-2 text-xs opacity-70">
+            <div className="flex items-center gap-2 text-xs">
               <span>{formatBytes(fileSize)}</span>
-              {transferMode === 'p2p' && (
-                <span className="flex items-center gap-1 text-warning-emphasis">
-                  <Zap className="h-3 w-3" />
-                  P2P
-                </span>
-              )}
             </div>
           </div>
         </div>
@@ -139,7 +131,7 @@ export function FileTransferBubble({
         {/* Status section */}
         <div className="flex items-center gap-2 mb-2">
           {status.icon}
-          <span className="text-xs opacity-80">{status.text}</span>
+          <span className="text-xs">{status.text}</span>
         </div>
 
         {/* Progress bar */}
@@ -152,14 +144,14 @@ export function FileTransferBubble({
             aria-valuemax={100}
             aria-label={`Transfer of ${fileName}`}
             aria-valuetext={`${Math.round(progress)} percent`}
-            className="h-1.5 bg-foreground/10 rounded-full overflow-hidden"
+            className={`h-1.5 rounded-full overflow-hidden ${isOwn ? 'bg-primary-foreground/25' : 'bg-foreground/10'}`}
           >
               <div
-                className="h-full bg-primary-accent rounded-full transition-all duration-300"
+                className={`h-full rounded-full transition-all duration-300 ${isOwn ? 'bg-primary-foreground' : 'bg-primary-accent'}`}
                 style={{ width: `${progress}%` }}
               />
             </div>
-            <div className="flex justify-between text-xs opacity-70 mt-1">
+            <div className="flex justify-between text-xs mt-1">
               <span>{progress}%</span>
               <span>{formatBytes(fileSize * progress / 100)} / {formatBytes(fileSize)}</span>
             </div>
@@ -193,17 +185,21 @@ export function FileTransferBubble({
             <button
               type="button"
               onClick={handleCancel}
-              className="w-full flex items-center justify-center gap-1 px-3 py-1.5 bg-muted-foreground/20 hover:bg-muted-foreground/30 text-foreground/80 rounded text-sm transition-colors"
+              className={`w-full flex items-center justify-center gap-1 px-3 py-1.5 rounded text-sm transition-colors border ${
+                // On the sender's own bubble (bg-primary) the label takes the bubble's own
+                // foreground; muted-on-primary measured 1.94:1 (UX review, finding 5).
+                isOwn ? 'border-primary-foreground/40 text-primary-foreground hover:bg-primary-foreground/10' : 'border-border text-foreground hover:bg-foreground/5'
+              }`}
             >
               <X className="h-4 w-4" />
-              Cancel
+              Cancel send
             </button>
           </div>
         )}
 
         {/* Click hint for completed downloads */}
         {status.clickable && (
-          <p className="text-xs opacity-60 mt-1">Click to see where it was saved</p>
+          <p className="text-xs mt-1">Click to see where it was saved</p>
         )}
       </div>
 

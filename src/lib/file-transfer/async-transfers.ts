@@ -1,11 +1,7 @@
 /**
- * Async Transfer Logic
- *
- * Server-mediated async transfer operations:
- * - Upload file to server, get virtual path
- * - Handle incoming async transfer requests
- * - Handle transfer responses for async mode
- * - Download from server on acceptance
+ * The message-plane halves of a transfer: the recipient's handling of an
+ * offer, and the sender's handling of the recipient's accept/decline.
+ * Both modes move their bytes over the protocol (see transfer-lifecycle).
  */
 
 import { eventEmitter } from '../event-emitter';
@@ -30,38 +26,6 @@ export interface AsyncTransferDeps {
 }
 
 /**
- * Upload file to server, update transfer to 'staged', then send request to peer.
- */
-export async function handleAsyncSend(
-  deps: AsyncTransferDeps,
-  transfer: FileTransfer,
-  file: File
-): Promise<void> {
-  try {
-    const virtualPath: string = (await deps.io.executeIntent({
-      type: 'upload-to-server',
-      file,
-      transferId: transfer.id,
-      recipientCid: transfer.recipientCid,
-    })) as string;
-
-    transfer.virtualPath = virtualPath;
-    transfer.state = 'staged';
-    transfer.updatedAt = Date.now();
-    await deps.saveTransfer(transfer);
-
-    await deps.io.executeIntent({ type: 'send-transfer-request', transfer });
-  } catch (error) {
-    transfer.state = 'error';
-    transfer.errorMessage = error instanceof Error ? error.message : 'Upload failed';
-    transfer.updatedAt = Date.now();
-    await deps.saveTransfer(transfer);
-    deps.emitStateChange(transfer);
-    throw error;
-  }
-}
-
-/**
  * Handle incoming FileTransferRequest - create transfer record, auto-accept if enabled.
  */
 export async function handleTransferRequest(
@@ -80,12 +44,10 @@ export async function handleTransferRequest(
     fileSize: data.file_size,
     fileType: data.file_type,
     thumbnail: data.thumbnail,
-    mode: data.transfer_mode,
-    state: data.transfer_mode === 'async' ? 'staged' : 'pending',
+    state: 'pending',
     progress: 0,
     senderCid,
     recipientCid: currentCid.toString(),
-    virtualPath: data.virtual_path,
     createdAt: data.timestamp,
     updatedAt: Date.now(),
     expiresAt: data.expiry_timestamp,

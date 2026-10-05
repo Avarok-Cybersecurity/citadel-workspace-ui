@@ -72,8 +72,7 @@ function buildParams(overrides: Partial<SendFileParams> & Pick<SendFileParams, '
     cid: 1n,
     peerCid: 2n,
     transferId: 'tid',
-    mode: 'p2p',
-    ...overrides,
+        ...overrides,
   };
 }
 

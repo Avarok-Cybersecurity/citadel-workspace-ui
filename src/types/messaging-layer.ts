@@ -70,20 +70,15 @@ export type PresenceStatus =
  * File transfer state enumeration
  */
 export type FileTransferState =
+  | 'queued'       // Held until the recipient is online, then sent
+  | 'preparing'    // Being staged on the sender's agent; not yet offered
   | 'pending'      // Waiting for recipient to accept/decline
-  | 'uploading'    // Uploading to server (async mode)
-  | 'staged'       // File ready on server, awaiting acceptance
   | 'transferring' // Active transfer in progress
   | 'complete'     // Transfer completed successfully
   | 'declined'     // Recipient declined the transfer
   | 'cancelled'    // Sender cancelled the transfer
   | 'expired'      // Transfer request expired (TTL exceeded)
   | 'error';       // Transfer failed with error
-
-/**
- * File transfer mode
- */
-export type FileTransferMode = 'async' | 'p2p';
 
 /**
  * File transfer request payload
@@ -94,8 +89,6 @@ export interface FileTransferRequestData {
   file_size: number;
   file_type: string;
   thumbnail?: string;        // Base64 for images
-  transfer_mode: FileTransferMode;
-  virtual_path?: string;     // For async mode - server storage path
   expiry_timestamp?: number; // When the request expires
   timestamp: number;
 }
@@ -138,6 +131,8 @@ export interface FileTransferCompleteData {
 export interface FileTransferCancelData {
   transfer_id: string;
   reason?: string;
+  /** It FAILED on the signalling side, not stopped by a person; older peers omit it. */
+  failed?: boolean;
   timestamp: number;
 }
 
@@ -184,8 +179,6 @@ export type MessagingLayer =
 export function isMessage(layer: MessagingLayer): layer is { type: MessagingLayerType.Message; contents: string; timestamp: number } {
   return layer.type === MessagingLayerType.Message;
 }
-
-
 
 /**
  * Type guard: Check if MessagingLayer is a Typing variant
@@ -350,18 +343,15 @@ export function createCheckStateResponse(): MessagingLayer {
  * @param file_name - Name of the file being transferred
  * @param file_size - Size in bytes
  * @param file_type - MIME type of the file
- * @param transfer_mode - 'async' for server-mediated, 'p2p' for direct
- * @param options - Optional parameters (thumbnail, virtual_path, expiry)
+ * @param options - Optional parameters (thumbnail, expiry)
  */
 export function createFileTransferRequest(
   file_name: string,
   file_size: number,
   file_type: string,
-  transfer_mode: FileTransferMode,
   options?: {
     transfer_id?: string;
     thumbnail?: string;
-    virtual_path?: string;
     expiry_timestamp?: number;
   }
 ): MessagingLayer {
@@ -372,8 +362,6 @@ export function createFileTransferRequest(
     file_size,
     file_type,
     thumbnail: options?.thumbnail,
-    transfer_mode,
-    virtual_path: options?.virtual_path,
     expiry_timestamp: options?.expiry_timestamp,
     timestamp: Date.now()
   };
@@ -403,15 +391,12 @@ export function createFileTransferResponse(
  * Create a FileTransferCancel variant
  * @param transfer_id - ID of the transfer to cancel
  * @param reason - Optional reason for cancellation
+ * @param failed - Whether it failed here, as opposed to being cancelled
  */
-export function createFileTransferCancel(
-  transfer_id: string,
-  reason?: string
-): MessagingLayer {
+export function createFileTransferCancel(transfer_id: string, reason: string | undefined, failed: boolean): MessagingLayer {
   return {
     type: MessagingLayerType.FileTransferCancel,
-    transfer_id,
-    reason,
+    transfer_id, reason, failed,
     timestamp: Date.now()
   };
 }

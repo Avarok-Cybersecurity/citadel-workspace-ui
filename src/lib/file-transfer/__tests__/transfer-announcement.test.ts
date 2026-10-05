@@ -15,8 +15,7 @@ function transfer(overrides: Partial<FileTransfer> = {}): FileTransfer {
     fileName: 'report.pdf',
     fileSize: 2048,
     fileType: 'application/pdf',
-    mode: 'p2p',
-    state: 'pending',
+        state: 'pending',
     progress: 0,
     senderCid: '11',
     recipientCid: '22',
@@ -65,13 +64,9 @@ describe('buildTransferAnnouncement', () => {
     expect(layer).toMatchObject({ file_name: 'a.png', file_size: 99, file_type: 'image/png', thumbnail: 'data:x' });
   });
 
-  it('carries virtualPath for async transfers, which is how the recipient fetches the bytes', () => {
-    const payload: P2PMessagingLayerPayload = buildTransferAnnouncement(
-      transfer({ mode: 'async', virtualPath: '/staged/a.png' }),
-    );
-    const layer: { transfer_mode: string; virtual_path?: string; } = payload.layer as { transfer_mode: string; virtual_path?: string };
-
-    expect(layer.transfer_mode).toBe('async');
-    expect(layer.virtual_path).toBe('/staged/a.png');
+  it('names no transfer method and no staged path: there is one way to send', () => {
+    const payload: P2PMessagingLayerPayload = buildTransferAnnouncement(transfer({}));
+    expect(payload.layer).not.toHaveProperty('transfer_mode');
+    expect(payload.layer).not.toHaveProperty('virtual_path');
   });
 });

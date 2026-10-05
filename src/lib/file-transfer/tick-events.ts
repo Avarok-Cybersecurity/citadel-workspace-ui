@@ -9,9 +9,12 @@
  *
  *   - the RespondFileTransfer request UUID for a stream we accepted
  *     (recipient side) — unique per transfer, and
- *   - the localhost TCP connection UUID for a stream we initiated
- *     (sender side; `spawn_tick_updater` is called with `None` there) —
- *     shared by every outgoing stream in the browser, so useless as an id.
+ *   - the SendFile request UUID for a stream we initiated (sender side;
+ *     the agent joins the Sender handle to it by SDK ticket), and
+ *   - nothing at all for a stream nobody here requested, which is dropped.
+ *     Agents before that change stamped sender-side and unrequested streams
+ *     alike with the localhost TCP connection UUID — shared by every stream,
+ *     so useless as an id; those still fall back to the guess below.
  *
  * So correlation is layered:
  *   1. `ReceptionBeginning(path, metadata)` DOES carry `metadata.object_id`;
@@ -106,6 +109,10 @@ export function parseTickNotification(
   // No peer means a C2S transfer (server storage), which is not a chat
   // transfer and has nothing in our state to update.
   if (peerCid === null || peerCid === undefined) return null;
+  // No request id: the agent is reporting a stream nobody here asked for (a
+  // peer storing a file on this node, or this node answering a peer's pull).
+  // Placing it by guess is how a peer-storage upload completed a chat send.
+  if (requestId === undefined) return null;
 
   const resolved: string | undefined = requestId ? ctx.requestIdToTransferId.get(requestId) : undefined;
   const isForeign: boolean = requestId !== undefined && ctx.foreignRequestIds.has(requestId);

@@ -66,7 +66,6 @@ export function ChatSettingsPanel({
     formatSizeLimit,
     handleAutoAcceptChange,
     handleMaxFileSizeChange,
-    handleTransferModeChange,
     handleAllowRevfsChange,
     handleRevfsQuotaChange,
   } = useChatSettings(isOpen, peerCid);
@@ -191,7 +190,6 @@ export function ChatSettingsPanel({
                 formatSizeLimit={formatSizeLimit}
                 onAutoAcceptChange={handleAutoAcceptChange}
                 onMaxFileSizeChange={handleMaxFileSizeChange}
-                onTransferModeChange={handleTransferModeChange}
                 onAllowRevfsChange={handleAllowRevfsChange}
                 onRevfsQuotaChange={handleRevfsQuotaChange}
               />

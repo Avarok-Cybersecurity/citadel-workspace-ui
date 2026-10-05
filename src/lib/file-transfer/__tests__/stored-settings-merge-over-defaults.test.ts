@@ -49,4 +49,15 @@ describe('FileTransferState.getSettings', () => {
     // Spread order matters: defaults first, stored second.
     expect(state.getSettings('7').allowRevfsStorage).toBe(false);
   });
+
+  it('loads settings saved with the removed transfer method, and drops it', () => {
+    // Saved before there was one way to send: `transferMode` was a per-peer choice.
+    const state: FileTransferState = new FileTransferState();
+    const saved: Record<string, unknown> = { ...FileTransferState.DEFAULT_SETTINGS, autoAccept: true, transferMode: 'protocol' };
+    state.setSettings('5', saved as unknown as FileTransferSettings);
+    const settings: FileTransferSettings = state.getSettings('5');
+    expect(settings.autoAccept).toBe(true);
+    expect(settings).not.toHaveProperty('transferMode');
+    expect(Object.keys(settings).sort()).toEqual(Object.keys(FileTransferState.DEFAULT_SETTINGS).sort());
+  });
 });

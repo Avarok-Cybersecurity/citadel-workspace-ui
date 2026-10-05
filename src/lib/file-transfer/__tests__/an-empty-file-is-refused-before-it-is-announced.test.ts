@@ -19,6 +19,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { sendFile } from '../transfer-lifecycle';
+import { ONLINE_PEER_QUEUE } from './online-peer-queue';
 
 const RECIPIENT: string = '900';
 
@@ -47,9 +48,11 @@ function deps(): { deps: unknown; recorded: Recorded } {
       },
       saveTransfer: async (): Promise<void> => { recorded.saved += 1; },
       emitStateChange: (): void => { recorded.stateChanges += 1; },
-      handleAsyncSend: async (): Promise<void> => { recorded.intents.push('async-send'); },
       // The channel opens at once here; a-file-send-opens-the-peer-channel-first covers it.
       openPeerChannel: async (): Promise<boolean> => true,
+      // An agent that does not stage uploads: the inline route, 16 MB.
+      agentStagesUploads: async (): Promise<boolean> => false,
+      queue: ONLINE_PEER_QUEUE,
     },
   };
 }
@@ -67,7 +70,7 @@ describe('sending an empty file', () => {
   it('is refused with a reason naming the file', async (): Promise<void> => {
     const { deps: d } = deps();
 
-    await expect(sendFile(d as never, RECIPIENT, file('notes.txt', 0), 'p2p')).rejects.toThrow(
+    await expect(sendFile(d as never, RECIPIENT, file('notes.txt', 0))).rejects.toThrow(
       /"notes\.txt" is empty/,
     );
   });
@@ -76,7 +79,7 @@ describe('sending an empty file', () => {
     // The whole defect: the offer reached the recipient before the throw.
     const { deps: d, recorded } = deps();
 
-    await expect(sendFile(d as never, RECIPIENT, file('notes.txt', 0), 'p2p')).rejects.toThrow();
+    await expect(sendFile(d as never, RECIPIENT, file('notes.txt', 0))).rejects.toThrow();
 
     expect(recorded.intents, 'the transfer was announced before it failed').toEqual([]);
     expect(recorded.saved, 'a doomed transfer was persisted').toBe(0);
@@ -87,7 +90,7 @@ describe('sending an empty file', () => {
     // The opposite failure: refusing everything would pass both assertions above.
     const { deps: d, recorded } = deps();
 
-    await expect(sendFile(d as never, RECIPIENT, file('notes.txt', 12), 'p2p')).resolves.toEqual(
+    await expect(sendFile(d as never, RECIPIENT, file('notes.txt', 12))).resolves.toEqual(
       expect.any(String),
     );
     expect(recorded.intents).toContain('send-transfer-request');

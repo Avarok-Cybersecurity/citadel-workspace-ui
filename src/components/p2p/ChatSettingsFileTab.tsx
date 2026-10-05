@@ -2,11 +2,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Upload, HardDrive, Info, Zap } from 'lucide-react';
+import { Upload, HardDrive } from 'lucide-react';
 import { FILE_TRANSFER_DEFAULT_MAX_SIZE_BYTES } from '@/types/messaging-layer';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import type { FileTransferSettings, TransferModePreference } from '@/lib/file-transfer';
+import { STAGED_UPLOAD_CEILING_BYTES } from '@/lib/file-transfer/staged-upload/chunk-plan';
+
+/**
+ * What this account will accept: past the 2 GB a browser can send, because Browse
+ * Files sends from disk with no ceiling -- a slider that stopped at 2 GB made the
+ * advice for a 3 GB file a dead end (UX review, finding 2).
+ */
+const ACCEPT_LIMIT_MAX_MB: number = 10 * 1024;
+import type { FileTransferSettings } from '@/lib/file-transfer';
 import { ChatSettingsRemoteTab } from './ChatSettingsRemoteTab';
 
 interface ChatSettingsFileTabProps {
@@ -20,7 +26,6 @@ interface ChatSettingsFileTabProps {
   formatSizeLimit: (bytes: number) => string;
   onAutoAcceptChange: (enabled: boolean) => Promise<void>;
   onMaxFileSizeChange: (values: number[]) => Promise<void>;
-  onTransferModeChange: (mode: TransferModePreference) => Promise<void>;
   onAllowRevfsChange: (allowed: boolean) => Promise<void>;
   onRevfsQuotaChange: (values: number[]) => Promise<void>;
 }
@@ -28,7 +33,7 @@ interface ChatSettingsFileTabProps {
 export function ChatSettingsFileTab({
   peerName, activeFileTab, setActiveFileTab, settings,
   maxFileSizeMb, revfsQuotaMb, defaultMaxMb, formatSizeLimit,
-  onAutoAcceptChange, onMaxFileSizeChange, onTransferModeChange,
+  onAutoAcceptChange, onMaxFileSizeChange,
   onAllowRevfsChange, onRevfsQuotaChange,
 }: ChatSettingsFileTabProps): JSX.Element {
   return (
@@ -45,49 +50,6 @@ export function ChatSettingsFileTab({
       </TabsList>
 
       <TabsContent value="standard" className="space-y-5 m-0" data-testid="content-file-standard">
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Label className="text-sm font-medium">Transfer Method</Label>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs bg-background border-surface text-foreground">
-                <p className="text-sm">
-                  <strong>Browser:</strong> Simple in-browser file chunking. Good for small files.<br/>
-                  <strong>Citadel Protocol:</strong> Advanced post-quantum encrypted transfer. Required for RE-VFS.
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </div>
-
-          <RadioGroup value={settings.transferMode}
-            onValueChange={(v) => onTransferModeChange(v as TransferModePreference)}
-            className="space-y-2" data-testid="transfer-mode-radio">
-            <div className="flex items-center space-x-3 p-3 rounded-lg bg-surface/50 hover:bg-surface transition-colors cursor-pointer">
-              <RadioGroupItem value="browser" id="browser" className="border-primary-accent text-primary-accent" />
-              <Label htmlFor="browser" className="flex-1 cursor-pointer">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">Browser Transfer</span>
-                  <span className="text-xs px-2 py-0.5 rounded bg-success/20 text-success-emphasis">Default</span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-0.5">Simple and reliable for most files</p>
-              </Label>
-            </div>
-            <div className="flex items-center space-x-3 p-3 rounded-lg bg-surface/50 hover:bg-surface transition-colors cursor-pointer">
-              <RadioGroupItem value="protocol" id="protocol" className="border-primary-accent text-primary-accent" />
-              <Label htmlFor="protocol" className="flex-1 cursor-pointer">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">Citadel Protocol</span>
-                  <Zap className="h-3.5 w-3.5 text-warning-emphasis" />
-                  <span className="text-xs px-2 py-0.5 rounded bg-warning/20 text-warning-emphasis">Experimental</span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-0.5">Post-quantum encryption, required for RE-VFS</p>
-              </Label>
-            </div>
-          </RadioGroup>
-        </div>
-
         <div className="flex items-center justify-between p-4 rounded-lg bg-surface/50">
           <div className="space-y-0.5">
             <Label htmlFor="auto-accept" className="text-sm font-medium">
@@ -106,16 +68,12 @@ export function ChatSettingsFileTab({
           </div>
           <Slider id="max-file-size-to-accept"
             label="Maximum file size" value={[maxFileSizeMb]} onValueChange={onMaxFileSizeChange}
-            max={defaultMaxMb} min={1} step={1} className="w-full" data-testid="max-file-size-slider" />
+            max={ACCEPT_LIMIT_MAX_MB} min={1} step={1} className="w-full" data-testid="max-file-size-slider" />
           <p className="text-xs text-muted-foreground">
-            Server default: {formatSizeLimit(FILE_TRANSFER_DEFAULT_MAX_SIZE_BYTES)}
+            Default: {formatSizeLimit(FILE_TRANSFER_DEFAULT_MAX_SIZE_BYTES)}. A browser sends up to {formatSizeLimit(STAGED_UPLOAD_CEILING_BYTES)}; Browse Files, more.
           </p>
         </div>
 
-        <div className="flex items-start gap-2 p-3 rounded-lg bg-primary-accent/10 border border-primary-accent/20">
-          <Info className="h-4 w-4 text-primary-accent mt-0.5 flex-shrink-0" />
-          <p className="text-xs text-foreground/80">Downloaded files are auto-deleted from the server after download.</p>
-        </div>
       </TabsContent>
 
       <TabsContent value="remote-storage" className="m-0" data-testid="content-file-remote">

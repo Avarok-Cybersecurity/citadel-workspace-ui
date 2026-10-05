@@ -3,15 +3,19 @@
 import { eventEmitter } from '../event-emitter';
 import { scopedSettingsKey } from './settings-key';
 import { getMimeType, formatBytes } from './transfer-format';
-import { type FileTransferMode, FILE_TRANSFER_REQUEST_TTL_MS } from '@/types/messaging-layer';
+import { FILE_TRANSFER_REQUEST_TTL_MS } from '@/types/messaging-layer';
 import { FILE_TRANSFER_EVENTS } from './events';
 import { isTerminalTransferState, isStillOpen } from './transfer-outcome';
-import { completeStagedDownload } from './server-download';
 import type { FileTransferState } from './state';
 import type { FileTransferIO } from './io';
 import type { FileTransfer, FileTransferSettings } from './types';
-import { wrapInMemory } from './types';
 import { openChannelBeforeSending } from './open-peer-channel';
+import { shouldQueue } from './send-queue';
+import { holdUntilOnline, type SendQueuePort } from './send-queue-hold';
+import { deliverSend, stopStaging } from './deliver-send';
+import { buildTransferAnnouncement } from './transfer-announcement';
+import { showOwnOffer } from './send-transfer-request';
+import { browserSendRefusal } from './staged-upload/send-route';
 
 export interface LifecycleDeps {
   state: FileTransferState;
@@ -19,16 +23,18 @@ export interface LifecycleDeps {
   emitStateChange: (transfer: FileTransfer) => void;
   saveTransfer: (transfer: FileTransfer) => Promise<void>;
   saveSettings: (peerCid: string, settings: FileTransferSettings) => Promise<void>;
-  handleAsyncSend: (transfer: FileTransfer, file: File) => Promise<void>;
   /** Opens the peer's P2P channel if needed; resolves whether it opened. See open-peer-channel. */
   openPeerChannel: (peerCid: bigint) => Promise<boolean>;
+  /** Holds a send for an offline peer; see send-queue.ts. */
+  queue: SendQueuePort;
+  /** Whether the agent stages browser files (its greeting); decides the ceiling. */
+  agentStagesUploads: () => Promise<boolean>;
 }
 
 export async function sendFile(
   deps: LifecycleDeps,
   recipientCid: string,
   file: File,
-  mode: FileTransferMode
 ): Promise<string> {
   const senderCid: bigint | null = await deps.io.getCurrentCid();
   if (!senderCid) {
@@ -54,14 +60,18 @@ export async function sendFile(
     );
   }
 
-  const settings: FileTransferSettings = deps.state.getSettings(scopedSettingsKey(recipientCid));
-  if (file.size > settings.maxFileSize) {
-    throw new Error(
-      `File size ${formatBytes(file.size)} exceeds max ${formatBytes(settings.maxFileSize)}`
-    );
-  }
+  // The ceiling, while the dialog is still open to say so: the send itself runs
+  // behind the bubble and would only be able to fail there.
+  const tooLarge: string | null = browserSendRefusal(file, await deps.agentStagesUploads(), false);
+  if (tooLarge !== null) throw new Error(tooLarge);
 
-  await openChannelBeforeSending(deps, recipientCid);
+  // No size check here beyond the browser ceiling (send-transfer-request): the
+  // per-peer "Maximum file size" is what THIS account accepts, applied on accept.
+  // Applied here too, it capped every send at the receiving default.
+
+  // A peer known to be offline is not waited for: the send is held at once.
+  const peerOnline: boolean | null = deps.queue.peerOnlineStatus(BigInt(recipientCid));
+  const channelOpened: boolean = peerOnline === false ? false : await openChannelBeforeSending(deps, recipientCid);
   let thumbnail: string | undefined;
   if (file.type.startsWith('image/')) {
     thumbnail = await deps.io.generateThumbnail(file);
@@ -76,8 +86,7 @@ export async function sendFile(
     fileSize: file.size,
     fileType: file.type,
     thumbnail,
-    mode,
-    state: mode === 'async' ? 'uploading' : 'pending',
+    state: 'pending',
     progress: 0,
     senderCid: senderCid.toString(),
     recipientCid,
@@ -87,37 +96,18 @@ export async function sendFile(
     isIncoming: false,
   };
 
+  if (shouldQueue(peerOnline, channelOpened)) return holdUntilOnline(deps, transfer, file);
+
+  // The bubble appears now, 'preparing', and the dialog is done: staging a large
+  // file and offering it happen behind it, visibly (deliver-send.ts). The bytes go
+  // over the protocol's FileTransfer -- the one route whose result the recipient
+  // can open.
+  transfer.state = 'preparing';
   deps.state.setTransfer(transfer);
   await deps.saveTransfer(transfer);
-
-  if (mode === 'async') {
-    await deps.handleAsyncSend(transfer, file);
-  } else {
-    // `wrapInMemory` brands the File for the intent's `file?: InMemoryOnly<File>`
-    // contract — see `types.ts` for why a raw `File` would be a TS error here.
-    // The bytes leave inside this call (SendFile ByteContents); there is no
-    // stashed copy to stream later — the chunk-streaming plane that once
-    // consumed one is gone.
-    //
-    // Marked failed on a throw, like its two siblings. The async branch
-    // (`handleAsyncSend`) and the native-picker path both catch and record the
-    // error; this one did not, so a refused send left the record at 'pending'
-    // for ever with nothing shown to the user. The record was already saved
-    // above, so there is always something to mark.
-    try {
-      await deps.io.executeIntent({ type: 'send-transfer-request', transfer, file: wrapInMemory(file) });
-    } catch (error) {
-      transfer.state = 'error';
-      transfer.errorMessage = error instanceof Error ? error.message : 'SendFile failed';
-      transfer.updatedAt = Date.now();
-      await deps.saveTransfer(transfer);
-      deps.emitStateChange(transfer);
-      throw error;
-    }
-  }
-
+  showOwnOffer(buildTransferAnnouncement(transfer), transfer);
   deps.emitStateChange(transfer);
-  eventEmitter.emit(FILE_TRANSFER_EVENTS.REQUEST_SENT, transfer);
+  void deliverSend(deps, transfer, file);
 
   return transferId;
 }
@@ -134,12 +124,21 @@ export async function cancelTransfer(deps: LifecycleDeps, transferId: string): P
   // outcome into "cancelled" in the history.
   if (isTerminalTransferState(transfer.state)) return;
 
-  await deps.io.executeIntent({
-    type: 'send-cancel',
-    transferId,
-    targetCid: transfer.recipientCid,
-    reason: 'Sender cancelled transfer',
-  });
+  // A held send was never offered, so there is nobody to tell; drop its File.
+  // One still staging was not offered either: stop the upload to the agent.
+  if (transfer.state === 'queued') {
+    await deps.queue.release(transferId);
+  } else if (transfer.state === 'preparing') {
+    stopStaging(transferId);
+  } else {
+    await deps.io.executeIntent({
+      type: 'send-cancel',
+      transferId,
+      targetCid: transfer.recipientCid,
+      reason: 'Sender cancelled transfer',
+      failed: false,
+    });
+  }
   if (!isStillOpen(deps.state, transfer)) return;
 
   transfer.state = 'cancelled';
@@ -153,7 +152,7 @@ export async function acceptTransfer(deps: LifecycleDeps, transferId: string): P
   const transfer: FileTransfer | undefined = deps.state.getTransfer(transferId);
   if (!transfer) throw new Error('Transfer not found');
   if (!transfer.isIncoming) throw new Error('Cannot accept outgoing transfer');
-  if (transfer.state !== 'pending' && transfer.state !== 'staged') {
+  if (transfer.state !== 'pending') {
     throw new Error(`Cannot accept transfer in state: ${transfer.state}`);
   }
 
@@ -167,47 +166,18 @@ export async function acceptTransfer(deps: LifecycleDeps, transferId: string): P
     );
   }
 
-  // An async transfer has nothing to respond TO.
-  //
-  // `send-response` needs the protocol `object_id`, which the correlator only
-  // learns from a `FileTransferRequestNotification` whose
-  // `metadata.transfer_type === 'FileTransfer'`. Async mode stages through
-  // RE-VFS, which the internal service auto-accepts and never announces that
-  // way -- so `resolveObjectId` returned undefined and this threw "has not been
-  // announced over the protocol yet" for EVERY async transfer.
-  //
-  // It threw here, above the staged-download branch below, which is why
-  // `completeStagedDownload` was unreachable. Async is the mode the UI labels
-  // "Recommended", so the default way to send a file could not be accepted at
-  // all: both buttons threw, the decline signal was never sent, and the
-  // recipient's bubble sat waiting for ever.
-  const isStaged: boolean = transfer.mode === 'async';
-  if (isStaged && !transfer.virtualPath) {
-    // Fail loudly rather than silently doing neither half.
-    throw new Error(
-      'This staged transfer carries no server path, so it cannot be downloaded. ' +
-        'Ask the sender to resend it.'
-    );
-  }
-
-  if (!isStaged) {
-    await deps.io.executeIntent({
-      type: 'send-response',
-      transferId,
-      targetCid: transfer.senderCid,
-      accepted: true,
-    });
-  }
+  await deps.io.executeIntent({
+    type: 'send-response',
+    transferId,
+    targetCid: transfer.senderCid,
+    accepted: true,
+  });
   if (!isStillOpen(deps.state, transfer)) return;
 
   transfer.state = 'transferring';
   transfer.updatedAt = Date.now();
   await deps.saveTransfer(transfer);
   deps.emitStateChange(transfer);
-
-  if (isStaged) {
-    await completeStagedDownload(deps, transfer);
-  }
 }
 
 export async function declineTransfer(
@@ -224,19 +194,13 @@ export async function declineTransfer(
     throw new Error('Cannot decline outgoing transfer');
   }
 
-  // Same reason as accept: a staged transfer has no protocol object_id to
-  // name, so issuing the response threw and the decline was never recorded
-  // either. Declining a staged file is local -- the bytes sit on the server
-  // until they expire, and the sender's own transfer completed at staging.
-  if (transfer.mode !== 'async') {
-    await deps.io.executeIntent({
-      type: 'send-response',
-      transferId,
-      targetCid: transfer.senderCid,
-      accepted: false,
-      reason,
-    });
-  }
+  await deps.io.executeIntent({
+    type: 'send-response',
+    transferId,
+    targetCid: transfer.senderCid,
+    accepted: false,
+    reason,
+  });
 
   transfer.state = 'declined';
   transfer.updatedAt = Date.now();

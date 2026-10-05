@@ -15,14 +15,16 @@ interface BubbleFooterProps {
   onRetry?: () => void;
 }
 
+// These ticks show only on the sender's own bubble (bg-primary), where muted measured
+// 1.09:1 light and 2.53:1 dark; they take the bubble's foreground (UX review).
 function getMessageStatusIcon(message: P2PMessage): JSX.Element | null {
   switch (message.status) {
     case 'pending':
-      return <Clock className="h-3 w-3 text-muted-foreground" data-testid="message-status-pending" />;
+      return <Clock className="h-3 w-3 text-primary-foreground" data-testid="message-status-pending" />;
     case 'sent':
-      return <Check className="h-3 w-3 text-muted-foreground" data-testid="message-status-sent" />;
+      return <Check className="h-3 w-3 text-primary-foreground" data-testid="message-status-sent" />;
     case 'delivered':
-      return <CheckCheck className="h-3 w-3 text-muted-foreground" data-testid="message-status-delivered" />;
+      return <CheckCheck className="h-3 w-3 text-primary-foreground" data-testid="message-status-delivered" />;
     case 'read':
       return <CheckCheck className="h-3.5 w-3.5 text-read-receipt" strokeWidth={2.5} data-testid="message-status-read" aria-label="Seen" />;
     case 'failed':
@@ -39,7 +41,8 @@ export function BubbleFooter({ message, isOwn, onRetry }: BubbleFooterProps): JS
   return (
     <>
       <div className={`flex items-center gap-1 mt-1 ${isOwn ? 'justify-end' : 'justify-start'}`}>
-        <span className="text-xs opacity-70" data-testid="message-timestamp">
+        {/* Dimmed only off the sender's bubble: on bg-primary it measured 3.73:1 dimmed. */}
+        <span className={`text-xs ${isOwn ? '' : 'opacity-70'}`} data-testid="message-timestamp">
           {formatTime(message.timestamp)}
         </span>
         {message.edited_at !== undefined && (

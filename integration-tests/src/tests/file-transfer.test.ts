@@ -145,7 +145,6 @@ async function sendFileViaRealProtocol(
         source: args.filePath, // String path triggers real protocol
         cid: currentCid,
         peerCid: BigInt(args.peerCid),
-        mode: 'p2p',
         transferId,
         metadata: {
           fileName: args.filePath.split('/').pop() || 'test-file.txt',
@@ -372,12 +371,11 @@ async function openFileTransferModal(page: Page, username: string): Promise<bool
 }
 
 // @ts-ignore - kept for legacy browser-based file transfer testing
-async function _selectFileAndMode(
+async function _selectFile(
   page: Page,
   username: string,
-  mode: 'async' | 'p2p' = 'p2p' // Default to P2P for real transfer testing
 ): Promise<boolean> {
-  console.log(`\n=== ${username}: Selecting file and transfer mode ===`);
+  console.log(`\n=== ${username}: Selecting file ===`);
   console.log(`  File content: "${TEST_FILE_CONTENT.substring(0, 50)}..."`);
   try {
     // Click on the drop zone to trigger file input
@@ -399,15 +397,6 @@ async function _selectFileAndMode(
         console.log('  No file input found, skipping file selection');
       }
 
-      // Select transfer mode - use label selectors to be more specific
-      const modeSelector = mode === 'p2p'
-        ? page.locator('label').filter({ hasText: 'P2P Only Transfer' })
-        : page.locator('label').filter({ hasText: 'Send File' }).filter({ hasText: 'Recommended' });
-
-      if (await isVisibleWithin(modeSelector, 2000)) {
-        await modeSelector.click();
-        console.log(`  Selected ${mode} mode`);
-      }
 
       return true;
     }
@@ -732,12 +721,6 @@ async function sendMultipleFiles(
       console.log(`  Selected file: ${file.name}`);
       await sleep(500);
 
-      // Select P2P mode
-      const modeSelector = page.locator('label').filter({ hasText: 'P2P Only Transfer' });
-      if (await isVisibleWithin(modeSelector, 2000)) {
-        await modeSelector.click();
-      }
-
       // Send
       const sendButton = page.locator('button').filter({ hasText: 'Send' }).last();
       if (await isVisibleWithin(sendButton, 3000)) {
@@ -1026,7 +1009,6 @@ async function testRealProtocolTransfer(
           source: testPath, // String path triggers real protocol
           cid: BigInt(info.sessionCid),
           peerCid: null, // No peer - testing API path only
-          mode: 'sync',
           transferId,
           metadata: {
             fileName: 'real-protocol-test.txt',

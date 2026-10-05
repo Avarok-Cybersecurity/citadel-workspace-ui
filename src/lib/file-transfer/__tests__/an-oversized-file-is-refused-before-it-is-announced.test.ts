@@ -18,6 +18,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const announced: unknown[] = [];
+// The agent's greeting is the edge: this suite is about the inline route (an agent that
+// does not stage). The staged route: staged-upload/__tests__/a-big-browser-file-is-staged-then-sent.
+const agent: { stages: boolean } = vi.hoisted(() => ({ stages: false }));
+vi.mock('@/lib/agent-conversations/capabilities', async (importOriginal: () => Promise<Record<string, unknown>>) => ({
+  ...(await importOriginal()),
+  agentStagesUploads: async (): Promise<boolean> => agent.stages,
+}));
 vi.mock('../in-band-signals', () => ({
   sendLayerPayload: async (payload: unknown): Promise<void> => { announced.push(payload); },
 }));
@@ -31,7 +38,7 @@ import type { RealProtocolIORouter } from '../real-protocol-io-router';
 function transfer(fileSize: number): FileTransfer {
   return {
     id: 'transfer-1', fileName: 'big.bin', fileSize, fileType: 'application/octet-stream',
-    mode: 'p2p', state: 'pending', progress: 0,
+    state: 'pending', progress: 0,
     senderCid: '7', recipientCid: '42',
     createdAt: 0, updatedAt: 0, isIncoming: false,
   };
@@ -45,7 +52,7 @@ function file(size: number): File {
 }
 
 function intent(size: number): SendTransferRequestIntent {
-  return { type: 'send-transfer-request', transfer: transfer(size), file: wrapInMemory(file(size)) };
+  return { type: 'send-transfer-request', offerAlreadyShown: false, staging: { signal: new AbortController().signal, onProgress: (): void => undefined, onStaged: (): void => undefined }, transfer: transfer(size), file: wrapInMemory(file(size)) };
 }
 
 describe('a p2p send above the inline cap', () => {
@@ -55,13 +62,15 @@ describe('a p2p send above the inline cap', () => {
   beforeEach((): void => {
     announced.length = 0;
     sendFile.mockClear();
+    agent.stages = false;
   });
 
   it('is refused with the cap and the alternative named', async () => {
     await expect(
       executeSendTransferRequest(router, intent(MAX_BYTE_CONTENTS_BYTES + 1)),
-    ).rejects.toThrow(/inline browser uploads are capped .* native file picker/s);
+    ).rejects.toThrow(/can be up to 16 MB.*Updating your Citadel agent/s);
   });
+
 
   it('announces nothing — the recipient must never see an offer for undeliverable bytes', async () => {
     // The whole defect: the announcement reached the peer before the throw,
@@ -90,5 +99,15 @@ describe('a p2p send above the inline cap', () => {
     expect(sendFile).toHaveBeenCalledTimes(1);
     // The bubble must exist by the time ticks arrive, so announce precedes bytes.
     expect(announcedWhenBytesWent, 'the byte send went out before the announcement').toBe(1);
+  });
+});
+
+describe('the inline-payload cap', () => {
+  it('mirrors the service-side ByteContents cap exactly', () => {
+    // The authority is MAX_BYTE_CONTENTS_BYTES in the internal service's
+    // requests/file/upload.rs. If that changes, this must change with it --
+    // otherwise sends fail on arrival instead of failing here with a message
+    // that tells the user what to do instead.
+    expect(MAX_BYTE_CONTENTS_BYTES).toBe(16 * 1024 * 1024);
   });
 });

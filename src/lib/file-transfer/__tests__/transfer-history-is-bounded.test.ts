@@ -40,12 +40,11 @@ describe('pruning the transfer history', () => {
       mapOf(
         record('a', 'pending', ancient),
         record('b', 'transferring', ancient),
-        record('c', 'staged', ancient),
-        record('d', 'uploading', ancient),
+        record('c', 'queued', ancient),
       ),
       NOW,
     );
-    expect(Object.keys(kept).sort()).toEqual(['a', 'b', 'c', 'd']);
+    expect(Object.keys(kept).sort()).toEqual(['a', 'b', 'c']);
   });
 
   it('drops a finished transfer once it is older than the window', () => {

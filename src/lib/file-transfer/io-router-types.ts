@@ -5,7 +5,6 @@
  * Used by the RealProtocolIORouter implementation.
  */
 
-import type { FileTransferMode } from '@/types/messaging-layer';
 
 // ============================================================================
 // FileSource Enum (matches Rust definition)
@@ -29,7 +28,9 @@ import type { FileTransferMode } from '@/types/messaging-layer';
 export type FileSource =
   | { Path: string }
   | { PickFileRef: { pick_file_request_id: string } }
-  | { ByteContents: { file_name: string; data: number[] } };
+  | { ByteContents: { file_name: string; data: number[] } }
+  /** A browser file staged on the agent in chunks (staged-upload/), complete. */
+  | { StagedUpload: { upload_id: string } };
 
 // ============================================================================
 // Send Operation Types
@@ -42,8 +43,6 @@ export interface SendFileParams {
   cid: bigint;
   /** Recipient's CID (null for C2S server storage) */
   peerCid: bigint | null;
-  /** Transfer mode */
-  mode: FileTransferMode;
   /** Client-generated transfer ID for correlation */
   transferId: string;
   /** Optional chunk size override */
@@ -52,6 +51,8 @@ export interface SendFileParams {
   metadata?: FileMetadata;
   /** PickFile request ID (for real protocol with PickFileRef) */
   pickFileRequestId?: string;
+  /** The browser file is already staged on the agent under this upload id (staged-upload/). */
+  stagedUploadId?: string;
 }
 
 export interface FileMetadata {
@@ -125,14 +126,10 @@ export interface TransferRequestEvent {
   fileSize?: number;
   /** MIME type (only in message-based) */
   fileType?: string;
-  /** Transfer mode */
-  transferMode?: FileTransferMode;
   /** Thumbnail data (only in message-based) */
   thumbnail?: string;
   /** Expiry timestamp (only in message-based) */
   expiresAt?: number;
-  /** Virtual path for async mode (only in message-based) */
-  virtualPath?: string;
 }
 
 export interface TransferProgressEvent {

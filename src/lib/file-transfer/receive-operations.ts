@@ -136,7 +136,7 @@ export function createTransferRequestHandler(
       // VirtualObjectMetadata carries no MIME type; the announcement message
       // is the source of the display type.
       fileType: undefined,
-      transferMode: undefined, thumbnail: undefined, expiresAt: undefined, virtualPath: undefined,
+      thumbnail: undefined, expiresAt: undefined,
     });
   };
 }

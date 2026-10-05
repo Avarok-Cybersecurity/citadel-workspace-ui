@@ -39,7 +39,6 @@ function deps(transfer: FileTransfer, maxFileSize: number): { d: LifecycleDeps; 
       emitStateChange: vi.fn(),
       saveTransfer: vi.fn().mockResolvedValue(undefined),
       saveSettings: vi.fn(),
-      handleAsyncSend: vi.fn(),
     } as unknown as LifecycleDeps,
     executeIntent,
   };

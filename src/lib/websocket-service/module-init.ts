@@ -136,7 +136,7 @@ export async function askLeaderForCapabilities(): Promise<LeaderAnswer> {
   const result: AckResult = await instanceChannel.sendToLeader({ __agentCapabilitiesProxy: true }, requestId);
   if (result.status === 'error') throw new Error(`The leader could not say what the agent hosts: ${result.error}`);
   const data: unknown = result.data;
-  const said: { agentIlm?: unknown; supervisesP2p?: unknown; noticesHeard?: unknown } = typeof data === 'object' && data !== null ? data : {};
-  // A leader from an older build does not say: nothing is taken to show the agent's notices.
-  return { agentIlm: said.agentIlm === true, supervisesP2p: said.supervisesP2p === true, noticesHeard: said.noticesHeard === true };
+  const said: { agentIlm?: unknown; supervisesP2p?: unknown; stagesUploads?: unknown; noticesHeard?: unknown } = typeof data === 'object' && data !== null ? data : {};
+  // A leader from an older build does not say: nothing is taken to show the agent's notices, or to stage.
+  return { agentIlm: said.agentIlm === true, supervisesP2p: said.supervisesP2p === true, stagesUploads: said.stagesUploads === true, noticesHeard: said.noticesHeard === true };
 }

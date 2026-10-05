@@ -1,8 +1,6 @@
 /**
- * FileTransferService - Thin Orchestrator
- *
- * Delegates to: async-transfers, p2p-transfers, transfer-lifecycle.
- * State Machine: PENDING -> UPLOADING -> STAGED -> TRANSFERRING -> COMPLETE
+ * FileTransferService - thin orchestrator over transfer-lifecycle, async-transfers and
+ * p2p-transfers. State machine: PENDING -> TRANSFERRING -> COMPLETE (or a terminal failure).
  */
 
 import { scopedSettingsKey } from './settings-key';
@@ -10,10 +8,7 @@ import { startExpirySweep } from './expiry-sweep';
 import { bindAccountHistory } from './account-history';
 import { loadPersistedTransfers, persistTransfer, persistSettings } from './transfer-persistence';
 import { eventEmitter } from '../event-emitter';
-import {
-  type MessagingLayer, type FileTransferMode,
-  isFileTransferRequest, isFileTransferResponse, isFileTransferCancel,
-} from '@/types/messaging-layer';
+import { type MessagingLayer, isFileTransferRequest, isFileTransferResponse, isFileTransferCancel } from '@/types/messaging-layer';
 import { FileTransferState } from './state';
 import { isOpenTransfer } from './transfer-outcome';
 import { FileTransferIO } from './io';
@@ -21,16 +16,18 @@ import { FILE_TRANSFER_EVENTS } from './events';
 import type { IFileTransferIORouter } from './io-router';
 import type {
   FileTransfer, FileTransferSettings, TransferProgressEvent,
-  TransferModePreference, IncomingFileTransferMessage,
+  IncomingFileTransferMessage,
 } from './types';
 import { debugLog } from '@/lib/debug-config';
-import { handleAsyncSend, handleTransferRequest, handleTransferResponse } from './async-transfers';
+import { handleTransferRequest, handleTransferResponse } from './async-transfers';
 import { ProtocolOfferCorrelator } from './protocol-offer-correlation';
 import { handleTransferCancel } from './p2p-transfers';
 import { openPeerChannelViaAutoConnect } from './open-peer-channel';
-import {
-  handleProtocolProgress, handleProtocolComplete, handleProtocolStatus,
-} from './protocol-transfer-events';
+import { agentStagesUploads } from '../agent-conversations/capabilities';
+import { sendQueuePort, wireSendQueue } from './send-queue-io';
+import { requestedShares, settleSharesOnOutcome } from './requested-shares';
+import { sendAgentFile, type AgentFile } from './send-agent-file';
+import { handleProtocolProgress, handleProtocolComplete, handleProtocolStatus } from './protocol-transfer-events';
 import {
   sendFile, sendFileWithNativePicker, cancelTransfer, acceptTransfer, declineTransfer,
   type LifecycleDeps,
@@ -50,25 +47,17 @@ export class FileTransferService {
   }
 
   static getInstance(): FileTransferService {
-    if (!FileTransferService.instance) {
-      FileTransferService.instance = new FileTransferService();
-    }
-    return FileTransferService.instance;
+    return (FileTransferService.instance ??= new FileTransferService());
   }
 
   setIORouter(router: FileTransferIO): void {
     this.io.dispose();
     this.io = router;
-    debugLog('FileTransferService', 'I/O router swapped', {
-      routerType: router.constructor.name,
-    });
+    debugLog('FileTransferService', 'I/O router swapped', { routerType: router.constructor.name });
   }
 
-  getIORouter(): IFileTransferIORouter {
-    return this.io;
-  }
+  getIORouter(): IFileTransferIORouter { return this.io; }
 
-  /** See `IFileTransferIORouter.markForeignOutgoingStream`. */
   markForeignOutgoingStream(requestId: string): void {
     this.io.markForeignOutgoingStream(requestId);
   }
@@ -79,6 +68,7 @@ export class FileTransferService {
     await this.loadFromStorage();
     bindAccountHistory(this.state);
     startExpirySweep(this.state, this.emitStateChange.bind(this), this.saveTransfer.bind(this));
+    wireSendQueue(this.deps, () => this.io.getCurrentCid());
     this.initialized = true;
     debugLog('FileTransferService', 'Initialized');
   }
@@ -90,14 +80,17 @@ export class FileTransferService {
       emitStateChange: this.emitStateChange.bind(this),
       saveTransfer: this.saveTransfer.bind(this),
       saveSettings: this.saveSettings.bind(this),
-      handleAsyncSend: (t: FileTransfer, f: File): Promise<void> => handleAsyncSend(this.deps, t, f),
       openPeerChannel: openPeerChannelViaAutoConnect,
+      agentStagesUploads,
+      queue: sendQueuePort,
     };
   }
 
-  async sendFile(recipientCid: string, file: File, mode: FileTransferMode): Promise<string> {
-    return sendFile(this.deps, recipientCid, file, mode);
+  async sendFile(recipientCid: string, file: File): Promise<string> {
+    return sendFile(this.deps, recipientCid, file);
   }
+
+  async sendAgentFile(senderCid: bigint, recipientCid: string, file: AgentFile, transferId: string): Promise<string> { return sendAgentFile(this.deps, senderCid, recipientCid, file, transferId); }
 
   async sendFileWithNativePicker(recipientCid: string, title?: string, allowedExtensions?: string[]): Promise<string> {
     return sendFileWithNativePicker(this.deps, recipientCid, title, allowedExtensions);
@@ -118,7 +111,6 @@ export class FileTransferService {
   // Settings -- scoped per account; see settings-key.ts.
   getSettings(peerCid: string): FileTransferSettings { return this.state.getSettings(scopedSettingsKey(peerCid)); }
   getAutoAccept(peerCid: string): boolean { return this.state.getSettings(scopedSettingsKey(peerCid)).autoAccept; }
-  getTransferMode(peerCid: string): TransferModePreference { return this.state.getSettings(scopedSettingsKey(peerCid)).transferMode; }
 
   private async updateSetting<K extends keyof FileTransferSettings>(
     peerCid: string, key: K, value: FileTransferSettings[K]
@@ -132,7 +124,6 @@ export class FileTransferService {
 
   async setAutoAccept(peerCid: string, enabled: boolean): Promise<void> { return this.updateSetting(peerCid, 'autoAccept', enabled); }
   async setMaxFileSize(peerCid: string, maxBytes: number): Promise<void> { return this.updateSetting(peerCid, 'maxFileSize', maxBytes); }
-  async setTransferMode(peerCid: string, mode: TransferModePreference): Promise<void> { return this.updateSetting(peerCid, 'transferMode', mode); }
   async setAllowRevfsStorage(peerCid: string, allowed: boolean): Promise<void> { return this.updateSetting(peerCid, 'allowRevfsStorage', allowed); }
   async setRevfsQuota(peerCid: string, quotaBytes: number): Promise<void> { return this.updateSetting(peerCid, 'revfsQuota', quotaBytes); }
 
@@ -169,6 +160,7 @@ export class FileTransferService {
 
   private setupMessageHandlers(): void {
     eventEmitter.on('p2p:file-transfer-message', this.handleFileTransferMessage.bind(this));
+    settleSharesOnOutcome();
 
     // The protocol half of every incoming transfer. Without this subscription
     // nothing ever learned the object_id, so accept could not name the transfer
@@ -221,7 +213,7 @@ export class FileTransferService {
   private async handleFileTransferMessage(message: IncomingFileTransferMessage): Promise<void> {
     const { layer: rawLayer, senderCid } = message;
     const layer: MessagingLayer = rawLayer as MessagingLayer;
-    const deps: { state: FileTransferState; io: FileTransferIO; emitStateChange: (transfer: FileTransfer) => void; saveTransfer: (transfer: FileTransfer) => Promise<void>; saveSettings: (peerCid: string, settings: FileTransferSettings) => Promise<void>; handleAsyncSend: (t: FileTransfer, f: File) => Promise<void>; } = this.deps;
+    const deps: { state: FileTransferState; io: FileTransferIO; emitStateChange: (transfer: FileTransfer) => void; saveTransfer: (transfer: FileTransfer) => Promise<void>; saveSettings: (peerCid: string, settings: FileTransferSettings) => Promise<void>; } = this.deps;
 
     if (isFileTransferRequest(layer)) {
       // Join the two halves BEFORE handleTransferRequest, because auto-accept
@@ -236,7 +228,8 @@ export class FileTransferService {
       );
       await handleTransferRequest(
         deps, layer, senderCid,
-        (cid) => this.getAutoAccept(cid),
+        // An offer this browser asked for (a peer-storage share): same size limit, no prompt.
+        (cid) => this.getAutoAccept(cid) || requestedShares.isExpected(layer.transfer_id),
         (id) => this.acceptTransfer(id)
       );
     } else if (isFileTransferResponse(layer)) {

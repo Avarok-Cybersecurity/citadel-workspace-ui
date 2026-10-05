@@ -128,7 +128,8 @@ export function VFSContextMenu({
         {/* File actions by state */}
         {!isDir && (
           <>
-            {isDownloadableState(fileState) && fileState !== RevfsFileState.Received && (
+            {/* Hosted too: the peer's file, which they send when asked (request-share.ts). */}
+            {(isDownloadableState(fileState) || fileState === RevfsFileState.Hosted) && fileState !== RevfsFileState.Received && (
               <ContextMenuItem onClick={onDownload} className="hover:bg-card cursor-pointer">
                 <Download className="mr-2 h-4 w-4" />
                 Download

@@ -6,9 +6,11 @@
  */
 
 import type { RevfsNode, RevfsFileMetadata } from '@/types/revfs-types';
-import { RevfsFileState } from '@/types/revfs-types';
+import { RevfsFileState, SENT_FILES_DIR, RECEIVED_FILES_DIR } from '@/types/revfs-types';
+import { recordPathFor } from './local-records';
 import {
   peerTreeKey,
+  findNode,
   placeFile as treePlaceFile,
   removeFile as treeRemoveFile,
 } from './tree-operations';
@@ -158,32 +160,49 @@ export async function downloadFileFromPeer(
 
 // ── Standard Transfer Auto-Population ─────────────────────────────────────
 
+/**
+ * Record a chat transfer in this account's Sent Files or Received Files.
+ *
+ * Local only -- see local-records.ts for why these never reach the peer.
+ * Idempotent per transfer id, and a same-named file gets its own entry.
+ */
+async function addLocalRecord(
+  ctx: FileOpsContext,
+  myCid: bigint,
+  peerCid: bigint,
+  dir: string,
+  state: RevfsFileState,
+  metadata: RevfsFileMetadata,
+): Promise<void> {
+  const key: string = peerTreeKey(myCid, peerCid);
+  const tree: RevfsNode = await ctx.getTree(myCid, peerCid);
+  const existing: RevfsNode[] = findNode(tree, dir)?.children ?? [];
+  const filePath: string | null = recordPathFor(dir, metadata.fileName, metadata.fileId, existing);
+  if (filePath === null) return;
+
+  const [newTree] = treePlaceFile(tree, filePath, metadata, myCid);
+  const fileNode: RevfsNode | null = ctx.findFileInTree(newTree, filePath);
+  if (fileNode) fileNode.fileState = state;
+
+  ctx.state.setTree(key, newTree);
+  const io: RevfsIO = ctx.ensureIO();
+  await persistTree(io, key, newTree);
+}
+
 export async function addSentFile(
   ctx: FileOpsContext,
   myCid: bigint,
   peerCid: bigint,
   transfer: { fileName: string; fileSize: number; fileType: string; transferId: string },
 ): Promise<void> {
-  const key: string = peerTreeKey(myCid, peerCid);
-  const tree: RevfsNode = await ctx.getTree(myCid, peerCid);
-  const filePath: string = `/Sent Files/${transfer.fileName}`;
-  const metadata: RevfsFileMetadata = {
+  await addLocalRecord(ctx, myCid, peerCid, SENT_FILES_DIR, RevfsFileState.Sent, {
     fileId: transfer.transferId,
     fileName: transfer.fileName,
     fileSize: transfer.fileSize,
     fileType: transfer.fileType,
     virtualDirectory: '',
     uploadedByCid: myCid,
-  };
-
-  const [newTree, op] = treePlaceFile(tree, filePath, metadata, myCid);
-  const fileNode: RevfsNode | null = ctx.findFileInTree(newTree, filePath);
-  if (fileNode) fileNode.fileState = RevfsFileState.Sent;
-
-  ctx.state.setTree(key, newTree);
-  const io: RevfsIO = ctx.ensureIO();
-  await persistTree(io, key, newTree);
-  void ctx.sendOp(peerCid, op);
+  });
 }
 
 export async function addReceivedFile(
@@ -192,23 +211,12 @@ export async function addReceivedFile(
   peerCid: bigint,
   transfer: { fileName: string; fileSize: number; fileType: string; transferId: string; downloadPath?: string },
 ): Promise<void> {
-  const key: string = peerTreeKey(myCid, peerCid);
-  const tree: RevfsNode = await ctx.getTree(myCid, peerCid);
-  const filePath: string = `/Received Files/${transfer.fileName}`;
-  const metadata: RevfsFileMetadata = {
+  await addLocalRecord(ctx, myCid, peerCid, RECEIVED_FILES_DIR, RevfsFileState.Received, {
     fileId: transfer.transferId,
     fileName: transfer.fileName,
     fileSize: transfer.fileSize,
     fileType: transfer.fileType,
     virtualDirectory: transfer.downloadPath ?? '',
     uploadedByCid: peerCid,
-  };
-
-  const [newTree] = treePlaceFile(tree, filePath, metadata, myCid);
-  const fileNode: RevfsNode | null = ctx.findFileInTree(newTree, filePath);
-  if (fileNode) fileNode.fileState = RevfsFileState.Received;
-
-  ctx.state.setTree(key, newTree);
-  const io: RevfsIO = ctx.ensureIO();
-  await persistTree(io, key, newTree);
+  });
 }

@@ -23,47 +23,51 @@ export function getFileIcon(fileType: string): React.ReactNode {
 // showed the same file at two different sizes.
 export { formatBytes } from '@/lib/format-bytes';
 
+/**
+ * An icon's colour on the sender's own bubble is the bubble's foreground: the state
+ * colours (accent, warning) measured 1.09-2.69:1 on bg-primary (UX review).
+ */
+function iconTone(isOwn: boolean, stateColour: string): string {
+  return isOwn ? 'text-primary-foreground' : stateColour;
+}
+
 /** Returns the status icon, text, and action flags for a given transfer state. */
 export function getStatusContent(state: string, isOwn: boolean, reason: string | undefined): StatusContent {
   switch (state) {
     case 'pending':
       if (isOwn) {
         return {
-          icon: <Clock className="h-4 w-4 text-warning-emphasis" />,
+          icon: <Clock className={`h-4 w-4 ${iconTone(isOwn, 'text-warning-emphasis')}`} />,
           text: 'Waiting for acceptance...',
           showCancel: true
         };
       }
       return {
-        icon: <Download className="h-4 w-4 text-primary-accent" />,
+        icon: <Download className={`h-4 w-4 ${iconTone(isOwn, 'text-primary-accent')}`} />,
         text: 'wants to send you a file',
         showAcceptDecline: true
       };
 
-    case 'uploading':
+    case 'preparing':
+      // Only the sender has this state: the file is going to their agent first.
       return {
-        icon: <Clock className="h-4 w-4 text-primary-accent animate-spin" />,
-        text: 'Uploading to server...',
-        showProgress: true
+        icon: <Clock className={`h-4 w-4 ${iconTone(isOwn, 'text-primary-accent')} animate-spin`} />,
+        text: 'Preparing to send...',
+        showProgress: true,
+        showCancel: true
       };
 
-    case 'staged':
-      if (isOwn) {
-        return {
-          icon: <Check className="h-4 w-4 text-success-emphasis" />,
-          text: 'File ready, waiting for acceptance...',
-          showCancel: true
-        };
-      }
+    case 'queued':
+      // Only the sender holds a send; the recipient has not been told of it yet.
       return {
-        icon: <Download className="h-4 w-4 text-primary-accent" />,
-        text: 'File ready to download',
-        showAcceptDecline: true
+        icon: <Clock className={`h-4 w-4 ${iconTone(isOwn, 'text-warning-emphasis')}`} />,
+        text: reason ?? 'Will send when they are online',
+        showCancel: true
       };
 
     case 'transferring':
       return {
-        icon: <Download className="h-4 w-4 text-primary-accent animate-pulse" />,
+        icon: <Download className={`h-4 w-4 ${iconTone(isOwn, 'text-primary-accent')} animate-pulse`} />,
         text: isOwn ? 'Sending...' : 'Downloading...',
         showProgress: true
       };
@@ -71,12 +75,12 @@ export function getStatusContent(state: string, isOwn: boolean, reason: string |
     case 'complete':
       if (isOwn) {
         return {
-          icon: <Check className="h-4 w-4 text-success-emphasis" />,
+          icon: <Check className={`h-4 w-4 ${iconTone(isOwn, 'text-success-emphasis')}`} />,
           text: 'Sent successfully'
         };
       }
       return {
-        icon: <Check className="h-4 w-4 text-success-emphasis" />,
+        icon: <Check className={`h-4 w-4 ${iconTone(isOwn, 'text-success-emphasis')}`} />,
         text: 'Downloaded',
         clickable: true
       };
@@ -84,36 +88,36 @@ export function getStatusContent(state: string, isOwn: boolean, reason: string |
     case 'declined':
       if (isOwn) {
         return {
-          icon: <X className="h-4 w-4 text-destructive" />,
+          icon: <X className={`h-4 w-4 ${iconTone(isOwn, 'text-destructive')}`} />,
           text: 'Transfer declined'
         };
       }
       return {
-        icon: <X className="h-4 w-4 text-muted-foreground" />,
+        icon: <X className={`h-4 w-4 ${iconTone(isOwn, 'text-muted-foreground')}`} />,
         text: 'You declined this file'
       };
 
     case 'cancelled':
       if (isOwn) {
         return {
-          icon: <Ban className="h-4 w-4 text-muted-foreground" />,
+          icon: <Ban className={`h-4 w-4 ${iconTone(isOwn, 'text-muted-foreground')}`} />,
           text: 'Transfer cancelled'
         };
       }
       return {
-        icon: <AlertCircle className="h-4 w-4 text-warning-emphasis" />,
+        icon: <AlertCircle className={`h-4 w-4 ${iconTone(isOwn, 'text-warning-emphasis')}`} />,
         text: 'Sender cancelled transfer'
       };
 
     case 'expired':
       return {
-        icon: <Clock className="h-4 w-4 text-warning-emphasis" />,
+        icon: <Clock className={`h-4 w-4 ${iconTone(isOwn, 'text-warning-emphasis')}`} />,
         text: reason || 'Request expired'
       };
 
     case 'error':
       return {
-        icon: <AlertCircle className="h-4 w-4 text-destructive" />,
+        icon: <AlertCircle className={`h-4 w-4 ${iconTone(isOwn, 'text-destructive')}`} />,
         text: reason ? `Transfer failed: ${reason}` : 'Transfer failed'
       };
 
