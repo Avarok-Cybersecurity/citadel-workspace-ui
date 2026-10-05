@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import {
   answerKeyChallenge, browserSignInDeps, CANCELLED_REASON, declineKeyChallenge, openChallenges,
-  settleChallenge, subscribeChallenges, type KeyAnswerResult,
+  settleChallenge, subscribeChallenges, touchWindowMs, type KeyAnswerResult,
 } from '@/lib/sign-in';
 import type { SecurityKeyChallengeNotification } from '@/lib/sign-in/types';
 import { describeFailure } from '@/lib/failure-message';
@@ -30,7 +30,7 @@ export function useKeyChallengePrompt(): KeyChallengePrompt {
   const open: readonly SecurityKeyChallengeNotification[] = useSyncExternalStore(subscribeChallenges, openChallenges);
   const challenge: SecurityKeyChallengeNotification | null = open[0] ?? null;
   const challengeId: string | null = challenge?.challenge_id ?? null;
-  const expiresInMs: number = challenge?.expires_in_ms ?? 0;
+  const expiresInMs: number = challenge ? touchWindowMs(challenge) : 0;
   // Keyed by challenge, so the next one never inherits the last one's expired deadline.
   const [timing, setTiming] = useState<{ id: string; deadline: number } | null>(null);
   const [now, setNow] = useState<number>(() => Date.now());

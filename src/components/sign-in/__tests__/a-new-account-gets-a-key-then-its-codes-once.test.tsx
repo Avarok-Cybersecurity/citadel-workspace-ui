@@ -18,6 +18,7 @@ vi.mock('@/lib/passkey', async (orig: () => Promise<Record<string, unknown>>) =>
 import { PostRegistrationSteps } from '../PostRegistrationSteps';
 import { SecurityKeyPrompt } from '../SecurityKeyPrompt';
 import { world } from '@/lib/sign-in/__tests__/helpers';
+import { PRF_COPY } from '@/lib/sign-in/copy';
 
 const CODES: string[] = ['CODE-0000', 'CODE-0001', 'CODE-0002'];
 let alice: FakeAccount;
@@ -99,7 +100,17 @@ describe('after an account is created', () => {
     h.w.authenticator.prfMode = 'none';
     renderSteps(CODES);
     fireEvent.click(screen.getByTestId('add-security-key-continue'));
-    expect(await screen.findByTestId('add-security-key-error')).toHaveTextContent(/PRF/);
+    expect(await screen.findByTestId('add-security-key-error')).toHaveTextContent(PRF_COPY.notAdded);
     expect(h.w.agent.sent).toEqual([]);
+  });
+
+  it('says up front when this browser cannot make a key that signs in, and still lets the codes come', async () => {
+    h.w.authenticator.browserHasNoPrf = true;
+    renderSteps(CODES);
+    expect(await screen.findByTestId('add-security-key-unsupported')).toHaveTextContent(PRF_COPY.unavailableHere);
+    expect(screen.queryByTestId('add-security-key-continue')).toBeNull();
+    fireEvent.click(screen.getByTestId('add-security-key-skip'));
+    expect(await screen.findByTestId('recovery-codes')).toBeInTheDocument();
+    expect(h.w.authenticator.createCalls).toEqual([]);
   });
 });

@@ -54,10 +54,32 @@ describe('the browser adapter', () => {
     ['SecurityError', 'unsupported'],
     ['UnknownError', 'failed'],
   ])('maps %s to %s', async (name, expected) => {
-    const port: ReturnType<typeof createBrowserAuthenticator> = createBrowserAuthenticator(failing(name));
+    const port: ReturnType<typeof createBrowserAuthenticator> = createBrowserAuthenticator(failing(name), null);
     let got: string = 'resolved';
     try { await port.get(ceremony); } catch (error) { got = failureOf(error); }
     expect(got).toBe(expected);
+  });
+});
+
+describe('the PRF pre-check', () => {
+  // The browser's own static (PublicKeyCredential.getClientCapabilities) is the seam doubled here.
+  const ruledOut = (capabilities: (() => Promise<Record<string, boolean>>) | null): Promise<boolean> =>
+    createBrowserAuthenticator(navigator.credentials, capabilities).prfRuledOut();
+
+  it('rules PRF out only when the browser says it has none', async () => {
+    expect(await ruledOut(async () => ({ 'extension:prf': false }))).toBe(true);
+  });
+
+  it.each([
+    ['says it has PRF', async (): Promise<Record<string, boolean>> => ({ 'extension:prf': true })],
+    ['does not say', async (): Promise<Record<string, boolean>> => ({})],
+    ['cannot be asked', async (): Promise<Record<string, boolean>> => { throw new DOMException('x', 'NotSupportedError'); }],
+  ])('leaves it to the ceremony when the browser %s', async (_case, capabilities) => {
+    expect(await ruledOut(capabilities)).toBe(false);
+  });
+
+  it('leaves it to the ceremony in a browser without getClientCapabilities', async () => {
+    expect(await ruledOut(null)).toBe(false);
   });
 });
 

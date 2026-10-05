@@ -52,6 +52,12 @@ export interface AuthenticatorPort {
   get(ceremony: GetCeremony): Promise<Assertion>;
   /** Best effort: asks the passkey provider to forget a credential we will not use. */
   signalUnknownCredential(rpId: string, credentialId: Bytes): Promise<void>;
+  /**
+   * True only when the browser itself says it has no PRF, so no key made here
+   * could ever sign in. False means "ask the ceremony": a browser that reports
+   * PRF can still hand the request to a provider that returns none.
+   */
+  prfRuledOut(): Promise<boolean>;
 }
 
 /**

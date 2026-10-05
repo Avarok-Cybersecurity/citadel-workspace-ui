@@ -78,7 +78,8 @@ export function TurnstileWidget({ sitekey, action, cData, onToken, resetSignal }
 
   return (
     <div className="space-y-2" data-testid="turnstile">
-      <div ref={container} />
+      {/* Turnstile draws a fixed-width iframe in here; centred, not hugging the card's left edge. */}
+      <div ref={container} className="flex justify-center" />
       {load.kind === 'loading' && (
         <p className="inline-flex items-center gap-2 text-sm text-muted-foreground" role="status">
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />

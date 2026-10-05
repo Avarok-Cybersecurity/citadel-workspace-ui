@@ -155,6 +155,8 @@ export function useLoginHandler({ onNext, initialUsername, admission }: UseLogin
   const handlePasskeyLogin = async (account: string): Promise<void> => {
     const name: string = account.trim();
     if (!requireUsername(name)) return;
+    // First, as for a key: the human check binds to this account's workspace, and the password is its fallback.
+    setUsername(name);
     const admissionToken: string | null | false = admit(); if (admissionToken === false) return;
     begin();
     let unlocked: boolean = false;
@@ -167,8 +169,6 @@ export function useLoginHandler({ onNext, initialUsername, admission }: UseLogin
       // Before the unlock: the passkey copy, and the password field is right
       // there. After it: the ordinary login failed, reported as the form does.
       if (!unlocked) {
-        // The password is the fallback, so the form names the account it is for.
-        setUsername(name);
         setError(failureCopy(failureOf(err)));
         document.getElementById('password')?.focus();
       } else {

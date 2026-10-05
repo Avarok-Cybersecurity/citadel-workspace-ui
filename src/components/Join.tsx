@@ -30,7 +30,7 @@ interface JoinProps {
 export const Join = ({ onNext, onBack, defaultWorkspace, serverAddress, serverPassword, securitySettings, profileDraft }: JoinProps): JSX.Element => {
   // The account exists from here; the key and recovery-code steps come before the workspace.
   const [joinedCid, setJoinedCid] = useState<string | null>(null);
-  const admission: AdmissionGate = useAdmissionGate(ADMISSION_ACTION.register, { serverAddress, reauth: false });
+  const admission: AdmissionGate = useAdmissionGate(ADMISSION_ACTION.register, { serverAddress, reauth: false, accountNamed: false });
   const {
     formData,
     isRegistering,

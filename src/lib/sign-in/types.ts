@@ -3,10 +3,20 @@
  * speaks it. The wire types are generated from the agent's Rust; only the
  * shapes the UI composes from them are declared here.
  */
+import type { SecurityKeyChallengeNotification as WireChallenge } from 'citadel-workspace-client-ts';
+
 export type {
-  SecurityKeyChallengeNotification, SecurityKeyPurpose, SignInCredential, SignInManagementOp,
+  SecurityKeyPurpose, SignInCredential, SignInManagementOp,
   SignInManagementOutcome, SignInPolicy, StepUp, FactorKind,
 } from 'citadel-workspace-client-ts';
+
+/**
+ * A key challenge as it reaches this page. `expires_in_ms` is a u64, and the
+ * WASM client turns every u64 into a BigInt, while the generated type says
+ * `number`; arithmetic on it threw in the prompt's render. Typed as both, so
+ * the compiler sends every reader through `touchWindowMs` (challenge-watch.ts).
+ */
+export type SecurityKeyChallengeNotification = Omit<WireChallenge, 'expires_in_ms'> & { expires_in_ms: number | bigint };
 
 /**
  * What one Connect proves. The server, not the page, decides whether these

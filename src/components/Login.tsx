@@ -9,7 +9,8 @@ import { ChevronLeft, Loader2, User, LogIn } from "lucide-react";
 import { SecuritySettings, SecuritySettingsValues } from "./SecuritySettings";
 import { useLoginHandler, type LoginHandler } from "./useLoginHandler";
 import { PasskeySignIn } from "./passkey/PasskeySignIn";
-import { passkeyChoices, usePasskeyAccounts } from "./passkey/usePasskeyAccounts";
+import { usePasskeyAccounts } from "./passkey/usePasskeyAccounts";
+import { PASSWORD_THEN_KEY, passkeyAction, passkeyOffer, type PasskeyAction } from "./passkey/passkey-offer";
 import { LoginFactorFields } from "./LoginFactorFields";
 import { AddSecurityKeyCard } from "./sign-in/AddSecurityKeyCard";
 import { RecoverySessionScreen } from "./sign-in/RecoverySessionScreen";
@@ -42,27 +43,26 @@ export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.El
   const [typed, setTyped] = useState<string>(initialUsername ?? '');
   const signedOut: SignedOutAccount[] = useSignedOutAccounts();
   const admission: AdmissionGate = useAdmissionGate(ADMISSION_ACTION.signIn, {
-    serverAddress: accountServer, reauth: signedOut.some((a) => a.username === typed),
+    serverAddress: accountServer, reauth: signedOut.some((a) => a.username === typed), accountNamed: typed !== '',
   });
   const h: LoginHandler = useLoginHandler({ onNext, initialUsername, admission });
-  const knownServer: string | undefined = useAccountServer(h.username);
+  const hints: SignInHint[] = useSignInHints();
+  const knownServer: string | undefined = useAccountServer(h.username, hints);
   useEffect((): void => { setAccountServer(knownServer); setTyped(h.username.trim()); }, [knownServer, h.username]);
   const {
     username, setUsername, error, invalidField, loading, securitySettings, setSecuritySettings,
     handleLogin, passkey, handlePasskeyLogin, handleKeyLogin, keyOffer, recoverySession, mode,
   } = h;
 
-  // Offered before a username is typed: option-A passkeys (to move them to the
-  // server) and accounts that sign in key-first here, scoped by tenant and CID.
+  // Offered before a username is typed: option-A passkeys and this device's sign-in hints (passkey-offer.ts).
   const legacyAccounts: string[] = usePasskeyAccounts();
-  const hints: SignInHint[] = useSignInHints();
-  const hintNames: string[] = hints.map((hint: SignInHint) => hint.username);
-  const deviceAccounts: string[] = [...new Set([...legacyAccounts, ...hintNames])].sort((a, b) => a.localeCompare(b));
-  const typedHasKeys: boolean = passkey.hasKeys || hintNames.includes(username.trim());
-  const passkeyAccounts: string[] = mode === 'password' ? passkeyChoices(username, typedHasKeys, deviceAccounts) : [];
+  const passkeyAccounts: string[] = passkeyOffer(username, mode, passkey.hasKeys, legacyAccounts, hints);
+  const [keyNext, setKeyNext] = useState<string | null>(null);
   const signInAs = (account: string): void => {
-    if (legacyAccounts.includes(account)) void handlePasskeyLogin(account);
-    else void handleKeyLogin(account);
+    const action: PasskeyAction = passkeyAction(account, legacyAccounts, hints);
+    if (action === 'legacy') void handlePasskeyLogin(account);
+    else if (action === 'key-first') void handleKeyLogin(account);
+    else { setUsername(account); setKeyNext(account); setTimeout((): void => { document.getElementById('password')?.focus(); }, 0); }
   };
 
   const handleSecuritySettingsComplete = (values: SecuritySettingsValues): void => {
@@ -173,6 +173,9 @@ export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.El
 
               {passkeyAccounts.length > 0 && (
                 <PasskeySignIn accounts={passkeyAccounts} onUse={signInAs} disabled={loading} />
+              )}
+              {keyNext !== null && keyNext === username.trim() && mode === 'password' && (
+                <p className="text-sm text-muted-foreground" data-testid="login-key-next">{PASSWORD_THEN_KEY}</p>
               )}
 
               {/* How the account is proved: password, key alone, or recovery code */}

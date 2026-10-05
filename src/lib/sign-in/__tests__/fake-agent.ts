@@ -75,7 +75,8 @@ export class FakeAgent {
       this.pending.set(challengeId, { requestId, resolve, allowed });
       this.emit('SecurityKeyChallengeNotification', {
         cid, request_id: requestId, challenge_id: challengeId, purpose,
-        allowed_credential_ids: allowed, prf_salt: PRF_SALT, expires_in_ms: TOUCH_WINDOW_MS,
+        // A u64, which the WASM client hands to JavaScript as a BigInt (serialize_large_number_types_as_bigints).
+        allowed_credential_ids: allowed, prf_salt: PRF_SALT, expires_in_ms: BigInt(TOUCH_WINDOW_MS),
       });
     });
   }

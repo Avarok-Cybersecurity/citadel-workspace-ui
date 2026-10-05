@@ -45,6 +45,8 @@ export const prfSupported = (created: CreatedCredential): boolean =>
 
 /** create() for a new key; refuses one without PRF before anything leaves the page. */
 export async function createSecurityKey(deps: EnrolDeps, key: NewKey): Promise<Bytes> {
+  // A browser with no PRF at all: making the passkey would only leave one behind that cannot sign in.
+  if (await deps.authenticator.prfRuledOut()) throw new PasskeyError('unsupported');
   const created: CreatedCredential = await deps.authenticator.create({
     rpId: deps.rpId,
     rpName: deps.rpName,
