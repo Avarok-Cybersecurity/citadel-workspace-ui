@@ -68,7 +68,7 @@ describe('a p2p send above the inline cap', () => {
   it('is refused with the cap and the alternative named', async () => {
     await expect(
       executeSendTransferRequest(router, intent(MAX_BYTE_CONTENTS_BYTES + 1)),
-    ).rejects.toThrow(/can be up to 16 MB.*Browse Files/s);
+    ).rejects.toThrow(/can be up to 16 MB.*Updating your Citadel agent/s);
   });
 
 

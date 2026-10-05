@@ -8,8 +8,14 @@ import { render, screen } from '@testing-library/react';
 import { FileTransferModal } from '../FileTransferModal';
 import { MAX_BYTE_CONTENTS_BYTES } from '@/lib/file-transfer/server-upload';
 
+// The agent's greeting is the edge: an agent that does not stage (the inline route).
+vi.mock('@/lib/agent-conversations/capabilities', async (importOriginal: () => Promise<Record<string, unknown>>) => ({
+  ...(await importOriginal()),
+  agentStagesUploads: async (): Promise<boolean> => false,
+}));
+
 describe('the send dialog', () => {
-  it('offers no transfer method, one Send, and the real size ceiling', () => {
+  it('offers no transfer method, one Send, and the real size ceiling', async () => {
     render(<FileTransferModal isOpen onClose={vi.fn()} onSendFile={vi.fn()} peerCid="42" />);
 
     expect(screen.queryByText(/transfer method/i)).toBeNull();
@@ -17,7 +23,8 @@ describe('the send dialog', () => {
     expect(screen.queryByText(/Recommended/i)).toBeNull();
     expect(screen.getAllByRole('button', { name: /^Send$/ })).toHaveLength(1);
     const limit: string = `${MAX_BYTE_CONTENTS_BYTES / (1024 * 1024)} MB`;
-    expect(screen.getByText(new RegExp(`Maximum size: ${limit}`))).toBeInTheDocument();
+    // Said once the agent has answered (no agent here: the inline route).
+    expect(await screen.findByText(new RegExp(`Maximum size: ${limit}`))).toBeInTheDocument();
   });
 });
 

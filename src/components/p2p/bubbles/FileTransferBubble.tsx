@@ -104,7 +104,7 @@ export function FileTransferBubble({
           {/* File details */}
           <div className="flex-1 min-w-0">
             <p className="font-medium text-sm truncate">{fileName}</p>
-            <div className="flex items-center gap-2 text-xs opacity-70">
+            <div className="flex items-center gap-2 text-xs">
               <span>{formatBytes(fileSize)}</span>
             </div>
           </div>
@@ -131,7 +131,7 @@ export function FileTransferBubble({
         {/* Status section */}
         <div className="flex items-center gap-2 mb-2">
           {status.icon}
-          <span className="text-xs opacity-80">{status.text}</span>
+          <span className="text-xs">{status.text}</span>
         </div>
 
         {/* Progress bar */}
@@ -151,7 +151,7 @@ export function FileTransferBubble({
                 style={{ width: `${progress}%` }}
               />
             </div>
-            <div className="flex justify-between text-xs opacity-70 mt-1">
+            <div className="flex justify-between text-xs mt-1">
               <span>{progress}%</span>
               <span>{formatBytes(fileSize * progress / 100)} / {formatBytes(fileSize)}</span>
             </div>
@@ -185,17 +185,21 @@ export function FileTransferBubble({
             <button
               type="button"
               onClick={handleCancel}
-              className="w-full flex items-center justify-center gap-1 px-3 py-1.5 bg-muted-foreground/20 hover:bg-muted-foreground/30 text-foreground/80 rounded text-sm transition-colors"
+              className={`w-full flex items-center justify-center gap-1 px-3 py-1.5 rounded text-sm transition-colors border ${
+                // On the sender's own bubble (bg-primary) the label takes the bubble's own
+                // foreground; muted-on-primary measured 1.94:1 (UX review, finding 5).
+                isOwn ? 'border-primary-foreground/40 text-primary-foreground hover:bg-primary-foreground/10' : 'border-border text-foreground hover:bg-foreground/5'
+              }`}
             >
               <X className="h-4 w-4" />
-              Cancel
+              Cancel send
             </button>
           </div>
         )}
 
         {/* Click hint for completed downloads */}
         {status.clickable && (
-          <p className="text-xs opacity-60 mt-1">Click to see where it was saved</p>
+          <p className="text-xs mt-1">Click to see where it was saved</p>
         )}
       </div>
 

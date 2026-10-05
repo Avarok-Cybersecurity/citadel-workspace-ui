@@ -31,7 +31,8 @@ interface FileDropZoneProps {
    * that mistake before.
    */
   nativePickerAvailable: false | null;
-  maxFileSizeBytes: number;
+  /** Null until the agent has said what it takes. */
+  maxFileSizeBytes: number | null;
   formatBytes: (bytes: number) => string;
   onDrop: (e: React.DragEvent) => void;
   onDragOver: (e: React.DragEvent) => void;
@@ -109,7 +110,7 @@ export function FileDropZone({
               {isPickingFile ? 'Opening file picker...' : 'Browse Files'}
             </span>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Opens your computer\u2019s file picker; your agent streams the file to them
+              Opens your computer’s file picker; your agent streams the file to them
             </p>
           </div>
         </button>
@@ -142,7 +143,7 @@ export function FileDropZone({
           Drop file here or <span className="text-primary-accent">browse</span>
         </p>
         <p className="text-xs text-muted-foreground mt-1">
-          Maximum file size: {formatBytes(maxFileSizeBytes)}
+          {maxFileSizeBytes === null ? 'Checking how large a file your agent takes…' : `Maximum file size: ${formatBytes(maxFileSizeBytes)}`}
         </p>
       </div>
     </div>

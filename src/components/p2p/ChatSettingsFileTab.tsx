@@ -6,8 +6,12 @@ import { Upload, HardDrive } from 'lucide-react';
 import { FILE_TRANSFER_DEFAULT_MAX_SIZE_BYTES } from '@/types/messaging-layer';
 import { STAGED_UPLOAD_CEILING_BYTES } from '@/lib/file-transfer/staged-upload/chunk-plan';
 
-/** Up to the largest file a browser can send; a smaller default leaves room to raise it. */
-const ACCEPT_LIMIT_MAX_MB: number = Math.round(STAGED_UPLOAD_CEILING_BYTES / (1024 * 1024));
+/**
+ * What this account will accept: past the 2 GB a browser can send, because Browse
+ * Files sends from disk with no ceiling -- a slider that stopped at 2 GB made the
+ * advice for a 3 GB file a dead end (UX review, finding 2).
+ */
+const ACCEPT_LIMIT_MAX_MB: number = 10 * 1024;
 import type { FileTransferSettings } from '@/lib/file-transfer';
 import { ChatSettingsRemoteTab } from './ChatSettingsRemoteTab';
 
@@ -66,7 +70,7 @@ export function ChatSettingsFileTab({
             label="Maximum file size" value={[maxFileSizeMb]} onValueChange={onMaxFileSizeChange}
             max={ACCEPT_LIMIT_MAX_MB} min={1} step={1} className="w-full" data-testid="max-file-size-slider" />
           <p className="text-xs text-muted-foreground">
-            Default: {formatSizeLimit(FILE_TRANSFER_DEFAULT_MAX_SIZE_BYTES)}. Up to {formatSizeLimit(STAGED_UPLOAD_CEILING_BYTES)}.
+            Default: {formatSizeLimit(FILE_TRANSFER_DEFAULT_MAX_SIZE_BYTES)}. A browser sends up to {formatSizeLimit(STAGED_UPLOAD_CEILING_BYTES)}; Browse Files, more.
           </p>
         </div>
 

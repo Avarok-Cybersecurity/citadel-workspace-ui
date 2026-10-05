@@ -45,7 +45,7 @@ export async function executeSendTransferRequest(
   // The empty-file case had the identical shape and was moved ahead of the
   // announcement; this is the size guard's turn.
   const stagesUploads: boolean = await agentStagesUploads();
-  const refusal: string | null = browserSendRefusal(file, stagesUploads);
+  const refusal: string | null = browserSendRefusal(file, stagesUploads, false);
   if (refusal !== null) throw new Error(refusal);
 
   // Staged before the offer, so nobody can accept bytes the agent does not yet

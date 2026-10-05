@@ -1,7 +1,8 @@
 import { useState, useRef, useCallback, useEffect, type RefObject, type DragEvent } from 'react';
 import { formatBytes } from '@/lib/format-bytes';
 import { fileTransferService } from '@/lib/file-transfer';
-import { agentStagesUploads } from '@/lib/agent-conversations/capabilities';
+import { useSendCeiling, type SendCeiling } from './hooks/use-send-ceiling';
+import { toast } from 'sonner';
 import { browserSendCeiling, browserSendRefusal } from '@/lib/file-transfer/staged-upload/send-route';
 import { debugLog } from '@/lib/debug-config';
 import { failureDescription } from '@/lib/p2p/peer-failure-detail';
@@ -23,7 +24,11 @@ export interface UseFileTransferResult {
   error: string | null;
   nativePickerAvailable: false | null;
   fileInputRef: RefObject<HTMLInputElement>;
-  maxFileSizeBytes: number;
+  /** The largest file the agent takes from this browser; null until it has said. */
+  maxFileSizeBytes: number | null;
+  /** Why the agent could not be asked, or null. */
+  ceilingFailure: string | null;
+  isStoring: boolean;
   formatBytes: (bytes: number) => string;
   handleDrop: (e: React.DragEvent) => void;
   handleDragOver: (e: React.DragEvent) => void;
@@ -55,14 +60,13 @@ export function useFileTransfer({
 
   // The one ceiling on a chosen or dropped file is the agent's
   // (staged-upload/send-route.ts): 2 GB through an agent that stages uploads,
-  // 16 MiB inline through an older one. Until the agent has said, the lower.
-  const [stagesUploads, setStagesUploads] = useState<boolean>(false);
-  useEffect((): (() => void) => {
-    let live: boolean = true;
-    agentStagesUploads().then((s: boolean): void => { if (live) setStagesUploads(s); }, (): void => undefined);
-    return (): void => { live = false; };
-  }, []);
-  const maxFileSizeBytes: number = browserSendCeiling(stagesUploads);
+  // 16 MiB inline through an older one. A file chosen before the agent has said
+  // waits for the answer instead of being judged against a guess.
+  const ceiling: SendCeiling = useSendCeiling();
+  const stagesUploads: boolean | null = ceiling.stagesUploads;
+  const maxFileSizeBytes: number | null = stagesUploads === null ? null : browserSendCeiling(stagesUploads);
+  const [waitingFile, setWaitingFile] = useState<File | null>(null);
+  const [isStoring, setIsStoring] = useState<boolean>(false);
 
 
   const handleRemoveFile = (): void => {
@@ -77,7 +81,11 @@ export function useFileTransfer({
   const handleFileSelect: (file: File) => void = useCallback((file: File): void => {
     setError(null);
 
-    const refusal: string | null = browserSendRefusal(file, stagesUploads);
+    if (stagesUploads === null) {
+      setWaitingFile(file);
+      return;
+    }
+    const refusal: string | null = browserSendRefusal(file, stagesUploads, nativePickerAvailable !== false);
     if (refusal !== null) {
       setError(refusal);
       return;
@@ -94,7 +102,13 @@ export function useFileTransfer({
     } else {
       setPreviewUrl(null);
     }
-  }, [stagesUploads]);
+  }, [stagesUploads, nativePickerAvailable]);
+
+  useEffect((): void => {
+    if (waitingFile === null || stagesUploads === null) return;
+    setWaitingFile(null);
+    handleFileSelect(waitingFile);
+  }, [waitingFile, stagesUploads, handleFileSelect]);
 
   const handleDrop: (e: React.DragEvent) => void = useCallback((e: React.DragEvent): void => {
     e.preventDefault();
@@ -181,22 +195,24 @@ export function useFileTransfer({
   const storageRefusal: string | null = selectedFile ? sharedStorageRefusal(selectedFile) : null;
   const handleSendToStorage = async (): Promise<void> => {
     if (!selectedFile || storageRefusal !== null) return;
-    setIsSending(true);
+    setIsStoring(true);
     setError(null);
     try {
       const stored: boolean = await sendToTheirStorageNow(BigInt(peerCid), selectedFile);
       if (!stored) throw new Error('Their agent did not confirm it stored the file; it was not added.');
+      // Said, not just closed (UX review, finding 3).
+      toast.success(`Put ${selectedFile.name} in your shared storage`, { description: 'Find it in the File Manager.' });
       handleRemoveFile();
       onClose();
     } catch (err) {
       setError(failureDescription(err, 'Could not put the file in shared storage.'));
     } finally {
-      setIsSending(false);
+      setIsStoring(false);
     }
   };
 
   const handleClose = (): void => {
-    if (!isSending) {
+    if (!isSending && !isStoring) {
       handleRemoveFile();
       onClose();
     }
@@ -212,6 +228,8 @@ export function useFileTransfer({
     nativePickerAvailable,
     fileInputRef,
     maxFileSizeBytes,
+    ceilingFailure: ceiling.failure,
+    isStoring,
     formatBytes,
     handleDrop,
     handleDragOver,

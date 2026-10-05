@@ -62,7 +62,7 @@ export async function sendFile(
 
   // The ceiling, while the dialog is still open to say so: the send itself runs
   // behind the bubble and would only be able to fail there.
-  const tooLarge: string | null = browserSendRefusal(file, await deps.agentStagesUploads());
+  const tooLarge: string | null = browserSendRefusal(file, await deps.agentStagesUploads(), false);
   if (tooLarge !== null) throw new Error(tooLarge);
 
   // No size check here beyond the browser ceiling (send-transfer-request): the

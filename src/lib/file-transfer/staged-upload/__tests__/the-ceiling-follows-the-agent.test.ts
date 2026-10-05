@@ -21,16 +21,24 @@ describe('the browser send route', () => {
 
   it('lets a 40 MB file through a staging agent and refuses it, saying why and what works, through an older one', () => {
     const video: Pick<File, 'name' | 'size'> = { name: 'video.mov', size: 40 * MB };
-    expect(browserSendRefusal(video, true)).toBeNull();
-    const why: string | null = browserSendRefusal(video, false);
+    expect(browserSendRefusal(video, true, true)).toBeNull();
+    const why: string | null = browserSendRefusal(video, false, true);
     expect(why).toMatch(/up to 16 MB/);
     expect(why).toMatch(/Updating your Citadel agent/);
     expect(why).toMatch(/Browse Files/);
   });
 
   it('refuses over 2 GB even through a staging agent, and an empty file always', () => {
-    expect(browserSendRefusal({ name: 'disk.img', size: STAGED_UPLOAD_CEILING_BYTES + 1 }, true)).toMatch(/up to 2 GB/);
-    expect(browserSendRefusal({ name: 'e.txt', size: 0 }, true)).toMatch(/empty/);
+    expect(browserSendRefusal({ name: 'disk.img', size: STAGED_UPLOAD_CEILING_BYTES + 1 }, true, true)).toMatch(/up to 2 GB.*Max file size to accept/s);
+    expect(browserSendRefusal({ name: 'e.txt', size: 0 }, true, true)).toMatch(/empty/);
+  });
+});
+
+describe('the advice', () => {
+  it('names Browse Files only when the dialog offers it', () => {
+    const big: Pick<File, 'name' | 'size'> = { name: 'disk.img', size: STAGED_UPLOAD_CEILING_BYTES + 1 };
+    expect(browserSendRefusal(big, true, true)).toMatch(/Browse Files/);
+    expect(browserSendRefusal(big, true, false)).not.toMatch(/Browse Files/);
   });
 });
 

@@ -20,12 +20,18 @@ export function browserSendCeiling(stagesUploads: boolean): number {
   return stagesUploads ? STAGED_UPLOAD_CEILING_BYTES : MAX_BYTE_CONTENTS_BYTES;
 }
 
-/** Why `file` cannot be sent from this browser, or null when it can. */
-export function browserSendRefusal(file: Pick<File, 'name' | 'size'>, stagesUploads: boolean): string | null {
+/**
+ * Why `file` cannot be sent from this browser, or null when it can. Browse Files is
+ * named only when `pickerAvailable` -- pointing at a button the dialog hides is a
+ * dead end (UX review, finding 2).
+ */
+export function browserSendRefusal(file: Pick<File, 'name' | 'size'>, stagesUploads: boolean, pickerAvailable: boolean): string | null {
   if (file.size <= 0) return `"${file.name}" is empty. Files with no contents cannot be sent.`;
   const ceiling: number = browserSendCeiling(stagesUploads);
   if (file.size <= ceiling) return null;
   const update: string = stagesUploads ? '' : ' Updating your Citadel agent raises this to 2 GB.';
-  return `"${file.name}" is ${formatBytes(file.size)}; files sent from the browser can be up to ${formatBytes(ceiling)}.` +
-    `${update} Larger files can be sent with Browse Files, which reads them from disk.`;
+  const picker: string = pickerAvailable
+    ? ' Larger files can be sent with Browse Files, which reads them from disk; they may need to raise "Max file size to accept" in their chat settings.'
+    : '';
+  return `"${file.name}" is ${formatBytes(file.size)}; files sent from the browser can be up to ${formatBytes(ceiling)}.${update}${picker}`;
 }

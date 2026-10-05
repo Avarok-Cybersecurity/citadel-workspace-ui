@@ -34,6 +34,8 @@ export function FileTransferModal({
     nativePickerAvailable,
     fileInputRef,
     maxFileSizeBytes,
+    ceilingFailure,
+    isStoring,
     formatBytes,
     handleDrop,
     handleDragOver,
@@ -59,7 +61,7 @@ export function FileTransferModal({
             <DialogTitle className="text-lg font-semibold">Send File</DialogTitle>
           </div>
           <DialogDescription className="text-muted-foreground">
-            Sent over the Citadel protocol, encrypted end to end. Maximum size: {formatBytes(maxFileSizeBytes)}
+            Sent over the Citadel protocol, encrypted end to end. {maxFileSizeBytes === null ? 'Checking how large a file your agent takes…' : `Maximum size: ${formatBytes(maxFileSizeBytes)}`}
           </DialogDescription>
         </DialogHeader>
 
@@ -92,6 +94,14 @@ export function FileTransferModal({
             <p className="text-xs text-muted-foreground" data-testid="storage-refusal">{storageRefusal}</p>
           )}
 
+          {ceilingFailure && (
+            <p role="status" className="text-sm text-warning-emphasis bg-warning/10 p-2 rounded">{ceilingFailure}</p>
+          )}
+
+          <p id="send-to-storage-help" className="text-xs text-muted-foreground">
+            Send to their storage puts it in the storage you share with them (File Manager). They open it by asking you, so you must be online then.
+          </p>
+
           {error && (
             <p role="alert" className="text-sm text-destructive-emphasis bg-destructive/10 p-2 rounded">
               {error}
@@ -103,7 +113,7 @@ export function FileTransferModal({
           <Button
             variant="ghost"
             onClick={handleClose}
-            disabled={isSending}
+            disabled={isSending || isStoring}
             className="text-muted-foreground hover:text-foreground hover:bg-foreground/5"
           >
             Cancel
@@ -111,19 +121,19 @@ export function FileTransferModal({
           <Button
             variant="outline"
             onClick={handleSendToStorage}
-            disabled={!selectedFile || isSending || storageRefusal !== null}
-            title={storageRefusal ?? 'Puts it in the storage you share with them (File Manager). They open it by asking you, so you must be online then.'}
+            disabled={!selectedFile || isSending || isStoring || storageRefusal !== null}
+            aria-describedby="send-to-storage-help"
             data-testid="send-to-their-storage"
           >
             <span className="flex items-center gap-2">
               <HardDrive className="h-4 w-4" />
-              Send to their storage
+              {isStoring ? 'Putting it there...' : 'Send to their storage'}
             </span>
           </Button>
           <Button
             onClick={handleSend}
-            disabled={!selectedFile || isSending}
-            className="text-foreground bg-primary"
+            disabled={!selectedFile || isSending || isStoring}
+            className="text-primary-foreground bg-primary"
           >
             {isSending ? 'Sending...' : (
               <span className="flex items-center gap-2">
