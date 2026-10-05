@@ -6,6 +6,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { FileTransferModal } from '../FileTransferModal';
+import { MAX_QUEUED_BYTES, MAX_QUEUED_FILES } from '@/lib/file-transfer/send-queue';
+import { formatBytes } from '@/lib/format-bytes';
 import { MAX_BYTE_CONTENTS_BYTES } from '@/lib/file-transfer/server-upload';
 
 // The agent's greeting is the edge: an agent that does not stage (the inline route).
@@ -34,5 +36,14 @@ describe('Send to their storage', () => {
     const action: HTMLElement = screen.getByTestId('send-to-their-storage');
     expect(action).toHaveTextContent('Send to their storage');
     expect(action).toBeDisabled();
+  });
+});
+
+describe('the offline hold', () => {
+  it('states its limit before a send is committed, from the limit the queue enforces', async () => {
+    render(<FileTransferModal isOpen onClose={vi.fn()} onSendFile={vi.fn()} peerCid="42" />);
+    expect(screen.getByTestId('offline-hold-note').textContent)
+      .toBe(`If they are offline, it waits in this browser and goes when they are back: up to ${MAX_QUEUED_FILES} files, ${formatBytes(MAX_QUEUED_BYTES)} in all.`);
+    expect(formatBytes(MAX_QUEUED_BYTES)).toBe('512 MB');
   });
 });

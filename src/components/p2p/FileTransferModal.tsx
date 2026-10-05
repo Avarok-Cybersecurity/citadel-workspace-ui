@@ -1,3 +1,4 @@
+import { offlineHoldNote } from '@/lib/file-transfer/send-queue';
 import {
   Dialog,
   DialogContent,
@@ -63,6 +64,7 @@ export function FileTransferModal({
           <DialogDescription className="text-muted-foreground">
             Sent over the Citadel protocol, encrypted end to end. {maxFileSizeBytes === null ? 'Checking how large a file your agent takes…' : `Maximum size: ${formatBytes(maxFileSizeBytes)}`}
           </DialogDescription>
+          <p className="text-xs text-muted-foreground" data-testid="offline-hold-note">{offlineHoldNote()}</p>
         </DialogHeader>
 
         <div className="py-4 space-y-4">

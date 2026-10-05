@@ -12,6 +12,7 @@
  * (send-queue-io.ts).
  */
 import type { FileTransfer } from './types';
+import { formatBytes } from '../format-bytes';
 
 /** How many files one browser may hold for offline peers at once. */
 export const MAX_QUEUED_FILES: number = 20;
@@ -32,6 +33,15 @@ export function shouldQueue(peerOnline: boolean | null, channelOpened: boolean):
   return !channelOpened;
 }
 
+/**
+ * What the Send dialog says before anyone commits to a send: a file for an offline
+ * peer waits in this browser, within this limit. It was said only in the refusal,
+ * after the fact, while the dialog showed a 2 GB maximum (UX review, finding 9).
+ */
+export function offlineHoldNote(): string {
+  return `If they are offline, it waits in this browser and goes when they are back: up to ${MAX_QUEUED_FILES} files, ${formatBytes(MAX_QUEUED_BYTES)} in all.`;
+}
+
 /** The bubble's line for a held send. */
 export function waitingText(peerName: string): string {
   return `Will send when ${peerName} is online`;
@@ -45,7 +55,7 @@ export function queueRefusal(held: readonly FileTransfer[], size: number): strin
   }
   const bytes: number = queued.reduce((sum, t) => sum + t.fileSize, 0);
   if (bytes + size > MAX_QUEUED_BYTES) {
-    return 'Files waiting for offline peers would exceed what this browser keeps for them (512 MB); send this one when they are back.';
+    return `Files waiting for offline peers would exceed what this browser keeps for them (${formatBytes(MAX_QUEUED_BYTES)}); send this one when they are back.`;
   }
   return null;
 }
