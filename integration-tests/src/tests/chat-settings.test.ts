@@ -6,11 +6,11 @@
  * 2. Open the chat settings modal via the settings icon
  * 3. Navigate through outer tabs (General, File, Advanced, Stats)
  * 4. Navigate through inner tabs in File section (Standard, Remote Storage)
- * 5. Test the transfer mode toggle (Browser vs Citadel Protocol)
+ * 5. Confirm there is no transfer-method choice (one way to send: the Citadel protocol)
  *
  * Note: this covers the per-conversation chat settings modal, not the admin
  * modal's Chat tab (that is admin-modal.test.ts). It checks the controls render
- * and respond; it does not reopen the modal to confirm the transfer mode was
+ * and respond; it does not reopen the modal to confirm a setting was
  * stored, so do not read a pass here as evidence of persistence.
  */
 
@@ -61,11 +61,7 @@ interface TestResults {
       standardContent: boolean;
       remoteStorageContent: boolean;
     };
-    transferModeToggle: {
-      browserOptionVisible: boolean;
-      protocolOptionVisible: boolean;
-      toggleWorks: boolean;
-    };
+    noTransferMethodChoice: boolean;
     settingsToggle: {
       autoAcceptVisible: boolean;
       autoAcceptToggleWorks: boolean;
@@ -211,11 +207,7 @@ async function runChatSettingsTest(): Promise<boolean> {
         standardContent: false,
         remoteStorageContent: false,
       },
-      transferModeToggle: {
-        browserOptionVisible: false,
-        protocolOptionVisible: false,
-        toggleWorks: false,
-      },
+      noTransferMethodChoice: false,
       settingsToggle: {
         autoAcceptVisible: false,
         autoAcceptToggleWorks: false,
@@ -396,37 +388,11 @@ async function runChatSettingsTest(): Promise<boolean> {
       await clickInnerFileTab(page1, 'standard');
       await sleep(300);
 
-      // Check transfer mode radio group
-      const radioGroup = page1.locator('[data-testid="transfer-mode-radio"]');
-      results.chatSettings.transferModeToggle.browserOptionVisible = await isVisibleWithin(radioGroup.locator('#browser'), 2000);
-      results.chatSettings.transferModeToggle.protocolOptionVisible = await isVisibleWithin(radioGroup.locator('#protocol'), 2000);
-
-      console.log(`Browser option visible: ${results.chatSettings.transferModeToggle.browserOptionVisible}`);
-      console.log(`Protocol option visible: ${results.chatSettings.transferModeToggle.protocolOptionVisible}`);
-
-      // Try toggling to protocol
-      if (results.chatSettings.transferModeToggle.protocolOptionVisible) {
-        const protocolOption = page1.locator('label[for="protocol"]');
-        await protocolOption.click();
-        await sleep(300);
-        await takeScreenshot(page1, '13_protocol_selected');
-
-        // Verify selection changed
-        const protocolRadio = radioGroup.locator('#protocol');
-        const isProtocolChecked = await protocolRadio.isChecked().catch(() => false);
-
-        // Toggle back to browser
-        const browserOption = page1.locator('label[for="browser"]');
-        await browserOption.click();
-        await sleep(300);
-        await takeScreenshot(page1, '14_browser_selected');
-
-        const browserRadio = radioGroup.locator('#browser');
-        const isBrowserChecked = await browserRadio.isChecked().catch(() => false);
-
-        results.chatSettings.transferModeToggle.toggleWorks = isProtocolChecked && isBrowserChecked;
-        console.log(`Transfer mode toggle works: ${results.chatSettings.transferModeToggle.toggleWorks}`);
-      }
+      // There is one way to send a file; the old Browser / Citadel Protocol
+      // radio must be gone, not merely hidden.
+      results.chatSettings.noTransferMethodChoice =
+        (await page1.locator('[data-testid="transfer-mode-radio"]').count()) === 0;
+      console.log(`No transfer-method choice: ${results.chatSettings.noTransferMethodChoice}`);
 
       // ======================================================================
       // Step 5d: Test Auto-Accept Toggle
@@ -484,13 +450,11 @@ async function runChatSettingsTest(): Promise<boolean> {
       results.chatSettings.outerTabs.statsVisible &&
       results.chatSettings.innerFileTabs.standardVisible &&
       results.chatSettings.innerFileTabs.remoteStorageVisible &&
-      results.chatSettings.transferModeToggle.browserOptionVisible &&
-      results.chatSettings.transferModeToggle.protocolOptionVisible &&
+      results.chatSettings.noTransferMethodChoice &&
       // Printed but not gated, until now. Nine booleans below the fold reported
       // PASS/FAIL to the console while the suite exited 0 regardless -- among
       // them the auto-accept toggle, which is the control for a recorded fix.
       // A verdict nobody reads is not a check.
-      results.chatSettings.transferModeToggle.toggleWorks &&
       results.chatSettings.settingsToggle.autoAcceptVisible &&
       results.chatSettings.settingsToggle.autoAcceptToggleWorks &&
       results.chatSettings.outerTabs.generalContent &&
@@ -523,10 +487,7 @@ async function runChatSettingsTest(): Promise<boolean> {
     console.log(`  Standard: ${results.chatSettings.innerFileTabs.standardVisible ? '✓' : '✗'} visible, ${results.chatSettings.innerFileTabs.standardContent ? '✓' : '✗'} content`);
     console.log(`  Remote Storage: ${results.chatSettings.innerFileTabs.remoteStorageVisible ? '✓' : '✗'} visible, ${results.chatSettings.innerFileTabs.remoteStorageContent ? '✓' : '✗'} content`);
 
-    console.log('\nTransfer Mode Toggle:');
-    console.log(`  Browser Option: ${results.chatSettings.transferModeToggle.browserOptionVisible ? '✓ PASS' : '✗ FAIL'}`);
-    console.log(`  Protocol Option: ${results.chatSettings.transferModeToggle.protocolOptionVisible ? '✓ PASS' : '✗ FAIL'}`);
-    console.log(`  Toggle Works: ${results.chatSettings.transferModeToggle.toggleWorks ? '✓ PASS' : '✗ FAIL'}`);
+    console.log(`\nNo transfer-method choice: ${results.chatSettings.noTransferMethodChoice ? '✓ PASS' : '✗ FAIL'}`);
 
     console.log('\nSettings Toggle:');
     console.log(`  Auto-Accept Visible: ${results.chatSettings.settingsToggle.autoAcceptVisible ? '✓ PASS' : '✗ FAIL'}`);

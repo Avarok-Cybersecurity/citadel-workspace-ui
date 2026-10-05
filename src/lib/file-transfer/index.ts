@@ -9,7 +9,6 @@ export type {
   FileTransfer,
   FileTransferSettings,
   TransferProgressEvent,
-  TransferModePreference,
   FileTransferIntent,
   IncomingFileTransferMessage,
   FilePickerResult,

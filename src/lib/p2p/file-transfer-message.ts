@@ -36,8 +36,6 @@ export function fileTransferMessage(
     file_size: layer.file_size,
     file_type: layer.file_type,
     file_thumbnail: layer.thumbnail,
-    transfer_mode: layer.transfer_mode,
     transfer_state: transferState,
-    virtual_path: layer.virtual_path,
   };
 }

@@ -66,7 +66,7 @@ describe('sending an empty file', () => {
   it('is refused with a reason naming the file', async (): Promise<void> => {
     const { deps: d } = deps();
 
-    await expect(sendFile(d as never, RECIPIENT, file('notes.txt', 0), 'p2p')).rejects.toThrow(
+    await expect(sendFile(d as never, RECIPIENT, file('notes.txt', 0))).rejects.toThrow(
       /"notes\.txt" is empty/,
     );
   });
@@ -75,7 +75,7 @@ describe('sending an empty file', () => {
     // The whole defect: the offer reached the recipient before the throw.
     const { deps: d, recorded } = deps();
 
-    await expect(sendFile(d as never, RECIPIENT, file('notes.txt', 0), 'p2p')).rejects.toThrow();
+    await expect(sendFile(d as never, RECIPIENT, file('notes.txt', 0))).rejects.toThrow();
 
     expect(recorded.intents, 'the transfer was announced before it failed').toEqual([]);
     expect(recorded.saved, 'a doomed transfer was persisted').toBe(0);
@@ -86,7 +86,7 @@ describe('sending an empty file', () => {
     // The opposite failure: refusing everything would pass both assertions above.
     const { deps: d, recorded } = deps();
 
-    await expect(sendFile(d as never, RECIPIENT, file('notes.txt', 12), 'p2p')).resolves.toEqual(
+    await expect(sendFile(d as never, RECIPIENT, file('notes.txt', 12))).resolves.toEqual(
       expect.any(String),
     );
     expect(recorded.intents).toContain('send-transfer-request');

@@ -1,7 +1,7 @@
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Info, Shield, Zap } from 'lucide-react';
+import { Info, Shield } from 'lucide-react';
 import { REVFS_DEFAULT_QUOTA_BYTES } from '@/types/messaging-layer';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { FileTransferSettings } from '@/lib/file-transfer';
@@ -86,15 +86,6 @@ export function ChatSettingsRemoteTab({
         </p>
       </div>
 
-      {settings.allowRevfsStorage && settings.transferMode !== 'protocol' && (
-        <div className="flex items-start gap-2 p-3 rounded-lg bg-warning/10 border border-warning/20">
-          <Zap className="h-4 w-4 text-warning-emphasis mt-0.5 flex-shrink-0" />
-          <p className="text-xs text-warning-emphasis/15">
-            <strong>Note:</strong> RE-VFS requires the Citadel Protocol transfer method.
-            Switch to Citadel Protocol in the Standard tab to enable full RE-VFS functionality.
-          </p>
-        </div>
-      )}
     </div>
   );
 }

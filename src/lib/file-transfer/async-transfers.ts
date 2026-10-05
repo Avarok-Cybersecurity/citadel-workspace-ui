@@ -44,7 +44,6 @@ export async function handleTransferRequest(
     fileSize: data.file_size,
     fileType: data.file_type,
     thumbnail: data.thumbnail,
-    mode: data.transfer_mode,
     state: 'pending',
     progress: 0,
     senderCid,

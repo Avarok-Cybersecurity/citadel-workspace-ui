@@ -56,11 +56,9 @@ export function buildTransferAnnouncement(transfer: FileTransfer): P2PMessagingL
     transfer.fileName,
     transfer.fileSize,
     transfer.fileType,
-    transfer.mode,
     {
       transfer_id: transfer.id,
       thumbnail: transfer.thumbnail,
-      virtual_path: transfer.virtualPath,
       expiry_timestamp: transfer.expiresAt,
     },
   );

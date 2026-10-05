@@ -68,7 +68,7 @@ async function receiveOffer(transferId: string): Promise<P2PMessage> {
   const { handleMessagingLayerCommand } = await import('@/lib/p2p/message-handler-routing');
   const { FileTransferMessageHandler } = await import('@/lib/p2p/file-transfer-message-handler');
   const outgoing: FileTransfer = {
-    id: transferId, fileName: 'x.txt', fileSize: 3, fileType: 'text/plain', mode: 'p2p', state: 'pending', progress: 0,
+    id: transferId, fileName: 'x.txt', fileSize: 3, fileType: 'text/plain', state: 'pending', progress: 0,
     senderCid: ALICE.toString(), recipientCid: BOB.toString(), createdAt: Date.now(), updatedAt: Date.now(),
     expiresAt: Date.now() + 60_000, isIncoming: false,
   };

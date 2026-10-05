@@ -43,7 +43,7 @@ describe('a standard ("async") send', () => {
   it('hands the browser bytes to the protocol transfer, not to RE-VFS staging', async () => {
     const transfers: Map<string, FileTransfer> = new Map();
     const intents: Array<Record<string, unknown>> = [];
-    const id: string = await sendFile(lifecycle(transfers, intents), '900', new File(['abc'], 'a.txt'), 'async');
+    const id: string = await sendFile(lifecycle(transfers, intents), '900', new File(['abc'], 'a.txt'));
 
     expect(intents.map((i) => i.type)).toEqual(['send-transfer-request']);
     expect(intents[0].file).toBeInstanceOf(File);

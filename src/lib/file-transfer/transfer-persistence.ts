@@ -74,7 +74,6 @@ export function persistTransfer(transfer: FileTransfer): void {
       recipientCid: transfer.recipientCid,
       state: transfer.state,
       isIncoming: transfer.isIncoming,
-      mode: transfer.mode,
       expiresAt: transfer.expiresAt,
       createdAt: transfer.createdAt,
       updatedAt: transfer.updatedAt,
@@ -83,7 +82,6 @@ export function persistTransfer(transfer: FileTransfer): void {
       // open -- the button rendered and did nothing, which is worse than not
       // rendering. FilesSection reads it as `savedTo`.
       downloadPath: transfer.downloadPath,
-      virtualPath: transfer.virtualPath,
       errorMessage: transfer.errorMessage,
     };
 

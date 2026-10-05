@@ -81,11 +81,6 @@ export type FileTransferState =
   | 'error';       // Transfer failed with error
 
 /**
- * File transfer mode
- */
-export type FileTransferMode = 'async' | 'p2p';
-
-/**
  * File transfer request payload
  */
 export interface FileTransferRequestData {
@@ -94,8 +89,6 @@ export interface FileTransferRequestData {
   file_size: number;
   file_type: string;
   thumbnail?: string;        // Base64 for images
-  transfer_mode: FileTransferMode;
-  virtual_path?: string;     // For async mode - server storage path
   expiry_timestamp?: number; // When the request expires
   timestamp: number;
 }
@@ -352,18 +345,15 @@ export function createCheckStateResponse(): MessagingLayer {
  * @param file_name - Name of the file being transferred
  * @param file_size - Size in bytes
  * @param file_type - MIME type of the file
- * @param transfer_mode - 'async' for server-mediated, 'p2p' for direct
- * @param options - Optional parameters (thumbnail, virtual_path, expiry)
+ * @param options - Optional parameters (thumbnail, expiry)
  */
 export function createFileTransferRequest(
   file_name: string,
   file_size: number,
   file_type: string,
-  transfer_mode: FileTransferMode,
   options?: {
     transfer_id?: string;
     thumbnail?: string;
-    virtual_path?: string;
     expiry_timestamp?: number;
   }
 ): MessagingLayer {
@@ -374,8 +364,6 @@ export function createFileTransferRequest(
     file_size,
     file_type,
     thumbnail: options?.thumbnail,
-    transfer_mode,
-    virtual_path: options?.virtual_path,
     expiry_timestamp: options?.expiry_timestamp,
     timestamp: Date.now()
   };

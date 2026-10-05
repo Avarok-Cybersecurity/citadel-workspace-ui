@@ -25,9 +25,9 @@ import type { P2PMessage } from '../../p2p/p2p-types';
 function transfer(): FileTransfer {
   return {
     id: 'transfer-1', fileName: 'notes.md', fileSize: 4, fileType: 'text/markdown',
-    mode: 'async', state: 'staged', progress: 0,
+    state: 'staged', progress: 0,
     senderCid: '7', recipientCid: '42',
-    createdAt: 0, updatedAt: 0, isIncoming: false, virtualPath: '/transfers/transfer-1/notes.md',
+    createdAt: 0, updatedAt: 0, isIncoming: false,
   };
 }
 

@@ -5,7 +5,6 @@
  * Used by the RealProtocolIORouter implementation.
  */
 
-import type { FileTransferMode } from '@/types/messaging-layer';
 
 // ============================================================================
 // FileSource Enum (matches Rust definition)
@@ -42,8 +41,6 @@ export interface SendFileParams {
   cid: bigint;
   /** Recipient's CID (null for C2S server storage) */
   peerCid: bigint | null;
-  /** Transfer mode */
-  mode: FileTransferMode;
   /** Client-generated transfer ID for correlation */
   transferId: string;
   /** Optional chunk size override */
@@ -125,14 +122,10 @@ export interface TransferRequestEvent {
   fileSize?: number;
   /** MIME type (only in message-based) */
   fileType?: string;
-  /** Transfer mode */
-  transferMode?: FileTransferMode;
   /** Thumbnail data (only in message-based) */
   thumbnail?: string;
   /** Expiry timestamp (only in message-based) */
   expiresAt?: number;
-  /** Virtual path for async mode (only in message-based) */
-  virtualPath?: string;
 }
 
 export interface TransferProgressEvent {

@@ -29,7 +29,7 @@ export async function executeSendTransferRequest(
   // synthesised empty File flow through to the router.
   if (!file) {
     throw new Error(
-      `executeSendTransferRequest requires a File (transferId=${transfer.id}, mode=${transfer.mode})`,
+      `executeSendTransferRequest requires a File (transferId=${transfer.id}})`,
     );
   }
 
@@ -50,7 +50,6 @@ export async function executeSendTransferRequest(
     source: file,
     cid: BigInt(transfer.senderCid),
     peerCid: BigInt(transfer.recipientCid),
-    mode: transfer.mode,
     transferId: transfer.id,
     metadata: {
       fileName: transfer.fileName,
@@ -74,7 +73,6 @@ export async function executeSendTransferRequest(
 export async function announceTransfer(transfer: FileTransfer): Promise<void> {
   debugLog('FileTransferIO', `announceTransfer: ${transfer.fileName} -> ${transfer.recipientCid}`, {
     transferId: transfer.id,
-    mode: transfer.mode,
   });
   const announcement: P2PMessagingLayerPayload = buildTransferAnnouncement(transfer);
   await sendLayerPayload(announcement);

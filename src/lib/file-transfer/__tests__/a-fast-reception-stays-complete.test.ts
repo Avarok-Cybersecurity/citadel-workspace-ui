@@ -125,8 +125,7 @@ describe('a send that completes during the cancel signal', () => {
   it('keeps its completion rather than being rewritten as cancelled', async () => {
     const state: FileTransferState = new FileTransferState();
     const outgoing: FileTransfer = {
-      id: 'out-1', fileName: 'a.bin', fileSize: 3000, fileType: '', mode: 'p2p',
-      state: 'transferring', progress: 0, senderCid: '7', recipientCid: '42',
+      id: 'out-1', fileName: 'a.bin', fileSize: 3000, fileType: '',       state: 'transferring', progress: 0, senderCid: '7', recipientCid: '42',
       createdAt: 0, updatedAt: 0, isIncoming: false,
     };
     state.setTransfer(outgoing);

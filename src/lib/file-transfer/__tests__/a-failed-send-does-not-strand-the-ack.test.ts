@@ -41,7 +41,7 @@ import type { FileTransfer } from '../types';
 function chatTransfer(): FileTransfer {
   return {
     id: 'transfer-1', fileName: 'notes.md', fileSize: 4, fileType: 'text/markdown',
-    mode: 'p2p', state: 'pending', progress: 0,
+    state: 'pending', progress: 0,
     senderCid: '7', recipientCid: '42',
     createdAt: 0, updatedAt: 0, isIncoming: false,
   };

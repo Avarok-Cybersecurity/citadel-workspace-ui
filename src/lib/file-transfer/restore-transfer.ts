@@ -64,7 +64,6 @@ export function restoreTransfer(raw: Partial<FileTransfer>): FileTransfer | null
     fileName: raw.fileName,
     fileSize: raw.fileSize ?? 0,
     fileType: raw.fileType ?? '',
-    mode: raw.mode ?? 'p2p',
     state: interrupted ? 'error' : raw.state,
     // A restored transfer has no live progress. Keeping the last number would
     // leave a bar that looks like it is about to finish and never will.
@@ -79,7 +78,7 @@ export function restoreTransfer(raw: Partial<FileTransfer>): FileTransfer | null
     // and operated on nothing -- a button that reads as working and does not.
     // FilesSection surfaces it as `savedTo`. Only meaningful for a transfer
     // that actually finished, which is what `interrupted` decides.
-    ...(interrupted ? {} : { downloadPath: raw.downloadPath, virtualPath: raw.virtualPath }),
+    ...(interrupted ? {} : { downloadPath: raw.downloadPath }),
     ...(interrupted
       ? { errorMessage: 'Interrupted when the page reloaded. Ask them to send it again.' }
       : {}),

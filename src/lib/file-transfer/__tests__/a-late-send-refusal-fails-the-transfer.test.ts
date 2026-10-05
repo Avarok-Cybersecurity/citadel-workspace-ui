@@ -30,7 +30,7 @@ const { FileTransferIO } = await import('../io');
 const REFUSAL: string = 'File transfer is not enabled for this p2p session. Both nodes must use a filesystem backend';
 
 async function sendOne(io: InstanceType<typeof FileTransferIO>, transferId: string): Promise<string> {
-  await io.sendFile({ source: '/tmp/a.bin', cid: 7n, peerCid: 42n, mode: 'p2p', transferId,
+  await io.sendFile({ source: '/tmp/a.bin', cid: 7n, peerCid: 42n, transferId,
     metadata: { fileName: 'a.bin', fileSize: 3, fileType: 'application/octet-stream' } });
   return sent[sent.length - 1].SendFile.request_id;
 }

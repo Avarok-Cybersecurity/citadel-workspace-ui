@@ -26,7 +26,7 @@ import { eventEmitter } from '@/lib/event-emitter';
 
 function record(id: string, state: FileTransfer['state'], errorMessage?: string): FileTransfer {
   return {
-    id, fileName: 'plan.pdf', fileSize: 2048, fileType: 'application/pdf', mode: 'p2p', state, progress: 0,
+    id, fileName: 'plan.pdf', fileSize: 2048, fileType: 'application/pdf', state, progress: 0,
     senderCid: '1', recipientCid: '2', createdAt: 0, updatedAt: 0, isIncoming: false, errorMessage,
   };
 }

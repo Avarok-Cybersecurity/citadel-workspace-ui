@@ -19,7 +19,7 @@ import { FILE_TRANSFER_EVENTS } from './events';
 import type { IFileTransferIORouter } from './io-router';
 import type {
   FileTransfer, FileTransferSettings, TransferProgressEvent,
-  TransferModePreference, IncomingFileTransferMessage,
+  IncomingFileTransferMessage,
 } from './types';
 import { debugLog } from '@/lib/debug-config';
 import { handleTransferRequest, handleTransferResponse } from './async-transfers';
@@ -90,7 +90,7 @@ export class FileTransferService {
   }
 
   async sendFile(recipientCid: string, file: File): Promise<string> {
-    return sendFile(this.deps, recipientCid, file, 'p2p');
+    return sendFile(this.deps, recipientCid, file);
   }
 
   /** Offer `recipientCid` a file the agent holds; see send-agent-file.ts. */
@@ -115,7 +115,6 @@ export class FileTransferService {
   // Settings -- scoped per account; see settings-key.ts.
   getSettings(peerCid: string): FileTransferSettings { return this.state.getSettings(scopedSettingsKey(peerCid)); }
   getAutoAccept(peerCid: string): boolean { return this.state.getSettings(scopedSettingsKey(peerCid)).autoAccept; }
-  getTransferMode(peerCid: string): TransferModePreference { return this.state.getSettings(scopedSettingsKey(peerCid)).transferMode; }
 
   private async updateSetting<K extends keyof FileTransferSettings>(
     peerCid: string, key: K, value: FileTransferSettings[K]
@@ -129,7 +128,6 @@ export class FileTransferService {
 
   async setAutoAccept(peerCid: string, enabled: boolean): Promise<void> { return this.updateSetting(peerCid, 'autoAccept', enabled); }
   async setMaxFileSize(peerCid: string, maxBytes: number): Promise<void> { return this.updateSetting(peerCid, 'maxFileSize', maxBytes); }
-  async setTransferMode(peerCid: string, mode: TransferModePreference): Promise<void> { return this.updateSetting(peerCid, 'transferMode', mode); }
   async setAllowRevfsStorage(peerCid: string, allowed: boolean): Promise<void> { return this.updateSetting(peerCid, 'allowRevfsStorage', allowed); }
   async setRevfsQuota(peerCid: string, quotaBytes: number): Promise<void> { return this.updateSetting(peerCid, 'revfsQuota', quotaBytes); }
 

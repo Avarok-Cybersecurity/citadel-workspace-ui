@@ -21,8 +21,7 @@ const persisted = (over: Record<string, unknown> = {}): Partial<FileTransfer> =>
   fileType: 'text/markdown',
   state: 'complete',
   isIncoming: true,
-  mode: 'p2p',
-  createdAt: 1,
+    createdAt: 1,
   updatedAt: 2,
   ...over,
 }) as Partial<FileTransfer>;
@@ -78,6 +77,5 @@ describe('restoring a transfer after a reload', () => {
     const restored: FileTransfer | null = restoreTransfer({ id: 't', fileName: 'x', state: 'complete' });
     expect(restored).not.toBeNull();
     expect(restored?.fileSize).toBe(0);
-    expect(restored?.mode).toBe('p2p');
   });
 });

@@ -3,7 +3,7 @@
 import { eventEmitter } from '../event-emitter';
 import { scopedSettingsKey } from './settings-key';
 import { getMimeType, formatBytes } from './transfer-format';
-import { type FileTransferMode, FILE_TRANSFER_REQUEST_TTL_MS } from '@/types/messaging-layer';
+import { FILE_TRANSFER_REQUEST_TTL_MS } from '@/types/messaging-layer';
 import { FILE_TRANSFER_EVENTS } from './events';
 import { isTerminalTransferState, isStillOpen } from './transfer-outcome';
 import type { FileTransferState } from './state';
@@ -26,7 +26,6 @@ export async function sendFile(
   deps: LifecycleDeps,
   recipientCid: string,
   file: File,
-  mode: FileTransferMode
 ): Promise<string> {
   const senderCid: bigint | null = await deps.io.getCurrentCid();
   if (!senderCid) {
@@ -74,7 +73,6 @@ export async function sendFile(
     fileSize: file.size,
     fileType: file.type,
     thumbnail,
-    mode,
     state: 'pending',
     progress: 0,
     senderCid: senderCid.toString(),
@@ -88,8 +86,8 @@ export async function sendFile(
   deps.state.setTransfer(transfer);
   await deps.saveTransfer(transfer);
 
-  // Both modes hand the bytes to the protocol's FileTransfer -- the one route
-  // whose result the recipient can open. "Standard" used to stage them as a
+  // The bytes go over the protocol's FileTransfer -- the one route whose
+  // result the recipient can open. A "standard" mode once staged them as a
   // RE-VFS push into the recipient's node and have the recipient pull them
   // back; a RE-VFS object is retrievable only by the node that pushed it, so
   // that pull read the SENDER's disk and failed with its "file not found".

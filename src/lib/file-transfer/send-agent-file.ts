@@ -34,7 +34,6 @@ export async function sendAgentFile(
     fileName: file.name,
     fileSize: file.size,
     fileType: getMimeType(file.name),
-    mode: 'p2p',
     // 'pending' — nothing is moving yet. The recipient has not accepted, and
     // the protocol tick stream (which is what moves this to 'transferring')
     // only starts once they do.

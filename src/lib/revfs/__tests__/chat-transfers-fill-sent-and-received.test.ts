@@ -20,7 +20,7 @@ import type { RevfsService } from '../revfs-service';
 function transfer(over: Partial<FileTransfer>): FileTransfer {
   return {
     id: 't-1', fileName: 'report.pdf', fileSize: 10, fileType: 'application/pdf',
-    mode: 'p2p', state: 'complete', progress: 100,
+    state: 'complete', progress: 100,
     senderCid: ALICE.toString(), recipientCid: BOB.toString(),
     createdAt: 1, updatedAt: 2, isIncoming: false, ...over,
   };

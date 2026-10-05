@@ -1,4 +1,4 @@
-import { X, Check, Zap } from 'lucide-react';
+import { X, Check } from 'lucide-react';
 import { getBubbleStyles, BUBBLE_MAX_WIDTH , type FileTransferBubbleProps } from './types';
 import { BubbleFooter } from './BubbleFooter';
 import { debugLog } from '@/lib/debug-config';
@@ -55,7 +55,6 @@ export function FileTransferBubble({
   const fileName: string = message.file_name || 'Unknown file';
   const fileSize: number = message.file_size || 0;
   const fileType: string = message.file_type || 'application/octet-stream';
-  const transferMode: "async" | "p2p" = message.transfer_mode || 'async';
 
   const status: StatusContent = getStatusContent(state, isOwn, view.reason);
 
@@ -108,12 +107,6 @@ export function FileTransferBubble({
             <p className="font-medium text-sm truncate">{fileName}</p>
             <div className="flex items-center gap-2 text-xs opacity-70">
               <span>{formatBytes(fileSize)}</span>
-              {transferMode === 'p2p' && (
-                <span className="flex items-center gap-1 text-warning-emphasis">
-                  <Zap className="h-3 w-3" />
-                  P2P
-                </span>
-              )}
             </div>
           </div>
         </div>

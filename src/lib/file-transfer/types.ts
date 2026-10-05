@@ -4,7 +4,7 @@
  * Type definitions for file transfer functionality.
  */
 
-import type { FileTransferState, FileTransferMode } from '@/types/messaging-layer';
+import type { FileTransferState } from '@/types/messaging-layer';
 
 // ============================================================================
 // Core Types
@@ -16,12 +16,10 @@ export interface FileTransfer {
   fileSize: number;
   fileType: string;
   thumbnail?: string;
-  mode: FileTransferMode;
   state: FileTransferState;
   progress: number; // 0-100
   senderCid: string;
   recipientCid: string;
-  virtualPath?: string;
   downloadPath?: string;
   errorMessage?: string;
   createdAt: number;
@@ -30,13 +28,9 @@ export interface FileTransfer {
   isIncoming: boolean; // true if we are the recipient
 }
 
-export type TransferModePreference = 'browser' | 'protocol';
-
 export interface FileTransferSettings {
   autoAccept: boolean;
   maxFileSize: number;
-  // Transfer mode preference
-  transferMode: TransferModePreference; // 'browser' = in-browser (default), 'protocol' = Citadel Protocol
   // RE-VFS settings
   allowRevfsStorage: boolean;
   revfsQuota: number;

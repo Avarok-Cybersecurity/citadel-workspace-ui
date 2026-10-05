@@ -60,17 +60,17 @@ beforeEach((): void => { calls.length = 0; world.failFirstSend = false; });
 
 describe('a file send', () => {
   it('opens the recipient\'s P2P channel before sending anything', async () => {
-    await sendFile(deps(true), '900', file, 'p2p');
+    await sendFile(deps(true), '900', file);
     expect(calls).toEqual(['channel:900', 'intent:send-transfer-request']);
   });
 
   it('does the same for a standard send', async () => {
-    await sendFile(deps(true), '900', file, 'async');
+    await sendFile(deps(true), '900', file);
     expect(calls).toEqual(['channel:900', 'intent:send-transfer-request']);
   });
 
   it('still sends when the channel is not confirmed, so the send reports the real outcome', async () => {
-    await sendFile(deps(false), '900', file, 'p2p');
+    await sendFile(deps(false), '900', file);
     expect(calls).toEqual(['channel:900', 'intent:send-transfer-request']);
   });
 
@@ -97,7 +97,7 @@ describe('a file send', () => {
 
 describe('an in-band file signal', () => {
   const transfer: FileTransfer = {
-    id: 'x', fileName: 'a.txt', fileSize: 3, fileType: 'text/plain', mode: 'p2p', state: 'pending', progress: 0,
+    id: 'x', fileName: 'a.txt', fileSize: 3, fileType: 'text/plain', state: 'pending', progress: 0,
     senderCid: '100', recipientCid: '900', createdAt: 0, updatedAt: 0, isIncoming: false,
   };
 

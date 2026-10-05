@@ -1,6 +1,5 @@
-import { useState, useRef, useCallback, type RefObject, type DragEvent, type Dispatch, type SetStateAction } from 'react';
+import { useState, useRef, useCallback, type RefObject, type DragEvent } from 'react';
 import { formatBytes } from '@/lib/format-bytes';
-import type { FileTransferMode } from '@/types/messaging-layer';
 import { fileTransferService } from '@/lib/file-transfer';
 import { MAX_BYTE_CONTENTS_SIZE_BYTES } from '@/lib/file-transfer/send-operations';
 import { debugLog } from '@/lib/debug-config';
@@ -16,8 +15,6 @@ interface UseFileTransferOptions {
 export interface UseFileTransferResult {
   selectedFile: File | null;
   previewUrl: string | null;
-  transferMode: FileTransferMode;
-  setTransferMode: Dispatch<SetStateAction<FileTransferMode>>;
   isDragging: boolean;
   isSending: boolean;
   isPickingFile: boolean;
@@ -45,7 +42,6 @@ export function useFileTransfer({
 }: UseFileTransferOptions): UseFileTransferResult {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [transferMode, setTransferMode] = useState<FileTransferMode>('p2p');
   const [isDragging, setIsDragging] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isPickingFile, setIsPickingFile] = useState(false);
@@ -188,8 +184,6 @@ export function useFileTransfer({
   return {
     selectedFile,
     previewUrl,
-    transferMode,
-    setTransferMode,
     isDragging,
     isSending,
     isPickingFile,
