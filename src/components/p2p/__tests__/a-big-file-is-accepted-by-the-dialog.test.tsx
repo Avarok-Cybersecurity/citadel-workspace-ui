@@ -23,7 +23,7 @@ const chosen = (file: File): React.ChangeEvent<HTMLInputElement> =>
 const video: File = new File([new Uint8Array(40 * MB)], 'video.mov', { type: 'video/quicktime' });
 
 function dialog(): ReturnType<typeof renderHook<ReturnType<typeof useFileTransfer>, unknown>> {
-  return renderHook(() => useFileTransfer({ onClose: vi.fn(), onSendFile: vi.fn(async (): Promise<void> => undefined), peerCid: '42' }));
+  return renderHook(() => useFileTransfer({ onClose: vi.fn(), onSendFile: vi.fn(async (): Promise<void> => undefined), peerCid: '42', isOpen: true }));
 }
 
 describe('the Send dialog', () => {

@@ -48,7 +48,7 @@ export function FileTransferModal({
     storageRefusal,
     handleSendToStorage,
     handleClose,
-  } = useFileTransfer({ onClose, onSendFile, peerCid });
+  } = useFileTransfer({ onClose, onSendFile, peerCid, isOpen });
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>

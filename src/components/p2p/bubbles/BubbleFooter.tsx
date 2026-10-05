@@ -15,14 +15,16 @@ interface BubbleFooterProps {
   onRetry?: () => void;
 }
 
+// These ticks show only on the sender's own bubble (bg-primary), where muted measured
+// 1.09:1 light and 2.53:1 dark; they take the bubble's foreground (UX review).
 function getMessageStatusIcon(message: P2PMessage): JSX.Element | null {
   switch (message.status) {
     case 'pending':
-      return <Clock className="h-3 w-3 text-muted-foreground" data-testid="message-status-pending" />;
+      return <Clock className="h-3 w-3 text-primary-foreground" data-testid="message-status-pending" />;
     case 'sent':
-      return <Check className="h-3 w-3 text-muted-foreground" data-testid="message-status-sent" />;
+      return <Check className="h-3 w-3 text-primary-foreground" data-testid="message-status-sent" />;
     case 'delivered':
-      return <CheckCheck className="h-3 w-3 text-muted-foreground" data-testid="message-status-delivered" />;
+      return <CheckCheck className="h-3 w-3 text-primary-foreground" data-testid="message-status-delivered" />;
     case 'read':
       return <CheckCheck className="h-3.5 w-3.5 text-read-receipt" strokeWidth={2.5} data-testid="message-status-read" aria-label="Seen" />;
     case 'failed':

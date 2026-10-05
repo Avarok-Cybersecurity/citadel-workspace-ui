@@ -25,10 +25,15 @@ export interface SendCeiling {
   failure: string | null;
 }
 
-export function useSendCeiling(): SendCeiling {
+/** Asked afresh each time the dialog opens, so "reopen to ask again" is true. */
+export function useSendCeiling(isOpen: boolean): SendCeiling {
   const [ceiling, setCeiling] = useState<SendCeiling>({ stagesUploads: null, failure: null });
   useEffect((): (() => void) => {
     let live: boolean = true;
+    // Cleared first: the status element is empty when the answer (or failure) arrives,
+    // so the change is what a screen reader announces.
+    setCeiling({ stagesUploads: null, failure: null });
+    if (!isOpen) return (): void => { live = false; };
     askBounded().then(
       (stages: boolean): void => { if (live) setCeiling({ stagesUploads: stages, failure: null }); },
       (error: unknown): void => {
@@ -39,6 +44,6 @@ export function useSendCeiling(): SendCeiling {
       },
     );
     return (): void => { live = false; };
-  }, []);
+  }, [isOpen]);
   return ceiling;
 }

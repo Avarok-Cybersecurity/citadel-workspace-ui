@@ -37,13 +37,13 @@ export function useP2PFileTransfer({
 
   const handleSendFile: (file: File) => Promise<void> = useCallback(async (file: File): Promise<void> => {
     try {
-      await fileTransferService.sendFile(peerCid.toString(), file);
+      const id: string = await fileTransferService.sendFile(peerCid.toString(), file);
       // The bubble now carries the send: preparing, then offered. "File Sent" said it was
-      // done while it was still uploading from this tab (UX review).
-      toast({
-        title: `Preparing to send ${file.name}`,
-        description: `Keep this tab open until ${peerName} is offered it.`,
-      });
+      // done while it was still uploading from this tab, and said nothing of a held send.
+      const held: boolean = fileTransferService.getTransfer(id)?.state === 'queued';
+      toast(held
+        ? { title: `Will send ${file.name} when ${peerName} is online`, description: 'Keep this browser open; it goes by itself.' }
+        : { title: `Preparing to send ${file.name}`, description: `Keep this tab open until ${peerName} is offered it.` });
     } catch (error) {
       debugLog('UseP2PFileTransfer', 'Failed to send file:', error);
       toast({

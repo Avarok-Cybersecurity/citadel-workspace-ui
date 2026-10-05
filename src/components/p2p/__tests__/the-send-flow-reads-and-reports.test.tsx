@@ -31,7 +31,7 @@ const MB: number = 1024 * 1024;
 const chosen = (file: File): React.ChangeEvent<HTMLInputElement> =>
   ({ target: { files: [file] } }) as unknown as React.ChangeEvent<HTMLInputElement>;
 const hook = (): ReturnType<typeof renderHook<ReturnType<typeof useFileTransfer>, unknown>> =>
-  renderHook(() => useFileTransfer({ onClose: vi.fn(), onSendFile: vi.fn(async (): Promise<void> => undefined), peerCid: '42' }));
+  renderHook(() => useFileTransfer({ onClose: vi.fn(), onSendFile: vi.fn(async (): Promise<void> => undefined), peerCid: '42', isOpen: true }));
 
 describe('a file chosen before the agent has answered', () => {
   it('waits for the answer, then is judged by it', async () => {
@@ -44,6 +44,21 @@ describe('a file chosen before the agent has answered', () => {
     await act(async () => { say(true); });
     await waitFor(() => expect(result.current.selectedFile?.name).toBe('video.mov'));
     expect(result.current.error).toBeNull();
+  });
+
+  it('asks again each time the dialog opens, so reopening is a real retry', async () => {
+    let asks: number = 0;
+    edge.answer = async (): Promise<boolean> => { asks += 1; throw new Error('agent unreachable'); };
+    const { result, rerender } = renderHook(({ open }: { open: boolean }) =>
+      useFileTransfer({ onClose: vi.fn(), onSendFile: vi.fn(async (): Promise<void> => undefined), peerCid: '42', isOpen: open }), { initialProps: { open: true } });
+    await waitFor(() => expect(result.current.ceilingFailure).not.toBeNull());
+    rerender({ open: false });
+    expect(result.current.ceilingFailure).toBeNull();
+    edge.answer = async (): Promise<boolean> => { asks += 1; return true; };
+    rerender({ open: true });
+    await waitFor(() => expect(result.current.maxFileSizeBytes).toBe(2 * 1024 * MB));
+    expect(result.current.ceilingFailure).toBeNull();
+    expect(asks).toBe(2);
   });
 
   it('says so when the agent could not be asked', async () => {

@@ -13,6 +13,8 @@ interface UseFileTransferOptions {
   onClose: () => void;
   onSendFile: (file: File) => Promise<void>;
   peerCid: string;
+  /** Whether the dialog is showing: the agent is asked again each time it opens. */
+  isOpen: boolean;
 }
 
 export interface UseFileTransferResult {
@@ -48,6 +50,7 @@ export function useFileTransfer({
   onClose,
   onSendFile,
   peerCid,
+  isOpen,
 }: UseFileTransferOptions): UseFileTransferResult {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -62,7 +65,7 @@ export function useFileTransfer({
   // (staged-upload/send-route.ts): 2 GB through an agent that stages uploads,
   // 16 MiB inline through an older one. A file chosen before the agent has said
   // waits for the answer instead of being judged against a guess.
-  const ceiling: SendCeiling = useSendCeiling();
+  const ceiling: SendCeiling = useSendCeiling(isOpen);
   const stagesUploads: boolean | null = ceiling.stagesUploads;
   const maxFileSizeBytes: number | null = stagesUploads === null ? null : browserSendCeiling(stagesUploads);
   const [waitingFile, setWaitingFile] = useState<File | null>(null);
