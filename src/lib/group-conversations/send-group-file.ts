@@ -59,7 +59,7 @@ export async function sendGroupFile(groupId: string, file: File): Promise<ShareF
   return shareFileWithGroup(groupId, group.members, file, {
     selfCid: self,
     isRegistered,
-    sendFile: (recipientCid: string, f: File): Promise<string> => fileTransferService.sendFile(recipientCid, f, 'p2p'),
+    sendFile: (recipientCid: string, f: File): Promise<string> => fileTransferService.sendFile(recipientCid, f),
     announce,
     deliverOwn,
     now: Date.now,

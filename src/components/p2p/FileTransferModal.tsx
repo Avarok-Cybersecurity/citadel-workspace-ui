@@ -17,7 +17,7 @@ import { nativePickerBlockedReason } from './native-picker-reason';
 interface FileTransferModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSendFile: (file: File, mode: FileTransferMode) => Promise<void>;
+  onSendFile: (file: File) => Promise<void>;
   onSendWithNativePicker?: (mode: FileTransferMode) => Promise<void>;
   peerCid: string;
   maxFileSizeMb?: number;

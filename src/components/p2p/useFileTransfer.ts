@@ -8,7 +8,7 @@ import { failureDescription } from '@/lib/p2p/peer-failure-detail';
 
 interface UseFileTransferOptions {
   onClose: () => void;
-  onSendFile: (file: File, mode: FileTransferMode) => Promise<void>;
+  onSendFile: (file: File) => Promise<void>;
   peerCid: string;
   maxFileSizeMb: number;
 }
@@ -166,7 +166,7 @@ export function useFileTransfer({
     setError(null);
 
     try {
-      await onSendFile(selectedFile, transferMode);
+      await onSendFile(selectedFile);
       handleRemoveFile();
       onClose();
     } catch (err) {

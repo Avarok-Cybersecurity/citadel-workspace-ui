@@ -9,7 +9,7 @@ import { bindAccountHistory } from './account-history';
 import { loadPersistedTransfers, persistTransfer, persistSettings } from './transfer-persistence';
 import { eventEmitter } from '../event-emitter';
 import {
-  type MessagingLayer, type FileTransferMode,
+  type MessagingLayer,
   isFileTransferRequest, isFileTransferResponse, isFileTransferCancel,
 } from '@/types/messaging-layer';
 import { FileTransferState } from './state';
@@ -89,8 +89,8 @@ export class FileTransferService {
     };
   }
 
-  async sendFile(recipientCid: string, file: File, mode: FileTransferMode): Promise<string> {
-    return sendFile(this.deps, recipientCid, file, mode);
+  async sendFile(recipientCid: string, file: File): Promise<string> {
+    return sendFile(this.deps, recipientCid, file, 'p2p');
   }
 
   /** Offer `recipientCid` a file the agent holds; see send-agent-file.ts. */

@@ -11,7 +11,6 @@ import type { FileTransfer } from '@/lib/file-transfer/types';
 import { failureDescription } from '@/lib/p2p/peer-failure-detail';
 import { fileTransferService } from '@/lib/file-transfer';
 import { useToast } from '@/hooks/use-toast';
-import type { FileTransferMode } from '@/types/messaging-layer';
 import { debugLog } from '@/lib/debug-config';
 
 interface UseP2PFileTransferProps {
@@ -20,7 +19,7 @@ interface UseP2PFileTransferProps {
 }
 
 interface UseP2PFileTransferReturn {
-  handleSendFile: (file: File, mode: FileTransferMode) => Promise<void>;
+  handleSendFile: (file: File) => Promise<void>;
   handleAcceptTransfer: (transferId: string) => Promise<void>;
   handleDeclineTransfer: (transferId: string) => Promise<void>;
   handleCancelTransfer: (transferId: string) => Promise<void>;
@@ -36,9 +35,9 @@ export function useP2PFileTransfer({
 }: UseP2PFileTransferProps): UseP2PFileTransferReturn {
   const { toast } = useToast();
 
-  const handleSendFile: (file: File, mode: FileTransferMode) => Promise<void> = useCallback(async (file: File, mode: FileTransferMode): Promise<void> => {
+  const handleSendFile: (file: File) => Promise<void> = useCallback(async (file: File): Promise<void> => {
     try {
-      await fileTransferService.sendFile(peerCid.toString(), file, mode);
+      await fileTransferService.sendFile(peerCid.toString(), file);
       toast({
         title: 'File Sent',
         description: `Sending ${file.name} to ${peerName}`,
