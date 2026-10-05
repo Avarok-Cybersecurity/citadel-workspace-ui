@@ -73,11 +73,12 @@ const TABS: InstanceInfo[] = [
 
 describe('which sessions the leader claims', () => {
   it('every other tab CID, not its own, and nothing for a tab with no session yet', () => {
-    expect(cidsToClaim(TABS, 'me', new Set())).toEqual([2n, 3n]);
+    expect(cidsToClaim(TABS, 'me', new Set(), false)).toEqual([2n, 3n]);
+    expect(cidsToClaim(TABS, 'me', new Set(), true)).toEqual([1n, 2n, 3n]);
   });
 
   it('skips what this connection already claimed', () => {
-    expect(cidsToClaim(TABS, 'me', new Set([2n]))).toEqual([3n]);
+    expect(cidsToClaim(TABS, 'me', new Set([2n]), false)).toEqual([3n]);
   });
 
   it('treats "not orphaned" as already held here, and anything else as a failure', () => {
@@ -101,11 +102,11 @@ describe('when the leader connection is replaced', () => {
     expect(w.claims).toEqual([]);
   });
 
-  it('a follower promoted to leader claims the others', async () => {
+  it('a follower promoted to leader claims the others, and its own: the old leader carried it', async () => {
     const w: World = world(TABS, { leader: false });
     w.becomeLeader();
     await w.emit('instance:leader-changed', { isLeader: true, leaderId: 'me' });
-    expect(w.claims).toEqual([2n, 3n]);
+    expect(w.claims).toEqual([1n, 2n, 3n]);
   });
 
   it('claims once per connection, and again after the connection is replaced', async () => {
@@ -115,7 +116,7 @@ describe('when the leader connection is replaced', () => {
     expect(w.claims).toEqual([2n, 3n]);
     await w.emit('websocket-disconnected');
     await w.emit('on-ws-connection-success');
-    expect(w.claims).toEqual([2n, 3n, 2n, 3n]);
+    expect(w.claims).toEqual([2n, 3n, 1n, 2n, 3n]);
   });
 
   it('reports a failed claim and retries it when its tab reports it again', async () => {
@@ -124,6 +125,34 @@ describe('when the leader connection is replaced', () => {
     expect(w.failures).toEqual([3n]);
     await w.emit('instance:registered', { instanceId: 'carol-tab', cid: 3n });
     expect(w.claims).toEqual([2n, 3n, 3n]);
+  });
+});
+
+describe("the leader's own session", () => {
+  // Measured on the live site (Safari, one tab): a file dropped outside a drop zone opened
+  // the file, Back restored the page from the back/forward cache with its socket closed,
+  // the leader re-opened it -- and the next message failed "Session unavailable to this
+  // connection" until a refresh. The page's mount claim had run once, on the first
+  // connection; the replacement claimed the followers' sessions and not its own.
+  it('is left to the page on the first connection, which claims it as the page starts', async () => {
+    const w: World = world(TABS, { leader: true });
+    await w.emit('on-ws-connection-success');
+    expect(w.claims).not.toContain(1n);
+  });
+
+  it('is claimed again on the connection that replaces the one that carried it', async () => {
+    const w: World = world([{ instanceId: 'me', cid: 1n }], { leader: true });
+    await w.emit('on-ws-connection-success');
+    await w.emit('websocket-disconnected');
+    await w.emit('on-ws-connection-success');
+    expect(w.claims).toEqual([1n]);
+  });
+
+  it('is not claimed before the tab holds one', async () => {
+    const w: World = world([{ instanceId: 'me', cid: null }], { leader: true });
+    await w.emit('websocket-disconnected');
+    await w.emit('on-ws-connection-success');
+    expect(w.claims).toEqual([]);
   });
 });
 

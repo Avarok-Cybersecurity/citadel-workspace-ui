@@ -16,15 +16,26 @@
  */
 import type { InstanceInfo } from './instance-manager-types';
 
-/** CIDs held by OTHER tabs that this connection has not yet claimed. */
+/**
+ * CIDs this connection has not yet claimed: other tabs', and this tab's own when `ownToo`.
+ *
+ * This tab's own session is claimed by the page as it starts, over the page's first
+ * connection, and never again. So it is this file's to claim once the connection that
+ * carried it is gone: the socket dropped and was re-opened (an agent restart, a sleep, or
+ * Safari closing it to put the page in its back/forward cache), or this tab was promoted
+ * and its session was on the old leader's socket. Without it the replacement carried every
+ * session but the one on screen, and the agent refused that one's every request ("Session
+ * unavailable to this connection") until the page was reloaded.
+ */
 export function cidsToClaim(
   instances: readonly InstanceInfo[],
   selfInstanceId: string,
   claimedOnThisConnection: ReadonlySet<bigint>,
+  ownToo: boolean,
 ): bigint[] {
   const out: bigint[] = [];
   for (const { instanceId, cid } of instances) {
-    if (instanceId === selfInstanceId || cid === null) continue;
+    if ((instanceId === selfInstanceId && !ownToo) || cid === null) continue;
     if (claimedOnThisConnection.has(cid) || out.includes(cid)) continue;
     out.push(cid);
   }
@@ -73,7 +84,8 @@ function registration(payload: unknown): { instanceId: string; cid: bigint } | n
 /**
  * Wires the decision to its triggers:
  * - this tab's connection (re)opens as leader, or it becomes leader: claim every follower
- *   CID the registry holds, and ask every tab to report in;
+ *   CID the registry holds (and this tab's own, after a replacement), and ask every tab to
+ *   report in;
  * - a tab reports a CID while this tab leads: claim that one;
  * - the connection drops: forget what was claimed, since the next one has claimed nothing.
  *
@@ -88,6 +100,8 @@ function registration(payload: unknown): { instanceId: string; cid: bigint } | n
  */
 export function installFollowerSessionClaims(deps: FollowerClaimDeps): { settle: () => Promise<void> } {
   let claimed: Set<bigint> = new Set<bigint>();
+  /** The connection that carried this tab's own session is gone; see cidsToClaim. */
+  let ownCarriedByAGoneConnection: boolean = false;
   const inFlight: Set<Promise<void>> = new Set<Promise<void>>();
   /** Tabs that have answered the report round in progress, or null between rounds. */
   let answered: Set<string> | null = null;
@@ -119,7 +133,7 @@ export function installFollowerSessionClaims(deps: FollowerClaimDeps): { settle:
 
   const claimAll = (): void => {
     if (!deps.isLeader()) return;
-    for (const cid of cidsToClaim(deps.instances(), deps.selfInstanceId(), claimed)) claimOne(cid);
+    for (const cid of cidsToClaim(deps.instances(), deps.selfInstanceId(), claimed, ownCarriedByAGoneConnection)) claimOne(cid);
     if (answered === null) {
       answered = new Set<string>();
       deps.schedule(expireSilentTabs, deps.reportWindowMs);
@@ -129,7 +143,9 @@ export function installFollowerSessionClaims(deps: FollowerClaimDeps): { settle:
 
   deps.on('on-ws-connection-success', (): void => { claimed = new Set<bigint>(); claimAll(); });
   deps.on('instance:leader-changed', (payload: unknown): void => {
-    if ((payload as { isLeader?: boolean } | null)?.isLeader === true) claimAll();
+    if ((payload as { isLeader?: boolean } | null)?.isLeader !== true) return;
+    ownCarriedByAGoneConnection = true;
+    claimAll();
   });
   deps.on('instance:registered', (payload: unknown): void => {
     const reported: { instanceId: string; cid: bigint } | null = registration(payload);
@@ -138,7 +154,7 @@ export function installFollowerSessionClaims(deps: FollowerClaimDeps): { settle:
     if (!reported || !deps.isLeader() || reported.instanceId === deps.selfInstanceId()) return;
     if (!claimed.has(reported.cid)) claimOne(reported.cid);
   });
-  deps.on('websocket-disconnected', (): void => { claimed = new Set<bigint>(); });
+  deps.on('websocket-disconnected', (): void => { claimed = new Set<bigint>(); ownCarriedByAGoneConnection = true; });
 
   return { settle: async (): Promise<void> => { await Promise.all([...inFlight]); } };
 }
