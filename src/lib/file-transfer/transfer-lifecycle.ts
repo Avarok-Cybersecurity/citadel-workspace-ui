@@ -55,12 +55,9 @@ export async function sendFile(
     );
   }
 
-  const settings: FileTransferSettings = deps.state.getSettings(scopedSettingsKey(recipientCid));
-  if (file.size > settings.maxFileSize) {
-    throw new Error(
-      `File size ${formatBytes(file.size)} exceeds max ${formatBytes(settings.maxFileSize)}`
-    );
-  }
+  // No size check here beyond the browser ceiling (send-transfer-request): the
+  // per-peer "Maximum file size" is what THIS account accepts, applied on accept.
+  // Applied here too, it capped every send at the receiving default.
 
   // A peer known to be offline is not waited for: the send is held at once.
   const peerOnline: boolean | null = deps.queue.peerOnlineStatus(BigInt(recipientCid));

@@ -21,15 +21,15 @@ async function answer(): Promise<unknown> {
 describe('the leader\'s answer to a follower', () => {
   it('says the agent supervises when it does', async (): Promise<void> => {
     await new FakeAgent().greet('supervising');
-    expect(await answer()).toEqual({ agentIlm: false, supervisesP2p: true, noticesHeard: false });
+    expect(await answer()).toEqual({ agentIlm: false, supervisesP2p: true, noticesHeard: false, stagesUploads: false });
   });
   it('says whether a notifier is attached to the agent, as it stands now', async (): Promise<void> => {
     await new FakeAgent().greet('older');
     noticesHeard.set(true);
-    expect(await answer()).toEqual({ agentIlm: false, supervisesP2p: false, noticesHeard: true });
+    expect(await answer()).toEqual({ agentIlm: false, supervisesP2p: false, noticesHeard: true, stagesUploads: false });
   });
   it('says it does not when the agent does not', async (): Promise<void> => {
     await new FakeAgent().greet('older');
-    expect(await answer()).toEqual({ agentIlm: false, supervisesP2p: false, noticesHeard: false });
+    expect(await answer()).toEqual({ agentIlm: false, supervisesP2p: false, noticesHeard: false, stagesUploads: false });
   });
 });

@@ -16,7 +16,6 @@ interface FileTransferModalProps {
   onClose: () => void;
   onSendFile: (file: File) => Promise<void>;
   peerCid: string;
-  maxFileSizeMb?: number;
 }
 
 export function FileTransferModal({
@@ -24,7 +23,6 @@ export function FileTransferModal({
   onClose,
   onSendFile,
   peerCid,
-  maxFileSizeMb = 100,
 }: FileTransferModalProps): JSX.Element {
   const {
     selectedFile,
@@ -48,7 +46,7 @@ export function FileTransferModal({
     storageRefusal,
     handleSendToStorage,
     handleClose,
-  } = useFileTransfer({ onClose, onSendFile, peerCid, maxFileSizeMb });
+  } = useFileTransfer({ onClose, onSendFile, peerCid });
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>

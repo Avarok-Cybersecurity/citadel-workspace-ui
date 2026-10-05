@@ -12,7 +12,7 @@ import { describe, it, expect } from 'vitest';
 import { planChunks, stagingRefusal, STAGED_UPLOAD_CEILING_BYTES, STAGE_CHUNK_BYTES } from '../chunk-plan';
 import { stageFile, type Readable, type StageChunk, type StagePort } from '../stage-file';
 
-const named = (bytes: Uint8Array, name: string): Readable => Object.assign(new Blob([bytes]), { name });
+const named = (bytes: Uint8Array, name: string): Readable => Object.assign(new Blob([bytes as Uint8Array<ArrayBuffer>]), { name });
 
 describe('planChunks', () => {
   it('covers the file exactly once, in order, never over the chunk size', () => {

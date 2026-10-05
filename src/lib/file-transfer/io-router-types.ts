@@ -28,7 +28,9 @@
 export type FileSource =
   | { Path: string }
   | { PickFileRef: { pick_file_request_id: string } }
-  | { ByteContents: { file_name: string; data: number[] } };
+  | { ByteContents: { file_name: string; data: number[] } }
+  /** A browser file staged on the agent in chunks (staged-upload/), complete. */
+  | { StagedUpload: { upload_id: string } };
 
 // ============================================================================
 // Send Operation Types

@@ -19,7 +19,7 @@ export interface QueuedMessage {
  */
 export type ProxyResponseData =
   | { wasOpened: boolean }         // ensureMessengerOpen response
-  | { agentIlm: boolean; supervisesP2p: boolean }  // what the leader's agent said it hosts and supervises
+  | { agentIlm: boolean; supervisesP2p: boolean; stagesUploads: boolean }  // what the leader's agent said it hosts, supervises and stages
   | { success: boolean }           // generic operation result
   | Record<string, unknown>;       // fallback for other operations
 

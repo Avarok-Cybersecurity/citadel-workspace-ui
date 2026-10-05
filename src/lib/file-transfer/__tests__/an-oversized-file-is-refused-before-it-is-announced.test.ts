@@ -18,6 +18,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const announced: unknown[] = [];
+// The agent's greeting is the edge: whether it stages uploads decides the ceiling.
+const agent: { stages: boolean } = vi.hoisted(() => ({ stages: false }));
+vi.mock('@/lib/agent-conversations/capabilities', () => ({ agentStagesUploads: async (): Promise<boolean> => agent.stages }));
 vi.mock('../in-band-signals', () => ({
   sendLayerPayload: async (payload: unknown): Promise<void> => { announced.push(payload); },
 }));
@@ -55,12 +58,20 @@ describe('a p2p send above the inline cap', () => {
   beforeEach((): void => {
     announced.length = 0;
     sendFile.mockClear();
+    agent.stages = false;
   });
 
   it('is refused with the cap and the alternative named', async () => {
     await expect(
       executeSendTransferRequest(router, intent(MAX_BYTE_CONTENTS_BYTES + 1)),
-    ).rejects.toThrow(/inline browser uploads are capped .* native file picker/s);
+    ).rejects.toThrow(/can be up to 16 MB.*Browse Files/s);
+  });
+
+  it('goes ahead through an agent that stages uploads, whose ceiling is 2 GB', async () => {
+    agent.stages = true;
+    await executeSendTransferRequest(router, intent(MAX_BYTE_CONTENTS_BYTES + 1));
+    expect(announced).toHaveLength(1);
+    expect(sendFile).toHaveBeenCalledTimes(1);
   });
 
   it('announces nothing — the recipient must never see an offer for undeliverable bytes', async () => {

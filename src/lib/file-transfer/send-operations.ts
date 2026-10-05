@@ -13,6 +13,10 @@ import { websocketService } from '../websocket-service';
 import type { FileSource, SendFileParams, SendFileResult, CancelTransferParams } from './io-router-types';
 import { debugLog } from '@/lib/debug-config';
 import { TIMEOUT } from '../timeout-constants';
+import { agentStagesUploads } from '../agent-conversations/capabilities';
+import { browserSendRefusal, browserSendRoute } from './staged-upload/send-route';
+import { stageFile } from './staged-upload/stage-file';
+import { agentStagePort } from './staged-upload/stage-port';
 
 /**
  * ONE cap governs every inline `FileSource.ByteContents` payload:
@@ -75,10 +79,17 @@ export async function executeSendFile(
     source = { Path: params.source };
   } else if (params.pickFileRequestId) {
     source = { PickFileRef: { pick_file_request_id: params.pickFileRequestId } };
+  } else if (params.source instanceof File && params.source.size > 0 && browserSendRoute(await agentStagesUploads()) === 'staged') {
+    // Staged on the agent in acknowledged chunks, then sent whole: no frame
+    // ever holds the file. The ceiling was checked before the offer went out.
+    const refusal: string | null = browserSendRefusal(params.source, true);
+    if (refusal !== null) throw new Error(refusal);
+    const port: ReturnType<typeof agentStagePort> = agentStagePort(params.cid, (r: Record<string, unknown>) => websocketService.sendMessage(r));
+    source = { StagedUpload: { upload_id: await stageFile(params.source, port, (): void => undefined) } };
   } else if (params.source instanceof File && params.source.size > 0) {
-    // Size guard: refuse payloads that would OOM the tab when converted
-    // to a boxed-number JS array. Check BEFORE calling arrayBuffer() so
-    // we fail fast without allocating the buffer at all.
+    // An agent that does not stage takes the file inline, in one frame. Size
+    // guard first: refuse payloads that would OOM the tab when converted to a
+    // boxed-number JS array, before arrayBuffer() allocates anything.
     assertInlineSendable(params.source);
 
     // Read browser File as bytes and send as ByteContents
@@ -115,7 +126,7 @@ export async function executeSendFile(
   // file as a `data: number[]`, which would dump (potentially secret) file
   // contents into dev logs and allocate/format a huge array on every inline
   // transfer. Log a redacted summary instead.
-  const sourceSummary: { Path: string; } | { PickFileRef: { pick_file_request_id: string; }; } | { kind: "ByteContents"; fileName: string; byteLength: number; } =
+  const sourceSummary: Exclude<FileSource, { ByteContents: unknown }> | { kind: "ByteContents"; fileName: string; byteLength: number; } =
     'ByteContents' in source
       ? {
           kind: 'ByteContents' as const,

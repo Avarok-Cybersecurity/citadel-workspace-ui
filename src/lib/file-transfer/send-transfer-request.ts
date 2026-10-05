@@ -12,7 +12,8 @@ import type { FileTransfer, SendTransferRequestIntent } from './types';
 import { debugLog } from '@/lib/debug-config';
 import { buildTransferAnnouncement } from './transfer-announcement';
 import { sendLayerPayload } from './in-band-signals';
-import { assertInlineSendable } from './send-operations';
+import { agentStagesUploads } from '../agent-conversations/capabilities';
+import { browserSendRefusal } from './staged-upload/send-route';
 import type { P2PMessagingLayerPayload } from '@/types/p2p-commands';
 import { eventEmitter } from '../event-emitter';
 import { FILE_TRANSFER_EVENTS, type OfferAnnounced } from './events';
@@ -33,14 +34,15 @@ export async function executeSendTransferRequest(
     );
   }
 
-  // The inline cap, BEFORE the announcement. The router enforces the same cap
+  // The ceiling for the route this agent offers (staged-upload/send-route.ts), BEFORE the announcement. The router enforces the same cap
   // (pre-allocation, in executeSendFile), but that throw lands after
   // `announceTransfer` below has already told the recipient the file is
   // coming: they were left a live-looking 7-day offer for bytes that would
   // never arrive, and the sender a 'pending' record nothing ever errored.
   // The empty-file case had the identical shape and was moved ahead of the
   // announcement; this is the size guard's turn.
-  assertInlineSendable(file);
+  const refusal: string | null = browserSendRefusal(file, await agentStagesUploads());
+  if (refusal !== null) throw new Error(refusal);
 
   // Announce before sending the bytes, so the conversation shows the transfer
   // by the time the protocol notification and progress ticks arrive.
