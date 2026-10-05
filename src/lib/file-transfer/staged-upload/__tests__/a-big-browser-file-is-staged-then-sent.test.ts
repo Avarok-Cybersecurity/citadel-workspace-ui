@@ -42,32 +42,62 @@ if (!Blob.prototype.arrayBuffer) {
   };
 }
 
+vi.mock('../../in-band-signals', () => ({
+  sendLayerPayload: async (): Promise<void> => { world.frames.push({ Announcement: true }); },
+}));
+
 const { executeSendFile } = await import('../../send-operations');
+const { executeSendTransferRequest } = await import('../../send-transfer-request');
+import { wrapInMemory, type FileTransfer, type StagingHooks } from '../../types';
+import type { RealProtocolIORouter } from '../../real-protocol-io-router';
 
 const MB: number = 1024 * 1024;
 const video: File = new File([new Uint8Array(17 * MB)], 'video.mov');
+const transfer: FileTransfer = {
+  id: 't1', fileName: 'video.mov', fileSize: video.size, fileType: '', state: 'preparing', progress: 0,
+  senderCid: '7', recipientCid: '42', createdAt: 0, updatedAt: 0, isIncoming: false,
+};
+// The real router's send, over the stood-in socket.
+const router: RealProtocolIORouter = { sendFile: executeSendFile } as unknown as RealProtocolIORouter;
+
+function hooks(progress: number[], staged: string[]): StagingHooks {
+  return {
+    signal: new AbortController().signal,
+    onProgress: (bytes: number): void => { progress.push(bytes); },
+    onStaged: (): void => { staged.push(`staged after ${world.frames.length} frames`); },
+  };
+}
 
 beforeEach((): void => { world.frames = []; });
 
 describe('a browser file through a staging agent', () => {
-  it('is staged in chunks no larger than 1 MiB, then sent by its upload id', async () => {
+  it('is staged in chunks no larger than 1 MiB, THEN offered, then sent by its upload id', async () => {
     world.stages = true;
-    await executeSendFile({ source: video, cid: 7n, peerCid: 42n, transferId: 't1' } as Parameters<typeof executeSendFile>[0]);
+    const progress: number[] = [];
+    const staged: string[] = [];
+    await executeSendTransferRequest(router, {
+      type: 'send-transfer-request', transfer, file: wrapInMemory(video), offerAlreadyShown: true, staging: hooks(progress, staged),
+    });
 
     const chunks: Array<Record<string, unknown>> = world.frames.filter((f) => 'StageUploadChunk' in f).map((f) => f.StageUploadChunk as Record<string, unknown>);
-    const send: Record<string, unknown> = world.frames.find((f) => 'SendFile' in f)?.SendFile as Record<string, unknown>;
+    const announced: number = world.frames.findIndex((f) => 'Announcement' in f);
+    const sent: number = world.frames.findIndex((f) => 'SendFile' in f);
     expect(chunks).toHaveLength(17);
     expect(chunks.every((c) => (c.data as number[]).length <= MB)).toBe(true);
-    expect(send.source).toEqual({ StagedUpload: { upload_id: chunks[0].upload_id } });
-    expect(world.frames.indexOf(world.frames.find((f) => 'SendFile' in f)!)).toBe(17);
+    expect(announced, 'nobody may be offered bytes the agent does not hold yet').toBe(17);
+    expect(sent).toBe(18);
+    expect((world.frames[sent].SendFile as Record<string, unknown>).source).toEqual({ StagedUpload: { upload_id: chunks[0].upload_id } });
+    expect(progress.at(-1)).toBe(video.size);
+    expect(staged).toEqual(['staged after 17 frames']);
   });
 });
 
 describe('the same file through an older agent', () => {
   it('is refused before any frame leaves', async () => {
     world.stages = false;
-    await expect(executeSendFile({ source: video, cid: 7n, peerCid: 42n, transferId: 't2' } as Parameters<typeof executeSendFile>[0]))
-      .rejects.toThrow(/inline browser uploads are capped/);
+    await expect(executeSendTransferRequest(router, {
+      type: 'send-transfer-request', transfer, file: wrapInMemory(video), offerAlreadyShown: true, staging: hooks([], []),
+    })).rejects.toThrow(/up to 16 MB/);
     expect(world.frames).toHaveLength(0);
   });
 });

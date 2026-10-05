@@ -9,10 +9,13 @@ import { isTerminalTransferState, isStillOpen } from './transfer-outcome';
 import type { FileTransferState } from './state';
 import type { FileTransferIO } from './io';
 import type { FileTransfer, FileTransferSettings } from './types';
-import { wrapInMemory } from './types';
 import { openChannelBeforeSending } from './open-peer-channel';
 import { shouldQueue } from './send-queue';
 import { holdUntilOnline, type SendQueuePort } from './send-queue-hold';
+import { deliverSend, stopStaging } from './deliver-send';
+import { buildTransferAnnouncement } from './transfer-announcement';
+import { showOwnOffer } from './send-transfer-request';
+import { browserSendRefusal } from './staged-upload/send-route';
 
 export interface LifecycleDeps {
   state: FileTransferState;
@@ -24,6 +27,8 @@ export interface LifecycleDeps {
   openPeerChannel: (peerCid: bigint) => Promise<boolean>;
   /** Holds a send for an offline peer; see send-queue.ts. */
   queue: SendQueuePort;
+  /** Whether the agent stages browser files (its greeting); decides the ceiling. */
+  agentStagesUploads: () => Promise<boolean>;
 }
 
 export async function sendFile(
@@ -54,6 +59,11 @@ export async function sendFile(
         `add some content and try again.`
     );
   }
+
+  // The ceiling, while the dialog is still open to say so: the send itself runs
+  // behind the bubble and would only be able to fail there.
+  const tooLarge: string | null = browserSendRefusal(file, await deps.agentStagesUploads());
+  if (tooLarge !== null) throw new Error(tooLarge);
 
   // No size check here beyond the browser ceiling (send-transfer-request): the
   // per-peer "Maximum file size" is what THIS account accepts, applied on accept.
@@ -88,32 +98,16 @@ export async function sendFile(
 
   if (shouldQueue(peerOnline, channelOpened)) return holdUntilOnline(deps, transfer, file);
 
+  // The bubble appears now, 'preparing', and the dialog is done: staging a large
+  // file and offering it happen behind it, visibly (deliver-send.ts). The bytes go
+  // over the protocol's FileTransfer -- the one route whose result the recipient
+  // can open.
+  transfer.state = 'preparing';
   deps.state.setTransfer(transfer);
   await deps.saveTransfer(transfer);
-
-  // The bytes go over the protocol's FileTransfer -- the one route whose
-  // result the recipient can open. A "standard" mode once staged them as a
-  // RE-VFS push into the recipient's node and have the recipient pull them
-  // back; a RE-VFS object is retrievable only by the node that pushed it, so
-  // that pull read the SENDER's disk and failed with its "file not found".
-  //
-  // `wrapInMemory` brands the File for the intent's `file?: InMemoryOnly<File>`
-  // contract — see `types.ts` for why a raw `File` would be a TS error here.
-  // Marked failed on a throw: the record was saved above, and a refused send
-  // must not sit on 'pending' with nothing shown to the user.
-  try {
-    await deps.io.executeIntent({ type: 'send-transfer-request', transfer, file: wrapInMemory(file), offerAlreadyShown: false });
-  } catch (error) {
-    transfer.state = 'error';
-    transfer.errorMessage = error instanceof Error ? error.message : 'SendFile failed';
-    transfer.updatedAt = Date.now();
-    await deps.saveTransfer(transfer);
-    deps.emitStateChange(transfer);
-    throw error;
-  }
-
+  showOwnOffer(buildTransferAnnouncement(transfer), transfer);
   deps.emitStateChange(transfer);
-  eventEmitter.emit(FILE_TRANSFER_EVENTS.REQUEST_SENT, transfer);
+  void deliverSend(deps, transfer, file);
 
   return transferId;
 }
@@ -131,8 +125,11 @@ export async function cancelTransfer(deps: LifecycleDeps, transferId: string): P
   if (isTerminalTransferState(transfer.state)) return;
 
   // A held send was never offered, so there is nobody to tell; drop its File.
+  // One still staging was not offered either: stop the upload to the agent.
   if (transfer.state === 'queued') {
     await deps.queue.release(transferId);
+  } else if (transfer.state === 'preparing') {
+    stopStaging(transferId);
   } else {
     await deps.io.executeIntent({
       type: 'send-cancel',

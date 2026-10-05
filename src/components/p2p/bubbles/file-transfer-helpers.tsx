@@ -40,6 +40,15 @@ export function getStatusContent(state: string, isOwn: boolean, reason: string |
         showAcceptDecline: true
       };
 
+    case 'preparing':
+      // Only the sender has this state: the file is going to their agent first.
+      return {
+        icon: <Clock className="h-4 w-4 text-primary-accent animate-spin" />,
+        text: 'Preparing to send...',
+        showProgress: true,
+        showCancel: true
+      };
+
     case 'queued':
       // Only the sender holds a send; the recipient has not been told of it yet.
       return {

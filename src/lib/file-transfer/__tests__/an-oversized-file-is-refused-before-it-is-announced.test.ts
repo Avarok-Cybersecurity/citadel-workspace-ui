@@ -18,9 +18,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const announced: unknown[] = [];
-// The agent's greeting is the edge: whether it stages uploads decides the ceiling.
+// The agent's greeting is the edge: this suite is about the inline route (an agent that
+// does not stage). The staged route: staged-upload/__tests__/a-big-browser-file-is-staged-then-sent.
 const agent: { stages: boolean } = vi.hoisted(() => ({ stages: false }));
-vi.mock('@/lib/agent-conversations/capabilities', () => ({ agentStagesUploads: async (): Promise<boolean> => agent.stages }));
+vi.mock('@/lib/agent-conversations/capabilities', async (importOriginal: () => Promise<Record<string, unknown>>) => ({
+  ...(await importOriginal()),
+  agentStagesUploads: async (): Promise<boolean> => agent.stages,
+}));
 vi.mock('../in-band-signals', () => ({
   sendLayerPayload: async (payload: unknown): Promise<void> => { announced.push(payload); },
 }));
@@ -48,7 +52,7 @@ function file(size: number): File {
 }
 
 function intent(size: number): SendTransferRequestIntent {
-  return { type: 'send-transfer-request', offerAlreadyShown: false, transfer: transfer(size), file: wrapInMemory(file(size)) };
+  return { type: 'send-transfer-request', offerAlreadyShown: false, staging: { signal: new AbortController().signal, onProgress: (): void => undefined, onStaged: (): void => undefined }, transfer: transfer(size), file: wrapInMemory(file(size)) };
 }
 
 describe('a p2p send above the inline cap', () => {
@@ -67,12 +71,6 @@ describe('a p2p send above the inline cap', () => {
     ).rejects.toThrow(/can be up to 16 MB.*Browse Files/s);
   });
 
-  it('goes ahead through an agent that stages uploads, whose ceiling is 2 GB', async () => {
-    agent.stages = true;
-    await executeSendTransferRequest(router, intent(MAX_BYTE_CONTENTS_BYTES + 1));
-    expect(announced).toHaveLength(1);
-    expect(sendFile).toHaveBeenCalledTimes(1);
-  });
 
   it('announces nothing — the recipient must never see an offer for undeliverable bytes', async () => {
     // The whole defect: the announcement reached the peer before the throw,

@@ -144,6 +144,8 @@ describe('a send that completes during the cancel signal', () => {
       saveSettings: async (): Promise<void> => undefined,
       // Cancel never opens a channel; present because the port requires it.
       openPeerChannel: async (): Promise<boolean> => true,
+      // An agent that does not stage uploads: the inline route, 16 MB.
+      agentStagesUploads: async (): Promise<boolean> => false,
       queue: ONLINE_PEER_QUEUE,
     };
 

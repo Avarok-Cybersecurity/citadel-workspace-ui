@@ -13,10 +13,6 @@ import { websocketService } from '../websocket-service';
 import type { FileSource, SendFileParams, SendFileResult, CancelTransferParams } from './io-router-types';
 import { debugLog } from '@/lib/debug-config';
 import { TIMEOUT } from '../timeout-constants';
-import { agentStagesUploads } from '../agent-conversations/capabilities';
-import { browserSendRefusal, browserSendRoute } from './staged-upload/send-route';
-import { stageFile } from './staged-upload/stage-file';
-import { agentStagePort } from './staged-upload/stage-port';
 
 /**
  * ONE cap governs every inline `FileSource.ByteContents` payload:
@@ -79,13 +75,9 @@ export async function executeSendFile(
     source = { Path: params.source };
   } else if (params.pickFileRequestId) {
     source = { PickFileRef: { pick_file_request_id: params.pickFileRequestId } };
-  } else if (params.source instanceof File && params.source.size > 0 && browserSendRoute(await agentStagesUploads()) === 'staged') {
-    // Staged on the agent in acknowledged chunks, then sent whole: no frame
-    // ever holds the file. The ceiling was checked before the offer went out.
-    const refusal: string | null = browserSendRefusal(params.source, true);
-    if (refusal !== null) throw new Error(refusal);
-    const port: ReturnType<typeof agentStagePort> = agentStagePort(params.cid, (r: Record<string, unknown>) => websocketService.sendMessage(r));
-    source = { StagedUpload: { upload_id: await stageFile(params.source, port, (): void => undefined) } };
+  } else if (params.stagedUploadId !== undefined) {
+    // Staged on the agent in acknowledged chunks before the offer (send-transfer-request).
+    source = { StagedUpload: { upload_id: params.stagedUploadId } };
   } else if (params.source instanceof File && params.source.size > 0) {
     // An agent that does not stage takes the file inline, in one frame. Size
     // guard first: refuse payloads that would OOM the tab when converted to a

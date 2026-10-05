@@ -26,7 +26,12 @@ function lifecycle(transfers: Map<string, FileTransfer>, intents: Array<Record<s
     io: {
       getCurrentCid: async (): Promise<bigint> => 100n,
       generateThumbnail: async (): Promise<string> => 't',
-      executeIntent: async (intent: Record<string, unknown>): Promise<unknown> => { intents.push(intent); return undefined; },
+      // As the real executor does: the agent holds the file (staging), then the offer goes out.
+      executeIntent: async (intent: Record<string, unknown>): Promise<unknown> => {
+        intents.push(intent);
+        (intent.staging as { onStaged?: () => void } | undefined)?.onStaged?.();
+        return undefined;
+      },
     },
     state: {
       setTransfer: (t: FileTransfer): void => { transfers.set(t.id, t); },
@@ -37,6 +42,8 @@ function lifecycle(transfers: Map<string, FileTransfer>, intents: Array<Record<s
     emitStateChange: (): void => undefined,
     saveSettings: async (): Promise<void> => undefined,
     openPeerChannel: async (): Promise<boolean> => true,
+    // An agent that does not stage uploads: the inline route, 16 MB.
+    agentStagesUploads: async (): Promise<boolean> => false,
     queue: ONLINE_PEER_QUEUE,
   } as unknown as LifecycleDeps;
 }
@@ -49,6 +56,7 @@ describe('a standard ("async") send', () => {
 
     expect(intents.map((i) => i.type)).toEqual(['send-transfer-request']);
     expect(intents[0].file).toBeInstanceOf(File);
+    await new Promise((r: (v: unknown) => void) => setTimeout(r, 0));
     expect(transfers.get(id)?.state).toBe('pending');
   });
 });

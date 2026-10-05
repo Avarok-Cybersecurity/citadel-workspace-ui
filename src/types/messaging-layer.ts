@@ -71,6 +71,7 @@ export type PresenceStatus =
  */
 export type FileTransferState =
   | 'queued'       // Held until the recipient is online, then sent
+  | 'preparing'    // Being staged on the sender's agent; not yet offered
   | 'pending'      // Waiting for recipient to accept/decline
   | 'transferring' // Active transfer in progress
   | 'complete'     // Transfer completed successfully
@@ -178,8 +179,6 @@ export type MessagingLayer =
 export function isMessage(layer: MessagingLayer): layer is { type: MessagingLayerType.Message; contents: string; timestamp: number } {
   return layer.type === MessagingLayerType.Message;
 }
-
-
 
 /**
  * Type guard: Check if MessagingLayer is a Typing variant

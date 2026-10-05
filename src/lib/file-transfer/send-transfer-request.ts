@@ -13,7 +13,10 @@ import { debugLog } from '@/lib/debug-config';
 import { buildTransferAnnouncement } from './transfer-announcement';
 import { sendLayerPayload } from './in-band-signals';
 import { agentStagesUploads } from '../agent-conversations/capabilities';
-import { browserSendRefusal } from './staged-upload/send-route';
+import { browserSendRefusal, browserSendRoute } from './staged-upload/send-route';
+import { stageFile } from './staged-upload/stage-file';
+import { agentStagePort } from './staged-upload/stage-port';
+import { websocketService } from '../websocket-service';
 import type { P2PMessagingLayerPayload } from '@/types/p2p-commands';
 import { eventEmitter } from '../event-emitter';
 import { FILE_TRANSFER_EVENTS, type OfferAnnounced } from './events';
@@ -41,8 +44,20 @@ export async function executeSendTransferRequest(
   // never arrive, and the sender a 'pending' record nothing ever errored.
   // The empty-file case had the identical shape and was moved ahead of the
   // announcement; this is the size guard's turn.
-  const refusal: string | null = browserSendRefusal(file, await agentStagesUploads());
+  const stagesUploads: boolean = await agentStagesUploads();
+  const refusal: string | null = browserSendRefusal(file, stagesUploads);
   if (refusal !== null) throw new Error(refusal);
+
+  // Staged before the offer, so nobody can accept bytes the agent does not yet
+  // hold. A large file takes a while; the bubble shows it (deliver-send.ts).
+  let stagedUploadId: string | undefined;
+  if (browserSendRoute(stagesUploads) === 'staged') {
+    const port: ReturnType<typeof agentStagePort> = agentStagePort(
+      BigInt(transfer.senderCid), (r: Record<string, unknown>) => websocketService.sendMessage(r),
+    );
+    stagedUploadId = await stageFile(file, port, intent.staging.onProgress, intent.staging.signal);
+  }
+  intent.staging.onStaged();
 
   // Announce before sending the bytes, so the conversation shows the transfer
   // by the time the protocol notification and progress ticks arrive.
@@ -50,6 +65,7 @@ export async function executeSendTransferRequest(
 
   await router.sendFile({
     source: file,
+    stagedUploadId,
     cid: BigInt(transfer.senderCid),
     peerCid: BigInt(transfer.recipientCid),
     transferId: transfer.id,

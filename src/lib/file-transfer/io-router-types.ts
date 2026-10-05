@@ -51,6 +51,8 @@ export interface SendFileParams {
   metadata?: FileMetadata;
   /** PickFile request ID (for real protocol with PickFileRef) */
   pickFileRequestId?: string;
+  /** The browser file is already staged on the agent under this upload id (staged-upload/). */
+  stagedUploadId?: string;
 }
 
 export interface FileMetadata {

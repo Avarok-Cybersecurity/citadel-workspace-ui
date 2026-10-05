@@ -88,12 +88,19 @@ function world(peerOnline: boolean | null): World {
     io: {
       getCurrentCid: async (): Promise<bigint> => 7n,
       generateThumbnail: async (): Promise<string> => 't',
-      executeIntent: async (intent: Record<string, unknown>): Promise<unknown> => { intents.push(intent); return undefined; },
+      // As the real executor does: the agent holds the file (staging), then the offer goes out.
+      executeIntent: async (intent: Record<string, unknown>): Promise<unknown> => {
+        intents.push(intent);
+        (intent.staging as { onStaged?: () => void } | undefined)?.onStaged?.();
+        return undefined;
+      },
     },
     emitStateChange: (): void => undefined,
     saveTransfer: async (): Promise<void> => undefined,
     saveSettings: async (): Promise<void> => undefined,
     openPeerChannel: async (): Promise<boolean> => { w.channelWaits += 1; return false; },
+    // An agent that does not stage uploads: the inline route, 16 MB.
+    agentStagesUploads: async (): Promise<boolean> => false,
     queue,
   } as unknown as LifecycleDeps;
   return w;
@@ -142,8 +149,11 @@ describe('a send to an offline peer', () => {
 
   it('is sent at once to a peer known to be online', async () => {
     const w: World = world(true);
-    await sendFile(w.deps, '42', FILE);
-    expect(w.intents).toEqual([expect.objectContaining({ type: 'send-transfer-request', offerAlreadyShown: false })]);
+    const id: string = await sendFile(w.deps, '42', FILE);
+    // The bubble is shown first ('preparing'), so the offer is "already shown" when it goes.
+    await new Promise((r: (v: unknown) => void) => setTimeout(r, 0));
+    expect(w.intents).toEqual([expect.objectContaining({ type: 'send-transfer-request', offerAlreadyShown: true })]);
+    expect(w.deps.state.getTransfer(id)?.state).toBe('pending');
   });
 
   it('comes back from a reload still held, still naming who it waits for', () => {

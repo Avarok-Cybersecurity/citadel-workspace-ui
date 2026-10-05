@@ -103,6 +103,15 @@ export interface SendTransferRequestIntent {
   file?: InMemoryOnly<File>;
   /** True when the sender's own bubble already shows this offer (a held send, released). */
   offerAlreadyShown: boolean;
+  /** For a browser file: the staging's stop signal and progress (deliver-send.ts). */
+  staging: StagingHooks;
+}
+
+export interface StagingHooks {
+  signal: AbortSignal;
+  onProgress: (stagedBytes: number, totalBytes: number) => void;
+  /** The agent holds the whole file: the offer goes out next. */
+  onStaged: () => void;
 }
 
 export interface SendResponseIntent {

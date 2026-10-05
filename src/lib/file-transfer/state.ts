@@ -75,7 +75,7 @@ export class FileTransferState {
 
   getActiveTransfers(): FileTransfer[] {
     return Array.from(this.transfers.values()).filter(
-      t => ['queued', 'pending', 'transferring'].includes(t.state)
+      t => ['queued', 'preparing', 'pending', 'transferring'].includes(t.state)
     );
   }
 

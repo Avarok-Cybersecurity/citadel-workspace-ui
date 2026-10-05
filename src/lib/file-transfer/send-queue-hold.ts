@@ -3,12 +3,12 @@
  * The decisions are send-queue.ts; this applies them to the transfer record.
  */
 import { eventEmitter } from '../event-emitter';
-import { debugLog } from '@/lib/debug-config';
 import { FILE_TRANSFER_EVENTS } from './events';
 import { buildTransferAnnouncement } from './transfer-announcement';
 import { showOwnOffer } from './send-transfer-request';
 import { queueRefusal, queuedFor } from './send-queue';
-import { wrapInMemory, type FileTransfer } from './types';
+import type { FileTransfer } from './types';
+import { deliverSend } from './deliver-send';
 import type { FileTransferState } from './state';
 import type { FileTransferIO } from './io';
 
@@ -62,17 +62,12 @@ export async function releaseHeldSends(deps: HoldDeps, ownCid: string, peerCid: 
       await fail(deps, transfer, 'The file was not kept while it waited (this browser did not store it); send it again.');
       continue;
     }
-    transfer.state = 'pending';
+    transfer.state = 'preparing';
     transfer.updatedAt = Date.now();
     await deps.saveTransfer(transfer);
     deps.emitStateChange(transfer);
-    try {
-      await deps.io.executeIntent({ type: 'send-transfer-request', transfer, file: wrapInMemory(file), offerAlreadyShown: true });
-      await deps.queue.release(transfer.id);
-    } catch (error) {
-      debugLog('SendQueue', 'held send failed when released', error);
-      await fail(deps, transfer, error instanceof Error ? error.message : 'SendFile failed');
-      await deps.queue.release(transfer.id);
-    }
+    // A failure here is the bubble's, recorded by deliverSend.
+    await deliverSend(deps, transfer, file);
+    await deps.queue.release(transfer.id);
   }
 }

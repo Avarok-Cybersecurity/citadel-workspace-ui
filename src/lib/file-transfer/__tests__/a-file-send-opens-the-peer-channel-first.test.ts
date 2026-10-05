@@ -52,6 +52,8 @@ function deps(opened: boolean): LifecycleDeps {
     emitStateChange: (): void => undefined,
     saveSettings: async (): Promise<void> => undefined,
     openPeerChannel: async (cid: bigint): Promise<boolean> => { calls.push(`channel:${cid}`); return opened; },
+    // An agent that does not stage uploads: the inline route, 16 MB.
+    agentStagesUploads: async (): Promise<boolean> => false,
     queue: ONLINE_PEER_QUEUE,
   } as unknown as LifecycleDeps;
 }

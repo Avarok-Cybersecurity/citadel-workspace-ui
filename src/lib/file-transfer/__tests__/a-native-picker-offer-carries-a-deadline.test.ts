@@ -51,6 +51,8 @@ function harness(): Harness {
     saveSettings: async (): Promise<void> => undefined,
     // The channel opens at once here; a-file-send-opens-the-peer-channel-first covers it.
     openPeerChannel: async (): Promise<boolean> => true,
+    // An agent that does not stage uploads: the inline route, 16 MB.
+    agentStagesUploads: async (): Promise<boolean> => false,
     queue: ONLINE_PEER_QUEUE,
   } as unknown as LifecycleDeps;
   return { deps, stored, announcedVia };

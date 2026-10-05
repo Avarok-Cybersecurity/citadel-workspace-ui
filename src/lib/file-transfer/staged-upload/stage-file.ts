@@ -29,12 +29,13 @@ export type StageProgress = (stagedBytes: number, totalBytes: number) => void;
 export type Readable = Pick<Blob, 'size' | 'slice'> & { name: string };
 
 /** Stages `file` and resolves with the upload id `SendFile { StagedUpload }` names. */
-export async function stageFile(file: Readable, port: StagePort, onProgress: StageProgress): Promise<string> {
+export async function stageFile(file: Readable, port: StagePort, onProgress: StageProgress, signal: AbortSignal): Promise<string> {
   const refusal: string | null = stagingRefusal(file.size);
   if (refusal !== null) throw new Error(refusal);
   const uploadId: string = port.newUploadId();
   const spans: ChunkSpan[] = planChunks(file.size, STAGE_CHUNK_BYTES);
   for (const span of spans) {
+    if (signal.aborted) throw new Error('Cancelled before the file was ready.');
     const data: Uint8Array = new Uint8Array(await file.slice(span.offset, span.offset + span.length).arrayBuffer());
     const held: number = await port.sendChunk({
       uploadId, fileName: file.name, totalSize: file.size, offset: span.offset, data,

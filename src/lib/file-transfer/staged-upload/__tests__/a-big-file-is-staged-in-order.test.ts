@@ -12,6 +12,7 @@ import { describe, it, expect } from 'vitest';
 import { planChunks, stagingRefusal, STAGED_UPLOAD_CEILING_BYTES, STAGE_CHUNK_BYTES } from '../chunk-plan';
 import { stageFile, type Readable, type StageChunk, type StagePort } from '../stage-file';
 
+const go: AbortSignal = new AbortController().signal;
 const named = (bytes: Uint8Array, name: string): Readable => Object.assign(new Blob([bytes as Uint8Array<ArrayBuffer>]), { name });
 
 describe('planChunks', () => {
@@ -63,7 +64,7 @@ describe('stageFile', () => {
     const { port, chunks, held } = agent();
     const progress: number[] = [];
 
-    const id: string = await stageFile(file, port, (staged: number) => progress.push(staged));
+    const id: string = await stageFile(file, port, (staged: number) => progress.push(staged), go);
 
     expect(id).toBe('u-1');
     expect(chunks.every((c: StageChunk) => c.data.length <= STAGE_CHUNK_BYTES && c.totalSize === size)).toBe(true);
@@ -86,7 +87,7 @@ describe('stageFile', () => {
         return chunk.offset + chunk.data.length;
       },
     };
-    await stageFile(named(new Uint8Array(3 * STAGE_CHUNK_BYTES), 'a.bin'), port, () => undefined);
+    await stageFile(named(new Uint8Array(3 * STAGE_CHUNK_BYTES), 'a.bin'), port, () => undefined, go);
     expect(most).toBe(1);
   });
 
@@ -96,7 +97,7 @@ describe('stageFile', () => {
       name: 'disk.img', size: STAGED_UPLOAD_CEILING_BYTES + 1,
       slice: (): Blob => { throw new Error('read'); },
     };
-    await expect(stageFile(huge, port, () => undefined)).rejects.toThrow(/2 GB/);
+    await expect(stageFile(huge, port, () => undefined, go)).rejects.toThrow(/2 GB/);
     expect(chunks).toHaveLength(0);
   });
 
@@ -105,6 +106,22 @@ describe('stageFile', () => {
       newUploadId: (): string => 'u-3',
       sendChunk: async (): Promise<number> => { throw new Error('the agent is already holding 2 GB'); },
     };
-    await expect(stageFile(named(new Uint8Array(10), 'a.bin'), port, () => undefined)).rejects.toThrow(/already holding/);
+    await expect(stageFile(named(new Uint8Array(10), 'a.bin'), port, () => undefined, go)).rejects.toThrow(/already holding/);
+  });
+
+  it('stops at the next chunk once cancelled', async () => {
+    const stop: AbortController = new AbortController();
+    const { port, chunks } = agent();
+    const counting: StagePort = {
+      newUploadId: port.newUploadId,
+      sendChunk: async (chunk: StageChunk): Promise<number> => {
+        const held: number = await port.sendChunk(chunk);
+        stop.abort();
+        return held;
+      },
+    };
+    await expect(stageFile(named(new Uint8Array(3 * STAGE_CHUNK_BYTES), 'a.bin'), counting, () => undefined, stop.signal))
+      .rejects.toThrow(/Cancelled/);
+    expect(chunks).toHaveLength(1);
   });
 });
