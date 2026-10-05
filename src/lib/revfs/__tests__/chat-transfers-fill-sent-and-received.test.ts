@@ -28,7 +28,7 @@ function transfer(over: Partial<FileTransfer>): FileTransfer {
 
 /** Lets the async listener and the serial lock run to completion. */
 async function settle(): Promise<void> {
-  for (let i = 0; i < 20; i += 1) await new Promise((r) => setTimeout(r, 0));
+  for (let i: number = 0; i < 20; i += 1) await new Promise((r) => setTimeout(r, 0));
 }
 
 function childrenOf(tree: RevfsNode, path: string): RevfsNode[] {

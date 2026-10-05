@@ -45,6 +45,6 @@ export function recordPathFor(
   const taken: Set<string> = new Set(existing.map((n) => n.name));
   const [stem, ext] = splitName(fileName);
   let candidate: string = fileName;
-  for (let n = 2; taken.has(candidate); n += 1) candidate = `${stem} (${n})${ext}`;
+  for (let n: number = 2; taken.has(candidate); n += 1) candidate = `${stem} (${n})${ext}`;
   return `${dir}/${candidate}`;
 }

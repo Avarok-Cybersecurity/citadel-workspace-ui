@@ -16,7 +16,6 @@ export const FILE_TRANSFER_EVENTS = {
   PROGRESS_UPDATED: 'file-transfer:progress-updated',
   COMPLETED: 'file-transfer:completed',
   CANCELLED: 'file-transfer:cancelled',
-  ERROR: 'file-transfer:error',
 } as const;
 
 export type FileTransferEventType = typeof FILE_TRANSFER_EVENTS[keyof typeof FILE_TRANSFER_EVENTS];

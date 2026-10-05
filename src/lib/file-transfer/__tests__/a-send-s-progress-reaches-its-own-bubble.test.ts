@@ -20,8 +20,8 @@ import { FileTransferState } from '../state';
 import type { FileTransferTickNotification } from '../protocol-types';
 import type { FileTransfer } from '../types';
 
-const ME = 7n;
-const PEER = 42n;
+const ME: bigint = 7n;
+const PEER: bigint = 42n;
 
 function correlation(): TickCorrelation {
   return {

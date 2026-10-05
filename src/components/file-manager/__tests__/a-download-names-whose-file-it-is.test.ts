@@ -8,16 +8,16 @@
  */
 import { describe, it, expect } from 'vitest';
 import { RevfsFileState } from '@/types/revfs-types';
-import { downloadCopy } from '../download-copy';
+import { downloadCopy, type DownloadCopy } from '../download-copy';
 
 describe('the download toast', () => {
   it('calls your own upload yours', () => {
-    const copy = downloadCopy(RevfsFileState.Remote, 'scan.png', 'Thomas Braun');
+    const copy: DownloadCopy = downloadCopy(RevfsFileState.Remote, 'scan.png', 'Thomas Braun');
     expect(copy.description).toBe('Your agent is retrieving your file from the copy Thomas Braun keeps for you.');
   });
 
   it('names the uploader as the sender of their file', () => {
-    const copy = downloadCopy(RevfsFileState.Hosted, 'atlas.png', 'Thomas Braun');
+    const copy: DownloadCopy = downloadCopy(RevfsFileState.Hosted, 'atlas.png', 'Thomas Braun');
     expect(copy.title).toBe('Asking Thomas Braun for atlas.png…');
     expect(copy.description).toMatch(/^Only Thomas Braun's agent can open it/);
   });

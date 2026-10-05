@@ -29,7 +29,10 @@ function fileNode(uploadedBy: bigint, state: RevfsFileState): RevfsNode {
   };
 }
 
-function rig(ownersView: RevfsNode | null, pull: ShareAnswerDeps['pull'] = async () => '/thomas/transfers/2/atlas.png') {
+function rig(
+  ownersView: RevfsNode | null,
+  pull: ShareAnswerDeps['pull'] = async (): Promise<string | undefined> => '/thomas/transfers/2/atlas.png',
+): { asker: RequestShareDeps; sent: AgentFile[]; shares: RequestedShares } {
   const askerState: RevfsState = new RevfsState();
   const shares: RequestedShares = new RequestedShares();
   const sent: AgentFile[] = [];
