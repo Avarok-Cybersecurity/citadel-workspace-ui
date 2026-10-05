@@ -144,10 +144,10 @@ export function FileTransferBubble({
             aria-valuemax={100}
             aria-label={`Transfer of ${fileName}`}
             aria-valuetext={`${Math.round(progress)} percent`}
-            className="h-1.5 bg-foreground/10 rounded-full overflow-hidden"
+            className={`h-1.5 rounded-full overflow-hidden ${isOwn ? 'bg-primary-foreground/25' : 'bg-foreground/10'}`}
           >
               <div
-                className="h-full bg-primary-accent rounded-full transition-all duration-300"
+                className={`h-full rounded-full transition-all duration-300 ${isOwn ? 'bg-primary-foreground' : 'bg-primary-accent'}`}
                 style={{ width: `${progress}%` }}
               />
             </div>

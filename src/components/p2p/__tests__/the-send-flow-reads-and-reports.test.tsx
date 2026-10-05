@@ -66,6 +66,8 @@ describe('the dialog', () => {
     await waitFor(() => expect(storage).not.toBeDisabled());
     await act(async () => { fireEvent.click(storage); });
     await waitFor(() => expect(toasted).toEqual(['Put notes.txt in your shared storage']));
+    // The agent-question notice is always in the tree, so its text is announced (re-review 4).
+    expect(screen.getAllByRole('status').length).toBeGreaterThan(0);
   });
 });
 
@@ -78,5 +80,9 @@ describe('the sender\'s bubble', () => {
     render(<FileTransferBubble message={message} isOwn onCancel={(): void => undefined} />);
     const cancel: HTMLElement = screen.getByRole('button', { name: /cancel send/i });
     expect(cancel.className).toContain('text-primary-foreground');
+    // Its status icon and progress fill take the bubble's foreground too (re-review 2).
+    const bubble: HTMLElement = screen.getByTestId('file-transfer-bubble');
+    expect(bubble.querySelector('svg.animate-spin')?.getAttribute('class')).toContain('text-primary-foreground');
+    expect(bubble.querySelector('[role="progressbar"] > div')?.className).toContain('bg-primary-foreground');
   });
 });

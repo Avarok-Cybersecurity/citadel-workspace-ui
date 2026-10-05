@@ -39,7 +39,8 @@ export function BubbleFooter({ message, isOwn, onRetry }: BubbleFooterProps): JS
   return (
     <>
       <div className={`flex items-center gap-1 mt-1 ${isOwn ? 'justify-end' : 'justify-start'}`}>
-        <span className="text-xs opacity-70" data-testid="message-timestamp">
+        {/* Dimmed only off the sender's bubble: on bg-primary it measured 3.73:1 dimmed. */}
+        <span className={`text-xs ${isOwn ? '' : 'opacity-70'}`} data-testid="message-timestamp">
           {formatTime(message.timestamp)}
         </span>
         {message.edited_at !== undefined && (

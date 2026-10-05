@@ -35,7 +35,7 @@ export function useSendCeiling(): SendCeiling {
         if (!live) return;
         const why: string = error instanceof Error ? error.message : String(error);
         // Known to be unknown: the inline route is the one every agent takes.
-        setCeiling({ stagesUploads: false, failure: `Could not ask your Citadel agent how large a file it takes (${why}); assuming 16 MB.` });
+        setCeiling({ stagesUploads: false, failure: `Could not ask your Citadel agent how large a file it takes (${why}); assuming 16 MB. Close and reopen this dialog to ask again.` });
       },
     );
     return (): void => { live = false; };

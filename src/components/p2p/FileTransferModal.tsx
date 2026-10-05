@@ -70,7 +70,7 @@ export function FileTransferModal({
             selectedFile={selectedFile}
             previewUrl={previewUrl}
             isDragging={isDragging}
-            isSending={isSending}
+            isSending={isSending || isStoring}
             isPickingFile={isPickingFile}
             nativePickerAvailable={nativePickerAvailable}
             maxFileSizeBytes={maxFileSizeBytes}
@@ -94,9 +94,10 @@ export function FileTransferModal({
             <p className="text-xs text-muted-foreground" data-testid="storage-refusal">{storageRefusal}</p>
           )}
 
-          {ceilingFailure && (
-            <p role="status" className="text-sm text-warning-emphasis bg-warning/10 p-2 rounded">{ceilingFailure}</p>
-          )}
+          {/* Always present, so a screen reader announces the text when it arrives. */}
+          <p role="status" className={ceilingFailure ? 'text-sm text-warning-emphasis bg-warning/10 p-2 rounded' : 'sr-only'}>
+            {ceilingFailure ?? ''}
+          </p>
 
           <p id="send-to-storage-help" className="text-xs text-muted-foreground">
             Send to their storage puts it in the storage you share with them (File Manager). They open it by asking you, so you must be online then.
