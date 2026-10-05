@@ -78,4 +78,12 @@ describe('restoring a transfer after a reload', () => {
     expect(restored).not.toBeNull();
     expect(restored?.fileSize).toBe(0);
   });
+
+  it('restores a transfer persisted with the removed mode and staged path, without them', () => {
+    const legacy: Record<string, unknown> = { id: 't', fileName: 'x', state: 'complete', mode: 'async', virtualPath: '/transfers/t/x' };
+    const restored: FileTransfer | null = restoreTransfer(legacy as Partial<FileTransfer>);
+    expect(restored?.state).toBe('complete');
+    expect(restored).not.toHaveProperty('mode');
+    expect(restored).not.toHaveProperty('virtualPath');
+  });
 });

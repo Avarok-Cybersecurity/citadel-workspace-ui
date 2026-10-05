@@ -102,7 +102,13 @@ export class FileTransferState {
     // disabling RE-VFS for that peer, and `revfsQuota` shows as `NaN` MB in the
     // settings UI. Nothing has shipped in that state yet — this closes the class
     // before the next field does it.
-    return { ...FileTransferState.DEFAULT_SETTINGS, ...stored };
+    // Known fields only: a field a later version removed (the old per-peer
+    // `transferMode`) is dropped on load rather than carried forward.
+    const merged: FileTransferSettings = { ...FileTransferState.DEFAULT_SETTINGS };
+    for (const key of Object.keys(merged) as Array<keyof FileTransferSettings>) {
+      if (stored?.[key] !== undefined) (merged as unknown as Record<string, unknown>)[key] = stored[key];
+    }
+    return merged;
   }
 
   setSettings(peerCid: string, settings: FileTransferSettings): void {
