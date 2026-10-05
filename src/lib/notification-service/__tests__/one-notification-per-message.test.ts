@@ -22,6 +22,12 @@ import { registerCapabilityRoute, forgetCapabilities, noticesHeard } from '@/lib
 
 const shown: string[] = [];
 
+/**
+ * Absence is proved by order, not by waiting: a browser-owned notification added after
+ * the one under test reaches the OS, and the one before it is decided first.
+ */
+function marker(title: string): void { notificationService.addSystemNotification(title, 'x'); }
+
 /** A follower's view: the leader says what its agent hosts, and whether a notifier is attached. */
 function agentHosts(agentIlm: boolean, noticesHeard: boolean): void {
   forgetCapabilities();
@@ -68,23 +74,36 @@ describe('a message for a window that is not in front', () => {
 
   it('is left to the agent when a notifier is attached to it: one notification, not two', async () => {
     agentHosts(true, true);
-    notificationService.addMessageNotification('Alice', 'hi', '9', 'owned-3', '5', { peerCid: '9' });
-    await vi.waitFor(() => expect(noticesHeard.get()).toBe(true));
-    await new Promise((r) => setTimeout(r, 0));
-    expect(shown).toEqual([]);
-    expect(chimes.count).toBe(0);
+    notificationService.addMessageNotification('Hosted', 'hi', '9', 'owned-3', '5', { peerCid: '9' });
+    marker('Marker');
+    await vi.waitFor(() => expect(shown).toEqual(['Marker']));
+    expect(chimes.count).toBe(1);
   });
 
   it('reaches the OS again once the agent says its notifier went away', async () => {
     agentHosts(true, true);
-    notificationService.addMessageNotification('Alice', 'hi', '9', 'owned-4', '5', { peerCid: '9' });
-    await vi.waitFor(() => expect(noticesHeard.get()).toBe(true));
+    notificationService.addMessageNotification('Before', 'hi', '9', 'owned-4', '5', { peerCid: '9' });
+    marker('Marker');
+    await vi.waitFor(() => expect(shown).toEqual(['Marker']));
     noticesHeard.set(false);
-    notificationService.addMessageNotification('Alice', 'again', '9', 'owned-5', '5', { peerCid: '9' });
-    await vi.waitFor(() => expect(shown).toEqual(['Alice']));
-    expect(chimes.count).toBe(1);
+    notificationService.addMessageNotification('After', 'again', '9', 'owned-5', '5', { peerCid: '9' });
+    await vi.waitFor(() => expect(shown).toEqual(['Marker', 'After']));
   });
+});
 
+describe('whether the window is in front', () => {
+  it('is read when the notification arrives, not when its delivery has loaded', async () => {
+    agentHosts(false, false);
+    notificationService.addMessageNotification('Behind', 'hi', '9', 'front-1', '5', { peerCid: '9' });
+    vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+    notificationService.addMessageNotification('InFront', 'hi', '9', 'front-2', '5', { peerCid: '9' });
+    vi.spyOn(document, 'hasFocus').mockReturnValue(false);
+    marker('Marker');
+    await vi.waitFor(() => expect(shown).toEqual(['Behind', 'Marker']));
+  });
+});
+
+describe('a message for a window that is not in front, without an agent that hosts', () => {
   it('reaches the OS, with its chime, when the browser runs messaging', async () => {
     agentHosts(false, false);
     notificationService.addMessageNotification('Alice', 'hi', '9', 'owned-2', '5', { peerCid: '9' });

@@ -172,8 +172,19 @@ const dist = join(root, 'dist');
  * Interest builder lives in the lazy module rather than the wire-name module. Measured, not guessed:
  * source-map attribution of app-services put the remaining +1.7 KB raw in capabilities.ts (346 B),
  * supervised.ts (347 B), the wire names (154 B), and the follower's answer (107 B).
+ *
+ * 328 -> 332 (2026-10-05), once, for N+1 notification ownership (UI #126) and the room the sign-in
+ * (#127) and polish (#129) PRs need, both also at the limit: one raise rather than three that conflict.
+ * #126 measured 328.2 against master's 327.6. What did not have to be on the landing path was moved
+ * off it: the OS notification's delivery (who owns it, the surface, the chime -- interrupt-os.ts,
+ * listed in DEFERRED_MODULES) loads with the first notification for a window not in front, and the
+ * window is still read as the notification arrives, so nothing is decided late or lost. That took it
+ * to 327.9. What remains (+0.3 KB) is state that has to be kept from the moment the socket opens,
+ * before any chat loads: whether a notifier is attached to the agent (`notices_heard`, its change
+ * notification, the leader's relay to followers) and the announcement of every successful claim,
+ * which the landing page's own claims make.
  */
-const BUDGET_KB = 328;
+const BUDGET_KB = 332;
 
 /**
  * Modules that must stay OFF the critical path, checked against the source
@@ -185,6 +196,7 @@ const DEFERRED_MODULES = [
   'src/lib/agent-supervisor/interest.ts',
   'src/lib/agent-supervisor/status.ts',
   'src/lib/agent-supervisor/wire-up.ts',
+  'src/lib/notification-service/interrupt-os.ts',
 ];
 
 /**
