@@ -11,9 +11,8 @@ import type { TransferView } from '@/lib/file-transfer/transfer-view';
  * FileTransferBubble - Displays file transfer messages with state-dependent UI
  *
  * States (sender view):
+ * - queued: "Will send when {name} is online" + Cancel button
  * - pending: "Waiting for acceptance..." + Cancel button
- * - uploading: "Uploading to server..." + progress bar
- * - staged: "File ready, waiting for acceptance..." + Cancel button
  * - transferring: Progress bar with percentage
  * - complete: "Sent successfully"
  * - declined: "Transfer declined"
@@ -22,7 +21,7 @@ import type { TransferView } from '@/lib/file-transfer/transfer-view';
  * - error: Error message
  *
  * States (receiver view):
- * - pending/staged: Accept/Decline buttons
+ * - pending: Accept/Decline buttons
  * - transferring: "Downloading..." + progress bar
  * - complete: "Downloaded" (clickable to open)
  * - declined: "You declined this file"

@@ -44,7 +44,7 @@ export async function executeSendTransferRequest(
 
   // Announce before sending the bytes, so the conversation shows the transfer
   // by the time the protocol notification and progress ticks arrive.
-  await announceTransfer(transfer);
+  await announceTransfer(transfer, intent.offerAlreadyShown);
 
   await router.sendFile({
     source: file,
@@ -66,16 +66,24 @@ export async function executeSendTransferRequest(
  * conversation. Without it they receive bytes with nothing to show for them.
  *
  * Then say so, so the SENDER's conversation shows the same offer (see
- * p2p/record-outgoing-file-transfer.ts). Every send path -- inline, staged and
- * native-picker -- announces through here, which is why the event is raised
+ * p2p/record-outgoing-file-transfer.ts), unless a held send already did. Every
+ * send path -- inline and native-picker -- announces through here, which is why the event is raised
  * here and not in one of them.
  */
-export async function announceTransfer(transfer: FileTransfer): Promise<void> {
+export async function announceTransfer(transfer: FileTransfer, offerAlreadyShown: boolean): Promise<void> {
   debugLog('FileTransferIO', `announceTransfer: ${transfer.fileName} -> ${transfer.recipientCid}`, {
     transferId: transfer.id,
   });
   const announcement: P2PMessagingLayerPayload = buildTransferAnnouncement(transfer);
   await sendLayerPayload(announcement);
+  if (!offerAlreadyShown) showOwnOffer(announcement, transfer);
+}
+
+/**
+ * Put the offer in the SENDER's own conversation without sending it: for a
+ * send held until the peer is online, whose bubble must say so meanwhile.
+ */
+export function showOwnOffer(announcement: P2PMessagingLayerPayload, transfer: FileTransfer): void {
   const announced: OfferAnnounced = { announcement, transferState: transfer.state };
   eventEmitter.emit(FILE_TRANSFER_EVENTS.OFFER_ANNOUNCED, announced);
 }

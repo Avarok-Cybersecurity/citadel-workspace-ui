@@ -18,7 +18,7 @@
 import type { FileTransfer } from './types';
 
 /** Transfers still waiting on somebody, which are the only ones that can expire. */
-const AWAITING: ReadonlySet<string> = new Set(['pending', 'staged']);
+const AWAITING: ReadonlySet<string> = new Set(['queued', 'pending']);
 
 /**
  * The ids of transfers whose offer has lapsed.

@@ -70,9 +70,8 @@ export type PresenceStatus =
  * File transfer state enumeration
  */
 export type FileTransferState =
+  | 'queued'       // Held until the recipient is online, then sent
   | 'pending'      // Waiting for recipient to accept/decline
-  | 'uploading'    // Uploading to server (async mode)
-  | 'staged'       // File ready on server, awaiting acceptance
   | 'transferring' // Active transfer in progress
   | 'complete'     // Transfer completed successfully
   | 'declined'     // Recipient declined the transfer

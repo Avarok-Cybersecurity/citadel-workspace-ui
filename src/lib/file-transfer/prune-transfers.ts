@@ -21,9 +21,8 @@ import type { FileTransfer } from './types';
 
 /** States that are still waiting on somebody, and can never be pruned. */
 const UNFINISHED: ReadonlySet<string> = new Set([
+  'queued',
   'pending',
-  'uploading',
-  'staged',
   'transferring',
 ]);
 

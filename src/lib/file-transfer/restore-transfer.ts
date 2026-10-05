@@ -57,7 +57,9 @@ export function restoreTransfer(raw: Partial<FileTransfer>): FileTransfer | null
     return expired && { ...expired, errorMessage: STALE_OFFER_REASON };
   }
 
-  const interrupted: boolean = !TERMINAL.has(raw.state);
+  // A held send was not moving: it waits for its peer, and its File is kept
+  // (send-queue-io.ts). Releasing it finds out whether the File survived.
+  const interrupted: boolean = !TERMINAL.has(raw.state) && raw.state !== 'queued';
 
   return {
     id: raw.id,
@@ -67,12 +69,13 @@ export function restoreTransfer(raw: Partial<FileTransfer>): FileTransfer | null
     state: interrupted ? 'error' : raw.state,
     // A restored transfer has no live progress. Keeping the last number would
     // leave a bar that looks like it is about to finish and never will.
-    progress: interrupted ? 0 : (raw.progress ?? 100),
+    progress: interrupted || raw.state === 'queued' ? 0 : (raw.progress ?? 100),
     senderCid: raw.senderCid ?? '',
     recipientCid: raw.recipientCid ?? '',
     isIncoming: raw.isIncoming ?? false,
     createdAt: raw.createdAt ?? Date.now(),
     updatedAt: raw.updatedAt ?? Date.now(),
+    ...(raw.state === 'queued' && raw.waitingFor !== undefined ? { waitingFor: raw.waitingFor } : {}),
     // Where the internal service wrote the file on its own filesystem. Dropped
     // here before, so after a reload the "Click to open file" control rendered
     // and operated on nothing -- a button that reads as working and does not.

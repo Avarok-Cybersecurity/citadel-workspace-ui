@@ -33,7 +33,7 @@ function offeredRow(delivery: Extract<MemberDelivery, { kind: 'offered' }>, reco
   const base: { cid: bigint; username: string } = { cid: delivery.cid, username: delivery.username };
   if (!record) return { ...base, status: 'failed', reason: MISSING_RECORD_REASON };
   switch (record.state) {
-    case 'pending': case 'uploading': case 'staged':
+    case 'queued': case 'pending':
       return { ...base, status: 'sent' };
     case 'transferring':
       return { ...base, status: 'accepted' };

@@ -38,6 +38,7 @@ import { openPeerChannelViaAutoConnect, FILE_SEND_CONNECT_TIMEOUT_MS } from '../
 import { buildTransferAnnouncement } from '../transfer-announcement';
 import type { FileTransfer } from '../types';
 import { fileTransferService } from '../service';
+import { ONLINE_PEER_QUEUE } from './online-peer-queue';
 
 function deps(opened: boolean): LifecycleDeps {
   return {
@@ -51,6 +52,7 @@ function deps(opened: boolean): LifecycleDeps {
     emitStateChange: (): void => undefined,
     saveSettings: async (): Promise<void> => undefined,
     openPeerChannel: async (cid: bigint): Promise<boolean> => { calls.push(`channel:${cid}`); return opened; },
+    queue: ONLINE_PEER_QUEUE,
   } as unknown as LifecycleDeps;
 }
 

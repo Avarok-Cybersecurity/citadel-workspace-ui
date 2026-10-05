@@ -63,9 +63,9 @@ describe('sender-side ticks', () => {
 });
 
 describe('the guess for a tick from an older agent', () => {
-  it('never lands on a staged offer, which has no protocol stream to tick', () => {
+  it('never lands on a held send, which has no protocol stream to tick', () => {
     const state: FileTransferState = new FileTransferState();
-    state.setTransfer(outgoing('stale-standard', 'staged', 1));
+    state.setTransfer(outgoing('held', 'queued', 1));
     state.setTransfer(outgoing('live-send', 'transferring', 2));
     const picked: FileTransfer | undefined = resolveTransferForProtocolEvent(state, {
       cid: ME, peerCid: PEER, direction: 'outgoing',

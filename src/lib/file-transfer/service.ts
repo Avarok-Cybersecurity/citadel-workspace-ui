@@ -26,6 +26,7 @@ import { handleTransferRequest, handleTransferResponse } from './async-transfers
 import { ProtocolOfferCorrelator } from './protocol-offer-correlation';
 import { handleTransferCancel } from './p2p-transfers';
 import { openPeerChannelViaAutoConnect } from './open-peer-channel';
+import { sendQueuePort, wireSendQueue } from './send-queue-io';
 import { requestedShares, settleSharesOnOutcome } from './requested-shares';
 import { sendAgentFile, type AgentFile } from './send-agent-file';
 import {
@@ -59,11 +60,8 @@ export class FileTransferService {
     debugLog('FileTransferService', 'I/O router swapped', { routerType: router.constructor.name });
   }
 
-  getIORouter(): IFileTransferIORouter {
-    return this.io;
-  }
+  getIORouter(): IFileTransferIORouter { return this.io; }
 
-  /** See `IFileTransferIORouter.markForeignOutgoingStream`. */
   markForeignOutgoingStream(requestId: string): void {
     this.io.markForeignOutgoingStream(requestId);
   }
@@ -74,6 +72,7 @@ export class FileTransferService {
     await this.loadFromStorage();
     bindAccountHistory(this.state);
     startExpirySweep(this.state, this.emitStateChange.bind(this), this.saveTransfer.bind(this));
+    wireSendQueue(this.deps, () => this.io.getCurrentCid());
     this.initialized = true;
     debugLog('FileTransferService', 'Initialized');
   }
@@ -86,6 +85,7 @@ export class FileTransferService {
       saveTransfer: this.saveTransfer.bind(this),
       saveSettings: this.saveSettings.bind(this),
       openPeerChannel: openPeerChannelViaAutoConnect,
+      queue: sendQueuePort,
     };
   }
 
@@ -93,7 +93,6 @@ export class FileTransferService {
     return sendFile(this.deps, recipientCid, file);
   }
 
-  /** Offer `recipientCid` a file the agent holds; see send-agent-file.ts. */
   async sendAgentFile(senderCid: bigint, recipientCid: string, file: AgentFile, transferId: string): Promise<string> { return sendAgentFile(this.deps, senderCid, recipientCid, file, transferId); }
 
   async sendFileWithNativePicker(recipientCid: string, title?: string, allowedExtensions?: string[]): Promise<string> {

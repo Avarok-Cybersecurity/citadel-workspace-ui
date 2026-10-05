@@ -26,6 +26,8 @@ export interface FileTransfer {
   updatedAt: number;
   expiresAt?: number;
   isIncoming: boolean; // true if we are the recipient
+  /** Who a 'queued' send waits for, by name, for "Will send when {name} is online". */
+  waitingFor?: string;
 }
 
 export interface FileTransferSettings {
@@ -99,6 +101,8 @@ export interface SendTransferRequestIntent {
    * loudly (io.ts does).
    */
   file?: InMemoryOnly<File>;
+  /** True when the sender's own bubble already shows this offer (a held send, released). */
+  offerAlreadyShown: boolean;
 }
 
 export interface SendResponseIntent {

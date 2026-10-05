@@ -83,6 +83,7 @@ export function persistTransfer(transfer: FileTransfer): void {
       // rendering. FilesSection reads it as `savedTo`.
       downloadPath: transfer.downloadPath,
       errorMessage: transfer.errorMessage,
+      waitingFor: transfer.waitingFor,
     };
 
     // Pruned on write, because this is the only moment the whole map is in

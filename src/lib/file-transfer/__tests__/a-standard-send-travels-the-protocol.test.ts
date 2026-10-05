@@ -19,6 +19,7 @@ import { sendFile, acceptTransfer, type LifecycleDeps } from '../transfer-lifecy
 import { handleTransferRequest, type AsyncTransferDeps } from '../async-transfers';
 import { MessagingLayerType, type FileTransferRequestData } from '@/types/messaging-layer';
 import type { FileTransfer } from '../types';
+import { ONLINE_PEER_QUEUE } from './online-peer-queue';
 
 function lifecycle(transfers: Map<string, FileTransfer>, intents: Array<Record<string, unknown>>): LifecycleDeps {
   return {
@@ -36,6 +37,7 @@ function lifecycle(transfers: Map<string, FileTransfer>, intents: Array<Record<s
     emitStateChange: (): void => undefined,
     saveSettings: async (): Promise<void> => undefined,
     openPeerChannel: async (): Promise<boolean> => true,
+    queue: ONLINE_PEER_QUEUE,
   } as unknown as LifecycleDeps;
 }
 

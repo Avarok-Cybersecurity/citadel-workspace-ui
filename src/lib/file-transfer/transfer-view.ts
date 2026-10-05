@@ -15,6 +15,7 @@
  * "Transfer failed" and never why.
  */
 import type { FileTransfer } from './types';
+import { waitingText } from './send-queue';
 import type { FileTransferState as TransferLifecycleState } from '@/types/messaging-layer';
 
 export const STALE_OFFER_REASON: string = 'Offer expired — ask the sender to send it again.';
@@ -37,7 +38,7 @@ export interface TransferMessageFields {
   error?: string;
 }
 
-const AWAITING_ANSWER: ReadonlySet<TransferLifecycleState> = new Set<TransferLifecycleState>(['pending', 'staged']);
+const AWAITING_ANSWER: ReadonlySet<TransferLifecycleState> = new Set<TransferLifecycleState>(['queued', 'pending']);
 
 /**
  * @param record the service's record for the entry's transfer, if it has one
@@ -52,7 +53,8 @@ export function transferView(
   side: OfferSide
 ): TransferView {
   if (record) {
-    return { state: record.state, progress: record.progress, reason: record.errorMessage };
+    const reason: string | undefined = record.state === 'queued' ? waitingText(record.waitingFor ?? 'your contact') : record.errorMessage;
+    return { state: record.state, progress: record.progress, reason };
   }
   const state: TransferLifecycleState = message.transfer_state ?? 'pending';
   // An offer with no record that did not arrive in this page's life is one

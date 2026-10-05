@@ -19,6 +19,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { sendFile } from '../transfer-lifecycle';
+import { ONLINE_PEER_QUEUE } from './online-peer-queue';
 
 const RECIPIENT: string = '900';
 
@@ -49,6 +50,7 @@ function deps(): { deps: unknown; recorded: Recorded } {
       emitStateChange: (): void => { recorded.stateChanges += 1; },
       // The channel opens at once here; a-file-send-opens-the-peer-channel-first covers it.
       openPeerChannel: async (): Promise<boolean> => true,
+      queue: ONLINE_PEER_QUEUE,
     },
   };
 }

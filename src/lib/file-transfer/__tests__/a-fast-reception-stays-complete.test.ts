@@ -52,6 +52,7 @@ import type { VirtualObjectMetadata } from '../protocol-types';
 import { FileTransferState } from '../state';
 import { cancelTransfer, type LifecycleDeps } from '../transfer-lifecycle';
 import { applyTransferOutcome } from '../transfer-outcome';
+import { ONLINE_PEER_QUEUE } from './online-peer-queue';
 
 const BOB: bigint = 7n;
 const ALICE: bigint = 42n;
@@ -143,6 +144,7 @@ describe('a send that completes during the cancel signal', () => {
       saveSettings: async (): Promise<void> => undefined,
       // Cancel never opens a channel; present because the port requires it.
       openPeerChannel: async (): Promise<boolean> => true,
+      queue: ONLINE_PEER_QUEUE,
     };
 
     await cancelTransfer(deps, 'out-1');

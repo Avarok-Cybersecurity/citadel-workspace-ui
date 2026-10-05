@@ -168,7 +168,7 @@ export class FileTransferIO extends RealProtocolIORouter {
     // accept from. This path used to issue only the protocol SendFile, so the
     // recipient's internal service held an offer no UI ever surfaced and the
     // sender waited forever on an accept nobody could click.
-    await announceTransfer(intent.transfer);
+    await announceTransfer(intent.transfer, false);
 
     const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
 

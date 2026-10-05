@@ -40,25 +40,12 @@ export function getStatusContent(state: string, isOwn: boolean, reason: string |
         showAcceptDecline: true
       };
 
-    case 'uploading':
+    case 'queued':
+      // Only the sender holds a send; the recipient has not been told of it yet.
       return {
-        icon: <Clock className="h-4 w-4 text-primary-accent animate-spin" />,
-        text: 'Uploading to server...',
-        showProgress: true
-      };
-
-    case 'staged':
-      if (isOwn) {
-        return {
-          icon: <Check className="h-4 w-4 text-success-emphasis" />,
-          text: 'File ready, waiting for acceptance...',
-          showCancel: true
-        };
-      }
-      return {
-        icon: <Download className="h-4 w-4 text-primary-accent" />,
-        text: 'File ready to download',
-        showAcceptDecline: true
+        icon: <Clock className="h-4 w-4 text-warning-emphasis" />,
+        text: reason ?? 'Will send when they are online',
+        showCancel: true
       };
 
     case 'transferring':

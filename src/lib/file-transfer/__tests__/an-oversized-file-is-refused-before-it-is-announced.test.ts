@@ -45,7 +45,7 @@ function file(size: number): File {
 }
 
 function intent(size: number): SendTransferRequestIntent {
-  return { type: 'send-transfer-request', transfer: transfer(size), file: wrapInMemory(file(size)) };
+  return { type: 'send-transfer-request', offerAlreadyShown: false, transfer: transfer(size), file: wrapInMemory(file(size)) };
 }
 
 describe('a p2p send above the inline cap', () => {

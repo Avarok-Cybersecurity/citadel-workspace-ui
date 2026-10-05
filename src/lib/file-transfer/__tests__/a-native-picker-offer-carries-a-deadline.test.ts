@@ -17,6 +17,7 @@ import { expiredTransferIds } from '../expire-transfers';
 import { FILE_TRANSFER_REQUEST_TTL_MS } from '@/types/messaging-layer';
 import type { FileTransfer } from '../types';
 import type { LifecycleDeps } from '../transfer-lifecycle';
+import { ONLINE_PEER_QUEUE } from './online-peer-queue';
 
 const NOW: number = 1_700_000_000_000;
 
@@ -50,6 +51,7 @@ function harness(): Harness {
     saveSettings: async (): Promise<void> => undefined,
     // The channel opens at once here; a-file-send-opens-the-peer-channel-first covers it.
     openPeerChannel: async (): Promise<boolean> => true,
+    queue: ONLINE_PEER_QUEUE,
   } as unknown as LifecycleDeps;
   return { deps, stored, announcedVia };
 }

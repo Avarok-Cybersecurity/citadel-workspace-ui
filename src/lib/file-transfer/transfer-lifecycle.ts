@@ -11,6 +11,8 @@ import type { FileTransferIO } from './io';
 import type { FileTransfer, FileTransferSettings } from './types';
 import { wrapInMemory } from './types';
 import { openChannelBeforeSending } from './open-peer-channel';
+import { shouldQueue } from './send-queue';
+import { holdUntilOnline, type SendQueuePort } from './send-queue-hold';
 
 export interface LifecycleDeps {
   state: FileTransferState;
@@ -20,6 +22,8 @@ export interface LifecycleDeps {
   saveSettings: (peerCid: string, settings: FileTransferSettings) => Promise<void>;
   /** Opens the peer's P2P channel if needed; resolves whether it opened. See open-peer-channel. */
   openPeerChannel: (peerCid: bigint) => Promise<boolean>;
+  /** Holds a send for an offline peer; see send-queue.ts. */
+  queue: SendQueuePort;
 }
 
 export async function sendFile(
@@ -58,7 +62,9 @@ export async function sendFile(
     );
   }
 
-  await openChannelBeforeSending(deps, recipientCid);
+  // A peer known to be offline is not waited for: the send is held at once.
+  const peerOnline: boolean | null = deps.queue.peerOnlineStatus(BigInt(recipientCid));
+  const channelOpened: boolean = peerOnline === false ? false : await openChannelBeforeSending(deps, recipientCid);
   let thumbnail: string | undefined;
   if (file.type.startsWith('image/')) {
     thumbnail = await deps.io.generateThumbnail(file);
@@ -83,6 +89,8 @@ export async function sendFile(
     isIncoming: false,
   };
 
+  if (shouldQueue(peerOnline, channelOpened)) return holdUntilOnline(deps, transfer, file);
+
   deps.state.setTransfer(transfer);
   await deps.saveTransfer(transfer);
 
@@ -97,7 +105,7 @@ export async function sendFile(
   // Marked failed on a throw: the record was saved above, and a refused send
   // must not sit on 'pending' with nothing shown to the user.
   try {
-    await deps.io.executeIntent({ type: 'send-transfer-request', transfer, file: wrapInMemory(file) });
+    await deps.io.executeIntent({ type: 'send-transfer-request', transfer, file: wrapInMemory(file), offerAlreadyShown: false });
   } catch (error) {
     transfer.state = 'error';
     transfer.errorMessage = error instanceof Error ? error.message : 'SendFile failed';
@@ -125,13 +133,18 @@ export async function cancelTransfer(deps: LifecycleDeps, transferId: string): P
   // outcome into "cancelled" in the history.
   if (isTerminalTransferState(transfer.state)) return;
 
-  await deps.io.executeIntent({
-    type: 'send-cancel',
-    transferId,
-    targetCid: transfer.recipientCid,
-    reason: 'Sender cancelled transfer',
-    failed: false,
-  });
+  // A held send was never offered, so there is nobody to tell; drop its File.
+  if (transfer.state === 'queued') {
+    await deps.queue.release(transferId);
+  } else {
+    await deps.io.executeIntent({
+      type: 'send-cancel',
+      transferId,
+      targetCid: transfer.recipientCid,
+      reason: 'Sender cancelled transfer',
+      failed: false,
+    });
+  }
   if (!isStillOpen(deps.state, transfer)) return;
 
   transfer.state = 'cancelled';
@@ -145,7 +158,7 @@ export async function acceptTransfer(deps: LifecycleDeps, transferId: string): P
   const transfer: FileTransfer | undefined = deps.state.getTransfer(transferId);
   if (!transfer) throw new Error('Transfer not found');
   if (!transfer.isIncoming) throw new Error('Cannot accept outgoing transfer');
-  if (transfer.state !== 'pending' && transfer.state !== 'staged') {
+  if (transfer.state !== 'pending') {
     throw new Error(`Cannot accept transfer in state: ${transfer.state}`);
   }
 
@@ -156,15 +169,6 @@ export async function acceptTransfer(deps: LifecycleDeps, transferId: string): P
     throw new Error(
       `File size ${formatBytes(transfer.fileSize)} exceeds your limit of ` +
         `${formatBytes(settings.maxFileSize)}. Raise it in Chat Settings to accept this file.`
-    );
-  }
-
-  // A 'staged' record is a standard offer from before standard sends used the
-  // protocol: its bytes were a RE-VFS push this side can never open.
-  if (transfer.state === 'staged') {
-    throw new Error(
-      'This file was offered by an older version of Citadel and cannot be opened. ' +
-        'Ask the sender to send it again.'
     );
   }
 
@@ -196,17 +200,13 @@ export async function declineTransfer(
     throw new Error('Cannot decline outgoing transfer');
   }
 
-  // A staged record (see accept) has no protocol offer to answer; declining
-  // it is local.
-  if (transfer.state !== 'staged') {
-    await deps.io.executeIntent({
-      type: 'send-response',
-      transferId,
-      targetCid: transfer.senderCid,
-      accepted: false,
-      reason,
-    });
-  }
+  await deps.io.executeIntent({
+    type: 'send-response',
+    transferId,
+    targetCid: transfer.senderCid,
+    accepted: false,
+    reason,
+  });
 
   transfer.state = 'declined';
   transfer.updatedAt = Date.now();

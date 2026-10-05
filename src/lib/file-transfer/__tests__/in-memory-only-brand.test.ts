@@ -25,7 +25,7 @@ describe('InMemoryOnly<T> brand on SendTransferRequestIntent.file', () => {
   it('survives in-memory dispatch: intent retains the file reference', () => {
     const f: File = { name: 'a.txt', size: 1, type: 'text/plain' } as unknown as File;
     const intent: SendTransferRequestIntent = {
-      type: 'send-transfer-request',
+      type: 'send-transfer-request', offerAlreadyShown: false,
       transfer: { id: 't1' } as unknown as SendTransferRequestIntent['transfer'],
       file: wrapInMemory(f),
     };
@@ -38,7 +38,7 @@ describe('InMemoryOnly<T> brand on SendTransferRequestIntent.file', () => {
   it('JSON.stringify silently drops the file (the failure mode the brand documents)', () => {
     const f: File = { name: 'a.txt', size: 1, type: 'text/plain' } as unknown as File;
     const intent: SendTransferRequestIntent = {
-      type: 'send-transfer-request',
+      type: 'send-transfer-request', offerAlreadyShown: false,
       transfer: { id: 't1' } as unknown as SendTransferRequestIntent['transfer'],
       file: wrapInMemory(f),
     };
@@ -60,7 +60,7 @@ describe('InMemoryOnly<T> brand on SendTransferRequestIntent.file', () => {
     // because `File` is not assignable to `InMemoryOnly<File>`:
     //
     //   const intent: SendTransferRequestIntent = {
-    //     type: 'send-transfer-request',
+    //     type: 'send-transfer-request', offerAlreadyShown: false,
     //     transfer: ...,
     //     file: new File([], 'a.txt'),  // ← TS2322: Type 'File' is not assignable to 'InMemoryOnly<File>'
     //   };
