@@ -11,6 +11,9 @@ import { installFollowerSessionClaims } from '../multi-instance/follower-session
 import { isOwnedByALiveConnection } from '../sessions/claim-session';
 import { instanceChannel } from '../multi-instance/instance-channel';
 import { TIMEOUT } from '../timeout-constants';
+import { installClaimRelay } from '../multi-instance/claim-relay';
+import { installNoticesHeardRelay } from '../multi-instance/notices-heard-relay';
+import { noticesHeard } from '../agent-conversations/capabilities';
 
 // Singleton instance - preserves original API
 export const websocketService: WebSocketServiceCore = new WebSocketServiceCore();
@@ -28,4 +31,17 @@ installFollowerSessionClaims({
   unregister: (instanceId: string): void => instanceManager.unregisterInstance(instanceId),
   reportWindowMs: TIMEOUT.CID_REPORT_WINDOW_MS,
   schedule: (fn: () => void, ms: number): void => { setTimeout(fn, ms); },
+});
+
+// A claim made here is heard in every tab; see claim-relay.ts.
+installClaimRelay({
+  on: (event: string, handler: (payload: unknown) => void): void => { eventEmitter.on(event, handler); },
+  send: (cid: bigint): void => instanceChannel.send({ type: 'session-claimed', targetInstanceId: '*', payload: { cid } }),
+});
+
+// What the leader's agent says about its notifier reaches every tab; see notices-heard-relay.ts.
+installNoticesHeardRelay({
+  store: noticesHeard,
+  isLeader: (): boolean => instanceManager.isLeader,
+  send: (heard: boolean): void => instanceChannel.send({ type: 'notices-heard', targetInstanceId: '*', payload: { heard } }),
 });

@@ -5,10 +5,9 @@
  */
 import { eventEmitter } from '../event-emitter';
 import { notifyEach } from '@/lib/notify-listeners';
-import { playNotificationChime } from './chime';
-import { showBrowserNotification } from './browser-notification';
+import { mayInterruptTheOs } from './in-front';
 import { v4 as uuidv4 } from 'uuid';
-import { debugLog } from '@/lib/debug-config';
+import { debugLog, errorLog } from '@/lib/debug-config';
 import type { Notification, NotificationHandler, UnreadCountChange } from './types';
 import { NotificationType, NotificationPriority, notificationBelongsTo } from './types';
 import { belongingTo, everything, messagesFrom, type ReadPredicate } from './read-state';
@@ -44,17 +43,16 @@ export class NotificationService {
     this.notifyHandlers(fullNotification);
     this.notifyUnreadChange();
 
-    // Browser notification + sound when tab is not focused
-    if (typeof document !== 'undefined' && document.hidden) {
-      showBrowserNotification(fullNotification);
-      this.playNotificationSound();
+    // Whether the window is in front is read NOW, as the notification arrives; the
+    // delivery (who owns it, the OS surface, the chime) loads with the first one, off
+    // the landing page's critical path (check-bundle-budget.mjs).
+    if (mayInterruptTheOs()) {
+      void import('./interrupt-os')
+        .then(({ interruptTheOs }) => interruptTheOs(fullNotification))
+        .catch((error: unknown): void => { errorLog('NotificationService', 'could not reach the OS notification surface', error); });
     }
 
     return fullNotification;
-  }
-
-  private playNotificationSound(): void {
-    playNotificationChime();
   }
 
   public addMessageNotification(

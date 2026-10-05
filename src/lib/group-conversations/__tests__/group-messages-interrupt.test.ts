@@ -42,6 +42,8 @@ function receive(senderId: string, content: string = 'hello', groupId: string = 
 describe('an incoming group message', () => {
   beforeEach(() => {
     addMessageNotification.mockClear();
+    // The window is in front unless a test says otherwise; jsdom's hasFocus is false.
+    vi.spyOn(document, 'hasFocus').mockReturnValue(true);
     cidRef.current = 100n;
     window.history.replaceState({}, '', '/workspace');
   });
@@ -84,6 +86,17 @@ describe('an incoming group message', () => {
     window.history.replaceState({}, '', '/groups/g1');
     receive('200');
     expect(addMessageNotification).not.toHaveBeenCalled();
+  });
+
+  it('rings for the group on screen while the window is behind another app', () => {
+    // Visible is not seen: the window on screen behind another app is not read.
+    vi.spyOn(document, 'hasFocus').mockReturnValue(false);
+    window.history.replaceState({}, '', '/groups/g1');
+    receive('200');
+    const close: () => void = markChannelOpen('chan-1');
+    receive('200', 'hello', 'chan-1');
+    close();
+    expect(addMessageNotification).toHaveBeenCalledTimes(2);
   });
 
   it('still rings for a different group while you read one', () => {

@@ -23,7 +23,7 @@ import {
 import { lazyTurnSource } from '../ice-servers/lazy-turn-source';
 import { TIMEOUT } from '../timeout-constants';
 import { ReconnectBackoff, AGENT_RECONNECT_BACKOFF, systemClock } from '../websocket/reconnect-backoff';
-import { registerCapabilityRoute, type AgentCapabilities } from '../agent-conversations/capabilities';
+import { registerCapabilityRoute, type LeaderAnswer } from '../agent-conversations/capabilities';
 import { registerConversationSender } from '../agent-conversations/sender';
 
 export interface ServiceModules {
@@ -130,12 +130,13 @@ export function createServiceModules(
   };
 }
 
-export async function askLeaderForCapabilities(): Promise<AgentCapabilities> {
+export async function askLeaderForCapabilities(): Promise<LeaderAnswer> {
   const requestId: string = crypto.randomUUID();
   instanceInboundRouter.registerPendingRequest(requestId, instanceManager.instanceId);
   const result: AckResult = await instanceChannel.sendToLeader({ __agentCapabilitiesProxy: true }, requestId);
   if (result.status === 'error') throw new Error(`The leader could not say what the agent hosts: ${result.error}`);
   const data: unknown = result.data;
-  const said: { agentIlm?: unknown; supervisesP2p?: unknown } = typeof data === 'object' && data !== null ? data : {};
-  return { agentIlm: said.agentIlm === true, supervisesP2p: said.supervisesP2p === true };
+  const said: { agentIlm?: unknown; supervisesP2p?: unknown; noticesHeard?: unknown } = typeof data === 'object' && data !== null ? data : {};
+  // A leader from an older build does not say: nothing is taken to show the agent's notices.
+  return { agentIlm: said.agentIlm === true, supervisesP2p: said.supervisesP2p === true, noticesHeard: said.noticesHeard === true };
 }

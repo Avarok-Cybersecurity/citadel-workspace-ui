@@ -4,6 +4,7 @@ import NotificationService from '@/lib/notification-service';
 import { debugLog } from '@/lib/debug-config';
 import { isOwnGroupMessage } from './own-message';
 import { isChannelOpen } from './open-channel';
+import { conversationInFront } from '@/lib/notification-service/in-front';
 
 /**
  * Raise a bell notification for an incoming group message.
@@ -44,8 +45,9 @@ export function startGroupNotificationBindings(selfUsername: () => string | unde
     if (isOwnGroupMessage(data.senderId, { cid: own, username: data.selfUsername ?? selfUsername() })) return;
 
     // 2. Never for the conversation the user is reading right now: a peer group
-    //    by its URL, an office/room chat by the channel its view marked open.
-    if (isViewingGroup(data.groupId) || (isTabVisible() && isChannelOpen(data.groupId))) return;
+    //    by its URL, an office/room chat by the channel its view marked open --
+    //    in a window that is in front, the rule every surface shares (in-front.ts).
+    if (conversationInFront(urlShowsGroup(data.groupId) || isChannelOpen(data.groupId))) return;
 
     debugLog('GroupNotifications', 'raising notification for group', data.groupId);
     NotificationService.getInstance().addMessageNotification(
@@ -62,19 +64,12 @@ export function startGroupNotificationBindings(selfUsername: () => string | unde
 }
 
 /**
- * Whether this tab is currently showing that group.
+ * Whether this tab's route is that group.
  *
- * Read from the URL rather than from a "currently active conversation" field,
- * because the P2P equivalent of that field is set only by an adapter nothing in
- * the app constructs -- so its suppression has never worked, and copying the
- * mechanism would have copied the bug.
+ * Read from the URL rather than from a "currently active conversation" field:
+ * the P2P equivalent of that field was, until 2026-10-04, set by nothing.
  */
-function isTabVisible(): boolean {
-  return typeof document === 'undefined' || document.visibilityState === 'visible';
-}
-
-function isViewingGroup(groupId: string): boolean {
+function urlShowsGroup(groupId: string): boolean {
   if (typeof window === 'undefined') return false;
-  if (document.visibilityState !== 'visible') return false;
   return window.location.pathname.includes(`/groups/${groupId}`);
 }
