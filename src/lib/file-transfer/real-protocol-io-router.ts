@@ -10,6 +10,7 @@ import type {
   TransferCompleteEvent, TransferStatusEvent,
 } from './io-router-types';
 import type { FileTransfer } from './types';
+import { toStoredState } from './stored-state';
 import { executeSendFile, executeCancelTransfer } from './send-operations';
 import {
   executeRespondToTransfer, executeDownloadFile, createTransferRequestHandler,
@@ -185,7 +186,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
   notifyStateChange(transfer: FileTransfer): void {
     const peerCid: string = transfer.isIncoming ? transfer.senderCid : transfer.recipientCid;
     p2pMessengerManager.updateFileTransferState(BigInt(peerCid), transfer.id, {
-      transfer_state: transfer.state,
+      transfer_state: toStoredState(transfer.state),
       transfer_progress: transfer.progress,
     });
   }

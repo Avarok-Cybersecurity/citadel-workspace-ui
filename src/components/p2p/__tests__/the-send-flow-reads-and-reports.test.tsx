@@ -24,6 +24,8 @@ const { useFileTransfer } = await import('../useFileTransfer');
 const { FileTransferModal } = await import('../FileTransferModal');
 const { FileTransferBubble } = await import('../bubbles/FileTransferBubble');
 import type { P2PMessage } from '@/lib/p2p';
+import { fileTransferService } from '@/lib/file-transfer';
+import type { FileTransfer } from '@/lib/file-transfer/types';
 
 afterEach((): void => { cleanup(); toasted.length = 0; });
 
@@ -90,8 +92,13 @@ describe('the sender\'s bubble', () => {
   it('names what Cancel cancels, in the bubble\'s own foreground', () => {
     const message: P2PMessage = {
       id: 'm1', content: 'File transfer: a.bin', senderCid: 7n, recipientCid: 42n, timestamp: 1, status: 'sent',
-      message_type: 'file_transfer', transfer_id: 'q1', file_name: 'a.bin', file_size: 3, transfer_state: 'preparing',
+      message_type: 'file_transfer', transfer_id: 'q1', file_name: 'a.bin', file_size: 3, transfer_state: 'pending',
     } as P2PMessage;
+    // 'preparing' lives on the service's record (the stored entry says 'pending'), as in the app.
+    (fileTransferService as unknown as { state: { setTransfer: (t: FileTransfer) => void } }).state.setTransfer({
+      id: 'q1', fileName: 'a.bin', fileSize: 3, fileType: '', state: 'preparing', progress: 40,
+      senderCid: '7', recipientCid: '42', createdAt: 0, updatedAt: 0, isIncoming: false,
+    });
     render(<FileTransferBubble message={message} isOwn onCancel={(): void => undefined} />);
     const cancel: HTMLElement = screen.getByRole('button', { name: /cancel send/i });
     expect(cancel.className).toContain('text-primary-foreground');

@@ -16,6 +16,7 @@
  */
 import type { FileTransfer } from './types';
 import { waitingText } from './send-queue';
+import { fromStoredState, type StoredTransferState } from './stored-state';
 import type { FileTransferState as TransferLifecycleState } from '@/types/messaging-layer';
 
 export const STALE_OFFER_REASON: string = 'Offer expired — ask the sender to send it again.';
@@ -33,7 +34,7 @@ export interface TransferView {
 
 /** The fields of a conversation entry that describe its transfer. */
 export interface TransferMessageFields {
-  transfer_state?: TransferLifecycleState;
+  transfer_state?: StoredTransferState;
   transfer_progress?: number;
   error?: string;
 }
@@ -56,7 +57,7 @@ export function transferView(
     const reason: string | undefined = record.state === 'queued' ? waitingText(record.waitingFor ?? 'your contact') : record.errorMessage;
     return { state: record.state, progress: record.progress, reason };
   }
-  const state: TransferLifecycleState = message.transfer_state ?? 'pending';
+  const state: TransferLifecycleState = message.transfer_state === undefined ? 'pending' : fromStoredState(message.transfer_state);
   // An offer with no record that did not arrive in this page's life is one
   // restored from storage: there is nothing left that could accept it.
   if (AWAITING_ANSWER.has(state) && !offerArriving) {
