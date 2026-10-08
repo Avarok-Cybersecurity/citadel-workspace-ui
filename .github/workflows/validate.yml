@@ -402,6 +402,17 @@ jobs:
         run: npm run check:mobile
         working-directory: parent/citadel-workspaces
 
+      - name: Chat polish geometry
+        # jsdom has no layout, so a hover card lying across the rows above it, or a
+        # message pressed against the bubble over it, passes every unit test. This
+        # serves the real components and asserts bounding boxes. Chromium only:
+        # that is the engine this job installs.
+        if: matrix.project == 'citadel-workspaces'
+        run: npm run check:chat-polish
+        env:
+          POLISH_ENGINES: chromium
+        working-directory: parent/citadel-workspaces
+
       # Delegates to the parent repo's gate rather than reimplementing it.
       #
       # This step carried its own bash copy of the 250-line rule with its own
