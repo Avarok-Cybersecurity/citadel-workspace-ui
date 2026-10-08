@@ -27,7 +27,7 @@ function isInside(e: DragEvent<HTMLElement>): boolean {
 
 /**
  * Drop handling for a whole region, kept apart from the dialog's own drop zone: that one selects a
- * file inside an open dialog, this one opens the dialog with the file.
+ * file inside an open dialog, this one hands the file to the send path.
  *
  * Every file drag is claimed (default prevented), enabled or not. Left unclaimed the browser
  * navigates to the file and the conversation is gone, which is worse than a drop that does nothing.

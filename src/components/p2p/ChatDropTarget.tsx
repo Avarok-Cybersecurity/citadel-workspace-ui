@@ -19,7 +19,7 @@ interface ChatDropTargetProps {
  * The overlay is decoration for people who can see it and is hidden from assistive technology;
  * the status region carries the same words for those who cannot. The region is always mounted, so
  * filling it is announced -- one created together with its text is announced inconsistently.
- * Keyboard users have the paperclip, which opens the same dialog.
+ * Keyboard users have the paperclip, which sends through the same path.
  */
 export function ChatDropTarget({ onFile, unavailable, peerName, className, testId, children }: ChatDropTargetProps): JSX.Element {
   const { dragging, handlers }: ChatFileDrop = useChatFileDrop(onFile, unavailable === null);
@@ -35,7 +35,7 @@ export function ChatDropTarget({ onFile, unavailable, peerName, className, testI
         >
           <Upload className="h-8 w-8 text-primary-accent" aria-hidden="true" />
           <p className="text-base font-medium text-foreground">{prompt}</p>
-          {unavailable === null && <p className="text-sm text-muted-foreground">One file at a time. You choose how it is sent next.</p>}
+          {unavailable === null && <p className="text-sm text-muted-foreground">Only the first file is sent. You can cancel it from the conversation.</p>}
         </div>
       )}
       <div role="status" className="sr-only">{dragging ? prompt : ''}</div>
