@@ -36,6 +36,12 @@ const Messages: () => JSX.Element = (): JSX.Element => {
   const currentUserCid: bigint | undefined = selfCid(self, connectionManager.getConnectionInfo());
   const currentUserName: string = self.name || 'You';
 
+  // The roster key for the peer's picture; `selectedPeerName` below is a display name.
+  const selectedPeerUsername: string | undefined = useMemo((): string | undefined => {
+    const username: string | undefined = registeredPeers.find((p: RegisteredPeer) => p.cid === selectedPeerCid)?.username;
+    return isPlaceholderName(username) ? undefined : username;
+  }, [selectedPeerCid, registeredPeers]);
+
   // Resolve peer CID to username
   const selectedPeerName: string = useMemo(() => {
     if (!selectedPeerCid) return '';
@@ -128,6 +134,7 @@ const Messages: () => JSX.Element = (): JSX.Element => {
                 key={selectedPeerCid}
                 peerCid={parsedPeerCid}
                 peerName={selectedPeerName}
+                peerUsername={selectedPeerUsername}
                 currentUserCid={currentUserCid}
                 currentUserName={currentUserName}
               />

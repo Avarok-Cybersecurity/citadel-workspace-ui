@@ -83,7 +83,7 @@ describe('the chat header while paused', () => {
   it('says Paused instead of a presence it is not listening for', () => {
     render(
       <P2PChatHeader
-        peerName="bob" peerPresence={{ status: MessagingLayerType.Online, lastUpdate: 0 }} peerTyping={false}
+        peerName="bob" peerUsername="bob" peerPresence={{ status: MessagingLayerType.Online, lastUpdate: 0 }} peerTyping={false}
         isConnected={false} isRegistered={true} paused={true} connectionRoute={null} supervisor={null} onSettingsClick={vi.fn()}
       />,
     );

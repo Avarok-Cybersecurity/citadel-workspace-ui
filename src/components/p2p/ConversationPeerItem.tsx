@@ -3,14 +3,13 @@
  * Renders a single peer conversation row with avatar, status, and unread badge.
  */
 
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { Button } from '@/components/ui/button';
 import { Circle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import type { PeerInfo } from './P2PPeerListHelpers';
 import { formatListStamp } from '@/lib/format-time';
 import { formatUnreadCount } from '@/lib/format-unread';
-import { initialsOf } from '@/lib/initials';
 
 interface ConversationPeerItemProps {
   peer: PeerInfo;
@@ -29,9 +28,7 @@ export function ConversationPeerItem({ peer, isSelected, onSelect }: Conversatio
     >
       <div className="flex items-center gap-3 w-full">
         <div className="relative">
-          <Avatar className="h-10 w-10">
-            <AvatarFallback>{initialsOf(peer.name)}</AvatarFallback>
-          </Avatar>
+          <MemberAvatar username={peer.username} name={peer.name} className="h-10 w-10" />
           <Circle
             aria-hidden="true"
             className={`absolute bottom-0 right-0 h-3 w-3 ${

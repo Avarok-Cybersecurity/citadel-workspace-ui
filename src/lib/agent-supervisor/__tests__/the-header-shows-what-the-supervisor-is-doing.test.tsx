@@ -33,7 +33,7 @@ const agent: FakeAgent = new FakeAgent();
 function Harness({ connected }: { connected: boolean }): JSX.Element {
   return (
     <P2PChatHeader
-      peerName="ada" peerPresence={{ status: MessagingLayerType.Online, lastUpdate: 0 }} peerTyping={false}
+      peerName="ada" peerUsername="ada" peerPresence={{ status: MessagingLayerType.Online, lastUpdate: 0 }} peerTyping={false}
       isConnected={connected} isRegistered paused={false}
       connectionRoute={useConnectionRoute(OURS, PEER)} supervisor={useSupervisorState(OURS, PEER)}
       onSettingsClick={vi.fn()}

@@ -11,7 +11,7 @@ describe('avatar fallbacks', () => {
   it('a P2P row shows first and last initials', () => {
     render(
       <ConversationPeerItem
-        peer={{ cid: '1', name: 'Ada Byron Lovelace', isConnected: true, unreadCount: 0 }}
+        peer={{ cid: '1', name: 'Ada Byron Lovelace', username: 'ada', isConnected: true, unreadCount: 0 }}
         isSelected={false}
         onSelect={(): void => undefined}
       />,

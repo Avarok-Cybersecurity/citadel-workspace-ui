@@ -49,7 +49,7 @@ export function BubbleFooter({ message, isOwn, onRetry }: BubbleFooterProps): JS
           // Both parties need to see that a message was revised, or an edit is
           // indistinguishable from having misread the original.
           <span
-            className="text-xs opacity-70"
+            className="text-xs opacity-90"
             data-testid="message-edited-marker"
             title={`Edited ${formatTime(message.edited_at)}`}
           >

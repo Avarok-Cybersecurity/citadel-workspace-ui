@@ -6,11 +6,10 @@
  */
 
 import React from 'react';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { Button } from '@/components/ui/button';
 import { Settings } from 'lucide-react';
 import { CallEntryButtons } from '@/components/call/CallEntryButtons';
-import { getInitials } from '@/components/chat/shared';
 import { MessagingLayerType } from '@/types/messaging-layer';
 import type { PeerPresence } from '@/lib/p2p';
 import { PAUSE_COPY } from '@/lib/p2p-pause/pause-copy';
@@ -20,6 +19,8 @@ import { ConnectionPathLabel } from './ConnectionPathLabel';
 
 interface P2PChatHeaderProps {
   peerName: string;
+  /** Who the picture belongs to: the roster is keyed by username, `peerName` is for reading. */
+  peerUsername: string;
   peerPresence: PeerPresence | null;
   peerTyping: boolean;
   isConnected: boolean;
@@ -93,6 +94,7 @@ export function getStatusDisplay(
 
 export function P2PChatHeader({
   peerName,
+  peerUsername,
   peerPresence,
   peerTyping,
   isConnected,
@@ -111,9 +113,7 @@ export function P2PChatHeader({
     <div className="border-b border-surface/50 p-4 bg-background">
       <div className="flex items-center justify-between">
         <div className="flex min-w-0 items-center gap-3">
-          <Avatar className="h-8 w-8 shrink-0">
-            <AvatarFallback>{getInitials(peerName)}</AvatarFallback>
-          </Avatar>
+          <MemberAvatar username={peerUsername} name={peerName} className="h-8 w-8" />
           {/* min-w-0, or the `truncate` below can never fire: a flex item
               defaults to min-width:auto, so this div never becomes narrower
               than the name's max-content width and a long peer name renders

@@ -37,6 +37,7 @@ const base: Omit<ComponentProps<typeof P2PMessageList>, 'ref'> = {
   currentUserCid: 1n,
   currentUserName: 'me',
   peerName: 'alice',
+  peerUsername: 'alice',
   peerCid: 2n,
   isLoadingMore: false,
   isLoadingHistory: false,

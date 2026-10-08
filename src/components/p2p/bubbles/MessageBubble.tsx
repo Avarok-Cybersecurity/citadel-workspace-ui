@@ -25,6 +25,7 @@ interface MessageBubbleProps {
   showSenderName?: boolean;
   showSenderAvatar?: boolean;
   senderName?: string;
+  senderUsername?: string;
 
   // Message actions (group mode)
   onEdit?: () => void;
@@ -47,6 +48,7 @@ export function MessageBubble({
   showSenderName,
   showSenderAvatar,
   senderName,
+  senderUsername,
   onEdit,
   onDelete,
   onReply,
@@ -56,13 +58,14 @@ export function MessageBubble({
   const containerStyles: string = getBubbleContainerStyles(isOwn);
 
   // Common props for all bubble types
-  const commonProps: { message: P2PMessage; isOwn: boolean; onRetry: (() => void) | undefined; showSenderName: boolean | undefined; showSenderAvatar: boolean | undefined; senderName: string | undefined; onEdit: (() => void) | undefined; onDelete: (() => void) | undefined; onReply: (() => void) | undefined; focusComposer: (() => void) | undefined; reactions: ReactionBinding | undefined; } = {
+  const commonProps: { message: P2PMessage; isOwn: boolean; onRetry: (() => void) | undefined; showSenderName: boolean | undefined; showSenderAvatar: boolean | undefined; senderName: string | undefined; senderUsername: string | undefined; onEdit: (() => void) | undefined; onDelete: (() => void) | undefined; onReply: (() => void) | undefined; focusComposer: (() => void) | undefined; reactions: ReactionBinding | undefined; } = {
     message,
     isOwn,
     onRetry,
     showSenderName,
     showSenderAvatar,
     senderName,
+    senderUsername,
     onEdit,
     onDelete,
     onReply,

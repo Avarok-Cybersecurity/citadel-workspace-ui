@@ -20,7 +20,7 @@ afterEach(cleanup);
 function renderHeader(route: PeerPathReport | null, opts: { connected?: boolean; paused?: boolean } = {}): void {
   render(
     <P2PChatHeader
-      peerName="ada" peerPresence={{ status: MessagingLayerType.Online, lastUpdate: 0 }} peerTyping={false}
+      peerName="ada" peerUsername="ada" peerPresence={{ status: MessagingLayerType.Online, lastUpdate: 0 }} peerTyping={false}
       isConnected={opts.connected ?? true} isRegistered paused={opts.paused ?? false}
       connectionRoute={route} supervisor={null} onSettingsClick={vi.fn()}
     />,

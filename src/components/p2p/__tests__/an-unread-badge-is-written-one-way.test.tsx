@@ -19,7 +19,7 @@ describe('a P2P conversation row', () => {
   it('caps its unread badge the way the group row does', () => {
     render(
       <ConversationPeerItem
-        peer={{ cid: '1', name: 'alice', isConnected: true, unreadCount: 150 }}
+        peer={{ cid: '1', name: 'alice', username: 'alice', isConnected: true, unreadCount: 150 }}
         isSelected={false}
         onSelect={(): void => undefined}
       />,
