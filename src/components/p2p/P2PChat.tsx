@@ -8,12 +8,14 @@
 import { FilePreviewDialog } from '@/components/layout/sidebar/FilePreviewDialog';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { notificationService } from '@/lib/notification-service';
-import { MessageCircle } from 'lucide-react';
 import { ChatTabBar } from './ChatTabBar';
+import { NoConversation } from './NoConversation';
 import { ComposeContextBanner } from './ComposeContextBanner';
 import { LiveDocumentPane } from './LiveDocumentPane';
 import { LiveDocumentModal } from './LiveDocumentModal';
 import { FileTransferModal } from './FileTransferModal';
+import { ChatDropTarget } from './ChatDropTarget';
+import { dropUnavailableReason } from './drop-unavailable';
 import { ChatSettingsPanel } from './ChatSettingsPanel';
 import { P2PChatHeader } from './P2PChatHeader';
 import { CallStage } from '@/components/call/CallStage';
@@ -41,6 +43,8 @@ export type ChatMode = 'p2p' | 'group';
 interface P2PChatProps {
   peerCid: bigint;
   peerName?: string;
+  /** The roster key behind `peerName`. Absent when the caller only knows a display name; the picture then falls back to initials. */
+  peerUsername?: string;
   currentUserCid?: bigint;
   currentUserName?: string;
   mode?: ChatMode;
@@ -56,6 +60,7 @@ interface P2PChatProps {
 export function P2PChat({
   peerCid,
   peerName = 'Peer',
+  peerUsername,
   currentUserCid,
   currentUserName = 'You',
   mode = 'p2p',
@@ -100,6 +105,9 @@ export function P2PChat({
   });
 
   const fileTransfer: ReturnType<typeof useP2PFileTransfer> = useP2PFileTransfer({ peerCid, peerName });
+  // The one place a drop meets the send path: the same entry the dialog's Send uses. The hook has
+  // already toasted a failure, so the rejection is only swallowed here, not hidden.
+  const sendDroppedFile: (file: File) => void = (file: File): void => { fileTransfer.handleSendFile(file).catch((): void => {}); };
   const connectionRoute: PeerPathReport | null = useConnectionRoute(currentUserCid ?? null, peerCid);
   const supervisor: SupervisorState | null = useSupervisorState(currentUserCid ?? null, peerCid);
   useChatInterest(currentUserCid ?? null, peerCid);
@@ -135,22 +143,16 @@ export function P2PChat({
     }
   }, [peerCid, activeTabId]);
 
-  if (!peerCid) {
-    return (
-      <div className="h-full flex flex-col items-center justify-center bg-background">
-        <MessageCircle className="h-12 w-12 text-muted-foreground mb-4" />
-        <p className="text-muted-foreground">Select a conversation to start messaging</p>
-      </div>
-    );
-  }
+  if (!peerCid) return <NoConversation />;
 
   const isViewingDocument: boolean = activeTab?.type === 'live_document';
 
 
   return (
-    <div className="h-full flex flex-col bg-background" data-testid="p2p-chat">
+    <ChatDropTarget className="h-full flex flex-col bg-background" testId="p2p-chat" peerName={peerName} onFile={sendDroppedFile} unavailable={dropUnavailableReason({ viewingDocument: isViewingDocument, paused })}>
       <P2PChatHeader
         peerName={peerName}
+        peerUsername={peerUsername ?? peerName}
         peerPresence={peerPresence}
         peerTyping={peerTyping}
         isConnected={isConnected}
@@ -205,7 +207,7 @@ export function P2PChat({
             <div className="relative flex min-h-0 flex-1 flex-col">
             <P2PMessageList
               ref={scrollRef} messages={messages} currentUserCid={currentUserCid}
-              currentUserName={currentUserName} peerName={peerName} peerCid={peerCid}
+              currentUserName={currentUserName} peerName={peerName} peerUsername={peerUsername ?? peerName} peerCid={peerCid}
               isLoadingMore={isLoadingMore} isLoadingHistory={isLoadingHistory} hasMorePages={hasMorePages}
               displaySenderName={displaySenderName} displaySenderAvatar={displaySenderAvatar}
               onScroll={handleScroll} onRetryMessage={handleRetryMessage}
@@ -244,6 +246,6 @@ export function P2PChat({
       <FileTransferModal isOpen={showFileModal} onClose={() => setShowFileModal(false)} onSendFile={fileTransfer.handleSendFile} peerCid={peerCid.toString()} />
       <FilePreviewDialog file={fileTransfer.openedFile} isOpen={fileTransfer.openedFile !== null} onClose={fileTransfer.closeOpenedFile} />
       <ChatSettingsPanel isOpen={showSettingsModal} onClose={() => setShowSettingsModal(false)} peerCid={peerCid.toString()} peerName={peerName} />
-    </div>
+    </ChatDropTarget>
   );
 }
