@@ -18,6 +18,8 @@ interface P2PMessageListProps {
   currentUserCid?: bigint;
   currentUserName: string;
   peerName: string;
+  /** The roster key behind `peerName`, for the peer's picture. */
+  peerUsername: string;
   peerCid: bigint;
   isLoadingMore: boolean;
   /** True until the stored history has been read; see useP2PMessages. */
@@ -47,6 +49,7 @@ export const P2PMessageList: React.ForwardRefExoticComponent<P2PMessageListProps
       currentUserCid,
       currentUserName,
       peerName,
+      peerUsername,
       peerCid: _peerCid,
       isLoadingMore,
       isLoadingHistory,
@@ -130,6 +133,11 @@ export const P2PMessageList: React.ForwardRefExoticComponent<P2PMessageListProps
           {Object.entries(messagesByDate).map(([date, dayMessages]) => (
             <div key={date}>
               <DateSeparator date={date} />
+              {/* The rows carry no margin of their own, and `space-y-4` above spaces the DAYS.
+                  Without this gap every message sat flush against the one over it -- most
+                  visibly a plain message under a live-document bubble, or under a message
+                  with reaction chips (see check-chat-polish-geometry). */}
+              <div className="flex flex-col gap-3">
               {dayMessages.map((message) => {
             const isOwn: boolean = message.senderCid === currentUserCid;
             const messageSenderName: string = isOwn ? currentUserName : peerName;
@@ -149,6 +157,7 @@ export const P2PMessageList: React.ForwardRefExoticComponent<P2PMessageListProps
                 showSenderName={displaySenderName}
                 showSenderAvatar={displaySenderAvatar}
                 senderName={messageSenderName}
+                senderUsername={isOwn ? undefined : peerUsername}
                 onEdit={onEditMessage ? (): void => onEditMessage(message.id, message.content) : undefined}
                 onDelete={onDeleteMessage ? (): void => onDeleteMessage(message.id) : undefined}
                 onReply={onReplyMessage ? (): void => onReplyMessage(message.id) : undefined}
@@ -157,6 +166,7 @@ export const P2PMessageList: React.ForwardRefExoticComponent<P2PMessageListProps
               />
             );
           })}
+              </div>
             </div>
           ))}
         </div>
