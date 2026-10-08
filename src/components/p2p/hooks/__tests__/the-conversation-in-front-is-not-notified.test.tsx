@@ -12,7 +12,7 @@
  * path and notification service. Stand-ins: the fake agent and `document.hasFocus`
  * (hosting-agent.ts), and the platform's `Notification` constructor.
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest';
 import { render, act, type RenderResult } from '@testing-library/react';
 import { useRef, type MutableRefObject, type RefObject } from 'react';
 import { ConfirmDialogProvider } from '@/components/shared/confirm-dialog';
@@ -58,6 +58,13 @@ async function arrives(from: bigint): Promise<string> {
 }
 
 const notified = (id: string): boolean => notificationService.getNotifications().some((n) => n.sourceId === id);
+
+// The OS delivery is a lazy chunk the service imports with the first notification
+// (service.ts). Its first load in a test run is a module transform that can outlast
+// `settle()`, so the one assertion on the OS surface failed only when this file ran
+// cold -- seen on CI and in a full local run, never alone. Loaded here first, the
+// service's import resolves from the module cache within the same settle.
+beforeAll(async () => { await import('@/lib/notification-service/interrupt-os'); });
 
 beforeEach(async () => {
   agent = await installHostingAgent();
