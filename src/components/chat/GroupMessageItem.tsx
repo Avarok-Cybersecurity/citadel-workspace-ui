@@ -9,9 +9,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { senderUsernameOf } from './shared/sender-username';
-import { MoreVertical, Edit2, Trash2, Reply } from 'lucide-react';
+import { MoreVertical, Edit2, Trash2 } from 'lucide-react';
 import type { GroupMessage } from '@/types/workspace-entities';
 import { cn } from '@/lib/utils';
+import { ReplyMenuItem } from './shared/ReplyMenuItem';
 import { ReplyQuote, MESSAGE_ANCHOR_ATTRIBUTE, JUMP_TARGET_CLASSES, type QuotedMessage } from './shared';
 import { GroupMessageFooter } from './GroupMessageFooter';
 import { GroupFileShareCard } from './GroupFileShareCard';
@@ -164,10 +165,7 @@ export const GroupMessageItem: React.FC<GroupMessageItemProps> = ({
             align={isOwnMessage ? 'start' : 'end'}
             onCloseAutoFocus={handoff.onCloseAutoFocus}
           >
-            <DropdownMenuItem onClick={handoff.toComposer(() => onReply(message.id))}>
-              <Reply className="h-4 w-4 mr-2" />
-              Reply
-            </DropdownMenuItem>
+            <ReplyMenuItem onSelect={handoff.toComposer(() => onReply(message.id))} />
             {isOwnMessage && canRevise && (
               <>
                 <DropdownMenuItem onClick={handoff.toComposer(() => onEdit(message.id, message.content))}>
