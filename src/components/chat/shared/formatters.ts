@@ -9,7 +9,8 @@
  * notification.
  *
  * The consolidation reached four of the six. These two survived, unreferenced
- * copies of the canonical pair sitting one import away — so the module written
+ * copies of the canonical pair sitting one
+ * import away — so the module written
  * to end duplicate formatters was itself duplicated, and the copies were the
  * ones the chat actually rendered with.
  *
@@ -19,6 +20,7 @@
  */
 
 import { formatClock, formatDay } from '@/lib/format-time';
+import { initialsOf } from '@/lib/initials';
 
 /** The clock beside a message. Canonical implementation: `lib/format-time`. */
 export const formatTime: (timestamp: number | bigint) => string = formatClock;
@@ -26,18 +28,8 @@ export const formatTime: (timestamp: number | bigint) => string = formatClock;
 /** Today / Yesterday / a date, for separators. Canonical: `lib/format-time`. */
 export const formatDate: (timestamp: number | bigint) => string = formatDay;
 
-/**
- * Extract initials from a name (max 2 characters)
- */
-export function getInitials(name: string): string {
-  if (!name) return '??';
-  return name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
-}
+/** Extract initials from a name. Canonical: `lib/initials`. */
+export const getInitials: (name: string) => string = initialsOf;
 
 /**
  * Group messages by date for display with date separators
