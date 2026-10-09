@@ -28,6 +28,7 @@ vi.mock('@/lib/start-messaging', async () => ({ startMessagingForSession: (await
 // The P2P startup a signed-in session triggers; nothing here to start it against.
 vi.mock('@/lib/session-startup-service', () => ({}));
 vi.mock('@/lib/passkey', async (orig: () => Promise<Record<string, unknown>>) => (await import('./login-world')).passkeyDouble(orig));
+vi.mock('@/lib/admission', async (orig: () => Promise<Record<string, unknown>>) => (await import('./login-world')).admissionDouble(orig));
 vi.mock('@/lib/sign-in', async (orig: () => Promise<Record<string, unknown>>) => (await import('./login-world')).signInDouble(orig));
 
 import { Login } from '../Login';

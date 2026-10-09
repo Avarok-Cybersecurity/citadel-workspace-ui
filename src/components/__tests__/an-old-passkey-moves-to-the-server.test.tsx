@@ -21,6 +21,7 @@ vi.mock('@/lib/post-auth-setup', async () => ({ postAuthSetup: (await import('./
 vi.mock('@/lib/start-messaging', async () => ({ startMessagingForSession: (await import('./login-world')).loginWorld.messaging }));
 vi.mock('@/lib/session-startup-service', () => ({}));
 vi.mock('@/lib/passkey', async (orig: () => Promise<Record<string, unknown>>) => (await import('./login-world')).passkeyDouble(orig));
+vi.mock('@/lib/admission', async (orig: () => Promise<Record<string, unknown>>) => (await import('./login-world')).admissionDouble(orig));
 vi.mock('@/lib/sign-in', async (orig: () => Promise<Record<string, unknown>>) => (await import('./login-world')).signInDouble(orig));
 
 import { Login } from '../Login';
