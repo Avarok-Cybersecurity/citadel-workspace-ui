@@ -77,6 +77,16 @@ export const connectionDouble = async (orig: () => Promise<Record<string, unknow
   };
 };
 
+/**
+ * The tab's stored selection is IndexedDB, which this environment has none of. The real connection
+ * manager reads it for every agent answer it hears, so it is answered here: nobody is selected yet.
+ */
+export const tabContextDouble = async (orig: () => Promise<Record<string, unknown>>): Promise<Record<string, unknown>> => ({
+  ...(await orig()),
+  getSelectedUser: async (): Promise<null> => null,
+  setSelectedUser: async (): Promise<void> => undefined,
+});
+
 export const passkeyDouble = async (orig: () => Promise<Record<string, unknown>>): Promise<Record<string, unknown>> => ({
   ...(await orig()), passkeysAvailableHere: (): boolean => true,
   browserPasskeyDeps: (): unknown => ({ ...loginWorld.w.deps, now: (): number => 1 }),
