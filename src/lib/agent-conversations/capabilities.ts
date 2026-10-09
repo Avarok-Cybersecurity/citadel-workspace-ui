@@ -20,6 +20,7 @@
  */
 import { TIMEOUT } from '../timeout-constants';
 import { greetingSupervises } from '@/types/agent-supervisor';
+import { eventEmitter } from '../event-emitter';
 import { createValueStore, type ValueStore } from '../value-store';
 import type { InternalServiceRequest, InternalServiceResponse } from 'citadel-workspace-client-ts';
 
@@ -150,8 +151,16 @@ export function leaderSocketFailedToOpen(error: unknown): void {
   leaderWaiters = [];
 }
 
+let stopWatchingLeaderSocket: (() => void) | null = null;
+
 export function registerCapabilityRoute(r: CapabilityRoute): void {
   route = r;
+  // A follower's answer was about the leader's old socket; the leader declares
+  // afresh on each one (forgetCapabilities), so the follower asks afresh too.
+  stopWatchingLeaderSocket?.();
+  stopWatchingLeaderSocket = eventEmitter.on<{ up: boolean }>('agent-socket-state', ({ up }): void => {
+    if (!up && !r.isLeader()) decided = null;
+  });
 }
 
 function capabilities(): Promise<AgentCapabilities> {
