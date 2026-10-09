@@ -44,7 +44,7 @@ describe('what counts as knowing who is online', () => {
     // The positive control: without this, "always null" would satisfy the tests
     // above and the presence dot would never resolve for anyone.
     const state: P2PConnectionState = new P2PConnectionState();
-    state.setOnlinePeers([ALICE]);
+    state.setOnlinePeers([ALICE], []);
 
     expect(state.peerOnlineStatus(ALICE)).toBe(true);
     expect(state.peerOnlineStatus(BOB)).toBe(false);
@@ -53,7 +53,7 @@ describe('what counts as knowing who is online', () => {
   it('keeps an incrementally known peer when the backend answers later', () => {
     const state: P2PConnectionState = new P2PConnectionState();
     state.addOnlinePeer(ALICE);
-    state.setOnlinePeers([BOB]);
+    state.setOnlinePeers([BOB], []);
 
     // A poll replaces the set, which is what makes it authoritative.
     expect(state.peerOnlineStatus(BOB)).toBe(true);

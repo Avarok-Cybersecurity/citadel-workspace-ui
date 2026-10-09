@@ -45,7 +45,7 @@ describe('a state-sync about a follower session', () => {
 describe('resetting connection state', () => {
   it('forgets presence rather than reporting everybody offline', () => {
     const state: AutoConnectState = new AutoConnectState();
-    state.setOnlinePeers([LEADER_SESSION]);
+    state.setOnlinePeers([LEADER_SESSION], []);
     expect(state.peerOnlineStatus(LEADER_SESSION)).toBe(true);
     state.clearOnlineStatus();
     expect(state.peerOnlineStatus(LEADER_SESSION)).toBeNull();
@@ -53,7 +53,7 @@ describe('resetting connection state', () => {
 
   it('still reports offline after a real poll that did not list the peer', () => {
     const state: AutoConnectState = new AutoConnectState();
-    state.setOnlinePeers([]);
+    state.setOnlinePeers([], []);
     expect(state.peerOnlineStatus(LEADER_SESSION)).toBe(false);
   });
 });
