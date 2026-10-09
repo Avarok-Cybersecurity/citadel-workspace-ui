@@ -34,9 +34,10 @@ vi.mock('@/lib/tab-context', async (importOriginal) => {
   const actual: Record<string, unknown> = await importOriginal();
   return { ...actual, getSelectedUser: async (): Promise<unknown> => ({ selectedUsername: 'bob' }) };
 });
-vi.mock('@/lib/connection', async (importOriginal) => {
-  const actual: Record<string, unknown> = await importOriginal();
-  return { ...actual, connectionManager: { getConnectionInfo: (): { cid: bigint } => ({ cid: SELF }) } };
+vi.mock('@/lib/connection', async (importOriginal: () => Promise<typeof import('@/lib/connection')>) => {
+  const actual: typeof import('@/lib/connection') = await importOriginal();
+  const { doubleOf } = await import('@/test/singleton-double');
+  return { ...actual, connectionManager: doubleOf(actual.connectionManager, { getConnectionInfo: ((): { cid: bigint } => ({ cid: SELF })) as never }) };
 });
 
 const { eventEmitter } = await import('@/lib/event-emitter');
