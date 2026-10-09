@@ -12,6 +12,7 @@
  */
 
 import { eventEmitter } from '../event-emitter';
+import { onSocketLost } from './socket-loss';
 import { debugLog } from '../debug-config';
 
 export interface ResponseMatcher<T> {
@@ -43,8 +44,8 @@ export interface RequestResponseOptions<T> {
  * wrong cause.
  *
  * Rejecting on the drop turns a minute of false hope into an immediate, true
- * message. Only the leader tab's client emits this; a follower's request dies
- * with its leader and is covered by the leader-change path instead.
+ * message. Only the leader tab's client emits 'websocket-disconnected'; a follower
+ * hears the same loss as the leader's report (onSocketLost).
  */
 export const CONNECTION_LOST: "the connection to the Citadel agent was lost" = 'the connection to the Citadel agent was lost';
 
@@ -55,7 +56,7 @@ export function requestResponse<T>(options: RequestResponseOptions<T>): Promise<
     const cleanup = (): void => {
       clearTimeout(timeout);
       eventEmitter.off('websocket-message', handler);
-      eventEmitter.off('websocket-disconnected', onDisconnected);
+      stopListeningForLoss();
     };
 
     const timeout: NodeJS.Timeout = setTimeout((): void => {
@@ -84,7 +85,7 @@ export function requestResponse<T>(options: RequestResponseOptions<T>): Promise<
     };
 
     eventEmitter.on('websocket-message', handler);
-    eventEmitter.on('websocket-disconnected', onDisconnected);
+    const stopListeningForLoss: () => void = onSocketLost(onDisconnected);
 
     sendRequest(request, requestId).catch(error => {
       cleanup();
@@ -115,7 +116,7 @@ export function requestResponseSoft(options: {
     const cleanup = (): void => {
       clearTimeout(timeout);
       eventEmitter.off('websocket-message', handler);
-      eventEmitter.off('websocket-disconnected', onDisconnected);
+      stopListeningForLoss();
     };
 
     const timeout: NodeJS.Timeout = setTimeout((): void => {
@@ -149,7 +150,7 @@ export function requestResponseSoft(options: {
     };
 
     eventEmitter.on('websocket-message', handler);
-    eventEmitter.on('websocket-disconnected', onDisconnected);
+    const stopListeningForLoss: () => void = onSocketLost(onDisconnected);
 
     sendRequest(request, requestId).catch(error => {
       cleanup();
@@ -175,18 +176,17 @@ export function requestResponseSoft(options: {
  */
 export function failOnSocketLoss<T>(operationName: string, promise: Promise<T>): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const onLost = (): void => {
-      eventEmitter.off('websocket-disconnected', onLost);
+    const stopListening: () => void = onSocketLost((): void => {
+      stopListening();
       reject(new Error(`${operationName} failed: ${CONNECTION_LOST}`));
-    };
-    eventEmitter.on('websocket-disconnected', onLost);
+    });
     promise.then(
       (value) => {
-        eventEmitter.off('websocket-disconnected', onLost);
+        stopListening();
         resolve(value);
       },
       (error) => {
-        eventEmitter.off('websocket-disconnected', onLost);
+        stopListening();
         reject(error);
       },
     );
