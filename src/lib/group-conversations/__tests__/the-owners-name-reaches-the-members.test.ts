@@ -80,7 +80,7 @@ describe('reading a name off an arriving message', () => {
 
 describe('applying it', () => {
   const arrival = (groupName?: string): Parameters<typeof applyGroupMessage>[1] => ({
-    groupId: GROUP_ID, senderId: OWNER.toString(), content: 'hi', messageId: crypto.randomUUID(), groupName,
+    groupId: GROUP_ID, senderId: OWNER.toString(), content: 'hi', messageId: crypto.randomUUID(), groupName, viewing: false,
   });
 
   it("renames the member's copy of the group", () => {

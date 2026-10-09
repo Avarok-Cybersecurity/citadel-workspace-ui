@@ -23,12 +23,12 @@ describe('an office/room message you sent', () => {
   beforeEach((): void => { forgetSeenIds(); });
 
   it('does not raise your unread count when the sender is your username', () => {
-    const next: GroupConversation[] = applyGroupMessage(groups(), { groupId: 'chan-1', senderId: 'thomas', selfUsername: 'thomas', content: 'hi', messageId: 'm1' }, 5, byCid);
+    const next: GroupConversation[] = applyGroupMessage(groups(), { groupId: 'chan-1', senderId: 'thomas', selfUsername: 'thomas', content: 'hi', messageId: 'm1', viewing: false }, 5, byCid);
     expect(next[0].unreadCount).toBe(0);
   });
 
   it("still counts someone else's office message", () => {
-    const next: GroupConversation[] = applyGroupMessage(groups(), { groupId: 'chan-1', senderId: 'lara', selfUsername: 'thomas', content: 'hi', messageId: 'm2' }, 5, byCid);
+    const next: GroupConversation[] = applyGroupMessage(groups(), { groupId: 'chan-1', senderId: 'lara', selfUsername: 'thomas', content: 'hi', messageId: 'm2', viewing: false }, 5, byCid);
     expect(next[0].unreadCount).toBe(1);
   });
 

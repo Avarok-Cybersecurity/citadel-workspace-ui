@@ -32,8 +32,9 @@ function groups(): GroupConversation[] {
   return [{ id: GROUP, unreadCount: 0, lastMessageTime: 0, lastMessagePreview: '' } as unknown as GroupConversation];
 }
 
-function message(overrides: Record<string, unknown> = {}): { groupId: string; senderId: string; content: string; messageId?: string } {
-  return { groupId: GROUP, senderId: OTHER, content: 'hello', messageId: 'm1', ...overrides };
+function message(overrides: Record<string, unknown> = {}): { groupId: string; senderId: string; content: string; messageId?: string; viewing: boolean } {
+  // Not looking at it: the counting rules are the subject here, not the viewing one.
+  return { groupId: GROUP, senderId: OTHER, content: 'hello', messageId: 'm1', viewing: false, ...overrides };
 }
 
 describe('a group message', () => {

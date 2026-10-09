@@ -3,8 +3,7 @@ import { instanceManager } from '@/lib/multi-instance';
 import NotificationService from '@/lib/notification-service';
 import { debugLog } from '@/lib/debug-config';
 import { isOwnGroupMessage } from './own-message';
-import { isChannelOpen } from './open-channel';
-import { conversationInFront } from '@/lib/notification-service/in-front';
+import { groupInFront } from './group-in-front';
 
 /**
  * Raise a bell notification for an incoming group message.
@@ -47,7 +46,7 @@ export function startGroupNotificationBindings(selfUsername: () => string | unde
     // 2. Never for the conversation the user is reading right now: a peer group
     //    by its URL, an office/room chat by the channel its view marked open --
     //    in a window that is in front, the rule every surface shares (in-front.ts).
-    if (conversationInFront(urlShowsGroup(data.groupId) || isChannelOpen(data.groupId))) return;
+    if (groupInFront(data.groupId)) return;
 
     debugLog('GroupNotifications', 'raising notification for group', data.groupId);
     NotificationService.getInstance().addMessageNotification(
@@ -61,15 +60,4 @@ export function startGroupNotificationBindings(selfUsername: () => string | unde
       { groupId: data.groupId },
     );
   });
-}
-
-/**
- * Whether this tab's route is that group.
- *
- * Read from the URL rather than from a "currently active conversation" field:
- * the P2P equivalent of that field was, until 2026-10-04, set by nothing.
- */
-function urlShowsGroup(groupId: string): boolean {
-  if (typeof window === 'undefined') return false;
-  return window.location.pathname.includes(`/groups/${groupId}`);
 }
