@@ -8,6 +8,7 @@
  * file's factory awaits this module and calls the matching function.
  */
 import { vi } from 'vitest';
+import { doubleOf } from '@/test/singleton-double';
 import type { World } from '@/lib/sign-in/__tests__/helpers';
 import type { FakeAccount } from '@/lib/sign-in/__tests__/fake-agent';
 import type { SignInFactors } from '@/lib/sign-in/types';
@@ -39,7 +40,8 @@ export const admissionDouble = async (orig: () => Promise<Record<string, unknown
   browserAccountServers: async (): Promise<ReadonlyMap<string, string>> => loginWorld.accountServers,
 });
 
-export async function websocketServiceDouble(): Promise<Record<string, unknown>> {
+export async function websocketServiceDouble(orig: () => Promise<Record<string, unknown>>): Promise<Record<string, unknown>> {
+  const real = (await orig()) as typeof import('@/lib/websocket-service');
   const { AuthOperations } = await import('@/lib/websocket/auth-operations');
   const ops = (): InstanceType<typeof AuthOperations> => new AuthOperations({
     init: async (): Promise<void> => undefined,
@@ -47,28 +49,33 @@ export async function websocketServiceDouble(): Promise<Record<string, unknown>>
     claimSession: async (): Promise<unknown> => undefined, disconnect: async (): Promise<void> => undefined,
   });
   return {
-    websocketService: {
-      connect: (id: string, user: string, f: SignInFactors): Promise<void> => ops().connect(id, user, f),
-      register: (id: string, user: string, pw: string, name: string, addr: string, token: string | null): Promise<void> =>
-        ops().register(id, user, pw, name, addr, token),
-      disconnect: (cid: bigint): Promise<void> => loginWorld.w.agent.send({ Disconnect: { request_id: 'bye', cid } }),
-      sendRequest: (r: Record<string, unknown>): Promise<void> => loginWorld.w.agent.send(r),
-    },
+    ...real,
+    websocketService: doubleOf(real.websocketService, {
+      connect: ((id: string, user: string, f: SignInFactors): Promise<void> => ops().connect(id, user, f)) as never,
+      register: ((id: string, user: string, pw: string, name: string, addr: string, token: string | null): Promise<void> =>
+        ops().register(id, user, pw, name, addr, token)) as never,
+      disconnect: ((cid: bigint): Promise<void> => loginWorld.w.agent.send({ Disconnect: { request_id: 'bye', cid } })) as never,
+      sendRequest: ((r: Record<string, unknown>): Promise<void> => loginWorld.w.agent.send(r)) as never,
+    }),
   };
 }
 
-export const connectionDouble = (): Record<string, unknown> => ({
-  connectionManager: {
-    getStoredSessions: (): { sessions: never[] } => ({ sessions: [] }),
-    invalidateSessionCache: (): void => undefined,
-    getActiveSessions: async (): Promise<Array<{ cid: bigint; username: string; server_address: string }>> =>
-      loginWorld.w.agent.accounts.map((a: FakeAccount) => ({ cid: a.cid, username: a.username, server_address: 'bench.work.avarok.net' })),
-    handleAuthSuccess: async (): Promise<void> => undefined,
-    waitForReady: async (): Promise<void> => undefined,
-    getActiveSessionsResult: async (): Promise<{ ok: true; sessions: never[]; signedOut: SignedOutAccount[] }> =>
-      ({ ok: true, sessions: [], signedOut: loginWorld.signedOut }),
-  },
-});
+export const connectionDouble = async (orig: () => Promise<Record<string, unknown>>): Promise<Record<string, unknown>> => {
+  const real = (await orig()) as typeof import('@/lib/connection');
+  return {
+  ...real,
+  connectionManager: doubleOf(real.connectionManager, {
+    getStoredSessions: ((): { sessions: never[] } => ({ sessions: [] })) as never,
+    invalidateSessionCache: ((): void => undefined) as never,
+    getActiveSessions: (async (): Promise<Array<{ cid: bigint; username: string; server_address: string }>> =>
+      loginWorld.w.agent.accounts.map((a: FakeAccount) => ({ cid: a.cid, username: a.username, server_address: 'bench.work.avarok.net' }))) as never,
+    handleAuthSuccess: (async (): Promise<void> => undefined) as never,
+    waitForReady: (async (): Promise<void> => undefined) as never,
+    getActiveSessionsResult: (async (): Promise<{ ok: true; sessions: never[]; signedOut: SignedOutAccount[] }> =>
+      ({ ok: true, sessions: [], signedOut: loginWorld.signedOut })) as never,
+  }),
+  };
+};
 
 export const passkeyDouble = async (orig: () => Promise<Record<string, unknown>>): Promise<Record<string, unknown>> => ({
   ...(await orig()), passkeysAvailableHere: (): boolean => true,
