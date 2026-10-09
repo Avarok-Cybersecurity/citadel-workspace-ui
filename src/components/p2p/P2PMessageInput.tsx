@@ -29,7 +29,6 @@ interface P2PMessageInputProps {
   inputMessage: string;
   messageType: MessageType;
   showMarkdownPreview: boolean;
-  canSendMessages: boolean;
   /** Paused: messages still send (they queue); files need the live link. */
   paused: boolean;
   /** A message is between submit and appearing in the transcript. */
@@ -50,7 +49,6 @@ export const P2PMessageInput: React.ForwardRefExoticComponent<P2PMessageInputPro
       inputMessage,
       messageType,
       showMarkdownPreview,
-      canSendMessages,
       paused,
       isSending,
       onInputChange,
@@ -104,7 +102,7 @@ export const P2PMessageInput: React.ForwardRefExoticComponent<P2PMessageInputPro
               size="icon"
               variant="ghost"
               onClick={onFileClick}
-              disabled={!canSendMessages || paused}
+              disabled={paused}
               className="text-muted-foreground hover:text-foreground hover:bg-foreground/10"
               aria-label="Send file"
               title={paused ? PAUSE_COPY.fileReason : 'Send file'}
@@ -137,7 +135,6 @@ export const P2PMessageInput: React.ForwardRefExoticComponent<P2PMessageInputPro
               // reconnection test sends first have been going nowhere since,
               // reported as "not delivered", which reads as a protocol fault.
               data-testid="p2p-message-input"
-              disabled={!canSendMessages}
               rows={1}
               className="flex-1 resize-none bg-background text-foreground placeholder:text-muted-foreground focus:border-primary"
             />
@@ -151,7 +148,7 @@ export const P2PMessageInput: React.ForwardRefExoticComponent<P2PMessageInputPro
               // isSending is the guard against a second Enter during the
               // send window -- peer registration and CheckState can take tens
               // of seconds, and the text is still in the field for all of it.
-              disabled={!canSendMessages || isSending || (!inputMessage.trim() && !isLiveDocMode)}
+              disabled={isSending || (!inputMessage.trim() && !isLiveDocMode)}
               aria-busy={isSending}
               className="bg-primary text-primary-foreground"
             >
@@ -163,7 +160,6 @@ export const P2PMessageInput: React.ForwardRefExoticComponent<P2PMessageInputPro
         <TypeSelectorBar
           selectedType={messageType}
           onTypeChange={onMessageTypeChange}
-          disabled={!canSendMessages}
         />
       </div>
     );
