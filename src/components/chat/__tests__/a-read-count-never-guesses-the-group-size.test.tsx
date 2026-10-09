@@ -7,9 +7,9 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ReadByTooltipContent, getReadStatus } from '../GroupMessageFooter';
-import type { GroupMessage } from '@/types/workspace-entities';
+import type { GroupMessage, GroupMessageReadBy } from '@/types/workspace-entities';
 
-const readers = [{ user_id: 'u1', user_name: 'Una', read_at: 1 }];
+const readers: GroupMessageReadBy[] = [{ user_id: 'u1', user_name: 'Una', read_at: 1 }];
 const message: GroupMessage = { id: "m", read_by: readers } as unknown as GroupMessage;
 
 describe('a group message read receipt', () => {

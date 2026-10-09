@@ -10,7 +10,8 @@
  * the hook, the event bus, the ended-elsewhere rule, the forgotten-sessions list.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act, waitFor, type RenderHookResult } from '@testing-library/react';
+import type { UseOrphanSessionsResult } from '../useOrphanSessions-types';
 import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 
@@ -31,8 +32,10 @@ const wrapper = ({ children }: { children: ReactNode }): JSX.Element => (
 const ALICE: Row = { cid: 1n, username: 'alice', server_address: 'x:1' };
 const BOB: Row = { cid: 2n, username: 'bob', server_address: 'x:1' };
 
-async function loaded() {
-  const hook = renderHook(() => useOrphanSessions(), { wrapper });
+type Hook = RenderHookResult<UseOrphanSessionsResult, unknown>;
+
+async function loaded(): Promise<Hook> {
+  const hook: Hook = renderHook(() => useOrphanSessions(), { wrapper });
   await act(async () => { await hook.result.current.loadActiveSessions(); });
   expect(hook.result.current.sessions.map((s) => s.username)).toEqual(['alice', 'bob']);
   return hook;
@@ -68,7 +71,7 @@ describe('the sessions strip, when an account ends in another window', () => {
 
   it('adds the chip of an account that signed in in another window', async () => {
     live.rows = [ALICE];
-    const hook = renderHook(() => useOrphanSessions(), { wrapper });
+    const hook: Hook = renderHook(() => useOrphanSessions(), { wrapper });
     await act(async () => { await hook.result.current.loadActiveSessions(); });
     expect(hook.result.current.sessions.map((s) => s.username)).toEqual(['alice']);
     live.rows = [ALICE, BOB];
@@ -78,7 +81,7 @@ describe('the sessions strip, when an account ends in another window', () => {
 
   it('adds the chip of a session claimed in another window', async () => {
     live.rows = [ALICE];
-    const hook = renderHook(() => useOrphanSessions(), { wrapper });
+    const hook: Hook = renderHook(() => useOrphanSessions(), { wrapper });
     await act(async () => { await hook.result.current.loadActiveSessions(); });
     live.rows = [ALICE, BOB];
     act(() => { eventEmitter.emit('session:claimed', { cid: 2n, relayed: true }); });
