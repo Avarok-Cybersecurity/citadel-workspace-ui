@@ -7,7 +7,8 @@
 
 import { eventEmitter } from '../event-emitter';
 import { websocketService } from '../websocket-service';
-import { notificationService } from '../notification-service';
+import { notificationService, NotificationPriority } from '../notification-service';
+import { describeError } from '../describe-error';
 import { p2pAutoConnectService } from '../p2p-auto-connect-service';
 import { p2pRegistrationService } from '../p2p-registration-service';
 import { getDefaultSecuritySettings } from '../security-utils';
@@ -29,15 +30,28 @@ import { markAsDecline } from '../p2p-registration-service/decline-correlation';
  */
 export function createNotificationWithCallbacks(
   request: PendingPeerRequest,
-  onAccept: (id: string) => void,
-  onDecline: (id: string) => void
+  onAccept: (id: string) => Promise<void>,
+  onDecline: (id: string) => Promise<void>
 ): void {
+  // A card whose button failed would go on saying a request is waiting, with
+  // nothing to say the press did nothing: the failure is put on the same card list.
+  const pressed = (verb: 'accept' | 'decline', action: (id: string) => Promise<void>) => (): void => {
+    action(request.id).catch((error: unknown): void => {
+      debugLog('PeerRegistrationStore', `${verb} failed:`, error);
+      notificationService.addSystemNotification(
+        `Could not ${verb} the request from ${request.peer_username}`,
+        describeError(error),
+        NotificationPriority.HIGH,
+        request.cid.toString(),
+      );
+    });
+  };
   notificationService.addPeerRegistrationNotification(
     request.peer_username,
     request.peer_cid.toString(),
     request.id,
-    () => onAccept(request.id),
-    () => onDecline(request.id),
+    pressed('accept', onAccept),
+    pressed('decline', onDecline),
     () => eventEmitter.emit('open-pending-requests-modal'),
     request.cid.toString()
   );

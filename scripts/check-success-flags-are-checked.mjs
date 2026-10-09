@@ -26,70 +26,16 @@
  * every entry is a place where the only report of failure is being dropped, and
  * that is worth having to justify.
  */
-import { createRequire } from 'node:module';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-
-const require = createRequire(import.meta.url);
-const ts = require('typescript');
+import { findDiscards } from './success-flags-core.mjs';
 
 const scriptsDir = dirname(fileURLToPath(import.meta.url));
 const root = resolve(scriptsDir, '..');
 const BASELINE = resolve(scriptsDir, 'discarded-success-flags.baseline.json');
 
-const configPath = resolve(root, 'tsconfig.app.json');
-const config = ts.readConfigFile(configPath, ts.sys.readFile).config;
-const parsed = ts.parseJsonConfigFileContent(config, ts.sys, root);
-const program = ts.createProgram(parsed.fileNames, { ...parsed.options, noEmit: true });
-const checker = program.getTypeChecker();
-
-const isBoolean = (type) => (type.flags & ts.TypeFlags.BooleanLike) !== 0;
-
-/** `Promise<boolean>` and `boolean` are the same question asked twice. */
-const unwrapPromise = (type) => {
-  if (type.getSymbol()?.getName() === 'Promise') {
-    const args = checker.getTypeArguments(type);
-    if (args?.length === 1) return args[0];
-  }
-  return type;
-};
-
-const found = [];
-for (const sourceFile of program.getSourceFiles()) {
-  const file = sourceFile.fileName;
-  if (!file.startsWith(`${root}/src`)) continue;
-  // Tests discard results deliberately, to drive a path rather than judge it.
-  if (file.includes('__tests__') || /\.test\.tsx?$/.test(file)) continue;
-
-  const visit = (node) => {
-    if (ts.isExpressionStatement(node)) {
-      let expression = node.expression;
-      if (ts.isAwaitExpression(expression)) expression = expression.expression;
-      if (ts.isVoidExpression(expression)) {
-        expression = expression.expression;
-        if (ts.isAwaitExpression(expression)) expression = expression.expression;
-      }
-      if (ts.isCallExpression(expression)) {
-        const signature = checker.getResolvedSignature(expression);
-        const declaration = signature?.getDeclaration?.();
-        const declaredIn = declaration?.getSourceFile?.().fileName ?? '';
-        if (signature && declaredIn.startsWith(`${root}/src`)) {
-          if (isBoolean(unwrapPromise(checker.getReturnTypeOfSignature(signature)))) {
-            const callee = expression.expression;
-            const name = ts.isPropertyAccessExpression(callee) ? callee.name.getText() : callee.getText();
-            // Keyed by file and callee, NOT by line: a line number changes
-            // whenever anything above it does, and a baseline that churns is a
-            // baseline nobody reads.
-            found.push(`${file.slice(root.length + 1)}::${name}`);
-          }
-        }
-      }
-    }
-    ts.forEachChild(node, visit);
-  };
-  visit(sourceFile);
-}
+const found = findDiscards(root);
 
 const counts = {};
 for (const key of found.sort()) counts[key] = (counts[key] ?? 0) + 1;

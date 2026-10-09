@@ -55,7 +55,7 @@ export const TopBar = ({ currentWorkspace }: TopBarProps): JSX.Element => {
     if (takeLinkTarget(['settings'])) { setSettingsTab('privacy'); setShowSettingsModal(true); }
   }, []);
   const {
-    showDisconnectModal, disconnectStatus, disconnectError,
+    showDisconnectModal, disconnectStatus, disconnectError, handleRetrySignOut,
     handleExit, handleSignOut, handleDisconnectComplete,
   } = useSessionExit();
 
@@ -227,6 +227,7 @@ export const TopBar = ({ currentWorkspace }: TopBarProps): JSX.Element => {
         errorMessage={disconnectError}
         onComplete={handleDisconnectComplete}
         onCancel={handleDisconnectComplete}
+        onRetry={() => void handleRetrySignOut()}
       />
 
       {/* Settings modal */}

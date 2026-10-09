@@ -17,7 +17,7 @@ import { BroadcastChannelService } from '../broadcast-channel-service';
 import { ensureBigIntOrNull } from '../utils';
 import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
 import { debugLog, debugEnabled } from '@/lib/debug-config';
-import { dispatchInboundCommand } from './inbound-command-dispatch';
+import { dispatchInboundCommand, reportUnreadable } from './inbound-command-dispatch';
 import { isCallSignalPayload } from '@/types/p2p-commands';
 import { eventEmitter } from '../event-emitter';
 import { consumeSendFailure } from './send-failure';
@@ -173,10 +173,10 @@ export class MessageHandler {
         return;
       }
       await dispatchInboundCommand(contentBytes, (command) =>
-        this.handleP2PCommand(command, peerCidBigint, notificationCidBigint)
+        this.handleP2PCommand(command, peerCidBigint, notificationCidBigint), this.config, peerCidBigint
       );
     } catch (error) {
-      debugLog('P2PMessageHandler', 'Could not process inbound P2P message:', error);
+      await reportUnreadable(this.config, peerCidBigint, error);
     }
   }
 

@@ -21,9 +21,10 @@ import { wasmConnectionManager } from '@/lib/wasm-connection-manager';
 import type { DisconnectStatus } from '@/components/LoadingModal';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
+import { describeError } from '@/lib/describe-error';
 import type { NavigateFunction } from 'react-router';
 
-export function useSessionExit(): { showDisconnectModal: boolean; disconnectStatus: DisconnectStatus; disconnectError: string | undefined; handleExit: () => Promise<void>; handleSignOut: () => Promise<void>; handleDisconnectComplete: () => void; } {
+export function useSessionExit(): { showDisconnectModal: boolean; disconnectStatus: DisconnectStatus; disconnectError: string | undefined; handleExit: () => Promise<void>; handleSignOut: () => Promise<void>; handleRetrySignOut: () => Promise<void>; handleDisconnectComplete: () => void; } {
   const { toast } = useToast();
   const navigate: NavigateFunction = useNavigate();
   const confirm: ReturnType<typeof useConfirm> = useConfirm();
@@ -56,11 +57,10 @@ export function useSessionExit(): { showDisconnectModal: boolean; disconnectStat
     setDisconnectError(undefined);
     setShowDisconnectModal(true);
 
-    // Sign Out is an explicit user intent — even if the backend disconnect
-    // fails (e.g., WS already dropped, no current session on this tab), the
-    // local saved-session + tab-context must be cleared and we must navigate
-    // to the landing page. Otherwise WorkspaceLoader's auto-claim re-attaches
-    // the orphan and the user ends up right back where they started.
+    // Signed out means the AGENT let the session go: it is removed only by
+    // Disconnect or Deregister, never by a timeout. So a failed Disconnect keeps
+    // the stored session and says so (below), instead of claiming a sign-out
+    // that did not happen.
     // Guarded, because the blocking modal is ALREADY on screen at this point.
     // Both of these reach IndexedDB, and getDB()'s `blocked` handler warns
     // without settling — so an older tab holding the previous schema version
@@ -83,9 +83,6 @@ export function useSessionExit(): { showDisconnectModal: boolean; disconnectStat
     }
     const cid: bigint | null = tabSelection?.selectedCid ?? currentSession?.cid ?? null;
 
-    // Stop WASM connection manager polling regardless of below outcome
-    wasmConnectionManager.stop();
-
     if (cid) {
       try {
         debugLog('TopBar', 'Fully signing out user', currentSession?.username, 'CID:', cid.toString());
@@ -95,15 +92,19 @@ export function useSessionExit(): { showDisconnectModal: boolean; disconnectStat
           serverAddress: currentSession?.serverAddress,
         });
       } catch (error) {
-        // Best-effort: log the failure but keep cleaning up locally so the user
-        // ends up signed out on this device. The server-side orphan (if any)
-        // will time out on its own.
-        debugLog('TopBar', 'Backend disconnect failed, continuing local sign-out:', error);
+        debugLog('TopBar', 'Backend disconnect failed; the session stays signed in:', error);
+        setDisconnectError(
+          `Sign-out failed for ${currentSession?.username ?? 'this account'}: ${describeError(error)}. ` +
+          'You are still signed in. Retry to sign out.',
+        );
+        setDisconnectStatus("error");
+        return;
       }
     } else {
       debugLog('TopBar', 'No CID available for backend disconnect, skipping');
     }
 
+    wasmConnectionManager.stop();
     setDisconnectStatus("cleaning");
 
     try {
@@ -138,6 +139,7 @@ export function useSessionExit(): { showDisconnectModal: boolean; disconnectStat
     disconnectError,
     handleExit,
     handleSignOut,
+    handleRetrySignOut: handleSignOut,
     handleDisconnectComplete,
   };
 }

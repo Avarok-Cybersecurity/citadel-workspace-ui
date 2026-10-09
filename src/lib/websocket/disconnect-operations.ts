@@ -9,6 +9,7 @@ import { requestResponse } from './request-response';
 import { endingHereWhile } from '../sessions/ending-here';
 import { debugLog, errorLog } from '../debug-config';
 import { TIMEOUT } from '../timeout-constants';
+import { isNone } from '../wire/none';
 
 export interface DisconnectConfig {
   init: () => Promise<void>;
@@ -53,7 +54,7 @@ export class DisconnectOperations {
           };
           if (response.DisconnectNotification) {
             const n: { request_id?: string | null; cid?: bigint; } = response.DisconnectNotification;
-            if (n.request_id === requestId || (n.request_id === null && n.cid === cid)) {
+            if (n.request_id === requestId || (isNone(n.request_id) && n.cid === cid)) {
               debugLog('DisconnectOperations', 'Disconnect successful for CID:', cid.toString());
               return true;
             }
@@ -80,7 +81,7 @@ export class DisconnectOperations {
             response.DisconnectFailure ?? response.PeerDisconnectFailure;
           if (failure) {
             const f: { request_id?: string | null; cid?: bigint; message?: string; } = failure;
-            if (f.request_id === requestId || (f.request_id === null && f.cid === cid)) {
+            if (f.request_id === requestId || (isNone(f.request_id) && f.cid === cid)) {
               errorLog('Disconnect failed:', f.message);
               return f.message || 'Failed to disconnect';
             }

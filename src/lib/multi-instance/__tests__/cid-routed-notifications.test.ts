@@ -67,7 +67,7 @@ describe('CID_ROUTED_NOTIFICATIONS — every entry has extractable CID', () => {
     // Multi-window (agent 0.8.6). A conversation change goes to every window of
     // the account; its request_id, when set, is the asking window's send, and
     // routed by it the event would consume the pending entry its answer needs.
-    ConversationEvent: { cid: targetCid, peer_cid: senderCid, seq: 1, kind: 'Appended', message: null, message_id: 'm1', metadata: null, account_username: 'bob', peer_username: 'alice', preview: 'hi', request_id: 'r10' },
+    ConversationEvent: { cid: targetCid, peer_cid: senderCid, seq: 1n, kind: 'Appended', message: null, message_id: 'm1', metadata: null, account_username: 'bob', peer_username: 'alice', preview: 'hi', request_id: 'r10' },
     SessionRoleNotification: { cid: targetCid, role: 'Secondary', attached: 2, request_id: null },
   };
 

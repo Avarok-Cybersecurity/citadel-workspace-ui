@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { statusAppearance } from "./loading-modal-appearance";
 import { LoadingModalSteps } from "./LoadingModalSteps";
+import { LoadingModalRetry } from "./LoadingModalRetry";
 import { Button } from "@/components/ui/button";
 import { useDialogOverlay } from "@/hooks/use-dialog-overlay";
 
@@ -36,6 +37,7 @@ interface LoadingModalProps {
   onComplete?: () => void;
   /** Called when the user clicks cancel or the operation times out */
   onCancel?: () => void;
+  onRetry?: () => void; // on an error, for an operation that can be run again
   /** Timeout in ms before auto-showing error state (default: 60000) */
   timeoutMs?: number;
   config: LoadingModalConfig;
@@ -48,6 +50,7 @@ export const LoadingModal = ({
   errorMessage,
   onComplete,
   onCancel,
+  onRetry,
   timeoutMs = 60000,
   config,
 }: LoadingModalProps): JSX.Element | null => {
@@ -198,7 +201,6 @@ export const LoadingModal = ({
         )}
 
         {/* The way out.
-            
             No caller ever passed `onCancel`, so this never rendered and Escape
             was inert -- a `fixed inset-0 z-[100]` overlay with no control on
             it. An operation that hung showed "This is taking longer than
@@ -213,6 +215,7 @@ export const LoadingModal = ({
             "Dismiss", not "Cancel": nothing here can abort a request the
             service has already accepted, and a button that says Cancel next to
             a spinner promises exactly that. */}
+        {onRetry && isError && <LoadingModalRetry onRetry={onRetry} />}
         {onCancel && (isError || (isLoading && timedOut)) && (
           <div className="mt-4 flex flex-col items-center gap-1">
             <Button

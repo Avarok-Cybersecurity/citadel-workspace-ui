@@ -80,17 +80,16 @@ describe('when the session cannot be written to LocalDB', () => {
 
   it('keeps the session in memory, which is what makes losing the write safe', async () => {
     const { state, io } = harness(true);
-    const ok: boolean = await storeSession({ username: 'alice' } as StoredSession, state as never, io as never);
+    await storeSession({ username: 'alice' } as StoredSession, state as never, io as never);
     expect(state.addOrUpdateSession).toHaveBeenCalled();
-    expect(ok).toBe(false);
+    expect(io.emitEvent).toHaveBeenCalledWith('session:not-remembered', { username: 'alice' });
   });
 
-  it('reports success when the write does land', async () => {
-    // The positive control: same call, working storage, opposite return. Without
-    // it "false" could be a constant.
+  it('reports nothing when the write does land', async () => {
+    // The positive control: same call, working storage, opposite outcome. Without
+    // it the notice could be unconditional.
     const { state, io } = harness(false);
-    expect(
-      await storeSession({ username: 'alice' } as StoredSession, state as never, io as never),
-    ).toBe(true);
+    await storeSession({ username: 'alice' } as StoredSession, state as never, io as never);
+    expect(io.emitEvent).not.toHaveBeenCalled();
   });
 });

@@ -34,8 +34,8 @@ export class ConnectionState extends ConnectionStateCore {
     this._pendingRequests.set(requestId, request);
   }
 
-  deletePendingRequest(requestId: string): boolean {
-    return this._pendingRequests.delete(requestId);
+  deletePendingRequest(requestId: string): void {
+    this._pendingRequests.delete(requestId);
   }
 
   hasPendingRequest(requestId: string): boolean {

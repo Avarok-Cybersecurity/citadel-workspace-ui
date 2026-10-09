@@ -39,7 +39,7 @@ if (import.meta.env.DEV) {
 
 // Initialize instance inbound router (routes WebSocket responses to correct instance)
 // Must be imported early to set up event listeners before any messages are processed
-import { instanceInboundRouter } from './lib/multi-instance';
+import './lib/multi-instance';
 import { startInstallPromptCapture } from '@/components/pwa/install-prompt-store';
 import { showStorageVersionRecovery } from './storage-version-recovery';
 import { startKeyboardInsetTracking } from '@/lib/pwa/keyboard-inset';
@@ -64,7 +64,6 @@ applyAppearanceSettings(loadAppearanceSettings());
 // sending them until it was reloaded -- the switch reads off, and the promise
 // it makes is broken in the tab the user is not looking at.
 initPrivacySettingsSync();
-void instanceInboundRouter.isRouterActive();
 
 // Construct the P2P messenger during boot so its 'websocket-message'
 // subscription — the gate the inbound router acks forwarded messages on —
