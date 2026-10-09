@@ -75,13 +75,6 @@ export class PresenceManager {
   }
 
   /**
-   * Set own presence status (for internal tracking)
-   */
-  public setOwnPresence(presence: PeerPresence): void {
-    this.ownPresence = presence;
-  }
-
-  /**
    * Send presence update to a specific peer
    */
   public async sendPresenceUpdate(recipientCid: bigint, presence: MessagingLayer): Promise<void> {

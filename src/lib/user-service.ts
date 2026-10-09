@@ -24,7 +24,6 @@ export interface UserRegistrationInfo {
 export class UserService {
   private static instance: UserService;
   private notificationService: NotificationService;
-  private userChangeHandlers: Array<(user: UserRegistrationInfo | null) => void> = [];
   private static readonly TAB_USER_KEY: "current-user" = 'current-user';
 
   private constructor() {
@@ -63,9 +62,6 @@ export class UserService {
         // Store in tab-specific storage
         await this.setCurrentUser(userInfo);
 
-        // Notify all handlers of the user change
-        await this.notifyUserChange();
-
         return userInfo;
       }
 
@@ -99,9 +95,6 @@ export class UserService {
 
       await this.setCurrentUser(userInfo);
 
-      // Notify all handlers of the user change
-      await this.notifyUserChange();
-
       return userInfo;
     } catch (error) {
       debugLog('UserService', 'Error loading user registration:', error);
@@ -131,38 +124,9 @@ export class UserService {
   }
 
   /**
-   * Register a callback to be notified when the user information changes
-   */
-  public async onUserChange(handler: (user: UserRegistrationInfo | null) => void): Promise<void> {
-    // Add handler to the list
-    this.userChangeHandlers.push(handler);
-
-    // If there's already a user loaded, notify the handler immediately
-    const currentUser: UserRegistrationInfo | null = await this.getCurrentUser();
-    if (currentUser) {
-      handler(currentUser);
-    }
-  }
-
-  /**
-   * Notify all registered handlers of user changes
-   */
-  private async notifyUserChange(): Promise<void> {
-    const currentUser: UserRegistrationInfo | null = await this.getCurrentUser();
-    this.userChangeHandlers.forEach(handler => {
-      try {
-        handler(currentUser);
-      } catch (error) {
-        debugLog('UserService', 'Error in user change handler:', error);
-      }
-    });
-  }
-
-  /**
    * Clean up event listeners
    */
   public async cleanup(): Promise<void> {
-    this.userChangeHandlers = [];
     await removeTabData(UserService.TAB_USER_KEY);
   }
 }
