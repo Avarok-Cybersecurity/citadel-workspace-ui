@@ -16,7 +16,7 @@ import { applyAgentSocketState } from '@/lib/multi-instance/agent-socket-state';
 import type { ChannelMessage } from '@/lib/multi-instance/channel-types';
 import type { LeaderElectionState } from '@/lib/multi-instance/channel-leader-election';
 
-const never = { matchSuccess: (): undefined => undefined, matchFailure: (): undefined => undefined };
+const never: { matchSuccess: () => undefined; matchFailure: () => undefined } = { matchSuccess: (): undefined => undefined, matchFailure: (): undefined => undefined };
 
 function leaderReports(up: boolean): void {
   const message: ChannelMessage = { type: 'agent-socket', targetInstanceId: '*', senderInstanceId: 'leader', timestamp: 0, payload: { up } };

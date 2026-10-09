@@ -41,7 +41,7 @@ export const admissionDouble = async (orig: () => Promise<Record<string, unknown
 });
 
 export async function websocketServiceDouble(orig: () => Promise<Record<string, unknown>>): Promise<Record<string, unknown>> {
-  const real = (await orig()) as typeof import('@/lib/websocket-service');
+  const real: typeof import('@/lib/websocket-service') = (await orig()) as typeof import('@/lib/websocket-service');
   const { AuthOperations } = await import('@/lib/websocket/auth-operations');
   const ops = (): InstanceType<typeof AuthOperations> => new AuthOperations({
     init: async (): Promise<void> => undefined,
@@ -61,7 +61,7 @@ export async function websocketServiceDouble(orig: () => Promise<Record<string, 
 }
 
 export const connectionDouble = async (orig: () => Promise<Record<string, unknown>>): Promise<Record<string, unknown>> => {
-  const real = (await orig()) as typeof import('@/lib/connection');
+  const real: typeof import('@/lib/connection') = (await orig()) as typeof import('@/lib/connection');
   return {
   ...real,
   connectionManager: doubleOf(real.connectionManager, {
