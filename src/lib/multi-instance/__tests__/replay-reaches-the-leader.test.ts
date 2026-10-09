@@ -10,14 +10,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 let isLeader: boolean = false;
-vi.mock('@/lib/multi-instance/instance-manager', () => ({
-  instanceManager: {
+vi.mock('@/lib/multi-instance/instance-manager', async (importOriginal: () => Promise<typeof import('@/lib/multi-instance/instance-manager')>) => {
+  const { instanceManagerWith } = await import('@/test/instance-manager-double');
+  const real: typeof import('@/lib/multi-instance/instance-manager') = await importOriginal();
+  return { ...real, instanceManager: instanceManagerWith(real.instanceManager, {
     get isLeader(): boolean {
       return isLeader;
     },
     instanceId: 'me',
-  },
-}));
+  }) };
+});
 
 const emitted: string[] = [];
 vi.mock('@/lib/event-emitter', () => ({

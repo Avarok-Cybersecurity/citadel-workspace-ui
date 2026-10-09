@@ -13,7 +13,11 @@ import { describe, it, expect, vi } from 'vitest';
 import { toGroupEvents, type GroupEvent } from '../group-events';
 import { noSessionUsername } from '@/test-utils/no-session-username';
 
-vi.mock('@/lib/multi-instance/instance-manager', () => ({ instanceManager: { get cid(): bigint { return 100n; } } }));
+vi.mock('@/lib/multi-instance/instance-manager', async (importOriginal: () => Promise<typeof import('@/lib/multi-instance/instance-manager')>) => {
+  const { instanceManagerWith } = await import('@/test/instance-manager-double');
+  const real: typeof import('@/lib/multi-instance/instance-manager') = await importOriginal();
+  return { ...real, instanceManager: instanceManagerWith(real.instanceManager, { get cid(): bigint { return 100n; } }) };
+});
 vi.mock('../announce-group-state', () => ({
   sendGroupControl: vi.fn(async (): Promise<string> => 'sent'),
   announceGroupState: vi.fn(),

@@ -7,9 +7,11 @@ import { noSessionUsername } from '@/test-utils/no-session-username';
 import type { GroupConversation } from '@/types/group';
 
 const h: { cid: bigint | null } = vi.hoisted((): { cid: bigint | null } => ({ cid: 100n }));
-vi.mock('@/lib/multi-instance/instance-manager', () => ({
-  instanceManager: { get cid(): bigint | null { return h.cid; } },
-}));
+vi.mock('@/lib/multi-instance/instance-manager', async (importOriginal: () => Promise<typeof import('@/lib/multi-instance/instance-manager')>) => {
+  const { instanceManagerWith } = await import('@/test/instance-manager-double');
+  const real: typeof import('@/lib/multi-instance/instance-manager') = await importOriginal();
+  return { ...real, instanceManager: instanceManagerWith(real.instanceManager, { get cid(): bigint | null { return h.cid; } }) };
+});
 // The state request goes out over the socket; this suite asserts only what the store holds.
 vi.mock('../announce-group-state', () => ({
   sendGroupControl: vi.fn(async (): Promise<string> => 'sent'),

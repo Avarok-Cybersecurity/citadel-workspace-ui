@@ -10,7 +10,11 @@
 // The reconciliation only judges groups THIS account owns, so the store-level tests have to
 // say who that is. `null` here would be the "we cannot attribute ownership" path, which
 // correctly removes nothing — and would make the removal tests below pass for the wrong reason.
-vi.mock('@/lib/multi-instance/instance-manager', () => ({ instanceManager: { cid: 1n } }));
+vi.mock('@/lib/multi-instance/instance-manager', async (importOriginal: () => Promise<typeof import('@/lib/multi-instance/instance-manager')>) => {
+  const { instanceManagerWith } = await import('@/test/instance-manager-double');
+  const real: typeof import('@/lib/multi-instance/instance-manager') = await importOriginal();
+  return { ...real, instanceManager: instanceManagerWith(real.instanceManager, { cid: 1n }) };
+});
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 

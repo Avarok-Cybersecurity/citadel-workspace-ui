@@ -13,9 +13,11 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { vi } from 'vitest';
 
 const cidRef: { current: bigint | null; } = { current: null as bigint | null };
-vi.mock('@/lib/multi-instance/instance-manager', () => ({
-  instanceManager: { get cid(): bigint | null { return cidRef.current; } },
-}));
+vi.mock('@/lib/multi-instance/instance-manager', async (importOriginal: () => Promise<typeof import('@/lib/multi-instance/instance-manager')>) => {
+  const { instanceManagerWith } = await import('@/test/instance-manager-double');
+  const real: typeof import('@/lib/multi-instance/instance-manager') = await importOriginal();
+  return { ...real, instanceManager: instanceManagerWith(real.instanceManager, { get cid(): bigint | null { return cidRef.current; } }) };
+});
 
 import {
   conversationPrefix,

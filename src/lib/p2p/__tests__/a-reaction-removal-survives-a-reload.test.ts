@@ -36,7 +36,11 @@ vi.mock('../../websocket-service', () => ({
     sendLocalDBListKeys: async (_cid: bigint, prefix: string): Promise<string[]> => [...disk.keys()].filter((k) => k.startsWith(prefix)),
   },
 }));
-vi.mock('@/lib/multi-instance/instance-manager', () => ({ instanceManager: { cid: 4242n } }));
+vi.mock('@/lib/multi-instance/instance-manager', async (importOriginal: () => Promise<typeof import('@/lib/multi-instance/instance-manager')>) => {
+  const { instanceManagerWith } = await import('@/test/instance-manager-double');
+  const real: typeof import('@/lib/multi-instance/instance-manager') = await importOriginal();
+  return { ...real, instanceManager: instanceManagerWith(real.instanceManager, { cid: 4242n }) };
+});
 // Each `vi.resetModules()` "reload" would open another real BroadcastChannel
 // while the earlier one still listens -- two tabs to the channel, whose twin-tab
 // repair then calls into the instanceManager stub above. Tabs are not what this

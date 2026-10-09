@@ -21,7 +21,11 @@ const { ALICE, loadPersistedGroups, sendGroupListRequest } = vi.hoisted(() => ({
   loadPersistedGroups: vi.fn(async (): Promise<unknown[]> => []),
   sendGroupListRequest: vi.fn(async (): Promise<void> => {}),
 }));
-vi.mock('@/lib/multi-instance/instance-manager', () => ({ instanceManager: { cid: ALICE } }));
+vi.mock('@/lib/multi-instance/instance-manager', async (importOriginal: () => Promise<typeof import('@/lib/multi-instance/instance-manager')>) => {
+  const { instanceManagerWith } = await import('@/test/instance-manager-double');
+  const real: typeof import('@/lib/multi-instance/instance-manager') = await importOriginal();
+  return { ...real, instanceManager: instanceManagerWith(real.instanceManager, { cid: ALICE }) };
+});
 vi.mock('../group-persistence', () => ({ loadPersistedGroups, persistGroups: vi.fn(async (): Promise<void> => {}) }));
 vi.mock('../group-requests', () => ({ sendGroupListRequest }));
 

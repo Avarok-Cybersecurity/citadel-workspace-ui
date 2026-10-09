@@ -19,7 +19,11 @@ vi.mock('@/lib/storage-utils', () => ({
   dbGet: async (_s: string, k: string): Promise<unknown> => (world.store.has(k) ? structuredClone(world.store.get(k)) : undefined),
   dbPut: async (_s: string, k: string, v: unknown): Promise<void> => { world.store.set(k, structuredClone(v)); },
 }));
-vi.mock('@/lib/multi-instance/instance-manager', () => ({ instanceManager: { cid: 99n } }));
+vi.mock('@/lib/multi-instance/instance-manager', async (importOriginal: () => Promise<typeof import('@/lib/multi-instance/instance-manager')>) => {
+  const { instanceManagerWith } = await import('@/test/instance-manager-double');
+  const real: typeof import('@/lib/multi-instance/instance-manager') = await importOriginal();
+  return { ...real, instanceManager: instanceManagerWith(real.instanceManager, { cid: 99n }) };
+});
 vi.mock('@/lib/workspace-service', () => ({ default: { getGroupMessages: async (): Promise<void> => {} } }));
 // One toast for the life of the test. useGroupChat's load effect depends on
 // `toast`, so a mock minting a new one per render re-runs the load on every

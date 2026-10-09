@@ -9,9 +9,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 const sent: Array<{ data: Record<string, unknown>; about: bigint | undefined }> = [];
-vi.mock('@/lib/multi-instance/instance-manager', () => ({
-  instanceManager: { isLeader: true },
-}));
+vi.mock('@/lib/multi-instance/instance-manager', async (importOriginal: () => Promise<typeof import('@/lib/multi-instance/instance-manager')>) => {
+  const { instanceManagerWith } = await import('@/test/instance-manager-double');
+  const real: typeof import('@/lib/multi-instance/instance-manager') = await importOriginal();
+  return { ...real, instanceManager: instanceManagerWith(real.instanceManager, { isLeader: true }) };
+});
 vi.mock('@/lib/broadcast-channel-service', () => ({
   broadcastChannelService: {
     broadcastStateSync: (data: Record<string, unknown>, about?: bigint): void => { sent.push({ data, about }); },
