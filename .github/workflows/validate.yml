@@ -90,11 +90,10 @@ jobs:
     # Observed the same work as the parent job, 6m there; this bounds a hang, not performance.
     # Without it a stuck job holds a runner for GitHub's 360-minute default.
     timeout-minutes: 25
-    runs-on: >-
-      ${{ vars.CITADEL_MAC_RUNNER == '1'
-          && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
-          && fromJSON('["self-hosted","macOS","ARM64","apple-48gb-metal"]')
-          || 'ubuntu-latest' }}
+    # Hosted, not the self-hosted Mac: that box is shared by two runners and by macOS's own
+    # background work (Spotlight knowledge, media analysis), and under it unrelated tests
+    # hit their 5 s timeouts. These tests need no Mac; a hosted runner is unshared.
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: parent
@@ -148,7 +147,10 @@ jobs:
         # and the thing it had been compensating for was a nested `npm ci`.
         #
         # The parent enforces this with scripts/check-ci-installs-match-the-lockfile.mjs.
-        run: npx vitest run
+        # The two self-hosted runners share one 12-core Mac; each vitest defaults to a worker per
+        # core, so two concurrent jobs ran 24 on 12 and unrelated tests hit their 5 s timeouts.
+        # Half the cores each keeps both jobs inside the machine. Hosted runners are unshared.
+        run: npx vitest run ${{ runner.environment == 'self-hosted' && '--maxWorkers=50%' || '' }}
         working-directory: parent/citadel-workspaces
 
   typecheck:

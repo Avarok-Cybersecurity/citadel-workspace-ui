@@ -40,9 +40,11 @@ vi.mock('@/lib/connection', () => ({
     getActiveSessions: async (): Promise<unknown[]> => queryResult.sessions,
   },
 }));
-vi.mock('@/lib/multi-instance/instance-manager', () => ({
-  instanceManager: { isLeader: true },
-}));
+vi.mock('@/lib/multi-instance/instance-manager', async (importOriginal: () => Promise<typeof import('@/lib/multi-instance/instance-manager')>) => {
+  const { instanceManagerWith } = await import('@/test/instance-manager-double');
+  const real: typeof import('@/lib/multi-instance/instance-manager') = await importOriginal();
+  return { ...real, instanceManager: instanceManagerWith(real.instanceManager, { isLeader: true }) };
+});
 
 const { reconnectToDisconnectedSessions } = await import('../reconnect-logic');
 

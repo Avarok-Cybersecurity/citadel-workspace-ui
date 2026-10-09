@@ -26,9 +26,11 @@ vi.mock('../group-send-transport', () => ({ groupSendTransport: (): string => 'p
 vi.mock('@/lib/workspace-service', () => ({ default: { sendGroupMessage: async (): Promise<void> => undefined } }));
 
 let ownCid: bigint | null = 111n;
-vi.mock('@/lib/multi-instance/instance-manager', () => ({
-  instanceManager: { get cid(): bigint | null { return ownCid; } },
-}));
+vi.mock('@/lib/multi-instance/instance-manager', async (importOriginal: () => Promise<typeof import('@/lib/multi-instance/instance-manager')>) => {
+  const { instanceManagerWith } = await import('@/test/instance-manager-double');
+  const real: typeof import('@/lib/multi-instance/instance-manager') = await importOriginal();
+  return { ...real, instanceManager: instanceManagerWith(real.instanceManager, { get cid(): bigint | null { return ownCid; } }) };
+});
 
 const { eventEmitter }: typeof import('@/lib/event-emitter') = await import('@/lib/event-emitter');
 const { sendGroupMessageAnywhere }: typeof import('../send-group-message') = await import('../send-group-message');

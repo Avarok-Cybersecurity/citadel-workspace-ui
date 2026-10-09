@@ -20,9 +20,11 @@ vi.mock('@/lib/storage-utils', () => ({
   dbGet: async (_s: string, k: string): Promise<unknown> => (world.store.has(k) ? structuredClone(world.store.get(k)) : undefined),
   dbPut: async (_s: string, k: string, v: unknown): Promise<void> => { world.store.set(k, structuredClone(v)); },
 }));
-vi.mock('@/lib/multi-instance/instance-manager', () => ({
-  instanceManager: { get cid(): bigint | null { return world.cid; } },
-}));
+vi.mock('@/lib/multi-instance/instance-manager', async (importOriginal: () => Promise<typeof import('@/lib/multi-instance/instance-manager')>) => {
+  const { instanceManagerWith } = await import('@/test/instance-manager-double');
+  const real: typeof import('@/lib/multi-instance/instance-manager') = await importOriginal();
+  return { ...real, instanceManager: instanceManagerWith(real.instanceManager, { get cid(): bigint | null { return world.cid; } }) };
+});
 // Held across the reloads as the real module: the socket service and the
 // connection layer behind it are ~220 of the ~270 modules a reload re-imports,
 // hold no transcript (sends go through the injected `sendFile`), and every reset

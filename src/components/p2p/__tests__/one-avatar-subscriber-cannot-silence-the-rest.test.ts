@@ -4,12 +4,12 @@ import { registerAvatarSlot, subscribeToAvatarSlots } from '../cursor-avatar-slo
 describe('avatar slot subscribers', () => {
   it('are each told of a new slot even when an earlier one throws', () => {
     const told: string[] = [];
-    const offThrower = subscribeToAvatarSlots(() => {
+    const offThrower: () => void = subscribeToAvatarSlots(() => {
       throw new Error('a broken subscriber');
     });
-    const offWitness = subscribeToAvatarSlots(() => told.push('witness'));
+    const offWitness: () => void = subscribeToAvatarSlots(() => told.push('witness'));
 
-    const remove = registerAvatarSlot(document.createElement('span'), 'alice');
+    const remove: () => void = registerAvatarSlot(document.createElement('span'), 'alice');
     expect(told).toEqual(['witness']);
 
     expect(() => remove()).not.toThrow();

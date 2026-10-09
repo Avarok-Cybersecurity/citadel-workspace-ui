@@ -14,16 +14,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const FOLLOWER_CID: bigint = 42n;
-vi.mock('@/lib/multi-instance/instance-manager', () => ({
-  instanceManager: {
+vi.mock('@/lib/multi-instance/instance-manager', async (importOriginal: () => Promise<typeof import('@/lib/multi-instance/instance-manager')>) => {
+  const { instanceManagerWith } = await import('@/test/instance-manager-double');
+  const real: typeof import('@/lib/multi-instance/instance-manager') = await importOriginal();
+  return { ...real, instanceManager: instanceManagerWith(real.instanceManager, {
     isLeader: true,
     instanceId: 'leader-tab',
     leaderId: 'leader-tab',
     findInstanceByCid: (cid: bigint): string | null => (cid === FOLLOWER_CID ? 'follower-tab' : null),
     findInstancesByCid: (cid: bigint): string[] => (cid === FOLLOWER_CID ? ['follower-tab'] : []),
     registerInstance: (): void => {},
-  },
-}));
+  }) };
+});
 
 import { eventEmitter } from '@/lib/event-emitter';
 import { instanceInboundRouter } from '@/lib/multi-instance';

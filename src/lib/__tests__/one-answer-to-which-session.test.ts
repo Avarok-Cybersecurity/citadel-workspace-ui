@@ -26,9 +26,11 @@ const tab: { selectedCid?: bigint } = {};
 const session: { cid?: bigint } = {};
 const connection: { cid?: bigint } = {};
 
-vi.mock('@/lib/multi-instance/instance-manager', () => ({
-  instanceManager: { get cid(): bigint | null { return instance.cid; } },
-}));
+vi.mock('@/lib/multi-instance/instance-manager', async (importOriginal: () => Promise<typeof import('@/lib/multi-instance/instance-manager')>) => {
+  const { instanceManagerWith } = await import('@/test/instance-manager-double');
+  const real: typeof import('@/lib/multi-instance/instance-manager') = await importOriginal();
+  return { ...real, instanceManager: instanceManagerWith(real.instanceManager, { get cid(): bigint | null { return instance.cid; } }) };
+});
 vi.mock('@/lib/tab-context', () => ({
   getSelectedUser: async (): Promise<unknown> => (tab.selectedCid ? tab : null),
 }));

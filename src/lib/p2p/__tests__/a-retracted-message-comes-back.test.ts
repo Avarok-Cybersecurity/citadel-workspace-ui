@@ -48,9 +48,11 @@ vi.mock('../../websocket-service', () => ({
 
 // A fixed owner so the storage keys are deterministic. The real manager reads
 // the live session; the key layout it produces is what is under test elsewhere.
-vi.mock('@/lib/multi-instance/instance-manager', () => ({
-  instanceManager: { cid: 4242n },
-}));
+vi.mock('@/lib/multi-instance/instance-manager', async (importOriginal: () => Promise<typeof import('@/lib/multi-instance/instance-manager')>) => {
+  const { instanceManagerWith } = await import('@/test/instance-manager-double');
+  const real: typeof import('@/lib/multi-instance/instance-manager') = await importOriginal();
+  return { ...real, instanceManager: instanceManagerWith(real.instanceManager, { cid: 4242n }) };
+});
 
 const { messagePaginationStore } = await import('../message-pagination-store');
 const { saveMetadata, saveMessagePage } = await import('../message-page-operations');

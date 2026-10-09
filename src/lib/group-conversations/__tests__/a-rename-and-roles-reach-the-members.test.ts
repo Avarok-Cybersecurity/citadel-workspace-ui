@@ -20,9 +20,11 @@ vi.mock('@/lib/websocket-service', () => ({
 vi.mock('../../connection', () => ({
   connectionManager: { getConnectionInfo: (): { cid: bigint } => ({ cid: 11n }) },
 }));
-vi.mock('@/lib/multi-instance/instance-manager', () => ({
-  instanceManager: { get cid(): bigint | null { return h.cid; } },
-}));
+vi.mock('@/lib/multi-instance/instance-manager', async (importOriginal: () => Promise<typeof import('@/lib/multi-instance/instance-manager')>) => {
+  const { instanceManagerWith } = await import('@/test/instance-manager-double');
+  const real: typeof import('@/lib/multi-instance/instance-manager') = await importOriginal();
+  return { ...real, instanceManager: instanceManagerWith(real.instanceManager, { get cid(): bigint | null { return h.cid; } }) };
+});
 
 import { eventEmitter } from '@/lib/event-emitter';
 import { getGroups, startGroupEventBindings, updateGroups } from '../group-store';

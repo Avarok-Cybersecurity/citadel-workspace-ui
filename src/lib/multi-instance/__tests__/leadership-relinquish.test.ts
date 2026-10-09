@@ -14,8 +14,10 @@ import { describe, it, expect, vi, beforeEach  } from 'vitest';
 
 const setLeader: ReturnType<typeof vi.fn> = vi.fn();
 let isLeader: boolean = true;
-vi.mock('@/lib/multi-instance/instance-manager', () => ({
-  instanceManager: {
+vi.mock('@/lib/multi-instance/instance-manager', async (importOriginal: () => Promise<typeof import('@/lib/multi-instance/instance-manager')>) => {
+  const { instanceManagerWith } = await import('@/test/instance-manager-double');
+  const real: typeof import('@/lib/multi-instance/instance-manager') = await importOriginal();
+  return { ...real, instanceManager: instanceManagerWith(real.instanceManager, {
     get isLeader(): boolean {
       return isLeader;
     },
@@ -25,8 +27,8 @@ vi.mock('@/lib/multi-instance/instance-manager', () => ({
       isLeader = leader;
       setLeader(leader, id);
     },
-  },
-}));
+  }) };
+});
 
 const emitted: Array<{ event: string; payload: unknown }> = [];
 vi.mock('@/lib/event-emitter', () => ({

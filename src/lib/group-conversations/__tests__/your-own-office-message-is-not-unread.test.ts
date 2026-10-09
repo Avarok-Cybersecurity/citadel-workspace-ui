@@ -10,7 +10,11 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('@/lib/multi-instance/instance-manager', () => ({ instanceManager: { get cid(): bigint | null { return 111n; } } }));
+vi.mock('@/lib/multi-instance/instance-manager', async (importOriginal: () => Promise<typeof import('@/lib/multi-instance/instance-manager')>) => {
+  const { instanceManagerWith } = await import('@/test/instance-manager-double');
+  const real: typeof import('@/lib/multi-instance/instance-manager') = await importOriginal();
+  return { ...real, instanceManager: instanceManagerWith(real.instanceManager, { get cid(): bigint | null { return 111n; } }) };
+});
 
 const { applyGroupMessage } = await import('../apply-group-message');
 const { forgetSeenIds } = await import('@/lib/seen-ids');

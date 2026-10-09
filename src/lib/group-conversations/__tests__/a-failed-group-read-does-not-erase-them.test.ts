@@ -39,9 +39,11 @@ vi.mock('@/lib/storage-utils', () => ({
   }),
   dbPut: vi.fn(async (_s: string, k: string, v: unknown) => { store.set(k, v); }),
 }));
-vi.mock('@/lib/multi-instance/instance-manager', () => ({
-  instanceManager: { get cid(): bigint | null { return cidRef.current; } },
-}));
+vi.mock('@/lib/multi-instance/instance-manager', async (importOriginal: () => Promise<typeof import('@/lib/multi-instance/instance-manager')>) => {
+  const { instanceManagerWith } = await import('@/test/instance-manager-double');
+  const real: typeof import('@/lib/multi-instance/instance-manager') = await importOriginal();
+  return { ...real, instanceManager: instanceManagerWith(real.instanceManager, { get cid(): bigint | null { return cidRef.current; } }) };
+});
 
 import {
   loadPersistedGroups,

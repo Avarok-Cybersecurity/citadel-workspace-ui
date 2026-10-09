@@ -14,6 +14,7 @@ import { belongingTo, everything, messagesFrom, type ReadPredicate } from './rea
 import { unreadCountFor, unreadCountsByCid } from './unread-counts';
 import { peerRegistrationNotification, withRosterName } from './peer-registration-notification';
 import { memberDisplayName } from '@/lib/member-names';
+import { lazyOsDelivery, type OsDelivery } from './os-delivery';
 
 export class NotificationService {
   private static instance: NotificationService;
@@ -21,7 +22,7 @@ export class NotificationService {
   private notificationHandlers: Set<NotificationHandler> = new Set();
   private unlisten: (() => void) | null = null;
 
-  private constructor() {
+  private constructor(private readonly deliverToOs: OsDelivery) {
     const offAdd: () => void = eventEmitter.on<Notification>('notification', (n) => this.addNotification(n));
     const offNames: () => void = eventEmitter.on('member-names:recorded', () => this.renameRequestsFromRoster());
     this.unlisten = (): void => { offAdd(); offNames(); };
@@ -30,7 +31,7 @@ export class NotificationService {
 
   public static getInstance(): NotificationService {
     if (!NotificationService.instance) {
-      NotificationService.instance = new NotificationService();
+      NotificationService.instance = new NotificationService(lazyOsDelivery);
     }
     return NotificationService.instance;
   }
@@ -47,8 +48,7 @@ export class NotificationService {
     // delivery (who owns it, the OS surface, the chime) loads with the first one, off
     // the landing page's critical path (check-bundle-budget.mjs).
     if (mayInterruptTheOs()) {
-      void import('./interrupt-os')
-        .then(({ interruptTheOs }) => interruptTheOs(fullNotification))
+      void this.deliverToOs(fullNotification)
         .catch((error: unknown): void => { errorLog('NotificationService', 'could not reach the OS notification surface', error); });
     }
 

@@ -12,9 +12,11 @@
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-vi.mock('@/lib/multi-instance/instance-manager', () => ({
-  instanceManager: { isLeader: false },
-}));
+vi.mock('@/lib/multi-instance/instance-manager', async (importOriginal: () => Promise<typeof import('@/lib/multi-instance/instance-manager')>) => {
+  const { instanceManagerWith } = await import('@/test/instance-manager-double');
+  const real: typeof import('@/lib/multi-instance/instance-manager') = await importOriginal();
+  return { ...real, instanceManager: instanceManagerWith(real.instanceManager, { isLeader: false }) };
+});
 vi.mock('@/lib/broadcast-channel-service', () => ({
   broadcastChannelService: { broadcastStateSync: vi.fn() },
 }));
