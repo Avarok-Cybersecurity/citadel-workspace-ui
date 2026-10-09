@@ -40,6 +40,8 @@ interface UseConversationPeersProps {
 
 interface UseConversationPeersReturn {
   peersWithConversations: ConversationPeer[];
+  /** The first read of the conversations has finished: an empty list before this is "not read yet", not "none". */
+  conversationsLoaded: boolean;
   refreshConversations: () => Promise<void>;
 }
 
@@ -47,6 +49,7 @@ export function useConversationPeers({
   registeredPeers,
 }: UseConversationPeersProps): UseConversationPeersReturn {
   const [peersWithConversations, setPeersWithConversations] = useState<ConversationPeer[]>([]);
+  const [conversationsLoaded, setConversationsLoaded] = useState<boolean>(false);
 
   const loadConversations: () => Promise<void> = useCallback(async (): Promise<void> => {
     const messenger: P2PMessengerManager = P2PMessengerManager.getInstance();
@@ -99,6 +102,7 @@ export function useConversationPeers({
     convPeers.sort((a, b) => (b.lastMessageTime || 0) - (a.lastMessageTime || 0));
 
     setPeersWithConversations(convPeers);
+    setConversationsLoaded(true);
   }, [registeredPeers]);
 
   useEffect(() => {
@@ -123,6 +127,7 @@ export function useConversationPeers({
 
   return {
     peersWithConversations,
+    conversationsLoaded,
     refreshConversations: loadConversations,
   };
 }

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Check, Copy } from 'lucide-react';
-import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
 import { interactive } from '@/lib/a11y';
 import { AGENT_SETUP_COPY } from '@/lib/agent-setup-copy';
 
@@ -28,15 +28,8 @@ interface CommandBlockProps {
  * `scrollable-region-focusable`, serious).
  */
 export const CommandBlock: React.FC<CommandBlockProps> = ({ command, regionLabel, copyLabel }) => {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = (): void => {
-    runAsyncSetup(async () => {
-      await navigator.clipboard.writeText(command);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
+  const { copied, copy } = useCopyToClipboard();
+  const handleCopy = (): void => { void copy(command); };
 
   return (
     <div className="mt-1 flex min-w-0 items-center gap-2">

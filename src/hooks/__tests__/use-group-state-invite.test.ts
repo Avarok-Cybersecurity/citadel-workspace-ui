@@ -17,11 +17,13 @@ const spies: {
   getTabSelectedSession: ReturnType<typeof vi.fn>;
   emit: ReturnType<typeof vi.fn>;
   toast: ReturnType<typeof vi.fn>;
+  respond: ReturnType<typeof vi.fn>;
 } = vi.hoisted(() => ({
   getConnectionInfo: vi.fn(() => null as unknown),
   getTabSelectedSession: vi.fn(async () => null),
   emit: vi.fn(),
   toast: vi.fn(),
+  respond: vi.fn(async () => undefined),
 }));
 
 vi.mock('@/lib/connection', async (importOriginal: () => Promise<typeof import('@/lib/connection')>) => {
@@ -43,6 +45,8 @@ vi.mock('@/lib/event-emitter', async (importOriginal: () => Promise<typeof impor
 });
 
 vi.mock('@/hooks/use-toast', () => ({ toast: spies.toast }));
+// The wire: whether the server took the join is exactly what these tests vary, so it is the one seam faked.
+vi.mock('@/lib/group-conversations/group-requests', () => ({ sendGroupRespond: spies.respond }));
 
 import { buildGroupFromInvite, applyGroupInvite } from '../use-group-state-invite';
 import type { GroupConversation } from '@/types/group-entities';
@@ -52,6 +56,8 @@ beforeEach(() => {
   spies.getTabSelectedSession.mockReset();
   spies.emit.mockReset();
   spies.toast.mockReset();
+  spies.respond.mockReset();
+  spies.respond.mockResolvedValue(undefined);
   spies.getConnectionInfo.mockReturnValue(null);
   spies.getTabSelectedSession.mockResolvedValue(null);
 });
@@ -156,6 +162,16 @@ describe('applyGroupInvite', () => {
     expect(spies.toast).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'Joined group', description: 'You joined "X"' }),
     );
+  });
+
+  it('does not claim the join when the server did not confirm it', async () => {
+    spies.respond.mockRejectedValue(new Error('no route to the server'));
+    await applyGroupInvite(
+      { groupId: 'g-3', groupName: 'Z', inviterId: '5', inviterUsername: 'alice' },
+      vi.fn(),
+    );
+    expect(spies.toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Joined here, not confirmed', variant: 'destructive' }));
+    expect(spies.toast).not.toHaveBeenCalledWith(expect.objectContaining({ title: 'Joined group' }));
   });
 
   it('reports a failure to the user rather than dropping the invite silently', async () => {

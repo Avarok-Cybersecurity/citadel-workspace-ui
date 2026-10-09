@@ -25,7 +25,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar, Check, Copy, FileSpreadsheet, FileText, FileType, FileCode, HardDrive, User } from 'lucide-react';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { formatFileSize } from '@/lib/utils';
-import { useState } from 'react';
+import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
 import type { FileDetails } from './file-details';
 
 interface FilePreviewDialogProps {
@@ -56,7 +56,7 @@ const getFileIcon: (fileName: string) => JSX.Element = (fileName: string): JSX.E
 };
 
 function SavedLocation({ path }: { path: string }): JSX.Element {
-  const [copied, setCopied] = useState(false);
+  const { copied, copy: copyText } = useCopyToClipboard();
 
   if (!path) {
     // Reached when a transfer completed without reporting a path. Saying so is
@@ -68,15 +68,7 @@ function SavedLocation({ path }: { path: string }): JSX.Element {
     );
   }
 
-  const copy = (): void => {
-    void navigator.clipboard.writeText(path).then(
-      () => {
-        setCopied(true);
-        window.setTimeout(() => setCopied(false), 2000);
-      },
-      () => setCopied(false),
-    );
-  };
+  const copy = (): void => { void copyText(path); };
 
   return (
     <div className="space-y-2">

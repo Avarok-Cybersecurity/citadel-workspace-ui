@@ -77,6 +77,9 @@ export function useDropUpload(
     inFlightBytesRef.current += totalSize;
     try {
     for (const file of fileArray) {
+      // Between the drop and the acknowledgement nothing on screen changed, so a large file read as a
+      // drop that did nothing. The progress toast is replaced by the outcome's own toast.
+      const progress: string | number = toast.loading(`Uploading ${file.name}…`);
       try {
         // The file's CONTENTS, which this never read. Only name, size and type
         // were passed on, so the upload described a file whose bytes never left
@@ -95,6 +98,8 @@ export function useDropUpload(
         deps.reportDelivery(acknowledged, `Uploaded: ${file.name}`);
       } catch (err) {
         toast.error(`Failed to upload ${file.name}: ${describeError(err)}`);
+      } finally {
+        toast.dismiss(progress);
       }
     }
     } finally {

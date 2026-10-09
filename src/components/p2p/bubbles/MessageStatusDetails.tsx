@@ -1,5 +1,5 @@
 import type { P2PMessage } from '@/lib/p2p';
-import { runAsyncSetup } from '@/lib/utils/async-utils';
+import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
 import { interactive } from '@/lib/a11y';
 import { formatPreciseDateTime } from '@/lib/format-time';
 
@@ -49,11 +49,8 @@ interface RowProps {
 }
 
 function Row({ label, value, valueClassName = 'text-foreground', copyable, fullValue }: RowProps): JSX.Element {
-  const handleCopy = (): void => {
-    runAsyncSetup(async () => {
-      await navigator.clipboard.writeText(fullValue || value);
-    });
-  };
+  const { copied, copy } = useCopyToClipboard();
+  const handleCopy = (): void => { void copy(fullValue || value); };
 
   return (
     <div className="flex justify-between gap-4">
@@ -66,7 +63,7 @@ function Row({ label, value, valueClassName = 'text-foreground', copyable, fullV
         {...(copyable ? interactive(handleCopy) : {})}
         title={copyable ? `Click to copy: ${fullValue || value}` : undefined}
       >
-        {value}
+        {copied ? 'Copied' : value}
       </span>
     </div>
   );
