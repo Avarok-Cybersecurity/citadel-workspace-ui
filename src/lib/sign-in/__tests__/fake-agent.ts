@@ -149,7 +149,17 @@ export class FakeAgent {
     this.emit('ConnectSuccess', { cid: account.cid, request_id: requestId });
   }
 
+  /** A Rust `None` reaches JS as an absent field (wasm-none-is-undefined), never as `null`. */
   private credentials(account: FakeAccount): SignInCredential[] {
+    return this.nullableCredentials(account).map((c: SignInCredential): SignInCredential => {
+      const wire: Partial<SignInCredential> = { ...c };
+      if (c.credential_id === null) delete wire.credential_id;
+      if (c.last_used_ms === null) delete wire.last_used_ms;
+      return wire as SignInCredential;
+    });
+  }
+
+  private nullableCredentials(account: FakeAccount): SignInCredential[] {
     const password: SignInCredential[] = account.policy === 'KeyOnly' ? [] : [{
       id: 1, kind: 'Password', label: 'Password', credential_id: null, created_ms: 1n, last_used_ms: null, consumed: false,
     }];

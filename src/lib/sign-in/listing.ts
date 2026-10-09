@@ -16,12 +16,16 @@ export interface Listing {
   codesLeft: number;
 }
 
+/** A Rust `None` arrives as an absent field; every reader below checks `null`. */
+const present = (c: SignInCredential): SignInCredential =>
+  ({ ...c, credential_id: c.credential_id ?? null, last_used_ms: c.last_used_ms ?? null });
+
 export function listingOf(outcome: SignInManagementOutcome): Listing {
   if (typeof outcome !== 'object' || !('Credentials' in outcome)) throw new Error('The server did not list the sign-in factors');
   const { policy, credentials } = outcome.Credentials;
   return {
     policy,
-    keys: credentials.filter((c: SignInCredential) => c.kind === 'SecurityKey'),
+    keys: credentials.filter((c: SignInCredential) => c.kind === 'SecurityKey').map(present),
     codesLeft: credentials.filter((c: SignInCredential) => c.kind === 'RecoveryCode' && !c.consumed).length,
   };
 }

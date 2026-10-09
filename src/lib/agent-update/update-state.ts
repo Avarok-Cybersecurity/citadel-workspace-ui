@@ -46,7 +46,7 @@ export function fromAvailable(a: UpdateAvailable): AgentUpdate | null {
 }
 
 export function fromStatus(s: UpdateStatus): UpdaterSettings {
-  return { current: s.current, autoInstall: s.auto_install, lastChecked: s.last_checked, lastError: s.last_error };
+  return { current: s.current, autoInstall: s.auto_install, lastChecked: s.last_checked ?? null, lastError: s.last_error ?? null };
 }
 
 function variant<T>(message: unknown, name: string): T | undefined {
