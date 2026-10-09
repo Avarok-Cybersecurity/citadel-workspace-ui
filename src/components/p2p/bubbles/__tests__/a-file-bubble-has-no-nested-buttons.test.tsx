@@ -54,6 +54,7 @@ describe('the file bubble', () => {
     // it used to be a focusable role="button" that did nothing when pressed.
     render(<FileTransferBubble message={message('pending', false)} isOwn onCancel={(): void => {}} />);
     expect(screen.getByTestId('file-transfer-bubble').getAttribute('data-transfer-state')).toBe('expired');
-    expect(screen.queryAllByRole('button')).toEqual([]);
+    // The delivery tick is a button that opens the message's details; nothing else is.
+    expect(screen.queryAllByRole('button').map((b: HTMLElement) => b.getAttribute('data-testid'))).toEqual(['message-status-details-trigger']);
   });
 });

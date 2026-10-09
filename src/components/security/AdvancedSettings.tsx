@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { HelpCircle } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { HelpHint } from "@/components/shared/HelpHint";
 import { SecuritySettingsValues } from "../SecuritySettings";
 import { Label } from "@/components/ui/label";
 import {
@@ -71,9 +70,12 @@ export const AdvancedSettings = ({ values, onChange }: AdvancedSettingsProps): J
     <div className="space-y-5">
       {/* Encryption Algorithm */}
       <div className="space-y-2">
-        <Label htmlFor="encryption-algorithm" className="text-foreground/80">
-          Encryption Algorithm
-        </Label>
+        <div className="flex items-center gap-1">
+          <Label htmlFor="encryption-algorithm" className="text-foreground/80">
+            Encryption Algorithm
+          </Label>
+          <HelpHint topic="Encryption Algorithm">Choose the encryption algorithm for your workspace</HelpHint>
+        </div>
         <div className="relative">
           <Select
             value={values.encryptionAlgorithm || 'AES_GCM_256'}
@@ -88,22 +90,17 @@ export const AdvancedSettings = ({ values, onChange }: AdvancedSettingsProps): J
               <SelectItem value={'ChaCha20Poly_1305'} className="hover:bg-primary-accent/20 focus:bg-primary-accent/20 rounded-sm p-2">ChaCha20Poly1305</SelectItem>
             </SelectContent>
           </Select>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <HelpCircle className="absolute right-12 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground cursor-help" />
-            </TooltipTrigger>
-            <TooltipContent className="bg-card border border-primary-accent/30 text-foreground">
-              <p>Choose the encryption algorithm for your workspace</p>
-            </TooltipContent>
-          </Tooltip>
         </div>
       </div>
 
       {/* KEM Algorithm */}
       <div className="space-y-2">
-        <Label htmlFor="kem-algorithm" className="text-foreground/80">
-          KEM Algorithm
-        </Label>
+        <div className="flex items-center gap-1">
+          <Label htmlFor="kem-algorithm" className="text-foreground/80">
+            KEM Algorithm
+          </Label>
+          <HelpHint topic="KEM Algorithm">Choose the key encapsulation mechanism (KEM)</HelpHint>
+        </div>
         <div className="relative">
           <Select
             value={values.kemAlgorithm || 'MlKem'}
@@ -117,22 +114,17 @@ export const AdvancedSettings = ({ values, onChange }: AdvancedSettingsProps): J
               <SelectItem value={'MlKem'} className="hover:bg-primary-accent/20 focus:bg-primary-accent/20 rounded-sm p-2">ML-KEM</SelectItem>
             </SelectContent>
           </Select>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <HelpCircle className="absolute right-12 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground cursor-help" />
-            </TooltipTrigger>
-            <TooltipContent className="bg-card border border-primary-accent/30 text-foreground">
-              <p>Choose the key encapsulation mechanism (KEM)</p>
-            </TooltipContent>
-          </Tooltip>
         </div>
       </div>
 
       {/* Signing Algorithm */}
       <div className="space-y-2">
-        <Label htmlFor="signing-algorithm" className="text-foreground/80">
-          Signing Algorithm
-        </Label>
+        <div className="flex items-center gap-1">
+          <Label htmlFor="signing-algorithm" className="text-foreground/80">
+            Signing Algorithm
+          </Label>
+          <HelpHint topic="Signing Algorithm">Choose the digital signature algorithm</HelpHint>
+        </div>
         <div className="relative">
           <Select
             value={values.sigAlgorithm || 'None'}
@@ -148,22 +140,17 @@ export const AdvancedSettings = ({ values, onChange }: AdvancedSettingsProps): J
               <SelectItem value={'FnDsa512'} className="hover:bg-primary-accent/20 focus:bg-primary-accent/20 rounded-sm p-2">FN-DSA-512</SelectItem>
             </SelectContent>
           </Select>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <HelpCircle className="absolute right-12 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground cursor-help" />
-            </TooltipTrigger>
-            <TooltipContent className="bg-card border border-primary-accent/30 text-foreground">
-              <p>Choose the digital signature algorithm</p>
-            </TooltipContent>
-          </Tooltip>
         </div>
       </div>
 
       {/* Header Obfuscator Mode */}
       <div className="space-y-2">
-        <Label htmlFor="header-obfuscator" className="text-foreground/80">
-          Header Obfuscator Mode
-        </Label>
+        <div className="flex items-center gap-1">
+          <Label htmlFor="header-obfuscator" className="text-foreground/80">
+            Header Obfuscator Mode
+          </Label>
+          <HelpHint topic="Header Obfuscator Mode">Configure header obfuscation settings</HelpHint>
+        </div>
         <div className="relative">
           <Select
             value={obfuscatorUIMode}
@@ -179,14 +166,6 @@ export const AdvancedSettings = ({ values, onChange }: AdvancedSettingsProps): J
               <SelectItem value="psk" className="hover:bg-primary-accent/20 focus:bg-primary-accent/20 rounded-sm p-2">PSK</SelectItem>
             </SelectContent>
           </Select>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <HelpCircle className="absolute right-12 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground cursor-help" />
-            </TooltipTrigger>
-            <TooltipContent className="bg-card border border-primary-accent/30 text-foreground">
-              <p>Configure header obfuscation settings</p>
-            </TooltipContent>
-          </Tooltip>
         </div>
       </div>
 

@@ -11,6 +11,7 @@ import { dropUnavailableReason } from '@/components/p2p/drop-unavailable';
 import { P2PChat } from '@/components/p2p/P2PChat';
 import { P2PMessageList } from '@/components/p2p/P2PMessageList';
 import { PEOPLE_SCENARIOS } from './scenarios-people.jsx';
+import { OVERLAY_SCENARIOS } from './scenarios-overlays.jsx';
 
 const person = (username, role, title) => ({
   id: username, username, displayName: username[0].toUpperCase() + username.slice(1), role, title, isOnline: true,
@@ -111,4 +112,4 @@ function DropUnavailable({ state }) {
   );
 }
 
-export const SCENARIOS = { 'document-open': () => <DropUnavailable state={{ viewingDocument: true, paused: false }} />, 'paused-drag': () => <DropUnavailable state={{ viewingDocument: false, paused: true }} />, 'p2p-chat': WholeChat, 'sidebar-members': SidebarMembers, 'p2p-conversation': P2PConversation, ...PEOPLE_SCENARIOS };
+export const SCENARIOS = { 'document-open': () => <DropUnavailable state={{ viewingDocument: true, paused: false }} />, 'paused-drag': () => <DropUnavailable state={{ viewingDocument: false, paused: true }} />, 'p2p-chat': WholeChat, 'sidebar-members': SidebarMembers, 'p2p-conversation': P2PConversation, ...PEOPLE_SCENARIOS, ...OVERLAY_SCENARIOS };

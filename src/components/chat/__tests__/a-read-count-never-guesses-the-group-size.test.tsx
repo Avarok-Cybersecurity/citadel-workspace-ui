@@ -6,7 +6,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { ReadByTooltipContent, getReadStatus } from '../GroupMessageFooter';
+import { ReadByDetails, getReadStatus } from '../GroupMessageFooter';
 import type { GroupMessage, GroupMessageReadBy } from '@/types/workspace-entities';
 
 const readers: GroupMessageReadBy[] = [{ user_id: 'u1', user_name: 'Una', read_at: 1 }];
@@ -15,14 +15,14 @@ const message: GroupMessage = { id: "m", read_by: readers } as unknown as GroupM
 describe('a group message read receipt', () => {
   it('counts against the real member total', () => {
     expect(getReadStatus(message, 4)).toBe('partial');
-    render(<ReadByTooltipContent readBy={readers} totalMembers={4} status="partial" />);
+    render(<ReadByDetails readBy={readers} totalMembers={4} status="partial" />);
     expect(screen.getByText('Seen by 1 of 3')).toBeInTheDocument();
     expect(screen.getByText(/2 members haven't seen this yet/)).toBeInTheDocument();
   });
 
   it('says who has seen it, with no count, when the total is unknown', () => {
     expect(getReadStatus(message, null)).toBe('partial');
-    render(<ReadByTooltipContent readBy={readers} totalMembers={null} status="partial" />);
+    render(<ReadByDetails readBy={readers} totalMembers={null} status="partial" />);
     expect(screen.getByText('Una')).toBeInTheDocument();
     expect(screen.queryByText(/Seen by 1 of/)).toBeNull();
     expect(screen.queryByText(/haven't seen/)).toBeNull();

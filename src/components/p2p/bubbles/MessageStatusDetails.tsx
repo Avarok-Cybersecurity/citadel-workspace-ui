@@ -15,6 +15,10 @@ const statusLabels: Record<P2PMessage['status'], string> = {
   failed: 'Failed to send'
 };
 
+export function messageStatusLabel(status: P2PMessage['status']): string {
+  return statusLabels[status];
+}
+
 const statusColors: Record<P2PMessage['status'], string> = {
   pending: 'text-muted-foreground',
   sent: 'text-foreground/80',

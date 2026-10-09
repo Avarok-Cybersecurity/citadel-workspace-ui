@@ -1,13 +1,9 @@
 import { Check, CheckCheck, Clock, RefreshCw, XCircle } from 'lucide-react';
 import type { P2PMessage } from '@/lib/p2p';
 import { formatTime } from '@/components/chat/shared';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import { MessageStatusDetails } from './MessageStatusDetails';
+import { useId, useState } from 'react';
+import { StatusPanel, StatusTick } from '@/components/shared/StatusDetails';
+import { MessageStatusDetails, messageStatusLabel } from './MessageStatusDetails';
 
 interface BubbleFooterProps {
   message: P2PMessage;
@@ -37,6 +33,8 @@ function getMessageStatusIcon(message: P2PMessage): JSX.Element | null {
 export function BubbleFooter({ message, isOwn, onRetry }: BubbleFooterProps): JSX.Element {
   const isFailed: boolean = message.status === 'failed';
   const statusIcon: JSX.Element | null = getMessageStatusIcon(message);
+  const [detailsOpen, setDetailsOpen] = useState<boolean>(false);
+  const panelId: string = useId();
 
   return (
     <>
@@ -57,21 +55,9 @@ export function BubbleFooter({ message, isOwn, onRetry }: BubbleFooterProps): JS
           </span>
         )}
         {isOwn && statusIcon && (
-          <TooltipProvider delayDuration={300}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="cursor-help inline-flex">
-                  {statusIcon}
-                </span>
-              </TooltipTrigger>
-              <TooltipContent
-                side="top"
-                className="bg-background border-border p-3"
-              >
-                <MessageStatusDetails message={message} />
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <StatusTick label={messageStatusLabel(message.status)} open={detailsOpen} onToggle={() => setDetailsOpen(!detailsOpen)} panelId={panelId}>
+            {statusIcon}
+          </StatusTick>
         )}
         {/* Retry button for failed messages */}
         {isOwn && isFailed && onRetry && (
@@ -84,6 +70,11 @@ export function BubbleFooter({ message, isOwn, onRetry }: BubbleFooterProps): JS
           </button>
         )}
       </div>
+      {detailsOpen && statusIcon && (
+        <StatusPanel id={panelId}>
+          <MessageStatusDetails message={message} />
+        </StatusPanel>
+      )}
       {/* Error message for failed sends */}
       {isOwn && isFailed && message.error && (
         <p className="text-xs text-destructive-emphasis mt-1">{message.error}</p>

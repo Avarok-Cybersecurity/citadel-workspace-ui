@@ -1,11 +1,5 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { HelpCircle } from "lucide-react";
-// `Tooltip` requires an ancestor `<TooltipProvider>` to render. The
-// app-level provider in `App.tsx` covers every route, so this
-// component does not wrap its own — see `src/App.tsx` (`<TooltipProvider>`
-// around the router). Removing that ancestor would silently break the
-// tooltip on the help icon below.
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { HelpHint } from "@/components/shared/HelpHint";
 import { Label } from "@/components/ui/label";
 import { SecrecyMode } from "@/types";
 
@@ -23,16 +17,19 @@ export const SecurityModeSelect = ({ value = 'BestEffort', onChange }: SecurityM
 
   return (
     <div className="space-y-2">
-      <Label htmlFor="security-mode" className="text-foreground/80">
-        Security Mode
-      </Label>
+      <div className="flex items-center gap-1">
+        <Label htmlFor="security-mode" className="text-foreground/80">
+          Security Mode
+        </Label>
+        <HelpHint topic="Security Mode">Choose your preferred security mode for encrypted communications</HelpHint>
+      </div>
       <div className="relative">
         <Select 
           value={value} 
           onValueChange={handleValueChange}
           defaultValue={'BestEffort'}
         >
-          <SelectTrigger id="security-mode" className="w-full bg-surface text-foreground pr-12">
+          <SelectTrigger id="security-mode" className="w-full bg-surface text-foreground">
             <SelectValue placeholder="Select security mode" />
           </SelectTrigger>
           <SelectContent className="bg-card border border-primary-accent/30 text-foreground shadow-xl p-1">
@@ -40,14 +37,6 @@ export const SecurityModeSelect = ({ value = 'BestEffort', onChange }: SecurityM
             <SelectItem value={'Perfect'} className="hover:bg-primary-accent/20 focus:bg-primary-accent/20 rounded-sm">Perfect Forward Secrecy</SelectItem>
           </SelectContent>
         </Select>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <HelpCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground cursor-help" />
-          </TooltipTrigger>
-          <TooltipContent className="bg-card border border-primary-accent/30 text-foreground">
-            <p>Choose your preferred security mode for encrypted communications</p>
-          </TooltipContent>
-        </Tooltip>
       </div>
     </div>
   );

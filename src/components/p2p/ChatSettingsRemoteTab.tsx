@@ -3,7 +3,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Info, Shield } from 'lucide-react';
 import { REVFS_DEFAULT_QUOTA_BYTES } from '@/types/messaging-layer';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { HelpHint } from '@/components/shared/HelpHint';
 import type { FileTransferSettings } from '@/lib/file-transfer';
 
 interface ChatSettingsRemoteTabProps {
@@ -28,18 +28,11 @@ export function ChatSettingsRemoteTab({
             <Label htmlFor="allow-revfs" className="text-sm font-medium">
               Allow {peerName} to store files on your device
             </Label>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Shield className="h-4 w-4 text-success-emphasis cursor-help" />
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs bg-background border-surface text-foreground">
-                <p className="text-sm">
-                  <strong>Post-Quantum Secure:</strong> When you allow storage, you become a
-                  blind host. Files are encrypted with post-quantum algorithms — you cannot
-                  view or decrypt their contents. Only the file owner has the keys.
-                </p>
-              </TooltipContent>
-            </Tooltip>
+            <HelpHint topic="storing files for this peer">
+              <strong>Post-Quantum Secure:</strong> When you allow storage, you become a
+              blind host. Files are encrypted with post-quantum algorithms — you cannot
+              view or decrypt their contents. Only the file owner has the keys.
+            </HelpHint>
           </div>
           <p className="text-xs text-muted-foreground">Provide encrypted storage space for this peer</p>
         </div>
