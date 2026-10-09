@@ -20,7 +20,7 @@ import { ConnectionPathLabel } from './ConnectionPathLabel';
 
 interface P2PChatHeaderProps {
   peerName: string;
-  peerPresence: PeerPresence;
+  peerPresence: PeerPresence | null;
   peerTyping: boolean;
   isConnected: boolean;
   isRegistered: boolean;
@@ -49,7 +49,7 @@ interface StatusDisplay {
 }
 
 export function getStatusDisplay(
-  presence: PeerPresence,
+  presence: PeerPresence | null,
   connected: boolean,
   registered: boolean
 ): StatusDisplay {
@@ -68,6 +68,8 @@ export function getStatusDisplay(
   // Registration now only decides what "we know nothing" looks like: an
   // unregistered peer is genuinely unknown, a registered one with no presence
   // yet is offline.
+  // Nothing has said either way: the honest label is the absence of one.
+  if (presence === null) return { text: 'Status unknown', color: 'bg-muted-foreground', textColor: 'text-muted-foreground' };
   switch (presence.status) {
     case MessagingLayerType.Online:
       return { text: 'Online', color: 'bg-success', textColor: 'text-success-emphasis' };

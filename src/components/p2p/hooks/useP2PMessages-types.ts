@@ -17,7 +17,7 @@ export interface UseP2PMessagesProps {
 export interface UseP2PMessagesReturn {
   messages: P2PMessage[];
   peerTyping: boolean;
-  peerPresence: PeerPresence;
+  peerPresence: PeerPresence | null;
   isConnected: boolean;
   isRegistered: boolean;
   isLoadingMore: boolean;

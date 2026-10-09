@@ -34,10 +34,7 @@ export function useP2PMessages({
 }: UseP2PMessagesProps): UseP2PMessagesReturn {
   const [messages, setMessages] = useState<P2PMessage[]>([]);
   const [peerTyping, setPeerTyping] = useState(false);
-  const [peerPresence, setPeerPresence] = useState<PeerPresence>({
-    status: MessagingLayerType.Offline,
-    lastUpdate: 0
-  });
+  const [peerPresence, setPeerPresence] = useState<PeerPresence | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isRegistered, setIsRegistered] = useState(false);
   const [currentPage, setCurrentPage] = useState<number | null>(null);
