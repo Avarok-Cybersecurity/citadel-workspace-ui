@@ -42,7 +42,6 @@ describe('a conversation created for an unheard-of peer', () => {
 
   it('is unknown, not Online and not Offline', async () => {
     const { ConversationManager } = await import('../conversation-manager');
-    const { MessagingLayerType } = await import('@/types/p2p-commands');
 
     const manager: InstanceType<typeof ConversationManager> = new ConversationManager({
       getCurrentCid: (): Promise<bigint | null> => Promise.resolve(1n),
