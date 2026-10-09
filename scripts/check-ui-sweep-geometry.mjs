@@ -6,5 +6,6 @@
 import { runChecks } from './lib/polish-harness/run-checks.mjs';
 import { PEOPLE_CHECKS } from './lib/polish-harness/checks-people.mjs';
 import { OVERLAY_CHECKS } from './lib/polish-harness/checks-overlays.mjs';
+import { SPACING_CHECKS } from './lib/polish-harness/checks-spacing.mjs';
 
-process.exit(await runChecks({ ...PEOPLE_CHECKS, ...OVERLAY_CHECKS }, Number(process.env.SWEEP_PORT ?? 4198)));
+process.exit(await runChecks({ ...PEOPLE_CHECKS, ...OVERLAY_CHECKS, ...SPACING_CHECKS }, Number(process.env.SWEEP_PORT ?? 4198)));

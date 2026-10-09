@@ -125,7 +125,7 @@ export function ChatSettingsTab({ entityType, entityId, onClose: _onClose }: Adm
   return (
     <div className="space-y-6" data-testid="chat-tab-content">
       {/* Chat Enable Toggle */}
-      <div className="flex items-center justify-between p-4 bg-background rounded-lg">
+      <div className="flex items-center justify-between gap-4 p-4 bg-background rounded-lg">
         <div className="flex items-center gap-3">
           <MessageSquare className="h-5 w-5 text-primary-accent" />
           <div>

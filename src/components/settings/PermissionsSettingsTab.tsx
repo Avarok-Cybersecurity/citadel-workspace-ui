@@ -84,8 +84,8 @@ export function PermissionsSettingsTab(): JSX.Element {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex items-center justify-between gap-4">
+        <div className="min-w-0">
           <h3 className="text-lg font-medium text-foreground">Your Permissions</h3>
           <p className="text-sm text-muted-foreground mt-1">View your access rights across all domains</p>
         </div>

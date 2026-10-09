@@ -80,7 +80,7 @@ export function GroupSettingsPanel({
       >
         {/* Header */}
         <SheetHeader className="px-4 py-3 border-b border-border">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <SheetTitle className="text-foreground text-lg">Group Settings</SheetTitle>
             <Button
               variant="ghost"

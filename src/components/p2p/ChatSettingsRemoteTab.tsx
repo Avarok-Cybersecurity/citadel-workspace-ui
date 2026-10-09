@@ -22,8 +22,8 @@ export function ChatSettingsRemoteTab({
 }: ChatSettingsRemoteTabProps): JSX.Element {
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between p-4 rounded-lg bg-surface/50">
-        <div className="space-y-0.5">
+      <div className="flex items-center justify-between gap-4 p-4 rounded-lg bg-surface/50">
+        <div className="min-w-0 space-y-0.5">
           <div className="flex items-center gap-2">
             <Label htmlFor="allow-revfs" className="text-sm font-medium">
               Allow {peerName} to store files on your device
@@ -45,7 +45,7 @@ export function ChatSettingsRemoteTab({
       </div>
 
       <div className={`space-y-3 p-4 rounded-lg bg-surface/50 ${!settings.allowRevfsStorage ? 'opacity-50' : ''}`}>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <Label htmlFor="storage-quota-for-peername" className="text-sm font-medium">Storage quota for {peerName}</Label>
           <span className="text-sm text-primary-accent font-medium" data-testid="revfs-quota-value">{revfsQuotaMb} MB</span>
         </div>

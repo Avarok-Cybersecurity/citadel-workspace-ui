@@ -100,7 +100,7 @@ export function ConnectionsSettingsTab(): JSX.Element {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
+      <div className="flex items-center justify-between gap-4 p-3 rounded-lg bg-background/50">
         <div className="space-y-0.5 flex-1 mr-4">
           <Label htmlFor="auto-reconnect" className="text-foreground font-medium cursor-pointer">
             Auto-reconnect
@@ -120,7 +120,7 @@ export function ConnectionsSettingsTab(): JSX.Element {
         </div>
       </div>
 
-      <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
+      <div className="flex items-center justify-between gap-4 p-3 rounded-lg bg-background/50">
         <div className="space-y-0.5 flex-1 mr-4">
           <Label htmlFor="auto-accept-registrations" className="text-foreground font-medium cursor-pointer">
             Auto-accept P2P registrations

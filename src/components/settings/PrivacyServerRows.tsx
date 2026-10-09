@@ -33,8 +33,8 @@ export function ProfileVisibilityRow(): JSX.Element {
   };
 
   return (
-    <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
-      <div>
+    <div className="flex items-center justify-between gap-4 p-3 rounded-lg bg-background/50">
+      <div className="min-w-0">
         <Label htmlFor="profile-visibility" className="text-sm font-medium">Profile Visibility</Label>
         <p className="text-xs text-muted-foreground">
           Show your picture, email and job title to workspace members you aren&apos;t connected with.
@@ -77,8 +77,8 @@ export function StrangerRequestsRow({ accepts, onLocalChange }: StrangerRequests
   };
 
   return (
-    <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
-      <div>
+    <div className="flex items-center justify-between gap-4 p-3 rounded-lg bg-background/50">
+      <div className="min-w-0">
         <Label htmlFor="stranger-requests" className="text-sm font-medium">Requests From Strangers</Label>
         <p className="text-xs text-muted-foreground">
           Let people you aren&apos;t connected with ask to connect and message you. When off, their requests are
@@ -122,8 +122,8 @@ export function OnlineStatusRow({ shows, onLocalChange }: OnlineStatusRowProps):
   };
 
   return (
-    <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
-      <div>
+    <div className="flex items-center justify-between gap-4 p-3 rounded-lg bg-background/50">
+      <div className="min-w-0">
         <Label htmlFor="online-status" className="text-sm font-medium">Online Status</Label>
         <p className="text-xs text-muted-foreground">Let workspace members see when you are online. When off, they see it as not known. Someone you are connected to directly can still see that connection.</p>
       </div>

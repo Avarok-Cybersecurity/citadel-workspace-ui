@@ -49,8 +49,8 @@ export function AppearanceSettingsTab(): JSX.Element {
           Display
         </div>
 
-        <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
-          <div>
+        <div className="flex items-center justify-between gap-4 p-3 rounded-lg bg-background/50">
+          <div className="min-w-0">
             <Label htmlFor="show-avatars" className="text-sm font-medium">Show Avatars</Label>
             <p className="text-xs text-muted-foreground">Display user avatars in messages and lists</p>
           </div>
@@ -69,7 +69,7 @@ export function AppearanceSettingsTab(): JSX.Element {
         </div>
 
         <div className="p-3 rounded-lg bg-background/50 space-y-2">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <Label htmlFor="font-size" className="text-sm font-medium">Font Size</Label>
             <span className="text-xs text-muted-foreground">{settings.fontSize}px</span>
           </div>
@@ -93,8 +93,8 @@ export function AppearanceSettingsTab(): JSX.Element {
         </div>
 
         <div className="p-3 rounded-lg bg-background/50">
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
               <Label htmlFor="sidebar-width" className="text-sm font-medium">Sidebar Width</Label>
               <p className="text-xs text-muted-foreground">Adjust the navigation sidebar width</p>
             </div>
@@ -114,8 +114,8 @@ export function AppearanceSettingsTab(): JSX.Element {
           </div>
         </div>
 
-        <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
-          <div>
+        <div className="flex items-center justify-between gap-4 p-3 rounded-lg bg-background/50">
+          <div className="min-w-0">
             <Label htmlFor="animations" className="text-sm font-medium">Animations</Label>
             <p className="text-xs text-muted-foreground">Enable smooth transitions and effects</p>
           </div>

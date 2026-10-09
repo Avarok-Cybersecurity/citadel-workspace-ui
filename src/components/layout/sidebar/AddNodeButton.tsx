@@ -34,7 +34,7 @@ export function AddNodeButton({ onClick, blockedReason, testId }: AddNodeButtonP
     <Button
       variant="ghost"
       size="icon"
-      className="tap-target h-6 w-6 text-primary-accent hover:bg-primary-accent/15 hover:text-foreground disabled:opacity-40"
+      className="tap-target h-6 w-6 shrink-0 text-primary-accent hover:bg-primary-accent/15 hover:text-foreground disabled:opacity-40"
       onClick={onClick}
       disabled={blockedReason !== null}
       data-testid={testId}

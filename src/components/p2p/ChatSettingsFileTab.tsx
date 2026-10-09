@@ -50,8 +50,8 @@ export function ChatSettingsFileTab({
       </TabsList>
 
       <TabsContent value="standard" className="space-y-5 m-0" data-testid="content-file-standard">
-        <div className="flex items-center justify-between p-4 rounded-lg bg-surface/50">
-          <div className="space-y-0.5">
+        <div className="flex items-center justify-between gap-4 p-4 rounded-lg bg-surface/50">
+          <div className="min-w-0 space-y-0.5">
             <Label htmlFor="auto-accept" className="text-sm font-medium">
               Auto-accept files from {peerName}
             </Label>
@@ -62,7 +62,7 @@ export function ChatSettingsFileTab({
         </div>
 
         <div className="space-y-3 p-4 rounded-lg bg-surface/50">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <Label htmlFor="max-file-size-to-accept" className="text-sm font-medium">Max file size to accept</Label>
             <span className="text-sm text-primary-accent font-medium" data-testid="max-file-size-value">{maxFileSizeMb} MB</span>
           </div>

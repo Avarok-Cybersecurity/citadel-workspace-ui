@@ -25,23 +25,32 @@ export async function runChecks(CHECKS, port) {
       for (const viewport of VIEWPORTS) {
         for (const theme of THEMES) {
           const context = await browser.newContext({ viewport, reducedMotion: 'reduce' });
-          const page = await context.newPage();
-          // The whole chat is mounted with no agent behind it, so its own leader probe rejects. That is the
-          // absence this scenario is built on, not a defect; any other uncaught error still fails the run.
-          page.on('pageerror', (e) => {
-            if (e.message.includes('The leader could not say what the agent hosts')) return;
-            console.error(`  pageerror: ${e.message}`); failures += 1;
-          });
+          const origin = (scenario) => `${harness.origin}/?s=${scenario}&theme=${theme}`;
+          const open = async () => {
+            const page = await context.newPage();
+            // The dev server transforms modules on first request, and WebKit waits on all of them before `load`.
+            page.setDefaultNavigationTimeout(90_000);
+            page.problems = [];
+            page.on('pageerror', (e) => {
+              // The whole chat is mounted with no agent behind it, so its own leader probe rejects. That is the
+              // absence this scenario is built on, not a defect; any other uncaught error still fails the run.
+              if (!e.message.includes('The leader could not say what the agent hosts')) page.problems.push(`pageerror: ${e.message}`);
+            });
+            return page;
+          };
+          const attempt = async (page, check) => {
+            page.problems.length = 0;
+            try { await check({ page, url: origin, viewport }); } catch (error) { return error.message; }
+            return page.problems[0] ?? null;
+          };
+          let page = await open();
           for (const [name, check] of Object.entries(CHECKS)) {
             const label = `${name} [${engineName} ${viewport.width}px ${theme}]`;
-            try {
-              await check({ page, url: (scenario) => `${harness.origin}/?s=${scenario}&theme=${theme}`, viewport });
-              console.log(`  ok    ${label}`);
-            } catch (error) {
-              failures += 1;
-              console.error(`  FAIL  ${label}\n        ${error.message}`);
-            }
+            const problem = await attempt(page, check);
+            if (problem === null) console.log(`  ok    ${label}`);
+            else { failures += 1; console.error(`  FAIL  ${label}\n        ${problem}`); }
           }
+          await page.close();
           await context.close();
         }
       }

@@ -183,8 +183,8 @@ export function GeneralSettingsTab(): JSX.Element {
           <Volume2 className="h-4 w-4 text-primary-accent" />
           Sounds
         </div>
-        <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
-          <div>
+        <div className="flex items-center justify-between gap-4 p-3 rounded-lg bg-background/50">
+          <div className="min-w-0">
             {/* htmlFor/id, not proximity. A Switch renders a <button> with no
                 inner text, so a Label merely sitting next to it gives a screen
                 reader a control announced as nothing at all — axe rates that

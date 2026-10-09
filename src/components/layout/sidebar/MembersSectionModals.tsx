@@ -10,17 +10,11 @@
  * - CreateGroupDialog
  */
 
-import { MoreVertical } from "lucide-react";
 import { InviteToWorkspaceDialog } from '@/components/workspace/InviteToWorkspaceDialog';
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+
+
 import { MemberManagementModal } from "@/components/member/MemberManagementModal";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -35,14 +29,11 @@ import type { User as WorkspaceMember } from '@/types/workspace-entities';
 import type { RegisteredPeer } from '@/hooks/use-registered-peers';
 import { roleBadgeClass } from '@/lib/role-badge';
 import { useGuardedNavigate, type GuardedNavigate } from '@/hooks/use-guarded-navigate';
-import { MemberAvatar } from '@/components/shared/MemberAvatar';
-import { MemberActionItems } from './MemberActionItems';
+import { AllMembersRow } from './AllMembersRow';
 import { useMemberActionBlocks } from './use-member-action-blocks';
 import type { MemberActionBlocks } from './member-actions-gate';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 import { useLevelName } from '@/hooks/use-level-name';
-import { blocksForMember } from '@/lib/member-access';
-import { roleLabel } from '@/components/shared/RoleIcon';
 /** Role badge classes. Defined once in lib/role-badge so the sidebar and user
  *  search cannot drift apart again — they already had, and only one was fixed. */
 export function getRoleColor(role: string): string {
@@ -135,32 +126,16 @@ export function MembersSectionModals({
           <ScrollArea className="max-h-[60vh]">
             <div className="space-y-2">
               {members.map((member) => (
-                <div key={member.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-card transition-colors">
-                  <div className="flex items-center gap-3 flex-1">
-                    <MemberAvatar username={member.username} name={member.displayName || member.username} className="h-8 w-8" />
-                    <div className="flex-1">
-                      <p className="text-foreground font-medium">{member.displayName || member.username}</p>
-                      {member.accessVia !== undefined && <p className="text-xs text-muted-foreground" data-testid="member-access-via">via {nameOfLevel(member.accessVia)}</p>}
-                      {member.username && <p className="text-sm text-muted-foreground">@{member.username}</p>}
-                      {member.title && <p className="text-xs text-foreground/80" data-testid="member-title">{member.title}</p>}
-                      {member.email && <p className="text-xs text-muted-foreground" data-testid="member-email">{member.email}</p>}
-                    </div>
-                    <Badge variant="secondary" className={`${getRoleColor(member.role || 'member')} text-xs`}>{roleLabel(member.role || 'member')}</Badge>
-                  </div>
-                  {currentUsername !== member.username && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Actions for ${member.username}`}><MoreVertical className="h-4 w-4" aria-hidden="true" /></Button></DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <MemberActionItems
-                          blocks={blocksForMember(memberBlocks, member.accessVia === undefined ? null : nameOfLevel(member.accessVia))}
-                          onManagePermissions={() => { onManagePermissions(member); onSetShowAllMembersDialog(false); }}
-                          onEditMember={() => { onEditMember(member); onSetShowAllMembersDialog(false); }}
-                          onRemoveMember={() => { onRemoveMember(member); onSetShowAllMembersDialog(false); }}
-                        />
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
-                </div>
+                <AllMembersRow
+                  key={member.id}
+                  member={member}
+                  currentUsername={currentUsername}
+                  blocks={memberBlocks}
+                  nameOfLevel={nameOfLevel}
+                  onManagePermissions={() => { onManagePermissions(member); onSetShowAllMembersDialog(false); }}
+                  onEditMember={() => { onEditMember(member); onSetShowAllMembersDialog(false); }}
+                  onRemoveMember={() => { onRemoveMember(member); onSetShowAllMembersDialog(false); }}
+                />
               ))}
             </div>
           </ScrollArea>
