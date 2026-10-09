@@ -33,7 +33,7 @@ vi.mock('../useGroupChat', () => ({
 const { GroupChatView } = await import('../GroupChatView');
 
 function renderGroup(groupId: string): void {
-  render(<GroupChatView groupId={groupId} currentUserName="self" sendRestriction="allowed" />);
+  render(<GroupChatView groupId={groupId} currentUserName="self" sendRestriction="allowed" totalMembers={null} />);
 }
 
 describe('"Load older messages"', () => {
