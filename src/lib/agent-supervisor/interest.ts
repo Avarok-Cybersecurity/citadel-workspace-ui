@@ -11,6 +11,8 @@
 import { sendToAgent } from '../agent-conversations/sender';
 import { agentSupervisesP2p } from '../agent-conversations/capabilities';
 import { INTEREST_COMMAND } from '@/types/agent-supervisor';
+import { eventEmitter } from '../event-emitter';
+import { SESSION_CLAIMED, type ClaimedEvent } from '../multi-instance/claim-relay';
 import { debugLog } from '../debug-config';
 
 /** How long one Interest holds without renewal. */
@@ -37,10 +39,17 @@ export async function declareInterest(sessionCid: bigint, peerCid: bigint, now: 
   }
 }
 
-/** Keeps the interest alive until the returned function is called. */
+/**
+ * Keeps the interest alive until the returned function is called. The agent
+ * holds it per connection, so a claim of this session on a new connection says
+ * it again rather than leaving the peer undialled until the next renewal.
+ */
 export function holdInterest(sessionCid: bigint, peerCid: bigint): () => void {
   const send = (): void => { void declareInterest(sessionCid, peerCid, Date.now()); };
   send();
   const timer: ReturnType<typeof setInterval> = setInterval(send, INTEREST_LIFETIME_MS / 2);
-  return (): void => { clearInterval(timer); };
+  const stopHearingClaims: () => void = eventEmitter.on<ClaimedEvent>(SESSION_CLAIMED, ({ cid }: ClaimedEvent): void => {
+    if (cid === sessionCid) send();
+  });
+  return (): void => { clearInterval(timer); stopHearingClaims(); };
 }

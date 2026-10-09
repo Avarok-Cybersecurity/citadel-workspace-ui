@@ -11,7 +11,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 const toasts: { titles: string[] } = vi.hoisted(() => ({ titles: [] }));
-vi.mock('@/lib/websocket-service', async () => (await import('./login-world')).websocketServiceDouble());
+vi.mock('@/lib/websocket-service', async (orig: () => Promise<Record<string, unknown>>) => (await import('./login-world')).websocketServiceDouble(orig));
 vi.mock('@/lib/connection', () => ({ ConnectionManager: { getInstance: (): { handleAuthSuccess: () => Promise<void> } => ({ handleAuthSuccess: async (): Promise<void> => undefined }) } }));
 vi.mock('@/lib/signup-profile-io', () => ({ startSignupProfile: (): void => undefined }));
 vi.mock('@/lib/sign-in', async (orig: () => Promise<Record<string, unknown>>) => (await import('./login-world')).signInDouble(orig));

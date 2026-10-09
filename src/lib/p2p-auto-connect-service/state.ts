@@ -46,6 +46,8 @@ export class AutoConnectState {
 
   setPeerDisconnected(localCid: bigint, peerCid: bigint): void {
     this.core.setPeerDisconnected(localCid, peerCid);
+    // A dropped link is no longer a usable channel; the next proof of one is news again.
+    this.readyChannels.delete(peerCid);
   }
 
   getPeersForSession(localCid: bigint): bigint[] {

@@ -31,6 +31,17 @@ export function applyAgentSocketState(state: AgentSocketState): void {
   if (changed) eventEmitter.emit('agent-socket-state', state);
 }
 
+/**
+ * A follower applying the leader's report. The leader's reconnection is the
+ * follower's too: 'on-ws-connection-success' is what re-syncs everything a tab
+ * set up over the old connection, and only the leader's socket emitted it.
+ */
+export function applyLeaderSocketReport(state: AgentSocketState): void {
+  const recovered: boolean = state.up && !leaderSocketUp;
+  applyAgentSocketState(state);
+  if (recovered) eventEmitter.emit('on-ws-connection-success');
+}
+
 export function readAgentSocketState(payload: unknown): AgentSocketState | null {
   if (typeof payload !== 'object' || payload === null) return null;
   const up: unknown = (payload as Record<string, unknown>).up;

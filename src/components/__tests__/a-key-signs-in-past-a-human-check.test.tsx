@@ -17,9 +17,9 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { FakeAccount } from '@/lib/sign-in/__tests__/fake-agent';
 
-vi.mock('@/lib/websocket-service', async () => (await import('./login-world')).websocketServiceDouble());
-vi.mock('@/lib/connection', async () => (await import('./login-world')).connectionDouble());
-vi.mock('@/lib/tab-context', async (orig: () => Promise<Record<string, unknown>>) => ({ ...(await orig()), setSelectedUser: async (): Promise<void> => undefined }));
+vi.mock('@/lib/websocket-service', async (orig: () => Promise<Record<string, unknown>>) => (await import('./login-world')).websocketServiceDouble(orig));
+vi.mock('@/lib/connection', async (orig: () => Promise<Record<string, unknown>>) => (await import('./login-world')).connectionDouble(orig));
+vi.mock('@/lib/tab-context', async (orig: () => Promise<Record<string, unknown>>) => (await import('./login-world')).tabContextDouble(orig));
 vi.mock('@/lib/post-auth-setup', async () => ({ postAuthSetup: (await import('./login-world')).loginWorld.postAuth }));
 vi.mock('@/lib/start-messaging', async () => ({ startMessagingForSession: (await import('./login-world')).loginWorld.messaging }));
 vi.mock('@/lib/session-startup-service', () => ({}));

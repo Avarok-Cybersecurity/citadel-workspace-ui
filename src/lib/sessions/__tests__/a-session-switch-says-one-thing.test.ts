@@ -21,12 +21,17 @@ vi.mock('../claim-session', async (importOriginal) => {
   const actual: Record<string, unknown> = await importOriginal();
   return { ...actual, claimSessionForThisTab: async (): Promise<unknown> => claim };
 });
-vi.mock('@/lib/connection', () => ({
-  connectionManager: {
-    setActiveSessionIndex: async (): Promise<void> => {},
-    getStoredSessions: (): unknown => ({ sessions: [] }),
-  },
-}));
+vi.mock('@/lib/connection', async (importOriginal: () => Promise<typeof import('@/lib/connection')>) => {
+  const real: typeof import('@/lib/connection') = await importOriginal();
+  const { doubleOf } = await import('@/test/singleton-double');
+  return {
+    ...real,
+    connectionManager: doubleOf(real.connectionManager, {
+      setActiveSessionIndex: (async (): Promise<void> => {}) as never,
+      getStoredSessions: ((): unknown => ({ sessions: [] })) as never,
+    }),
+  };
+});
 vi.mock('@/lib/tab-context', () => ({ setSelectedUser: async (): Promise<void> => {} }));
 vi.mock('@/lib/start-messaging', () => ({ startMessagingForSession: async (): Promise<void> => {} }));
 vi.mock('@/lib/multi-instance', () => ({

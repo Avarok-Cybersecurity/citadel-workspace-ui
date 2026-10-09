@@ -8,6 +8,7 @@
  * answers only once the server has decided, which can be a minute after a
  * request that needed a touch.
  */
+import { onSocketLost } from '../websocket/socket-loss';
 import { eventEmitter } from '@/lib/event-emitter';
 import { extensionFor, watchKeyChallenges } from './challenge-watch';
 import type { Send } from './key-answer';
@@ -42,7 +43,7 @@ export function manageSignIn(
     const finish = (): void => {
       clearTimeout(timer);
       eventEmitter.off('websocket-message', onMessage);
-      eventEmitter.off('websocket-disconnected', onDisconnected);
+      stopListeningForLoss();
       unwatch();
     };
     const arm = (ms: number): void => {
@@ -62,7 +63,7 @@ export function manageSignIn(
       if (failure) { finish(); reject(new SignInManagementError(String(failure.message))); }
     };
     eventEmitter.on('websocket-message', onMessage);
-    eventEmitter.on('websocket-disconnected', onDisconnected);
+    const stopListeningForLoss: () => void = onSocketLost(onDisconnected);
     arm(MANAGEMENT_TIMEOUT_MS);
     send({ SignInManagement: { request_id: requestId, cid, op, step_up: stepUp } }).catch((error: unknown): void => {
       finish();

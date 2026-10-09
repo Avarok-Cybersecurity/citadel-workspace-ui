@@ -17,7 +17,9 @@ import { useEventListener } from "@/hooks/use-event-listener";
 import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
 import { notificationService, type UnreadCountChange } from "@/lib/notification-service";
 import { serverAutoConnectService } from "@/lib/server-auto-connect-service";
+import { SESSION_CLAIMED } from '@/lib/multi-instance/claim-relay';
 import { debugLog } from '@/lib/debug-config';
+import { endedElsewhere, type SessionEnded } from '@/lib/sessions/session-ended';
 import type { NavigateFunction } from 'react-router';
 import { signOutSession, type SignOutResult, type SignOutTarget } from './sign-out-session';
 import { useConfirm } from './shared/confirm-dialog';
@@ -148,6 +150,18 @@ export function useOrphanSessions(): UseOrphanSessionsResult {
   }, [loadActiveSessions]);
 
   useEventListener('on-ws-connection-success', handleWsConnectionSuccess);
+  // An account signed in, or a session claimed, in another window: its chip belongs here too.
+  useEventListener('instance:registered', handleWsConnectionSuccess);
+  useEventListener(SESSION_CLAIMED, handleWsConnectionSuccess);
+
+  // An account signed out or deleted in another window ends its session here
+  // too (lib/sessions/session-ended.ts); its chip must not outlive it.
+  useEventListener('websocket-message', (message: unknown): void => {
+    const ended: SessionEnded | null = endedElsewhere(message);
+    if (!ended) return;
+    forgetSession(ended.cid);
+    setSessions(prev => prev.filter(s => s.cid !== ended.cid));
+  });
 
   // Notification count handler
   const handleUnreadCountChanged: (change: UnreadCountChange) => void = useCallback((change: UnreadCountChange): void => {

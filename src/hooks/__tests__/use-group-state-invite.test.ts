@@ -24,16 +24,23 @@ const spies: {
   toast: vi.fn(),
 }));
 
-vi.mock('@/lib/connection', () => ({
-  connectionManager: {
-    getConnectionInfo: spies.getConnectionInfo,
-    getTabSelectedSession: spies.getTabSelectedSession,
-  },
-}));
+vi.mock('@/lib/connection', async (importOriginal: () => Promise<typeof import('@/lib/connection')>) => {
+  const real: typeof import('@/lib/connection') = await importOriginal();
+  const { doubleOf } = await import('@/test/singleton-double');
+  return {
+    ...real,
+    connectionManager: doubleOf(real.connectionManager, {
+      getConnectionInfo: spies.getConnectionInfo as never,
+      getTabSelectedSession: spies.getTabSelectedSession as never,
+    }),
+  };
+});
 
-vi.mock('@/lib/event-emitter', () => ({
-  eventEmitter: { emit: spies.emit },
-}));
+vi.mock('@/lib/event-emitter', async (importOriginal: () => Promise<typeof import('@/lib/event-emitter')>) => {
+  const real: typeof import('@/lib/event-emitter') = await importOriginal();
+  const { doubleOf } = await import('@/test/singleton-double');
+  return { ...real, eventEmitter: doubleOf(real.eventEmitter, { emit: spies.emit as never }) };
+});
 
 vi.mock('@/hooks/use-toast', () => ({ toast: spies.toast }));
 

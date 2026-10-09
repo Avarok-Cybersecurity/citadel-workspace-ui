@@ -16,7 +16,7 @@ import { getCurrentCid } from './cid-resolver';
 import { connectToPeer, handleConnectionSuccess, handlePeerDisconnect } from './connection-logic';
 import { handleIncomingPeerConnect, offerAdmitted, type IncomingOffer } from './incoming-connect';
 import { incomingAnswer, linkAdmitted } from './pause-gate';
-import { startPolling, stopPolling, startBackendPolling, stopBackendPolling } from './polling';
+import { installPollingLifecycle } from './polling-lifecycle';
 import { parsePeerPathReport } from '@/lib/ice-servers/path';
 import type { PeerPathReport } from '@/types/ice-servers';
 import { installFollowerSnapshots } from './follower-snapshot';
@@ -37,38 +37,7 @@ export function setupEventListeners(
   broadcastPeerConnected: BroadcastPeerConnected,
   connectAll: () => Promise<void>
 ): void {
-  eventEmitter.on('p2p:registration-service-started', () => {
-    startPolling(state, connectAll);
-    startBackendPolling(state);
-  });
-
-  const stopAll = (): void => { stopPolling(state); stopBackendPolling(state); state.cancelAllRetries(); };
-  eventEmitter.on('p2p:registration-service-stopped', stopAll);
-  // The agent no longer holds this tab's session: its ListAllPeers would be refused for ever.
-  eventEmitter.on('p2p:session-gone-from-agent', ({ cid }: { cid: bigint }) => {
-    debugLog('P2PAutoConnectService', `[P2PAutoConnect] Agent no longer holds session ${cid.toString()}, stopping all polling`);
-    stopAll();
-  });
-
-  eventEmitter.on('websocket-disconnected', ({ reason }: { reason: string }) => {
-    debugLog('P2PAutoConnectService', `[P2PAutoConnect] WebSocket disconnected: ${reason}, stopping all polling`);
-    stopAll();
-  });
-
-  eventEmitter.on('connection-failure', ({ error }: { error: string }) => {
-    debugLog('P2PAutoConnectService', `[P2PAutoConnect] Connection failure: ${error}, stopping all polling`);
-    stopAll();
-  });
-
-  eventEmitter.on('instance:leader-changed', (data: { isLeader: boolean; leaderId: string }) => {
-    debugLog('P2PAutoConnectService', `[P2PAutoConnect] Leader changed - isLeader: ${data.isLeader}`);
-    if (data.isLeader) {
-      startPolling(state, connectAll);
-      startBackendPolling(state);
-    } else {
-      stopAll();
-    }
-  });
+  installPollingLifecycle(state, connectAll);
 
   installFollowerSnapshots({
     on: (event: string, handler: (payload: unknown) => void): void => { eventEmitter.on(event, handler); },

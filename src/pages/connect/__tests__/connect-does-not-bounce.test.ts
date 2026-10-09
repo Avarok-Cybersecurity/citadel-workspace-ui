@@ -32,15 +32,20 @@ const h: {
 }));
 const { claimSession, postAuthSetup, setSelectedUser, triggerAutoConnect } = h;
 
-vi.mock('@/lib/connection', () => ({
-  connectionManager: {
-    invalidateSessionCache: vi.fn(),
-    getActiveSessions: vi.fn(() => Promise.resolve(h.activeSessions)),
-    getStoredSessionsArray: vi.fn(() => h.storedSessions),
-    setActiveSessionIndex: vi.fn(() => Promise.resolve()),
-    triggerAutoConnect: h.triggerAutoConnect,
-  },
-}));
+vi.mock('@/lib/connection', async (importOriginal: () => Promise<typeof import('@/lib/connection')>) => {
+  const real: typeof import('@/lib/connection') = await importOriginal();
+  const { doubleOf } = await import('@/test/singleton-double');
+  return {
+    ...real,
+    connectionManager: doubleOf(real.connectionManager, {
+      invalidateSessionCache: vi.fn() as never,
+      getActiveSessions: vi.fn(() => Promise.resolve(h.activeSessions)) as never,
+      getStoredSessionsArray: vi.fn(() => h.storedSessions) as never,
+      setActiveSessionIndex: vi.fn(() => Promise.resolve()) as never,
+      triggerAutoConnect: h.triggerAutoConnect as never,
+    }),
+  };
+});
 vi.mock('@/lib/websocket-service', () => ({ websocketService: { claimSession: h.claimSession } }));
 vi.mock('@/lib/post-auth-setup', () => ({ postAuthSetup: h.postAuthSetup }));
 vi.mock('@/lib/tab-context', () => ({ setSelectedUser: h.setSelectedUser }));
