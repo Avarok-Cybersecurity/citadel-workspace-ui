@@ -6,6 +6,7 @@ import { MessageCircle, Mail, UserPlus, Clock, UserX, User, Search, AlertCircle,
 import { formatPresence } from '@/lib/date-utils';
 import type { UserData } from '@/components/user/UserSearch';
 import { getRoleBadgeClass } from './MemberListItem';
+import { initialsOf } from '@/lib/initials';
 
 interface UserProfileCardProps {
   selectedUser: UserData | null;
@@ -67,7 +68,7 @@ export function UserProfileCard({
           <Avatar className="h-20 w-20 mb-4 relative">
             {/* Decorative: the card's heading is this person's name. */}
             <AvatarImage src={selectedUser.avatarUrl} alt="" />
-            <AvatarFallback className="bg-primary text-xl">{selectedUser.displayName.charAt(0)}</AvatarFallback>
+            <AvatarFallback className="bg-primary text-xl">{initialsOf(selectedUser.displayName)}</AvatarFallback>
             {selectedUser.isOnline && (
               <span className="absolute bottom-0 right-0 block h-3.5 w-3.5 rounded-full bg-success ring-2 ring-card" />
             )}

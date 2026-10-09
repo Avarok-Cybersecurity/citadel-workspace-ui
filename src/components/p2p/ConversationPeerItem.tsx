@@ -9,6 +9,7 @@ import { Circle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { formatTime , type PeerInfo } from './P2PPeerListHelpers';
 import { formatUnreadCount } from '@/lib/format-unread';
+import { initialsOf } from '@/lib/initials';
 
 interface ConversationPeerItemProps {
   peer: PeerInfo;
@@ -28,7 +29,7 @@ export function ConversationPeerItem({ peer, isSelected, onSelect }: Conversatio
       <div className="flex items-center gap-3 w-full">
         <div className="relative">
           <Avatar className="h-10 w-10">
-            <AvatarFallback>{peer.name[0]}</AvatarFallback>
+            <AvatarFallback>{initialsOf(peer.name)}</AvatarFallback>
           </Avatar>
           <Circle
             aria-hidden="true"

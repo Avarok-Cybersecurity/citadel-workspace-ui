@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { membersByRank } from '@/components/chat/members-by-rank';
 import type { GroupConversation, GroupMemberWithRole } from '@/types/group';
 import { formatUnreadCount } from '@/lib/format-unread';
+import { initialsOf } from '@/lib/initials';
 
 // ============================================================================
 // Types
@@ -139,7 +140,7 @@ export function GroupConversationRow({
                 }}
                 title={member.username}
               >
-                {member.username[0]?.toUpperCase() || '?'}
+                {initialsOf(member.username)}
               </div>
             ))}
 

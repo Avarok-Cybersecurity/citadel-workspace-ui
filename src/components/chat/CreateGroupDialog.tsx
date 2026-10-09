@@ -27,6 +27,7 @@ import { avatarColor } from '@/lib/avatar-color';
 import { peerDisplayName } from '@/lib/peer-display';
 import type { AvailablePeer, SelectedMember, CreateGroupDialogProps } from './create-group-types';
 import type { GroupRole } from '@/types/group-permissions';
+import { initialsOf } from '@/lib/initials';
 
 // Re-export types for backward compatibility
 export type { AvailablePeer, SelectedMember, CreateGroupDialogProps };
@@ -191,7 +192,7 @@ export function CreateGroupDialog({
                                 ),
                               }}
                             >
-                              {peerDisplayName(peer)[0]?.toUpperCase() || '?'}
+                              {initialsOf(peerDisplayName(peer))}
                             </div>
                             <span className="text-sm text-foreground flex-1 truncate">
                               {peerDisplayName(peer)}

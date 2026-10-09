@@ -5,6 +5,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import type { StoredWorkspace } from "./useWorkspaceSwitcher";
+import { initialsOf } from '@/lib/initials';
 
 interface WorkspaceSwitcherDropdownProps {
   availableWorkspaces: StoredWorkspace[];
@@ -58,7 +59,7 @@ export function WorkspaceSwitcherDropdown({
               disabled={isSwitching}
             >
               <div className="w-8 h-8 rounded-full flex items-center justify-center bg-primary text-primary-foreground text-sm font-semibold">
-                {(workspace.fullName || workspace.username || '?').charAt(0).toUpperCase()}
+                {initialsOf(workspace.fullName || workspace.username)}
               </div>
               <div className="flex-1 min-w-0">
                 <span className="font-semibold block text-sm truncate">
