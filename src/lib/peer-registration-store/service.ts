@@ -184,8 +184,8 @@ class PeerRegistrationStore {
   private createNotificationForRequest(request: PendingPeerRequest): void {
     createNotificationWithCallbacks(
       request,
-      (id) => this.acceptRequest(id).catch((err: unknown) => debugLog('PeerRegistrationStore', 'accept failed:', err)),
-      (id) => this.declineRequest(id).catch((err: unknown) => debugLog('PeerRegistrationStore', 'decline failed:', err)),
+      (id) => this.acceptRequest(id),
+      (id) => this.declineRequest(id),
     );
   }
 
