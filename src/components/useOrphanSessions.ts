@@ -17,6 +17,7 @@ import { useEventListener } from "@/hooks/use-event-listener";
 import { wasmConnectionManager } from "@/lib/wasm-connection-manager";
 import { notificationService, type UnreadCountChange } from "@/lib/notification-service";
 import { serverAutoConnectService } from "@/lib/server-auto-connect-service";
+import { SESSION_CLAIMED } from '@/lib/multi-instance/claim-relay';
 import { debugLog } from '@/lib/debug-config';
 import { endedElsewhere, type SessionEnded } from '@/lib/sessions/session-ended';
 import type { NavigateFunction } from 'react-router';
@@ -149,6 +150,9 @@ export function useOrphanSessions(): UseOrphanSessionsResult {
   }, [loadActiveSessions]);
 
   useEventListener('on-ws-connection-success', handleWsConnectionSuccess);
+  // An account signed in, or a session claimed, in another window: its chip belongs here too.
+  useEventListener('instance:registered', handleWsConnectionSuccess);
+  useEventListener(SESSION_CLAIMED, handleWsConnectionSuccess);
 
   // An account signed out or deleted in another window ends its session here
   // too (lib/sessions/session-ended.ts); its chip must not outlive it.

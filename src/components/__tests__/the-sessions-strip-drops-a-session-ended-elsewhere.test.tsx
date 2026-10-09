@@ -65,4 +65,23 @@ describe('the sessions strip, when an account ends in another window', () => {
     act(() => { eventEmitter.emit('websocket-message', { DisconnectNotification: { cid: 2n, peer_cid: 9n, request_id: null } }); });
     expect(result.current.sessions).toHaveLength(2);
   });
+
+  it('adds the chip of an account that signed in in another window', async () => {
+    live.rows = [ALICE];
+    const hook = renderHook(() => useOrphanSessions(), { wrapper });
+    await act(async () => { await hook.result.current.loadActiveSessions(); });
+    expect(hook.result.current.sessions.map((s) => s.username)).toEqual(['alice']);
+    live.rows = [ALICE, BOB];
+    act(() => { eventEmitter.emit('instance:registered', { instanceId: 'other-tab', cid: 2n }); });
+    await waitFor(() => expect(hook.result.current.sessions.map((s) => s.username)).toEqual(['alice', 'bob']));
+  });
+
+  it('adds the chip of a session claimed in another window', async () => {
+    live.rows = [ALICE];
+    const hook = renderHook(() => useOrphanSessions(), { wrapper });
+    await act(async () => { await hook.result.current.loadActiveSessions(); });
+    live.rows = [ALICE, BOB];
+    act(() => { eventEmitter.emit('session:claimed', { cid: 2n, relayed: true }); });
+    await waitFor(() => expect(hook.result.current.sessions).toHaveLength(2));
+  });
 });
