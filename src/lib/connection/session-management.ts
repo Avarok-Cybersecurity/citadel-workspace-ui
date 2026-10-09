@@ -28,17 +28,19 @@ import { markSessionsRead } from './sessions-read-state';
  */
 export async function storeSession(
   session: StoredSession, state: ConnectionState, io: ConnectionIO,
-): Promise<boolean> {
+): Promise<void> {
   state.addOrUpdateSession(session);
   try {
     // One session, not this tab's whole list. See persist-one-session.ts: the
     // key is shared and each tab's array is its own, so pushing the array
     // erased accounts other tabs had stored.
     await persistSessionUpsert(session, state.storedSessions, io);
-    return true;
   } catch (error) {
     debugLog('ConnectionService', 'Failed to store session', error);
-    return false;
+    // What the user loses is the NEXT launch: they will have to sign in again,
+    // and a debug line is not a way to tell them. Emitted here, once, so every
+    // caller reports it; a mounted component (PersistFailureNotice) shows it.
+    io.emitEvent('session:not-remembered', { username: session.username });
   }
 }
 
@@ -103,19 +105,7 @@ export async function handleAuthSuccess(
     // taken". Every other local write in this function was already protected
     // for exactly this reason; this was the one that was not, and the only one
     // that actually times out.
-    const persisted: boolean = await storeSession(session, state, io);
-    if (!persisted) {
-      debugLog(
-        'ConnectionService',
-        'Session could not be persisted; continuing with the live session',
-      );
-      // What the user loses is the NEXT launch: they will have to sign in
-      // again, and "Remember me" will have done nothing. A debug line is not a
-      // way to tell them that. Emitted rather than toasted for the same reason
-      // `revfs:persist-failed` is -- this is library code, and the notice is a
-      // mounted component's job.
-      io.emitEvent('session:not-remembered', { username: params.username });
-    }
+    await storeSession(session, state, io);
 
     // Persist to localStorage so Connect page can show recent servers
     // even without WASM client. Isolated from the outer try because

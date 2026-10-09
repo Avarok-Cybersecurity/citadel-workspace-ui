@@ -44,7 +44,13 @@ const parsed = ts.parseJsonConfigFileContent(config, ts.sys, root);
 const program = ts.createProgram(parsed.fileNames, { ...parsed.options, noEmit: true });
 const checker = program.getTypeChecker();
 
-const isBoolean = (type) => (type.flags & ts.TypeFlags.BooleanLike) !== 0;
+/**
+ * A function typed to return the literal `true` (`requestResponse<true>`) can
+ * only succeed or reject: there is no `false` to drop, so the failure is already
+ * a throw the caller sees.
+ */
+const isTrueLiteral = (type) => (type.flags & ts.TypeFlags.BooleanLiteral) !== 0 && checker.typeToString(type) === 'true';
+const isBoolean = (type) => (type.flags & ts.TypeFlags.BooleanLike) !== 0 && !isTrueLiteral(type);
 
 /** `Promise<boolean>` and `boolean` are the same question asked twice. */
 const unwrapPromise = (type) => {

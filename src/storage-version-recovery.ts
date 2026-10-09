@@ -31,6 +31,28 @@ function resetLocalData(button: HTMLButtonElement): void {
   };
 }
 
+/** The destructive way out, shown once the safe option has been tried. */
+function offerReset(panel: HTMLElement): void {
+  if (panel.dataset.resetOffered) return;
+  panel.dataset.resetOffered = 'true';
+  const stillStuck: ReturnType<typeof document.createElement> = document.createElement('p');
+  stillStuck.textContent =
+    'Still seeing this after reloading? Then this device is running the version the ' +
+    'server is serving, and reloading cannot help. Resetting removes the data Citadel ' +
+    'stored in this browser — messages and files cached here, and any saved sign-in. ' +
+    'Your account and anything on the server are not affected.';
+  stillStuck.style.cssText = 'margin:1.5rem 0 0.75rem;font-size:0.9rem;opacity:0.85';
+
+  const reset: HTMLButtonElement = document.createElement('button');
+  reset.textContent = 'Reset local data on this device';
+  reset.style.cssText =
+    'padding:0.6rem 1rem;border-radius:0.5rem;border:1px solid currentColor;' +
+    'background:transparent;color:inherit;font:inherit;cursor:pointer';
+  reset.addEventListener('click', () => resetLocalData(reset));
+
+  panel.append(stillStuck, reset);
+}
+
 /**
  * A recovery screen for the rollback case, built with safe DOM APIs.
  *
@@ -81,7 +103,14 @@ export function showStorageVersionRecovery(): void {
   button.addEventListener('click', () => {
     button.disabled = true;
     button.textContent = 'Reloading…';
-    sessionSet(RELOAD_ATTEMPTED_KEY, '1');
+    // A reload that cannot be remembered lands back here looking untried, for ever:
+    // where storage refuses the marker, offer the way out now instead.
+    if (!sessionSet(RELOAD_ATTEMPTED_KEY, '1')) {
+      button.disabled = false;
+      button.textContent = 'Get the current version';
+      offerReset(panel);
+      return;
+    }
     void navigator.serviceWorker?.getRegistrations()
       .then((registrations) => Promise.all(registrations.map((r) => r.unregister())))
       .catch(() => undefined)
@@ -91,24 +120,7 @@ export function showStorageVersionRecovery(): void {
   panel.append(heading, body, button);
 
   // Only after the safe option has been tried and landed back here.
-  if (sessionGet(RELOAD_ATTEMPTED_KEY)) {
-    const stillStuck: ReturnType<typeof document.createElement> = document.createElement('p');
-    stillStuck.textContent =
-      'Still seeing this after reloading? Then this device is running the version the ' +
-      'server is serving, and reloading cannot help. Resetting removes the data Citadel ' +
-      'stored in this browser — messages and files cached here, and any saved sign-in. ' +
-      'Your account and anything on the server are not affected.';
-    stillStuck.style.cssText = 'margin:1.5rem 0 0.75rem;font-size:0.9rem;opacity:0.85';
-
-    const reset: HTMLButtonElement = document.createElement('button');
-    reset.textContent = 'Reset local data on this device';
-    reset.style.cssText =
-      'padding:0.6rem 1rem;border-radius:0.5rem;border:1px solid currentColor;' +
-      'background:transparent;color:inherit;font:inherit;cursor:pointer';
-    reset.addEventListener('click', () => resetLocalData(reset));
-
-    panel.append(stillStuck, reset);
-  }
+  if (sessionGet(RELOAD_ATTEMPTED_KEY)) offerReset(panel);
 
   rootElement.append(panel);
 }
