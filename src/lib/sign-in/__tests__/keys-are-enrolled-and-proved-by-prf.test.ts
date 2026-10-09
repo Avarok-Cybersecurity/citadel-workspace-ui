@@ -98,7 +98,7 @@ describe('which window shows a challenge', () => {
     const unwatch: () => void = watchKeyChallenges('my-connect');
     const challenge = (requestId: string): Record<string, unknown> => ({ SecurityKeyChallengeNotification: {
       cid: 0n, request_id: requestId, challenge_id: `c-${requestId}`, purpose: 'SignIn',
-      allowed_credential_ids: [[1]], prf_salt: [2], expires_in_ms: 60000,
+      allowed_credential_ids: [[1]], prf_salt: [2], expires_in_ms: 60000n,
     } });
     eventEmitter.emit('websocket-message', challenge('another-windows-connect'));
     expect(openChallenges()).toEqual([]);
