@@ -98,6 +98,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
           key={parsedPeerCid.toString()}
           peerCid={parsedPeerCid}
           peerName={rosterDisplayName(state.members, peerName ?? undefined) ?? (peerName || undefined)}
+          peerUsername={peerName ?? undefined}
           currentUserCid={parsedCurrentUserCid}
           currentUserName={currentUserName}
         />

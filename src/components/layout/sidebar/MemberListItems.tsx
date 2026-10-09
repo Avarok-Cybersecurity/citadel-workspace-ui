@@ -86,7 +86,10 @@ export function MemberListItems({
                   </div>
                 </SidebarMenuButton>
               </TooltipTrigger>
-              <TooltipContent>
+              {/* To the side, never above: a card on top of its row lies across the rows
+                  above it, and the pointer then cannot reach them (see
+                  check-chat-polish-geometry). */}
+              <TooltipContent side="right" align="center" sideOffset={8}>
                 <p>{member.displayName || member.username} · {roleLabel(member.role || 'member')}</p>
                 {member.username && <p className="text-xs text-muted-foreground">@{member.username}</p>}
                 {member.title && <p className="text-xs">{member.title}</p>}

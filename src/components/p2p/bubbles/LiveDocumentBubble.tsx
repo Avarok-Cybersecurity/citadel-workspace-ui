@@ -27,13 +27,13 @@ export function LiveDocumentBubble({ message, isOwn, onRetry, onOpenDocument }: 
             <p className="font-medium text-sm truncate">
               {message.document_title || 'Untitled Document'}
             </p>
-            <div className="flex items-center gap-1 text-xs opacity-70">
+            <div className="flex items-center gap-1 text-xs opacity-90">
               <Users className="h-3 w-3" />
               <span>Live Document</span>
             </div>
           </div>
         </div>
-        <p className="text-xs opacity-70 mt-1">
+        <p className="text-xs opacity-90 mt-1">
           Click to open and edit collaboratively
         </p>
       </button>

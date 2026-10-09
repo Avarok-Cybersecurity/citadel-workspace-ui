@@ -12,7 +12,7 @@ import { UserPlus, MessageCircle, Users, CheckCircle } from 'lucide-react';
 import { useEventListener } from '@/hooks';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
-import { conversationPeerName, type PeerInfo } from './P2PPeerListHelpers';
+import { conversationPeerName, conversationPeerUsername, type PeerInfo } from './P2PPeerListHelpers';
 import { ConversationPeerItem } from './ConversationPeerItem';
 import { peerDisplayName, peerInitials, isUnnamedPeer } from '@/lib/peer-display';
 import type { P2PConversation, P2PMessage } from '@/lib/p2p/p2p-types';
@@ -38,6 +38,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
       return {
         cid: peerCidStr,
         name: conversationPeerName(conv.peerCid, conv.peerUsername, allPeers),
+        username: conversationPeerUsername(conv.peerCid, conv.peerUsername, allPeers),
         isConnected: messenger.isConnected(conv.peerCid),
         unreadCount: conv.unreadCount,
         lastMessage: lastMessage?.content,

@@ -30,7 +30,7 @@ function Harness(): JSX.Element {
   const route: PeerPathReport | null = useConnectionRoute(OURS, PEER);
   return (
     <P2PChatHeader
-      peerName="ada" peerPresence={{ status: MessagingLayerType.Online, lastUpdate: 0 }} peerTyping={false}
+      peerName="ada" peerUsername="ada" peerPresence={{ status: MessagingLayerType.Online, lastUpdate: 0 }} peerTyping={false}
       isConnected isRegistered paused={false} connectionRoute={route} supervisor={null} onSettingsClick={vi.fn()}
     />
   );

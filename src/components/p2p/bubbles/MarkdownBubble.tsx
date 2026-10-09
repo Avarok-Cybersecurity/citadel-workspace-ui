@@ -1,7 +1,7 @@
 import ReactMarkdown, { type Components } from 'react-markdown';
 import { memo , type ReactNode , type NamedExoticComponent } from 'react';
-import { AlertCircle, MoreVertical, Reply, Edit2, Trash2 } from 'lucide-react';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { AlertCircle, MoreVertical, Edit2, Trash2 } from 'lucide-react';
+import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,10 +11,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { getBubbleStyles, BUBBLE_MAX_WIDTH , type ReplyableBubbleProps } from './types';
 import { ReplyQuote } from '@/components/chat/shared/ReplyQuote';
+import { ReplyMenuItem } from '@/components/chat/shared/ReplyMenuItem';
 import { BubbleFooter } from './BubbleFooter';
 import { ReactionChips } from '@/components/chat/shared/reactions/ReactionChips';
 import { ReactionMenuItems } from '@/components/chat/shared/reactions/ReactionMenuItems';
-import { getInitials } from '@/components/chat/shared';
 import { documentAnchor } from '@/components/shared/DocumentLink';
 import { useMenuFocusHandoff, type MenuFocusHandoff } from '@/components/chat/shared/menu-focus-handoff';
 
@@ -96,6 +96,7 @@ export function MarkdownBubble({
   showSenderName,
   showSenderAvatar,
   senderName,
+  senderUsername,
   onEdit,
   onDelete,
   onReply,
@@ -121,11 +122,7 @@ export function MarkdownBubble({
     <div className={`group flex min-w-0 gap-2 ${BUBBLE_MAX_WIDTH} ${isOwn ? 'flex-row-reverse' : ''}`}>
       {/* Avatar for non-own messages */}
       {shouldShowAvatar && (
-        <Avatar className="h-8 w-8 flex-shrink-0">
-          <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-            {getInitials(displayName)}
-          </AvatarFallback>
-        </Avatar>
+        <MemberAvatar username={senderUsername ?? displayName} name={displayName} className="h-8 w-8" />
       )}
 
       <div className={`flex min-w-0 flex-col ${isOwn ? 'items-end' : ''}`}>
@@ -185,12 +182,7 @@ export function MarkdownBubble({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align={isOwn ? 'start' : 'end'} onCloseAutoFocus={handoff.onCloseAutoFocus}>
-              {onReply && (
-                <DropdownMenuItem onClick={handoff.toComposer(onReply)}>
-                  <Reply className="h-4 w-4 mr-2" />
-                  Reply
-                </DropdownMenuItem>
-              )}
+              {onReply && <ReplyMenuItem onSelect={handoff.toComposer(onReply)} />}
               {isOwn && onEdit && (
                 <DropdownMenuItem onClick={handoff.toComposer(onEdit)}>
                   <Edit2 className="h-4 w-4 mr-2" />

@@ -153,6 +153,64 @@ jobs:
         run: npx vitest run ${{ runner.environment == 'self-hosted' && '--maxWorkers=50%' || '' }}
         working-directory: parent/citadel-workspaces
 
+  chat-polish:
+    needs: parent-ref
+    name: Chat polish geometry
+    # jsdom has no layout, so a hover card lying across the rows above it, or a message pressed
+    # against the bubble over it, passes every unit test. This serves the real components and
+    # asserts bounding boxes, in Chromium (the engine this job installs).
+    # Measured: the gate itself took about 4 minutes (10:26 to 10:30) in run 113773787106, and
+    # setup is another 3-4; 15 is roughly twice that. It bounds a hang, not performance.
+    # Its own job, not a step of the typecheck job: that job is capped at 15 minutes for a
+    # sub-minute typecheck, and this step cut it off.
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: parent
+    steps:
+      - name: Checkout parent repo (workspace structure)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.PARENT_REPO }}
+          ref: ${{ needs.parent-ref.outputs.ref }}
+          path: parent
+      - name: Checkout submodule code (this PR)
+        uses: actions/checkout@v4
+        with:
+          path: parent/citadel-workspaces
+      - name: Init citadel-internal-service submodule
+        run: git submodule update --init --recursive citadel-internal-service
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: parent/package-lock.json
+      - name: Install Workspace Dependencies
+        run: npm ci
+      - name: Build citadel-internal-service typescript-client
+        run: npm run build
+        working-directory: parent/citadel-internal-service/typescript-client
+      - name: Build citadel-workspace-client-ts
+        run: npm run build
+        working-directory: parent/citadel-workspace-client-ts
+      - name: Install Chromium
+        # Retried, each attempt bounded, like the other jobs' copies: a CDN fetch with no retry
+        # of its own is what stalls.
+        run: |
+          attempt=1
+          until timeout 300 npx playwright install --with-deps chromium; do
+            if [ "$attempt" -ge 3 ]; then echo "playwright install still failing after 3 attempts"; exit 1; fi
+            attempt=$((attempt + 1))
+            sleep $((attempt * 15))
+          done
+        working-directory: parent/citadel-workspaces
+      - name: Chat polish geometry
+        run: npm run check:chat-polish
+        env:
+          POLISH_ENGINES: chromium
+        working-directory: parent/citadel-workspaces
+
   typecheck:
     # This job brings the Docker stack up too (it needs the generated WASM
     # bindings), so it is expensive by the same measure as the two below and

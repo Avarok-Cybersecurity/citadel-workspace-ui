@@ -28,6 +28,7 @@ function renderHeader(): RenderResult {
   return render(
     <P2PChatHeader
       peerName="Alice Chen"
+      peerUsername="alice"
       peerPresence={ONLINE}
       peerTyping={false}
       paused={false}

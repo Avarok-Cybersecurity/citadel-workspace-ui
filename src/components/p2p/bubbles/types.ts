@@ -11,6 +11,7 @@ export interface BaseBubbleProps {
   showSenderName?: boolean;     // Show sender name above message (group mode)
   showSenderAvatar?: boolean;   // Show avatar for other users' messages
   senderName?: string;          // Display name for sender
+  senderUsername?: string;      // Roster key for the sender's picture; senderName is for reading
 
   // Message actions (group mode)
   onEdit?: () => void;
