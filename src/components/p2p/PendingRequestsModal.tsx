@@ -18,9 +18,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { UserPlus, UserX, Loader2, Clock } from 'lucide-react';
 import { peerRegistrationStore, PendingPeerRequest } from '@/lib/peer-registration-store';
 import { useToast, useEventListener } from '@/hooks';
-import { formatDistanceToNow } from 'date-fns';
 import { debugLog } from '@/lib/debug-config';
 import { peerDisplayName, peerInitials } from '@/lib/peer-display';
+import { formatRelative } from '@/lib/format-time';
 
 interface PendingRequestsModalProps {
   isOpen: boolean;
@@ -87,20 +87,6 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
     }
   };
 
-  const formatTimestamp = (timestamp: number): string => {
-    // Sanity check: Flag stale timestamps
-    const MAX_RELATIVE_AGE_MS: number = 24 * 60 * 60 * 1000; // 24 hours
-    const age: number = Date.now() - timestamp;
-
-    if (age > MAX_RELATIVE_AGE_MS) {
-      // Show absolute date for old requests
-      return new Date(timestamp).toLocaleDateString();
-    }
-
-    // Use date-fns for relative time (more reliable)
-    return formatDistanceToNow(timestamp, { addSuffix: true });
-  };
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="bg-card text-foreground border-border max-w-lg">
@@ -140,7 +126,7 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
                       </p>
                       <div className="flex items-center text-xs text-muted-foreground">
                         <Clock className="h-3 w-3 mr-1" />
-                        {formatTimestamp(request.timestamp)}
+                        {formatRelative(request.timestamp)}
                       </div>
                     </div>
                   </div>

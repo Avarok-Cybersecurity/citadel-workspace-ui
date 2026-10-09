@@ -13,6 +13,7 @@
 
 import { formatBytes } from '@/lib/format-bytes';
 import type { ConversationFacts } from './connection-facts';
+import { formatDay } from '@/lib/format-time';
 
 interface ConnectionFactsProps extends ConversationFacts {
   peerCid: string;
@@ -37,7 +38,7 @@ export function ConnectionFacts({ peerCid, firstContact, transferredBytes }: Con
   {firstContact !== null && (
     <div className="flex items-center justify-between p-3 rounded-lg bg-surface/50" data-testid="fact-first-contact">
       <span className="text-sm text-muted-foreground">First Contact</span>
-      <span className="text-sm text-foreground/80">{new Date(firstContact).toLocaleDateString()}</span>
+      <span className="text-sm text-foreground/80">{formatDay(firstContact)}</span>
     </div>
   )}
   {transferredBytes !== null && (

@@ -7,7 +7,8 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Circle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { formatTime , type PeerInfo } from './P2PPeerListHelpers';
+import type { PeerInfo } from './P2PPeerListHelpers';
+import { formatListStamp } from '@/lib/format-time';
 import { formatUnreadCount } from '@/lib/format-unread';
 import { initialsOf } from '@/lib/initials';
 
@@ -49,7 +50,7 @@ export function ConversationPeerItem({ peer, isSelected, onSelect }: Conversatio
             </span>
             {peer.lastMessageTime && (
               <span className="text-xs text-muted-foreground">
-                {formatTime(peer.lastMessageTime)}
+                {formatListStamp(peer.lastMessageTime)}
               </span>
             )}
           </div>

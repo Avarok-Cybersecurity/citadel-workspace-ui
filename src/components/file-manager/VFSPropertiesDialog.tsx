@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import type { RevfsNode, RevfsFileMetadata } from "@/types/revfs-types";
 import { RevfsFileState } from "@/types/revfs-types";
+import { formatDateTime } from '@/lib/format-time';
 
 interface VFSPropertiesDialogProps {
   node: RevfsNode | null;
@@ -44,7 +45,7 @@ function getFileIcon(fileName: string): FileIcon {
 
 
 function formatDate(timestamp: number): string {
-  return new Date(timestamp).toLocaleString();
+  return formatDateTime(timestamp);
 }
 
 function countItems(node: RevfsNode): { files: number; folders: number } {

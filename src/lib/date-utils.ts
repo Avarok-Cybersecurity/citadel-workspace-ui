@@ -1,38 +1,4 @@
-/**
- * Format a timestamp into a human-readable relative time string
- * @param timestamp Timestamp in milliseconds
- * @returns Human-readable relative time string (e.g., "just now", "5 minutes ago")
- */
-export function formatRelativeTime(timestamp: number): string {
-  const now: number = Date.now();
-  const diffSeconds: number = Math.floor((now - timestamp) / 1000);
-  
-  if (diffSeconds < 5) {
-    return 'just now';
-  }
-  
-  if (diffSeconds < 60) {
-    return `${diffSeconds} seconds ago`;
-  }
-  
-  const diffMinutes: number = Math.floor(diffSeconds / 60);
-  if (diffMinutes < 60) {
-    return `${diffMinutes} ${diffMinutes === 1 ? 'minute' : 'minutes'} ago`;
-  }
-  
-  const diffHours: number = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) {
-    return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
-  }
-  
-  const diffDays: number = Math.floor(diffHours / 24);
-  if (diffDays < 7) {
-    return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
-  }
-  
-  const date: Date = new Date(timestamp);
-  return date.toLocaleString();
-}
+import { formatRelative } from '@/lib/format-time';
 
 /**
  * Presence line for a user, when last-seen time may be unknown.
@@ -50,5 +16,5 @@ export function formatPresence(isOnline: boolean | null, lastActive?: number): s
   // about, and a peer the agent reported as away, read identically.
   if (isOnline === null) return 'Presence not known';
   if (!lastActive) return 'Last seen unknown';
-  return `Last active ${formatRelativeTime(lastActive)}`;
+  return `Last active ${formatRelative(lastActive)}`;
 }

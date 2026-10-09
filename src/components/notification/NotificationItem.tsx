@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { format, formatDistanceToNow } from 'date-fns';
 import { MessageSquare, Users, Bell, X } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +9,7 @@ import NotificationService, {
   Notification, 
   NotificationType 
 } from '@/lib/notification-service';
+import { formatRelative, formatDateTime } from '@/lib/format-time';
 
 interface NotificationItemProps {
   notification: Notification;
@@ -29,8 +29,8 @@ const NotificationItem: ({ notification }: NotificationItemProps) => JSX.Element
   };
   
   // Format the timestamp
-  const formattedTime: string = formatDistanceToNow(notification.timestamp, { addSuffix: true });
-  const exactTime: string = format(notification.timestamp, 'PPpp');
+  const formattedTime: string = formatRelative(notification.timestamp);
+  const exactTime: string = formatDateTime(notification.timestamp);
   
   // Get the appropriate icon based on notification type
   const getNotificationIcon: () => JSX.Element = (): JSX.Element => {

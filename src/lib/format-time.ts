@@ -58,3 +58,43 @@ export function formatPreciseDateTime(timestamp: number | bigint): string {
     second: '2-digit',
   });
 }
+
+const MINUTE_MS: number = 60_000;
+const HOUR_MS: number = 60 * MINUTE_MS;
+const DAY_MS: number = 24 * HOUR_MS;
+const RELATIVE_HORIZON_DAYS: number = 7;
+
+function counted(n: number, unit: string): string {
+  return `${n} ${unit}${n === 1 ? '' : 's'} ago`;
+}
+
+/**
+ * How long ago, for notifications, requests and last-active lines.
+ *
+ * The one relative formatter: "Just now" inside a minute, then whole minutes,
+ * hours and days, and past a week the date and time. Four surfaces had four
+ * spellings ("5 seconds ago", "Just now", "about 3 hours ago", a bare date).
+ */
+export function formatRelative(timestamp: number | bigint): string {
+  const age: number = Date.now() - Number(timestamp);
+  if (age < MINUTE_MS) return 'Just now';
+  if (age < HOUR_MS) return counted(Math.floor(age / MINUTE_MS), 'minute');
+  if (age < DAY_MS) return counted(Math.floor(age / HOUR_MS), 'hour');
+  if (age < RELATIVE_HORIZON_DAYS * DAY_MS) return counted(Math.floor(age / DAY_MS), 'day');
+  return formatDateTime(timestamp);
+}
+
+/**
+ * A conversation row's stamp: WHEN the last message was, in the shortest form
+ * that is unambiguous at a glance (clock today, Yesterday, weekday inside a
+ * week, short date beyond). Deliberately not relative: a list is scanned by
+ * position in time, and "3 hours ago" re-renders to something else every minute.
+ */
+export function formatListStamp(timestamp: number | bigint): string {
+  const date: Date = new Date(Number(timestamp));
+  const days: number = Math.floor((Date.now() - date.getTime()) / DAY_MS);
+  if (days === 0) return formatClock(timestamp);
+  if (days === 1) return 'Yesterday';
+  if (days < RELATIVE_HORIZON_DAYS) return date.toLocaleDateString([], { weekday: 'short' });
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}

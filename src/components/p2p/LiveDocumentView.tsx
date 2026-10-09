@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { useState, useCallback } from 'react';
 import { debugLog } from '@/lib/debug-config';
+import { formatClock } from '@/lib/format-time';
 
 interface LiveDocumentViewProps {
   documentId: string;
@@ -91,7 +92,7 @@ export function LiveDocumentView({
                 <>
                   <span className="text-muted-foreground">|</span>
                   <span>
-                    {isSaving ? 'Saving...' : `Last saved ${lastSaved.toLocaleTimeString()}`}
+                    {isSaving ? 'Saving...' : `Last saved ${formatClock(lastSaved.getTime())}`}
                   </span>
                 </>
               )}

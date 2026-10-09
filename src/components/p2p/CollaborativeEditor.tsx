@@ -13,6 +13,7 @@ import { activateOnKey } from '@/lib/a11y';
 import { usePrompt } from '@/components/shared/prompt-dialog';
 import type { FlashComment } from '@/components/p2p/collaborator-cursor-helpers';
 import type { Editor } from '@tiptap/core';
+import { formatClock } from '@/lib/format-time';
 
 const SYNC_DOT: Readonly<Record<LiveDocSyncLabel['tone'], string>> = {
   success: 'bg-success',
@@ -205,7 +206,7 @@ export function CollaborativeEditor({
             <div className="flash-comment__header">{comment.userName}</div>
             <div className="flash-comment__text">{comment.text}</div>
             <div className="flash-comment__time">
-              {new Date(comment.timestamp).toLocaleTimeString()}
+              {formatClock(comment.timestamp)}
             </div>
           </div>
         ))}
