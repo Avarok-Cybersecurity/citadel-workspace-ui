@@ -148,7 +148,10 @@ jobs:
         # and the thing it had been compensating for was a nested `npm ci`.
         #
         # The parent enforces this with scripts/check-ci-installs-match-the-lockfile.mjs.
-        run: npx vitest run
+        # The two self-hosted runners share one 12-core Mac; each vitest defaults to a worker per
+        # core, so two concurrent jobs ran 24 on 12 and unrelated tests hit their 5 s timeouts.
+        # Half the cores each keeps both jobs inside the machine. Hosted runners are unshared.
+        run: npx vitest run ${{ runner.environment == 'self-hosted' && '--maxWorkers=50%' || '' }}
         working-directory: parent/citadel-workspaces
 
   typecheck:
