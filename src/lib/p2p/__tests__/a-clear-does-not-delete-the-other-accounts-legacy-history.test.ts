@@ -44,9 +44,11 @@ const PEER: bigint = 999n;
 
 // The session doing the deleting. Without this the legacy branch is unreachable
 // and every assertion below passes on a build with no fix in it.
-vi.mock('@/lib/multi-instance/instance-manager', () => ({
-  instanceManager: { cid: BOB },
-}));
+vi.mock('@/lib/multi-instance/instance-manager', async (importOriginal: () => Promise<typeof import('@/lib/multi-instance/instance-manager')>) => {
+  const { instanceManagerWith } = await import('@/test/instance-manager-double');
+  const real: typeof import('@/lib/multi-instance/instance-manager') = await importOriginal();
+  return { ...real, instanceManager: instanceManagerWith(real.instanceManager, { cid: BOB }) };
+});
 
 const { deleteConversationPages } = await import('../message-page-delete');
 

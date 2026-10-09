@@ -14,9 +14,11 @@ import { initService } from '../initialization';
 import { GLOBAL_INIT_KEY } from '../../websocket';
 import type { WebSocketServiceCore } from '../core';
 
-vi.mock('../../multi-instance/instance-manager', () => ({
-  instanceManager: { isLeader: true },
-}));
+vi.mock('../../multi-instance/instance-manager', async (importOriginal: () => Promise<typeof import('@/lib/multi-instance/instance-manager')>) => {
+  const { instanceManagerWith } = await import('@/test/instance-manager-double');
+  const real: typeof import('@/lib/multi-instance/instance-manager') = await importOriginal();
+  return { ...real, instanceManager: instanceManagerWith(real.instanceManager, { isLeader: true }) };
+});
 vi.mock('../../wasm-debug-bridge', () => ({ setupWasmDebugBridge: (): void => {} }));
 
 function coreWith(createWebSocketAsLeader: () => Promise<unknown>): WebSocketServiceCore {

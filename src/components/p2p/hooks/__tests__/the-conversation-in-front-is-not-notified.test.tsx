@@ -22,6 +22,24 @@ import { SESSION_CLAIMED } from '@/lib/multi-instance/claim-relay';
 import { useP2PMessages } from '../useP2PMessages';
 import { installHostingAgent, settle, PEER, OWN, type HostingAgent } from './hosting-agent';
 
+// The OS delivery is a lazy chunk the service loads with the first notification
+// (os-delivery.ts). A cold first load can outlast `settle()`, so the one assertion
+// on the OS surface failed only when this file ran cold (CI, full runs). The real
+// delivery is used; each one the service starts is recorded so the test waits for
+// it, however long the chunk takes.
+const deliveries: Promise<void>[] = vi.hoisted((): Promise<void>[] => []);
+vi.mock('@/lib/notification-service/os-delivery', async (orig: () => Promise<typeof import('@/lib/notification-service/os-delivery')>) => {
+  const real: typeof import('@/lib/notification-service/os-delivery') = await orig();
+  return {
+    ...real,
+    lazyOsDelivery: (n: Parameters<typeof real.lazyOsDelivery>[0]): Promise<void> => {
+      const delivery: Promise<void> = real.lazyOsDelivery(n);
+      deliveries.push(delivery);
+      return delivery;
+    },
+  };
+});
+const delivered = (): Promise<void[]> => Promise.all(deliveries);
 const OTHER: bigint = 88n;
 let agent: HostingAgent;
 const shown: string[] = [];
@@ -111,6 +129,7 @@ describe('a message arriving', () => {
     agent.setFocused(false);
     act(() => { window.dispatchEvent(new Event('blur')); });
     expect(notified(await arrives(PEER))).toBe(true);
+    await delivered();
     expect(shown).toHaveLength(1);
     expect(agent.focusReports().at(-1)).toEqual({ session_cid: OWN, peer_cid: null, focused: false });
   });

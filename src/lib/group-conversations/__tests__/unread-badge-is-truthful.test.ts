@@ -13,9 +13,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { noSessionUsername } from '@/test-utils/no-session-username';
 
 const h: { cid: bigint | null; } = vi.hoisted((): { cid: bigint | null; } => ({ cid: null as bigint | null }));
-vi.mock('@/lib/multi-instance/instance-manager', () => ({
-  instanceManager: { get cid(): bigint | null { return h.cid; } },
-}));
+vi.mock('@/lib/multi-instance/instance-manager', async (importOriginal: () => Promise<typeof import('@/lib/multi-instance/instance-manager')>) => {
+  const { instanceManagerWith } = await import('@/test/instance-manager-double');
+  const real: typeof import('@/lib/multi-instance/instance-manager') = await importOriginal();
+  return { ...real, instanceManager: instanceManagerWith(real.instanceManager, { get cid(): bigint | null { return h.cid; } }) };
+});
 
 const SELF: bigint = 7n;
 const OTHER: bigint = 42n;

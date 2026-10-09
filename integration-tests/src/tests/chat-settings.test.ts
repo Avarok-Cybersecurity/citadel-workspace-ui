@@ -390,8 +390,11 @@ async function runChatSettingsTest(): Promise<boolean> {
 
       // There is one way to send a file; the old Browser / Citadel Protocol
       // radio must be gone, not merely hidden.
+      // Absence by role and name, beside a presence check on the same tab: an
+      // absence check alone is true for a panel that never rendered.
       results.chatSettings.noTransferMethodChoice =
-        (await page1.locator('[data-testid="transfer-mode-radio"]').count()) === 0;
+        (await page1.locator('[data-testid="max-file-size-slider"]').count()) > 0 &&
+        (await page1.getByRole('radio', { name: /browser transfer|citadel protocol/i }).count()) === 0;
       console.log(`No transfer-method choice: ${results.chatSettings.noTransferMethodChoice}`);
 
       // ======================================================================

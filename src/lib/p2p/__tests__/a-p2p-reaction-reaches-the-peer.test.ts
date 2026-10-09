@@ -35,7 +35,11 @@ vi.mock('../../websocket-service', () => ({
     sendLocalDBDelete: async (_cid: bigint, key: string): Promise<void> => { stored.delete(key); },
   },
 }));
-vi.mock('@/lib/multi-instance/instance-manager', () => ({ instanceManager: { cid: 4242n } }));
+vi.mock('@/lib/multi-instance/instance-manager', async (importOriginal: () => Promise<typeof import('@/lib/multi-instance/instance-manager')>) => {
+  const { instanceManagerWith } = await import('@/test/instance-manager-double');
+  const real: typeof import('@/lib/multi-instance/instance-manager') = await importOriginal();
+  return { ...real, instanceManager: instanceManagerWith(real.instanceManager, { cid: 4242n }) };
+});
 
 const { messagePaginationStore } = await import('../message-pagination-store');
 const { saveMetadata, saveMessagePage } = await import('../message-page-operations');
