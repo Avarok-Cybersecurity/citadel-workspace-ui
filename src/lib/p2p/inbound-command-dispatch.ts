@@ -10,6 +10,8 @@
  */
 
 import { debugLog } from '@/lib/debug-config';
+import { noteUnreadableMessage } from './inbound-unreadable-notice';
+import type { MessageHandlerConfig } from './message-handler-types';
 import { deserializeP2PCommand , type P2PCommand } from '@/types/p2p-commands';
 
 /**
@@ -20,19 +22,31 @@ import { deserializeP2PCommand , type P2PCommand } from '@/types/p2p-commands';
  */
 export async function dispatchInboundCommand(
   bytes: Uint8Array,
-  handle: (command: P2PCommand) => Promise<void>
+  handle: (command: P2PCommand) => Promise<void>,
+  config: MessageHandlerConfig,
+  peerCid: bigint,
 ): Promise<void> {
   let command: P2PCommand;
   try {
     command = deserializeP2PCommand(bytes);
   } catch (error) {
-    debugLog('P2PMessageHandler', 'Failed to deserialize P2P command:', error);
+    await reportUnreadable(config, peerCid, error);
     return;
   }
 
   try {
     await handle(command);
   } catch (error) {
-    debugLog('P2PMessageHandler', 'Deserialized fine; handling the command failed:', error);
+    await reportUnreadable(config, peerCid, error);
+  }
+}
+
+/** Logs why, and puts a system line in the conversation: a message that arrived must never vanish unseen. */
+export async function reportUnreadable(config: MessageHandlerConfig, peerCid: bigint, error: unknown): Promise<void> {
+  debugLog('P2PMessageHandler', 'An inbound P2P message could not be read or handled:', error);
+  try {
+    await noteUnreadableMessage(config, peerCid);
+  } catch (noteError) {
+    debugLog('P2PMessageHandler', 'Could not record the unreadable message:', noteError);
   }
 }

@@ -68,6 +68,7 @@ interface DisconnectLoadingModalProps {
   onComplete?: () => void;
   /** The way out of a stalled or failed operation. See LoadingModal. */
   onCancel?: () => void;
+  onRetry?: () => void;
 }
 
 export const DisconnectLoadingModal = ({
@@ -77,6 +78,7 @@ export const DisconnectLoadingModal = ({
   errorMessage,
   onComplete,
   onCancel,
+  onRetry,
 }: DisconnectLoadingModalProps): JSX.Element => (
   <LoadingModal
     open={open}
@@ -85,6 +87,7 @@ export const DisconnectLoadingModal = ({
     errorMessage={errorMessage}
     onComplete={onComplete}
     onCancel={onCancel}
+    onRetry={onRetry}
     config={DISCONNECT_MODAL_CONFIG}
   />
 );
