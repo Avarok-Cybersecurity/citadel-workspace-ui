@@ -59,14 +59,16 @@ export function BubbleFooter({ message, isOwn, onRetry }: BubbleFooterProps): JS
             {statusIcon}
           </StatusTick>
         )}
-        {/* Retry button for failed messages */}
+        {/* The one Retry for a failed message, whatever kind of bubble it is. The text bubbles used to
+            carry a second, inline one beside "Failed to send". */}
         {isOwn && isFailed && onRetry && (
           <button
+            type="button"
             onClick={onRetry}
-            className="ml-1 p-0.5 rounded hover:bg-foreground/10 transition-colors"
-            title="Retry sending"
+            className="ml-1 inline-flex items-center gap-1 rounded text-xs underline hover:text-foreground transition-colors"
           >
-            <RefreshCw className="h-3 w-3 text-destructive hover:text-foreground" />
+            <RefreshCw className="h-3 w-3" aria-hidden="true" />
+            Retry
           </button>
         )}
       </div>

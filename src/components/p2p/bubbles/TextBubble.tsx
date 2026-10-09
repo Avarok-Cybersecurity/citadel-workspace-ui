@@ -73,14 +73,6 @@ export function TextBubble({
             <div className="flex items-center gap-1 mt-1.5 text-xs text-destructive-emphasis">
               <AlertCircle className="h-3 w-3" />
               <span>Failed to send</span>
-              {onRetry && (
-                <button
-                  onClick={onRetry}
-                  className="underline hover:text-foreground transition-colors ml-1"
-                >
-                  Retry
-                </button>
-              )}
             </div>
           )}
           <BubbleFooter message={message} isOwn={isOwn} onRetry={onRetry} />
