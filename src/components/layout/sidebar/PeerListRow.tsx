@@ -15,6 +15,7 @@ import { connectionPathLabel } from "@/lib/ice-servers/path-copy";
 import type { PeerConnectPath } from "@/types/ice-servers";
 import { PAUSE_COPY } from "@/lib/p2p-pause/pause-copy";
 import { PeerRowPauseMenu, type PeerRowPause } from "./PeerRowPauseMenu";
+import { formatUnreadCount } from '@/lib/format-unread';
 
 interface PeerListRowProps {
   cid: string;
@@ -120,7 +121,7 @@ export function PeerListRow({
           {/* Unread count badge */}
           {unreadCount !== undefined && unreadCount > 0 && (
             <Badge className="h-5 min-w-[20px] px-1.5 bg-primary text-primary-foreground">
-              {unreadCount}
+              {formatUnreadCount(unreadCount)}
               <span className="sr-only"> unread messages</span>
             </Badge>
           )}

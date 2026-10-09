@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Circle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { formatTime , type PeerInfo } from './P2PPeerListHelpers';
+import { formatUnreadCount } from '@/lib/format-unread';
 
 interface ConversationPeerItemProps {
   peer: PeerInfo;
@@ -64,7 +65,7 @@ export function ConversationPeerItem({ peer, isSelected, onSelect }: Conversatio
             variant="default"
             className="h-5 min-w-[20px] rounded-full text-xs"
           >
-            {peer.unreadCount}
+            {formatUnreadCount(peer.unreadCount)}
           </Badge>
         )}
       </div>
