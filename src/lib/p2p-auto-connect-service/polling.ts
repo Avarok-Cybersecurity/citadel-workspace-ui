@@ -121,16 +121,17 @@ export async function refreshOnlineStatus(state: AutoConnectState, force: boolea
   try {
     const peers: PeerInfoResponse[] = await p2pRegistrationService.listAllPeers();
     const onlineCids: bigint[] = [];
+    const unreportedCids: bigint[] = [];
 
     for (const peer of peers) {
       const cid: bigint | undefined = peer.cid;
-      const isOnline: boolean = peer.online_status ?? false;
-      if (cid && isOnline) {
-        onlineCids.push(cid);
-      }
+      if (!cid) continue;
+      // A peer listed without a status is unknown, not offline.
+      if (peer.online_status === undefined) unreportedCids.push(cid);
+      else if (peer.online_status) onlineCids.push(cid);
     }
 
-    state.setOnlinePeers(onlineCids);
+    state.setOnlinePeers(onlineCids, unreportedCids);
     debugLog('P2PAutoConnectService', `P2PAutoConnect: Refreshed online status, ${onlineCids.length} peers online`);
   } catch (error: unknown) {
     const errorMessage: string = error instanceof Error ? error.message : String(error);

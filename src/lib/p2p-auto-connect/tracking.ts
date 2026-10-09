@@ -24,6 +24,8 @@ export class P2PConnectionState extends ConnectedPeersState {
    * Online status cache
    */
   private onlinePeers: Set<bigint> = new Set<bigint>();
+  /** Listed by the last poll with no online status either way. */
+  private unknownPeers: Set<bigint> = new Set<bigint>();
   private lastOnlineStatusRefresh: number = 0;
 
   /**
@@ -115,15 +117,21 @@ export class P2PConnectionState extends ConnectedPeersState {
    */
   peerOnlineStatus(peerCid: bigint): boolean | null {
     if (this.lastOnlineStatusRefresh === 0) return null;
+    // Listed by the poll with no status: the backend said nothing, which is not "offline".
+    if (this.unknownPeers.has(peerCid)) return null;
     return this.onlinePeers.has(peerCid);
   }
 
-  /** A complete answer from the backend: replaces the set and dates it. */
-  setOnlinePeers(peerCids: bigint[]): void {
+  /**
+   * A complete answer from the backend: replaces the set and dates it.
+   * `unreported` are the peers it listed without saying either way.
+   */
+  setOnlinePeers(peerCids: bigint[], unreported: bigint[]): void {
     this.onlinePeers.clear();
     for (const cid of peerCids) {
       this.onlinePeers.add(cid);
     }
+    this.unknownPeers = new Set<bigint>(unreported);
     this.lastOnlineStatusRefresh = Date.now();
   }
 
@@ -136,11 +144,13 @@ export class P2PConnectionState extends ConnectedPeersState {
    */
   addOnlinePeer(peerCid: bigint): void {
     this.onlinePeers.add(peerCid);
+    this.unknownPeers.delete(peerCid);
   }
 
   /** Back to "not asked yet": empty, and no poll on record. */
   forgetOnlineStatus(): void {
     this.onlinePeers.clear();
+    this.unknownPeers.clear();
     this.lastOnlineStatusRefresh = 0;
   }
 

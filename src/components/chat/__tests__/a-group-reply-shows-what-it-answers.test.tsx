@@ -48,7 +48,7 @@ function groupMessage(id: string, sender: string, content: string, replyTo: stri
 }
 
 function renderView(): void {
-  render(<GroupChatView groupId="g1" currentUserName="self" sendRestriction="allowed" />);
+  render(<GroupChatView groupId="g1" currentUserName="self" sendRestriction="allowed" totalMembers={null} />);
 }
 
 beforeEach((): void => {

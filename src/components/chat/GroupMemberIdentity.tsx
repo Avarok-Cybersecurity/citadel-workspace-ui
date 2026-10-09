@@ -3,6 +3,7 @@ import { rosterMemberName } from '@/lib/roster-peer-name';
 import { useSelfName } from '@/hooks/use-self-name';
 import { getRoleIcon } from './GroupMemberManagementHelpers';
 import type { GroupMemberWithRole } from '@/types/group';
+import { initialsOf } from '@/lib/initials';
 
 interface GroupMemberIdentityProps {
   member: GroupMemberWithRole;
@@ -31,7 +32,7 @@ export function GroupMemberIdentity({ member, index, isOwner }: GroupMemberIdent
         style={{ backgroundColor: memberAvatarColor(member, index) }}
         aria-hidden="true"
       >
-        {name[0]?.toUpperCase() || '?'}
+        {initialsOf(name)}
       </div>
       <div className="flex items-center gap-2">
         <span className="text-sm text-foreground font-medium" data-testid={`group-member-name-${member.cid.toString()}`}>{name}</span>

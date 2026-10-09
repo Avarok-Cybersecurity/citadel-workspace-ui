@@ -14,6 +14,8 @@ import { rowClass } from './selected-row';
 import { Badge } from '@/components/ui/badge';
 import { membersByRank } from '@/components/chat/members-by-rank';
 import type { GroupConversation, GroupMemberWithRole } from '@/types/group';
+import { formatUnreadCount } from '@/lib/format-unread';
+import { initialsOf } from '@/lib/initials';
 
 // ============================================================================
 // Types
@@ -138,7 +140,7 @@ export function GroupConversationRow({
                 }}
                 title={member.username}
               >
-                {member.username[0]?.toUpperCase() || '?'}
+                {initialsOf(member.username)}
               </div>
             ))}
 
@@ -167,7 +169,7 @@ export function GroupConversationRow({
           {/* Unread Count Badge */}
           {group.unreadCount > 0 && (
             <Badge className="h-5 min-w-[20px] px-1.5 bg-primary text-primary-foreground text-xs">
-              {group.unreadCount > 99 ? '99+' : group.unreadCount}
+              {formatUnreadCount(group.unreadCount)}
             </Badge>
           )}
         </div>

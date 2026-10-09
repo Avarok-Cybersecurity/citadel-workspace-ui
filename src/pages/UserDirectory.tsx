@@ -10,7 +10,8 @@ import { toast } from '@/hooks/use-toast';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { debugLog } from '@/lib/debug-config';
 import { eventEmitter } from '@/lib/event-emitter';
-import { isMemberOnline } from '@/lib/presence';
+import { isMemberOnline, ownPresence } from '@/lib/presence';
+import { websocketService } from '@/lib/websocket-service';
 import { useSelfName } from '@/hooks/use-self-name';
 import { type MemberDisplay } from './MemberListItem';
 import { UserProfileCard } from './UserProfileCard';
@@ -44,7 +45,7 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
   }, [domainIdParam]);
 
   // This tab's account, from the one reader the top bar uses; state.currentUser is unset on resumed tabs.
-  const selfUsername: string | undefined = useSelfName().username;
+  const { username: selfUsername, cid: selfCid } = useSelfName();
 
   // Re-read presence whenever the registry's poll lands; the answer itself
   // comes from isMemberOnline, as UserSearch's does.
@@ -52,7 +53,11 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
   useEffect(() => {
     const bump: () => void = (): void => setPresenceVersion((v: number): number => v + 1);
     eventEmitter.on('p2p:peers-updated', bump);
-    return (): void => { eventEmitter.off('p2p:peers-updated', bump); };
+    eventEmitter.on('websocket-disconnected', bump);
+    return (): void => {
+      eventEmitter.off('p2p:peers-updated', bump);
+      eventEmitter.off('websocket-disconnected', bump);
+    };
   }, []);
 
   // One answer to "is this person a contact", for the rows and the card alike.
@@ -69,13 +74,13 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
     // workspace peer the agent lists. This read the REGISTERED peers only, so
     // for anyone without a contact list the Online tab said "Everyone in this
     // workspace is currently offline" while they were online (live, admin-lab).
-    isOnline: member.id === selfUsername ? true : isMemberOnline(member.id),
+    isOnline: member.id === selfUsername ? ownPresence(selfCid, websocketService.canSendRequests()) : isMemberOnline(member.id),
     isSelf: member.id === selfUsername,
     isContact: isUserConnected(member.id),
     // Undefined, not 0: nothing tracks last-seen, and 0 rendered as 1970.
     lastActive: undefined,
   // eslint-disable-next-line react-hooks/exhaustive-deps -- presenceVersion is the re-read trigger
-  })), [state.members, registeredPeers, presenceVersion, selfUsername]);
+  })), [state.members, registeredPeers, presenceVersion, selfUsername, selfCid]);
 
   const filteredMembers: MemberDisplay[] = allMembers.filter(member => {
     // `=== true`: a member whose presence nobody has reported is not evidence

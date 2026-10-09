@@ -30,6 +30,7 @@ import { GroupSettingsPanel } from '@/components/chat/GroupSettingsPanel';
 import type { GroupSettingsTab } from '@/components/chat/group-settings-types';
 import { GroupChatView } from '@/components/chat/GroupChatView';
 import { useGroupConversations } from '@/hooks/use-group-conversations';
+import { useReadWhenInFront } from '@/hooks/use-read-when-in-front';
 import type { GroupConversation } from '@/types/group';
 import { connectionManager } from '@/lib/connection';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -104,6 +105,7 @@ export function GroupChatPage(): JSX.Element {
     // there was no path back to zero short of a reload.
     markAsRead(groupId);
   }, [groupId, getGroup, hydrated, markAsRead, navigate, toast]);
+  useReadWhenInFront(groupId, markAsRead);
 
   // Handlers
   const handleLeaveGroup: () => Promise<void> = useCallback(async (): Promise<void> => {

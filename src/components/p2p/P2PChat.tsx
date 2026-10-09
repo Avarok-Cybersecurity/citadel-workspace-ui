@@ -229,7 +229,7 @@ export function P2PChat({
             />
             <P2PMessageInput
               ref={inputRef} inputMessage={inputMessage} messageType={messageType}
-              showMarkdownPreview={showMarkdownPreview} canSendMessages={true} paused={paused} isSending={isSending}
+              showMarkdownPreview={showMarkdownPreview} paused={paused} isSending={isSending}
               onInputChange={setInputMessage} onInputFocus={handleInputFocus}
               onInputBlur={handleInputBlur} onSubmit={handleSendMessage}
               onFileClick={() => setShowFileModal(true)} onFormat={applyFormat}

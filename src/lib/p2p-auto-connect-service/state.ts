@@ -139,8 +139,8 @@ export class AutoConnectState {
     this.core.clearConnectedPeers(localCid);
   }
 
-  setOnlinePeers(peerCids: bigint[]): void {
-    this.core.setOnlinePeers(peerCids);
+  setOnlinePeers(peerCids: bigint[], unreported: bigint[]): void {
+    this.core.setOnlinePeers(peerCids, unreported);
   }
 
   clearOnlineStatus(): void {

@@ -11,12 +11,13 @@ import { Switch } from '@/components/ui/switch';
 import { askUpdater } from '@/lib/agent-update/requests';
 import { agentUpdate, updaterSettings, type AgentUpdate, type UpdaterSettings } from '@/lib/agent-update/update-state';
 import { describeFailure } from '@/lib/failure-message';
+import { formatDateTime } from '@/lib/format-time';
 
 export function versionLine(settings: UpdaterSettings, update: AgentUpdate | null): string {
   if (update) return `Citadel Agent ${settings.current}. ${update.latest} is available.`;
   const checked: string = settings.lastChecked === null
     ? 'not checked yet'
-    : `last checked ${new Date(Number(settings.lastChecked) * 1000).toLocaleString()}`;
+    : `last checked ${formatDateTime(Number(settings.lastChecked) * 1000)}`;
   return `Citadel Agent ${settings.current}, up to date (${checked}).`;
 }
 

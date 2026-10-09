@@ -27,6 +27,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { formatFileSize } from '@/lib/utils';
 import { useState } from 'react';
 import type { FileDetails } from './file-details';
+import { initialsOf } from '@/lib/initials';
 
 interface FilePreviewDialogProps {
   file: FileDetails | null;
@@ -118,7 +119,7 @@ export const FilePreviewDialog = ({ file, isOpen, onClose }: FilePreviewDialogPr
             <User className="h-4 w-4" aria-hidden="true" />
             <Avatar className="h-6 w-6">
               <AvatarImage src={file.sender.avatar} alt="" />
-              <AvatarFallback>{file.sender.name.charAt(0).toUpperCase()}</AvatarFallback>
+              <AvatarFallback>{initialsOf(file.sender.name)}</AvatarFallback>
             </Avatar>
             <span>{file.provenance}</span>
           </div>

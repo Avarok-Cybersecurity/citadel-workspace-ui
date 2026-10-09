@@ -16,31 +16,5 @@ export function cn(...inputs: ClassValue[]): string {
 // File size formatting. One implementation, in lib/format-bytes.
 export { formatBytes as formatFileSize } from './format-bytes';
 
-// Date formatting with relative time
-export function formatDate(date: Date | string): string {
-  const d: Date = typeof date === 'string' ? new Date(date) : date;
-  const now: Date = new Date();
-  const diffMs: number = now.getTime() - d.getTime();
-  const diffDays: number = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffDays === 0) {
-    const diffHours: number = Math.floor(diffMs / (1000 * 60 * 60));
-    if (diffHours === 0) {
-      const diffMinutes: number = Math.floor(diffMs / (1000 * 60));
-      if (diffMinutes === 0) {
-        return 'Just now';
-      }
-      return `${diffMinutes} minute${diffMinutes > 1 ? 's' : ''} ago`;
-    }
-    return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-  } else if (diffDays === 1) {
-    return 'Yesterday';
-  } else if (diffDays < 7) {
-    return `${diffDays} days ago`;
-  } else {
-    return d.toLocaleDateString();
-  }
-}
-
 // Re-export specialized utilities
 export * from './utils/index';

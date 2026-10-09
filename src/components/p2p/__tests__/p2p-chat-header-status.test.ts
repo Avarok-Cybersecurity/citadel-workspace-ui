@@ -14,8 +14,8 @@ import { getStatusDisplay } from '../P2PChatHeader';
 import { MessagingLayerType } from '@/types/messaging-layer';
 import type { PeerPresence } from '@/lib/p2p/p2p-types';
 
-const presence: (status: MessagingLayerType, extra?: {}) => Parameters<typeof getStatusDisplay>[0] = (status: MessagingLayerType, extra = {}) =>
-  ({ status, lastUpdate: 0, ...extra }) as Parameters<typeof getStatusDisplay>[0];
+const presence: (status: MessagingLayerType, extra?: {}) => NonNullable<Parameters<typeof getStatusDisplay>[0]> = (status: MessagingLayerType, extra = {}) =>
+  ({ status, lastUpdate: 0, ...extra }) as NonNullable<Parameters<typeof getStatusDisplay>[0]>;
 
 describe('the DM header status', () => {
   it('shows Away for a registered peer who is away', () => {

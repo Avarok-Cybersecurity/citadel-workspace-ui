@@ -22,11 +22,17 @@
 import { MessagingLayerType } from '@/types/messaging-layer';
 import type { PeerPresence } from './p2p-types';
 
+/**
+ * `null` when nothing synchronous says either way: not connected here, and the
+ * registry has not said (or the peer hides it). That is "unknown", which the
+ * conversation carries as absent presence instead of inventing "Offline".
+ */
 export function initialPresence(
   isConnectedLocal: boolean,
-  isOnlineRegistration: boolean,
-): PeerPresence {
-  const isOnline: boolean = isConnectedLocal || isOnlineRegistration;
+  registryPresence: boolean | null,
+): PeerPresence | null {
+  if (!isConnectedLocal && registryPresence === null) return null;
+  const isOnline: boolean = isConnectedLocal || registryPresence === true;
   return {
     status: isOnline ? MessagingLayerType.Online : MessagingLayerType.Offline,
     // Zero rather than "now" when offline: nothing has been observed, and a

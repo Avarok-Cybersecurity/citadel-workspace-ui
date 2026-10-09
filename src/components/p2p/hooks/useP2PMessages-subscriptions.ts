@@ -27,7 +27,7 @@ export interface ConversationSubscriptionParams {
   setMessages: Dispatch<SetStateAction<P2PMessage[]>>;
   setPeerTyping: Dispatch<SetStateAction<boolean>>;
   setIsConnected: Dispatch<SetStateAction<boolean>>;
-  setPeerPresence: Dispatch<SetStateAction<PeerPresence>>;
+  setPeerPresence: Dispatch<SetStateAction<PeerPresence | null>>;
   setIsRegistered: Dispatch<SetStateAction<boolean>>;
 }
 

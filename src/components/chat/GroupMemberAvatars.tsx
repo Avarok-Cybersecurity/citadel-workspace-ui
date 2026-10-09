@@ -9,6 +9,7 @@ import { useMemo } from 'react';
 import { membersByRank } from './members-by-rank';
 import type { GroupConversation, GroupMemberWithRole } from '@/types/group';
 import { memberAvatarColor } from '@/lib/avatar-color';
+import { initialsOf } from '@/lib/initials';
 
 const MAX_VISIBLE_AVATARS: number = 5;
 
@@ -39,7 +40,7 @@ export function GroupMemberAvatars({ group }: { group: GroupConversation }): JSX
           }}
           title={member.username}
         >
-          {member.username[0]?.toUpperCase() || '?'}
+          {initialsOf(member.username)}
         </div>
       ))}
       {overflowCount > 0 && (

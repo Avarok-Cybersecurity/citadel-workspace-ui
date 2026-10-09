@@ -2,13 +2,11 @@
  * The one place the call-sound preference lives.
  *
  * Both the settings UI and the sound player read through here, so the toggle
- * and the behaviour can never disagree. Follows the same localStorage +
- * CustomEvent pattern as the privacy and appearance settings tabs.
+ * and the behaviour can never disagree. Read on demand from localStorage, so
+ * nothing needs to be told when it changes.
  */
 
 const STORAGE_KEY: "citadel:call-sound-settings" = 'citadel:call-sound-settings';
-
-export const CALL_SOUND_SETTINGS_EVENT: "call-sound-settings-changed" = 'call-sound-settings-changed';
 
 export interface CallSoundSettings {
   enabled: boolean;
@@ -30,5 +28,4 @@ export function loadCallSoundSettings(): CallSoundSettings {
 
 export function saveCallSoundSettings(settings: CallSoundSettings): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  window.dispatchEvent(new CustomEvent(CALL_SOUND_SETTINGS_EVENT, { detail: settings }));
 }

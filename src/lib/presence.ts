@@ -60,6 +60,17 @@ export function presenceAsShown(
   return directlyConnected() ? presence : null;
 }
 
+/**
+ * The signed-in person's own presence, from the state of their own session.
+ *
+ * Not assumed: a directory that hardcoded "online" for the reader kept saying so
+ * with the agent unreachable. No session identity yet is unknown (we cannot say
+ * whose presence it would be); a session with no way to reach the agent is offline.
+ */
+export function ownPresence(sessionCid: bigint | undefined, agentReachable: boolean): boolean | null {
+  return sessionCid === undefined ? null : agentReachable;
+}
+
 /** `presenceAsShown` for a member known by username, CID, or both. */
 export function shownPresence(username: string | undefined, peerCid: bigint | null, presence: boolean | null): boolean | null {
   const name: string | undefined = username ?? (peerCid === null ? undefined : listedPeerUsername(peerCid));

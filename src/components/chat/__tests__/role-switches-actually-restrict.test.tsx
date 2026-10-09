@@ -173,13 +173,13 @@ describe('the sendMessages switch', () => {
     expect(mutedRestriction).toBe('denied-by-role');
 
     const permitted: ReturnType<typeof render> = render(
-      <GroupChatView groupId="g1" currentUserName="self" sendRestriction={allowedRestriction} />,
+      <GroupChatView groupId="g1" currentUserName="self" sendRestriction={allowedRestriction} totalMembers={null} />,
     );
     expect(screen.queryByTestId('group-message-input')).toBeTruthy();
     expect(screen.queryByTestId('group-send-restricted')).toBeNull();
     permitted.unmount();
 
-    render(<GroupChatView groupId="g1" currentUserName="self" sendRestriction={mutedRestriction} />);
+    render(<GroupChatView groupId="g1" currentUserName="self" sendRestriction={mutedRestriction} totalMembers={null} />);
     expect(screen.queryByTestId('group-message-input')).toBeNull();
     expect(screen.getByTestId('group-send-restricted')).toBeTruthy();
   });
@@ -208,7 +208,7 @@ describe('a user who is not in the member list', () => {
     );
     expect(restriction).toBe('not-listed');
 
-    render(<GroupChatView groupId="g1" currentUserName="self" sendRestriction={restriction} />);
+    render(<GroupChatView groupId="g1" currentUserName="self" sendRestriction={restriction} totalMembers={null} />);
     const said: string = screen.getByTestId('group-send-restricted').textContent ?? '';
     expect(said).toContain('not listed as a member');
     // The specific wrong thing it used to say.
@@ -265,7 +265,7 @@ describe('a member whose roleId names no role we have', () => {
     );
     expect(restriction).toBe('role-missing');
 
-    render(<GroupChatView groupId="g1" currentUserName="self" sendRestriction={restriction} />);
+    render(<GroupChatView groupId="g1" currentUserName="self" sendRestriction={restriction} totalMembers={null} />);
     const said: string = screen.getByTestId('group-send-restricted').textContent ?? '';
     expect(said).toContain('role in this group could not be found');
     // The specific wrong thing it used to say: a refusal attributed to a role

@@ -9,6 +9,7 @@ import { peerDisplayName } from '@/lib/peer-display';
 /** Kept beside the picker so both call sites index the same palette. */
 
 import type { AvailablePeer } from './create-group-types';
+import { initialsOf } from '@/lib/initials';
 
 interface PeerPickerPopoverProps {
   /** Peers offered for selection. Callers filter out anyone already chosen. */
@@ -73,7 +74,7 @@ export function PeerPickerPopover({
                     style={{ backgroundColor: avatarColor(parseInt(peer.cid) % AVATAR_COLORS.length) }}
                     aria-hidden="true"
                   >
-                    {peerDisplayName(peer)[0]?.toUpperCase() || '?'}
+                    {initialsOf(peerDisplayName(peer))}
                   </div>
                   <span className="text-sm text-foreground flex-1 truncate">{peerDisplayName(peer)}</span>
                   {peer.isOnline && (

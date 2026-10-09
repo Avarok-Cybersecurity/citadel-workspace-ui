@@ -26,6 +26,7 @@ import type { GroupRole } from '@/types/group';
 import type { SelectedMember } from './create-group-types';
 import { avatarColor } from '@/lib/avatar-color';
 import { peerDisplayName } from '@/lib/peer-display';
+import { initialsOf } from '@/lib/initials';
 
 
 
@@ -77,7 +78,7 @@ export function MembersTable({
                     className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium text-foreground"
                     style={{ backgroundColor: avatarColor(index) }}
                   >
-                    {peerDisplayName(member)[0]?.toUpperCase() || '?'}
+                    {initialsOf(peerDisplayName(member))}
                   </div>
                   <span className="text-sm text-foreground">{peerDisplayName(member)}</span>
                 </div>

@@ -70,7 +70,8 @@ export function supervisorStateFor(cid: bigint | null, peerCid: bigint | null): 
 export interface SupervisorStatusDeps {
   bus: {
     on: (event: string, handler: (payload: unknown) => void) => unknown;
-    emit: (event: string, change: SupervisorEvent) => void;
+    /** Readers re-read on the event; the payload is the change that prompted it, absent when the socket's loss did. */
+    emit: (event: string, change?: SupervisorEvent) => void;
   };
   isLeader: () => boolean;
   /** The event carrying every wire message on the leader, before routing. */
@@ -93,10 +94,17 @@ export function installSupervisorStatus({ bus, isLeader, wireEvent }: Supervisor
   };
   bus.on('websocket-message', apply);
   bus.on(wireEvent, (message: unknown): void => { if (isLeader()) apply(message); });
+  // A healed report can only arrive on a live socket. Without this, a link the
+  // agent was healing when the socket died read "Reconnecting…" for good.
+  bus.on('websocket-disconnected', (): void => {
+    if (clearSupervisorStatus()) bus.emit(SUPERVISOR_STATUS_EVENT);
+  });
 }
 
-/** Forgets everything: the socket that reported it is gone. */
-export function clearSupervisorStatus(): void {
+/** Forgets everything: the socket that reported it is gone. Returns whether anything was shown. */
+export function clearSupervisorStatus(): boolean {
+  const hadAny: boolean = accounts.size > 0 || peers.size > 0;
   accounts.clear();
   peers.clear();
+  return hadAny;
 }

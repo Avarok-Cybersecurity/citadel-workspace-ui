@@ -49,7 +49,8 @@ export interface P2PConversation {
   unreadCount: number;
   typing: boolean;
   lastTypingUpdate: number;
-  presence: PeerPresence;
+  /** Null until something says: absent is unknown, not offline. */
+  presence: PeerPresence | null;
 }
 
 export interface MessageCache {

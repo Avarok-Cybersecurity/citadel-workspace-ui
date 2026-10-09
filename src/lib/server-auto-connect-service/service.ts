@@ -12,7 +12,7 @@ import type { StoredSession } from '@/types/session-types';
 import { EventListenerPollingService } from '@/lib/utils/polling-service';
 import type { WebSocketMessage } from '@/types/ws-message-types';
 import { clearPendingAttempts } from './attempt-lifecycle';
-import { signOutKey, forgetSignOut } from './sign-out-record';
+import { signOutKey } from './sign-out-record';
 import { dispatchWebSocketResponse } from './websocket-responses';
 import { debugLog, errorLog } from '@/lib/debug-config';
 import { loadAutoConnectSettings, type AutoConnectSettings } from './init-settings';
@@ -236,10 +236,6 @@ export class ServerAutoConnectService extends EventListenerPollingService {
   public async markUserDisconnected(username: string, serverAddress: string): Promise<void> {
     this.markUserDisconnectedNow(username, serverAddress);
     await this.persistUserDisconnected();
-  }
-
-  public async clearUserDisconnected(username: string, serverAddress: string): Promise<void> {
-    await forgetSignOut(this.userDisconnectedSessions, username, serverAddress);
   }
 
   public cancelRetry(sessionKey: string): void {

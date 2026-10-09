@@ -14,11 +14,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { P2PConversation } from '../p2p-types';
 
+const reg: { answer: boolean | null } = vi.hoisted((): { answer: boolean | null } => ({ answer: null }));
+
 vi.mock('@/lib/p2p-auto-connect-service', () => ({
   p2pAutoConnectService: {
     // Async, as the real one is. Its promise is what used to be read as "yes".
     isPeerConnected: (): Promise<boolean | null> => Promise.resolve(null),
-    isPeerOnline: (): boolean => false,
+    peerOnlineStatus: (): boolean | null => reg.answer,
   },
 }));
 
@@ -36,11 +38,10 @@ vi.mock('@/lib/connection', async (importOriginal) => importOriginal());
 import '../conversation-manager';
 
 describe('a conversation created for an unheard-of peer', () => {
-  beforeEach(() => { vi.resetModules(); });
+  beforeEach(() => { vi.resetModules(); reg.answer = null; });
 
-  it('is Offline, not Online', async () => {
+  it('is unknown, not Online and not Offline', async () => {
     const { ConversationManager } = await import('../conversation-manager');
-    const { MessagingLayerType } = await import('@/types/p2p-commands');
 
     const manager: InstanceType<typeof ConversationManager> = new ConversationManager({
       getCurrentCid: (): Promise<bigint | null> => Promise.resolve(1n),
@@ -49,9 +50,21 @@ describe('a conversation created for an unheard-of peer', () => {
     });
     const conv: P2PConversation = manager.getOrCreateConversation(999n, 'nobody');
 
-    expect(conv.presence.status).toBe(MessagingLayerType.Offline);
-    // ...and it does not claim to have been seen just now.
-    expect(conv.presence.lastUpdate).toBe(0);
+    expect(conv.presence).toBeNull();
+  });
+
+  it('is Offline when the registry says offline, and not seen just now', async () => {
+    reg.answer = false;
+    const { ConversationManager } = await import('../conversation-manager');
+    const { MessagingLayerType } = await import('@/types/p2p-commands');
+    const manager: InstanceType<typeof ConversationManager> = new ConversationManager({
+      getCurrentCid: (): Promise<bigint | null> => Promise.resolve(1n),
+      maxMessagesPerConversation: 100,
+      maxQueueSize: 100,
+    });
+    const conv: P2PConversation = manager.getOrCreateConversation(999n, 'nobody');
+    expect(conv.presence?.status).toBe(MessagingLayerType.Offline);
+    expect(conv.presence?.lastUpdate).toBe(0);
   });
 
   it('is Online when a synchronous source actually says so', async () => {
@@ -69,7 +82,7 @@ describe('a conversation created for an unheard-of peer', () => {
     manager.setConnection(999n, true);
     const conv: P2PConversation = manager.getOrCreateConversation(999n, 'somebody');
 
-    expect(conv.presence.status).toBe(MessagingLayerType.Online);
-    expect(conv.presence.lastUpdate).toBeGreaterThan(0);
+    expect(conv.presence?.status).toBe(MessagingLayerType.Online);
+    expect(conv.presence?.lastUpdate).toBeGreaterThan(0);
   });
 });

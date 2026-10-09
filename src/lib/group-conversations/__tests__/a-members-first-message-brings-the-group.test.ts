@@ -28,8 +28,9 @@ const GROUP: string = `${OWNER}:9`;
 const usernames: Record<string, string> = { '555': 'alice0924', '777': 'carol0924', '111': 'Peer ZZZZZZ' };
 const usernameFor = (cid: bigint): string => usernames[cid.toString()] ?? `Peer ${cid}`;
 
-function message(overrides: Record<string, unknown> = {}): { groupId: string; senderId: string; content: string; messageId?: string; groupName?: string; selfUsername?: string } {
-  return { groupId: GROUP, senderId: '555', content: 'hello team', messageId: 'm1', groupName: 'Team 0924', selfUsername: 'bob0924', ...overrides };
+function message(overrides: Record<string, unknown> = {}): { groupId: string; senderId: string; content: string; messageId?: string; groupName?: string; selfUsername?: string; viewing: boolean } {
+  // Not looking at it: the counting rules are the subject here, not the viewing one.
+  return { viewing: false, groupId: GROUP, senderId: '555', content: 'hello team', messageId: 'm1', groupName: 'Team 0924', selfUsername: 'bob0924', ...overrides };
 }
 
 describe('a message for a group this browser has never seen', () => {

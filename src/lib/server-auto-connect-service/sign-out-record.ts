@@ -8,12 +8,9 @@
  * reason — see persistence.ts.
  *
  * Split out of `service.ts` when it passed the 250-line cap: the key format
- * and the two mutations belong together, and the key was spelled by hand at
+ * is the one spelling of it, where it was written by hand at
  * three sites before this.
  */
-import { debugLog } from '@/lib/debug-config';
-import { persistUserDisconnectedSessions } from './persistence';
-
 /**
  * How a session is named in this set.
  *
@@ -23,18 +20,4 @@ import { persistUserDisconnectedSessions } from './persistence';
  */
 export function signOutKey(username: string, serverAddress: string): string {
   return `${username}@${serverAddress}`;
-}
-
-/** Forget a sign-out, so auto-reconnect may consider the account again. */
-export async function forgetSignOut(
-  userDisconnectedSessions: Set<string>,
-  username: string,
-  serverAddress: string,
-): Promise<void> {
-  userDisconnectedSessions.delete(signOutKey(username, serverAddress));
-  await persistUserDisconnectedSessions(userDisconnectedSessions);
-  debugLog(
-    'ServerAutoConnectService',
-    `Cleared user-disconnected status for ${username} (persisted to LocalDB)`,
-  );
 }

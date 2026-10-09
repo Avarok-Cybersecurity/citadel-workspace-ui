@@ -30,7 +30,6 @@ describe('the direct-message composer', () => {
         inputMessage=""
         messageType="text"
         showMarkdownPreview={false}
-        canSendMessages
         paused={false}
         isSending={false}
         onInputChange={vi.fn()}

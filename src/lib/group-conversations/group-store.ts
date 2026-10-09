@@ -37,6 +37,7 @@ import { bindJoinedGroups } from './learn-joined-groups';
 import { forgetPendingInvites, restorePendingInvites } from './group-invites';
 import { loadPersistedGroups, persistGroups } from './group-persistence';
 import { applyGroupMessage } from './apply-group-message';
+import { groupInFront } from './group-in-front';
 import { usernameFrom } from './member-group-record';
 import { debugLog } from '@/lib/debug-config';
 import type { GroupRole } from '@/types/group-permissions';
@@ -215,7 +216,7 @@ export function startGroupEventBindings(selfUsername: () => string | undefined):
     selfUsername?: string;
     memberUsernames?: Record<string, string>;
   }) => {
-    updateGroups((prev) => applyGroupMessage(prev, { ...data, selfUsername: data.selfUsername ?? selfUsername() }, Date.now(), usernameFrom(data.memberUsernames)));
+    updateGroups((prev) => applyGroupMessage(prev, { ...data, selfUsername: data.selfUsername ?? selfUsername(), viewing: groupInFront(data.groupId) }, Date.now(), usernameFrom(data.memberUsernames)));
   });
 
   eventEmitter.on('group:deleted', (data: { groupId: string }) => {

@@ -74,7 +74,7 @@ export class ConversationManager {
         unreadCount: 0,
         typing: false,
         lastTypingUpdate: 0,
-        presence: initialPresence(isConnectedLocal, shownPresence(peerUsername, peerCid, p2pAutoConnectService.isPeerOnline(peerCid)) === true)
+        presence: initialPresence(isConnectedLocal, shownPresence(peerUsername, peerCid, p2pAutoConnectService.peerOnlineStatus(peerCid)))
       };
       this.cache.conversations.set(peerCid, conversation);
     } else if (peerUsername && !conversation.peerUsername) {

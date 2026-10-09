@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Trash2, Clock } from 'lucide-react';
 import { SIGNED_OUT_COPY } from './signed-out/signed-out-copy';
+import { initialsOf } from '@/lib/initials';
 
 interface AccountRowProps {
   username: string;
@@ -31,7 +32,7 @@ export function AccountRow({ username, host, current, live, lastConnected, signe
   return (
     <div className={`flex items-center justify-between p-4 rounded-lg bg-background border ${live ? 'border-success/30' : 'border-surface/50'}`}>
       <div className="flex items-center gap-3 min-w-0">
-        <Avatar className="h-10 w-10"><AvatarFallback className={live ? 'bg-success' : 'bg-primary'}>{username[0]?.toUpperCase() ?? '?'}</AvatarFallback></Avatar>
+        <Avatar className="h-10 w-10"><AvatarFallback className={live ? 'bg-success' : 'bg-primary'}>{initialsOf(username)}</AvatarFallback></Avatar>
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <h4 className="text-foreground font-medium truncate">{username}</h4>

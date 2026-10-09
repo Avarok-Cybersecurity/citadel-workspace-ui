@@ -122,6 +122,8 @@ export function OfficeChatTabs({
             currentUserId={currentUserId}
             currentUserName={currentUserName}
             rules={rules}
+            // The channel's full roster is not known here (callRoster lists only who can be called).
+            totalMembers={null}
             sendRestriction={sendRestriction}
           />
         </TabsContent>

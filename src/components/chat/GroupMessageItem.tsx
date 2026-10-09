@@ -31,7 +31,7 @@ interface GroupMessageItemProps {
    * to compare against it again.
    */
   currentUserName: string;
-  totalMembers: number;
+  totalMembers: number | null;
   onEdit: (messageId: string, content: string) => void;
   onDelete: (messageId: string) => void;
   /**

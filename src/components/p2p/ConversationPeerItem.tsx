@@ -7,7 +7,10 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Circle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { formatTime , type PeerInfo } from './P2PPeerListHelpers';
+import type { PeerInfo } from './P2PPeerListHelpers';
+import { formatListStamp } from '@/lib/format-time';
+import { formatUnreadCount } from '@/lib/format-unread';
+import { initialsOf } from '@/lib/initials';
 
 interface ConversationPeerItemProps {
   peer: PeerInfo;
@@ -27,7 +30,7 @@ export function ConversationPeerItem({ peer, isSelected, onSelect }: Conversatio
       <div className="flex items-center gap-3 w-full">
         <div className="relative">
           <Avatar className="h-10 w-10">
-            <AvatarFallback>{peer.name[0]}</AvatarFallback>
+            <AvatarFallback>{initialsOf(peer.name)}</AvatarFallback>
           </Avatar>
           <Circle
             aria-hidden="true"
@@ -47,7 +50,7 @@ export function ConversationPeerItem({ peer, isSelected, onSelect }: Conversatio
             </span>
             {peer.lastMessageTime && (
               <span className="text-xs text-muted-foreground">
-                {formatTime(peer.lastMessageTime)}
+                {formatListStamp(peer.lastMessageTime)}
               </span>
             )}
           </div>
@@ -64,7 +67,7 @@ export function ConversationPeerItem({ peer, isSelected, onSelect }: Conversatio
             variant="default"
             className="h-5 min-w-[20px] rounded-full text-xs"
           >
-            {peer.unreadCount}
+            {formatUnreadCount(peer.unreadCount)}
           </Badge>
         )}
       </div>

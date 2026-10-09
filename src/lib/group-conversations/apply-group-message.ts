@@ -35,7 +35,10 @@ const PREVIEW_CHARS: number = 50;
  */
 export function applyGroupMessage(
   groups: GroupConversation[],
-  data: { groupId: string; senderId: string; content: string; messageId?: string; groupName?: string; selfUsername?: string },
+  data: { groupId: string; senderId: string; content: string; messageId?: string; groupName?: string; selfUsername?: string;
+    /** The user is looking at this group now (see group-in-front): reading it is not leaving it unread. */
+    viewing: boolean;
+  },
   now: number,
   /** What the roster addresses a CID by; names the members of a group learnt here. */
   usernameFor: (cid: bigint) => string,
@@ -72,7 +75,7 @@ export function applyGroupMessage(
       // peer-group-inbound): the wire's one way of telling members the name
       // the owner chose, which GroupCreate and GroupInvite cannot carry.
       name: data.groupName ?? group.name,
-      unreadCount: fromSelf ? group.unreadCount : group.unreadCount + 1,
+      unreadCount: fromSelf || data.viewing ? group.unreadCount : group.unreadCount + 1,
       lastMessageTime: now,
       lastMessagePreview:
         data.content.length > PREVIEW_CHARS

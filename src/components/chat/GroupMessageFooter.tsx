@@ -22,13 +22,13 @@ import {
 interface GroupMessageFooterProps {
   message: GroupMessage;
   isOwn: boolean;
-  /** Total number of members in the group (excluding sender) */
-  totalMembers: number;
+  /** Total number of members in the group, sender included; null when the roster is not known. */
+  totalMembers: number | null;
 }
 
 type ReadStatus = 'sent' | 'partial' | 'all_read';
 
-function getReadStatus(message: GroupMessage, totalMembers: number): ReadStatus {
+export function getReadStatus(message: GroupMessage, totalMembers: number | null): ReadStatus {
   const readBy: GroupMessageReadBy[] = message.read_by || [];
   const readCount: number = readBy.length;
 
@@ -37,7 +37,7 @@ function getReadStatus(message: GroupMessage, totalMembers: number): ReadStatus 
   }
 
   // All members (excluding sender) have read
-  if (readCount >= totalMembers - 1) {
+  if (totalMembers !== null && readCount >= totalMembers - 1) {
     return 'all_read';
   }
 
@@ -61,11 +61,11 @@ function getReadStatusIcon(status: ReadStatus): JSX.Element | null {
 
 interface ReadByTooltipContentProps {
   readBy: GroupMessageReadBy[];
-  totalMembers: number;
+  totalMembers: number | null;
   status: ReadStatus;
 }
 
-function ReadByTooltipContent({ readBy, totalMembers, status }: ReadByTooltipContentProps): JSX.Element {
+export function ReadByTooltipContent({ readBy, totalMembers, status }: ReadByTooltipContentProps): JSX.Element {
   if (status === 'all_read') {
     return (
       <div className="text-sm">
@@ -78,11 +78,13 @@ function ReadByTooltipContent({ readBy, totalMembers, status }: ReadByTooltipCon
   }
 
   if (status === 'partial') {
-    const unreadCount: number = (totalMembers - 1) - readBy.length;
+    // Without the roster there is nobody to count against; say who has seen it and stop.
+    const others: number | null = totalMembers === null ? null : totalMembers - 1;
+    const unreadCount: number = others === null ? 0 : others - readBy.length;
     return (
       <div className="text-sm max-w-[200px]">
         <p className="text-warning-emphasis font-medium mb-2">
-          Seen by {readBy.length} of {totalMembers - 1}
+          {others === null ? `Seen by ${readBy.length}` : `Seen by ${readBy.length} of ${others}`}
         </p>
         <div className="space-y-1">
           <p className="text-xs text-muted-foreground">Viewed by:</p>

@@ -29,8 +29,8 @@ interface GroupChatViewProps {
   currentUserId?: string;
   currentUserName: string;
   rules?: string;
-  /** Total number of members in this group (for read receipts) */
-  totalMembers?: number;
+  /** Total number of members in this group (for read receipts); null when the roster is not known. Required: a guess here becomes a wrong count. */
+  totalMembers: number | null;
   /**
    * Whether this user may send, and if not, why. Required, not defaulted: the
    * `sendMessages` permission spent its whole life computed and consulted by
@@ -49,7 +49,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
   currentUserId: _currentUserId,
   currentUserName,
   rules,
-  totalMembers = 2,
+  totalMembers,
   sendRestriction,
 }) => {
   const chat: ReturnType<typeof useGroupChat> = useGroupChat(groupId);
