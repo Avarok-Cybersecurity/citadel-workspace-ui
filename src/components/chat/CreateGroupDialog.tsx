@@ -23,15 +23,14 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { createDefaultRoles, getDefaultRole } from '@/types/group';
 import { debugLog } from '@/lib/debug-config';
 import { MembersTable } from './CreateGroupMembersTable';
-import { avatarColor } from '@/lib/avatar-color';
-import { peerDisplayName } from '@/lib/peer-display';
+import { MemberAvatar } from '@/components/shared/MemberAvatar';
+import { peerDisplayName, peerHandleName } from '@/lib/peer-display';
 import type { AvailablePeer, SelectedMember, CreateGroupDialogProps } from './create-group-types';
 import type { GroupRole } from '@/types/group-permissions';
 
 // Re-export types for backward compatibility
 export type { AvailablePeer, SelectedMember, CreateGroupDialogProps };
 
-const AVATAR_COLORS_LENGTH: number = 7;
 
 export function CreateGroupDialog({
   open,
@@ -183,16 +182,7 @@ export function CreateGroupDialog({
                             onClick={() => handleAddMember(peer)}
                             className="w-full flex items-center gap-2 p-2 rounded hover:bg-surface text-left"
                           >
-                            <div
-                              className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium text-foreground"
-                              style={{
-                                backgroundColor: avatarColor(
-                                  parseInt(peer.cid) % AVATAR_COLORS_LENGTH
-                                ),
-                              }}
-                            >
-                              {peerDisplayName(peer)[0]?.toUpperCase() || '?'}
-                            </div>
+                            <MemberAvatar username={peerHandleName(peer)} name={peerDisplayName(peer)} />
                             <span className="text-sm text-foreground flex-1 truncate">
                               {peerDisplayName(peer)}
                             </span>

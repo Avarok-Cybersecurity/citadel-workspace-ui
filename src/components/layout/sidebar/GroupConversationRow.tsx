@@ -6,7 +6,8 @@
  */
 
 import { useMemo, useRef, useEffect, useState    , type RefObject } from 'react';
-import { memberAvatarColor } from '@/lib/avatar-color';
+import { MemberAvatar } from '@/components/shared/MemberAvatar';
+import { rosterMemberName } from '@/lib/roster-peer-name';
 import { useGroupPermissions } from '@/hooks/use-group-permissions';
 import { useGuardedNavigate, type GuardedNavigate } from '@/hooks/use-guarded-navigate';
 import { SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
@@ -15,7 +16,6 @@ import { Badge } from '@/components/ui/badge';
 import { membersByRank } from '@/components/chat/members-by-rank';
 import type { GroupConversation, GroupMemberWithRole } from '@/types/group';
 import { formatUnreadCount } from '@/lib/format-unread';
-import { initialsOf } from '@/lib/initials';
 
 // ============================================================================
 // Types
@@ -130,17 +130,14 @@ export function GroupConversationRow({
             {displayMembers.map((member, index) => (
               <div
                 key={member.cid}
-                className="relative rounded-full flex items-center justify-center text-xs font-medium text-foreground border border-surface"
+                className="relative"
                 style={{
-                  width: AVATAR_SIZE,
-                  height: AVATAR_SIZE,
-                  backgroundColor: memberAvatarColor(member, index),
                   marginLeft: index === 0 ? 0 : -AVATAR_OVERLAP,
                   zIndex: displayMembers.length - index, // First avatar on top
                 }}
                 title={member.username}
               >
-                {initialsOf(member.username)}
+                <MemberAvatar username={member.username} name={rosterMemberName(member)} className="h-5 w-5 border border-surface" />
               </div>
             ))}
 

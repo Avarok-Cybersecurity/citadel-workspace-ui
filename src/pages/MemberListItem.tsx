@@ -1,11 +1,10 @@
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { MessageCircle, UserPlus } from 'lucide-react';
 import { formatPresence } from '@/lib/date-utils';
 import { UserRole } from '@/types/workspace-entities';
 import { roleBadgeClass } from '@/lib/role-badge';
-import { initialsOf } from '@/lib/initials';
 
 export interface MemberDisplay {
   id: string;
@@ -65,14 +64,7 @@ export function MemberListItem({ member, variant, onSendMessage, onInvite, onSel
         onClick={() => onSelect(member.id)}
         aria-label={`View profile for ${member.displayName}`}
         className="flex items-center space-x-3 flex-1 min-w-0 text-left cursor-pointer rounded focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring">
-        <Avatar className="h-10 w-10 relative">
-          {/* Decorative: displayName is rendered beside it. */}
-          <AvatarImage src={member.avatarUrl} alt="" />
-          <AvatarFallback className="bg-primary">{initialsOf(member.displayName)}</AvatarFallback>
-          {member.isOnline && (
-            <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-success ring-2 ring-card" />
-          )}
-        </Avatar>
+        <MemberAvatar username={member.id} name={member.displayName} className="h-10 w-10 text-sm" online={member.isOnline === true} />
         <div>
           <h3 className="font-medium text-foreground">
             {member.displayName}

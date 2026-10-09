@@ -6,7 +6,7 @@ import type { NavigateFunction } from 'react-router';
 import { P2PMessengerManager } from '@/lib/p2p';
 import { p2pRegistrationService, type Peer } from '@/lib/p2p-registration-service';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { Button } from '@/components/ui/button';
 import { UserPlus, MessageCircle, Users, CheckCircle } from 'lucide-react';
 import { useEventListener } from '@/hooks';
@@ -14,7 +14,7 @@ import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { conversationPeerName, conversationPeerUsername, type PeerInfo } from './P2PPeerListHelpers';
 import { ConversationPeerItem } from './ConversationPeerItem';
-import { peerDisplayName, peerInitials, isUnnamedPeer } from '@/lib/peer-display';
+import { peerDisplayName, peerHandleName, isUnnamedPeer } from '@/lib/peer-display';
 import type { P2PConversation, P2PMessage } from '@/lib/p2p/p2p-types';
 
 interface P2PPeerListProps {
@@ -156,11 +156,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
                       }}
                     >
                       <div className="flex items-center gap-3 w-full">
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback className="text-xs">
-                            {peerInitials({ cid: peer.cid, username: peer.username, fullName: peer.fullName })}
-                          </AvatarFallback>
-                        </Avatar>
+                        <MemberAvatar username={peerHandleName({ cid: peer.cid, username: peer.username })} name={peerDisplayName({ cid: peer.cid, username: peer.username, fullName: peer.fullName })} className="h-8 w-8" />
 
                         <div className="flex-1 text-left">
                           <div className="font-medium text-sm">

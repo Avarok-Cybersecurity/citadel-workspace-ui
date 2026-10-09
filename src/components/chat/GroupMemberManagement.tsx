@@ -133,7 +133,7 @@ export function GroupMemberManagement({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedMembers.map((member, index) => {
+              {sortedMembers.map((member) => {
                 const isOwnerMember: boolean = member.cid === group.ownerId;
                 const canManageThis: boolean = canManageMember(member.cid);
                 const canAssignThis: boolean = canAssign && canAssignRole(member.roleId);
@@ -145,7 +145,7 @@ export function GroupMemberManagement({
                   >
                     {/* Member Info */}
                     <TableCell className="py-3">
-                      <GroupMemberIdentity member={member} index={index} isOwner={isOwnerMember} />
+                      <GroupMemberIdentity member={member} isOwner={isOwnerMember} />
                     </TableCell>
 
                     {/* Role Selector */}

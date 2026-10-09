@@ -15,8 +15,8 @@ import { connectionPathLabel } from "@/lib/ice-servers/path-copy";
 import type { PeerConnectPath } from "@/types/ice-servers";
 import { PAUSE_COPY } from "@/lib/p2p-pause/pause-copy";
 import { PeerRowPauseMenu, type PeerRowPause } from "./PeerRowPauseMenu";
+import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { formatUnreadCount } from '@/lib/format-unread';
-import { initialsOf } from '@/lib/initials';
 
 interface PeerListRowProps {
   cid: string;
@@ -101,9 +101,7 @@ export function PeerListRow({
         <div className="flex items-center gap-2 w-full">
           {/* Avatar with status indicator */}
           <div className="relative w-6 h-6 flex-shrink-0">
-            <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-xs font-medium">
-              {initialsOf(displayName)}
-            </div>
+            <MemberAvatar username={username} name={displayName} />
             {/* Status indicator - top-right corner */}
             <div
               className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-surface ${statusColor}`}

@@ -27,6 +27,8 @@
     "check:reduced-motion": "node scripts/check-reduced-motion.mjs",
     "check:mobile": "node scripts/check-mobile-layout.mjs",
     "check:chat-polish": "node scripts/check-chat-polish-geometry.mjs",
+    "check:ui-sweep": "node scripts/check-ui-sweep-geometry.mjs",
+    "check:people-avatars": "node scripts/check-people-are-drawn-by-member-avatar.mjs",
     "check:a11y": "node scripts/check-accessibility.mjs",
     "check:agent-down": "node scripts/check-agent-down.mjs",
     "check:types": "node scripts/check-explicit-types.mjs",

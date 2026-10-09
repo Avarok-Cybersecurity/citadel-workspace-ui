@@ -3,13 +3,12 @@ import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { avatarColor, AVATAR_COLORS } from '@/lib/avatar-color';
-import { peerDisplayName } from '@/lib/peer-display';
+import { MemberAvatar } from '@/components/shared/MemberAvatar';
+import { peerDisplayName, peerHandleName } from '@/lib/peer-display';
 
 /** Kept beside the picker so both call sites index the same palette. */
 
 import type { AvailablePeer } from './create-group-types';
-import { initialsOf } from '@/lib/initials';
 
 interface PeerPickerPopoverProps {
   /** Peers offered for selection. Callers filter out anyone already chosen. */
@@ -69,13 +68,7 @@ export function PeerPickerPopover({
                   }}
                   className="w-full flex items-center gap-2 p-2 rounded hover:bg-surface text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <div
-                    className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium text-foreground"
-                    style={{ backgroundColor: avatarColor(parseInt(peer.cid) % AVATAR_COLORS.length) }}
-                    aria-hidden="true"
-                  >
-                    {initialsOf(peerDisplayName(peer))}
-                  </div>
+                  <MemberAvatar username={peerHandleName(peer)} name={peerDisplayName(peer)} />
                   <span className="text-sm text-foreground flex-1 truncate">{peerDisplayName(peer)}</span>
                   {peer.isOnline && (
                     <span className="w-2 h-2 rounded-full bg-success" aria-label="Online" />

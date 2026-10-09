@@ -18,7 +18,8 @@ export interface FileDetails {
   name: string;
   type: string;
   size: number;
-  sender: { name: string; avatar: string };
+  /** `username` is set when the source is a person, so their picture can be drawn; a label is not one. */
+  sender: { name: string; username?: string };
   /** How the file came to be here, as a sentence: "Sent by Bob". */
   provenance: string;
   createdAt: string;
@@ -44,7 +45,7 @@ export function transferDetails(
       name: transfer.fileName,
       type: transfer.fileType || 'Unknown',
       size: transfer.fileSize,
-      sender: { name, avatar: '' },
+      sender: { name, username: usernameForCid(transfer.senderCid) },
       provenance: `Sent by ${name}`,
       createdAt: formatDateTime(transfer.updatedAt),
       savedTo: transfer.downloadPath ?? '',
@@ -60,7 +61,7 @@ export function revfsDownloadDetails(record: RevfsDownloadRecord): DatedFileDeta
       name: record.fileName,
       type: record.fileType || 'Unknown',
       size: record.fileSize,
-      sender: { name: record.sourceLabel, avatar: '' },
+      sender: { name: record.sourceLabel },
       provenance: `Downloaded from ${record.sourceLabel}`,
       createdAt: formatDateTime(record.downloadedAt),
       savedTo: record.savedTo,
