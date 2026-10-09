@@ -5,7 +5,6 @@
  * Uses extracted hooks and components for message handling, input, and display.
  */
 
-import { FilePreviewDialog } from '@/components/layout/sidebar/FilePreviewDialog';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { notificationService } from '@/lib/notification-service';
 import { ChatTabBar } from './ChatTabBar';
@@ -13,16 +12,16 @@ import { NoConversation } from './NoConversation';
 import { ComposeContextBanner } from './ComposeContextBanner';
 import { LiveDocumentPane } from './LiveDocumentPane';
 import { LiveDocumentModal } from './LiveDocumentModal';
-import { FileTransferModal } from './FileTransferModal';
+import { ChatFileDialogs } from './ChatFileDialogs';
+import { useChatFileSend, type ChatFileSend } from './hooks/use-chat-file-send';
 import { ChatDropTarget } from './ChatDropTarget';
-import { dropUnavailableReason } from './drop-unavailable';
 import { ChatSettingsPanel } from './ChatSettingsPanel';
 import { P2PChatHeader } from './P2PChatHeader';
 import { CallStage } from '@/components/call/CallStage';
 import { useDirectCall } from './hooks/use-direct-call';
 import { P2PMessageList } from './P2PMessageList';
 import { P2PMessageInput } from './P2PMessageInput';
-import { useP2PMessages, useP2PFileTransfer, useP2PTabs } from './hooks';
+import { useP2PMessages, useP2PTabs } from './hooks';
 import { useP2PCompose } from './hooks/useP2PCompose';
 import { useConnectionRoute } from './hooks/use-connection-route';
 import { useSupervisorState } from './hooks/use-supervisor-state';
@@ -85,7 +84,6 @@ export function P2PChat({
   const scrollRef: React.RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
   const pinnedRef: React.MutableRefObject<boolean> = useRef<boolean>(true); // the reader is at the bottom
 
-  const [showFileModal, setShowFileModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   // Tabs hook
   const {
@@ -104,10 +102,6 @@ export function P2PChat({
     onUnreadMessage: useCallback(() => setMessagesHasUnread(true), [setMessagesHasUnread]),
   });
 
-  const fileTransfer: ReturnType<typeof useP2PFileTransfer> = useP2PFileTransfer({ peerCid, peerName });
-  // The one place a drop meets the send path: the same entry the dialog's Send uses. The hook has
-  // already toasted a failure, so the rejection is only swallowed here, not hidden.
-  const sendDroppedFile: (file: File) => void = (file: File): void => { fileTransfer.handleSendFile(file).catch((): void => {}); };
   const connectionRoute: PeerPathReport | null = useConnectionRoute(currentUserCid ?? null, peerCid);
   const supervisor: SupervisorState | null = useSupervisorState(currentUserCid ?? null, peerCid);
   useChatInterest(currentUserCid ?? null, peerCid);
@@ -135,6 +129,7 @@ export function P2PChat({
   // and files need the live link, so those say why they are unavailable.
   const pause: PeerPauseBinding = usePeerPause(peerCid);
   const paused: boolean = pause.status === 'paused';
+  const fileSend: ChatFileSend = useChatFileSend({ peerCid, peerName, viewingDocument: activeTab?.type === 'live_document', paused });
 
   // Mark notifications as read when viewing conversation
   useEffect(() => {
@@ -149,7 +144,7 @@ export function P2PChat({
 
 
   return (
-    <ChatDropTarget className="h-full flex flex-col bg-background" testId="p2p-chat" peerName={peerName} onFile={sendDroppedFile} unavailable={dropUnavailableReason({ viewingDocument: isViewingDocument, paused })}>
+    <ChatDropTarget className="h-full flex flex-col bg-background" testId="p2p-chat" peerName={peerName} {...fileSend.drop}>
       <P2PChatHeader
         peerName={peerName}
         peerUsername={peerUsername ?? peerName}
@@ -212,10 +207,10 @@ export function P2PChat({
               displaySenderName={displaySenderName} displaySenderAvatar={displaySenderAvatar}
               onScroll={handleScroll} onRetryMessage={handleRetryMessage}
               onOpenDocument={handleOpenDocument}
-              onAcceptTransfer={fileTransfer.handleAcceptTransfer}
-              onDeclineTransfer={fileTransfer.handleDeclineTransfer}
-              onCancelTransfer={fileTransfer.handleCancelTransfer}
-              onOpenFile={fileTransfer.handleOpenFile}
+              onAcceptTransfer={fileSend.fileTransfer.handleAcceptTransfer}
+              onDeclineTransfer={fileSend.fileTransfer.handleDeclineTransfer}
+              onCancelTransfer={fileSend.fileTransfer.handleCancelTransfer}
+              onOpenFile={fileSend.fileTransfer.handleOpenFile}
               onEditMessage={onEditMessage ?? handleStartEdit}
               onDeleteMessage={onDeleteMessage ?? handleDeleteMessage}
               onReplyMessage={onReplyMessage ?? handleReplyMessage}
@@ -234,7 +229,7 @@ export function P2PChat({
               showMarkdownPreview={showMarkdownPreview} paused={paused} isSending={isSending}
               onInputChange={setInputMessage} onInputFocus={handleInputFocus}
               onInputBlur={handleInputBlur} onSubmit={handleSendMessage}
-              onFileClick={() => setShowFileModal(true)} onFormat={applyFormat}
+              onFileClick={fileSend.openDialog} onFormat={applyFormat}
               onTogglePreview={() => setShowMarkdownPreview(prev => !prev)}
               onMessageTypeChange={handleMessageTypeChange}
             />
@@ -243,8 +238,7 @@ export function P2PChat({
       </div>
 
       <LiveDocumentModal isOpen={showDocModal} onClose={closeDocModal} onCreateDocument={handleDocCreate} initialContent={inputMessage} />
-      <FileTransferModal isOpen={showFileModal} onClose={() => setShowFileModal(false)} onSendFile={fileTransfer.handleSendFile} peerCid={peerCid.toString()} />
-      <FilePreviewDialog file={fileTransfer.openedFile} isOpen={fileTransfer.openedFile !== null} onClose={fileTransfer.closeOpenedFile} />
+      <ChatFileDialogs send={fileSend} peerCid={peerCid} />
       <ChatSettingsPanel isOpen={showSettingsModal} onClose={() => setShowSettingsModal(false)} peerCid={peerCid.toString()} peerName={peerName} />
     </ChatDropTarget>
   );
