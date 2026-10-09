@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { usePermission } from '@/hooks/use-permission';
 import { Permission } from '@/contexts/PermissionsContext';
 import { addMemberBlockedReason } from './add-member-gate';
+import { BlockedReason } from '@/components/shared/BlockedReason';
 
 interface MembersHeaderActionsProps {
   onDiscover: () => void;
@@ -52,18 +53,20 @@ export function MembersHeaderActions({
       >
         <UserPlus className="h-4 w-4" aria-hidden="true" />
       </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        className={ACTION_CLASS}
-        onClick={onAddMember}
-        disabled={blockedReason !== null}
-        data-testid="add-member-button"
-        aria-label={blockedReason === null ? ADD_MEMBER_LABEL : `${ADD_MEMBER_LABEL} (${blockedReason})`}
-        title={blockedReason ?? ADD_MEMBER_LABEL}
-      >
-        <UserCheck className="h-4 w-4" aria-hidden="true" />
-      </Button>
+      <BlockedReason reason={blockedReason}>
+        <Button
+          variant="ghost"
+          size="icon"
+          className={ACTION_CLASS}
+          onClick={onAddMember}
+          disabled={blockedReason !== null}
+          data-testid="add-member-button"
+          aria-label={blockedReason === null ? ADD_MEMBER_LABEL : `${ADD_MEMBER_LABEL} (${blockedReason})`}
+          title={blockedReason ?? ADD_MEMBER_LABEL}
+        >
+          <UserCheck className="h-4 w-4" aria-hidden="true" />
+        </Button>
+      </BlockedReason>
       <Button
         variant="ghost"
         size="icon"

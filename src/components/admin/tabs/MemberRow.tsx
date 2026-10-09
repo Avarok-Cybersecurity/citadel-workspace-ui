@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { inheritedRemoveReason } from '@/lib/member-access';
 import { isAdminRole } from '@/lib/role-predicate';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
+import { BlockedReason } from '@/components/shared/BlockedReason';
 import {
   Select,
   SelectContent,
@@ -159,18 +160,20 @@ export function MemberRow({
           </Select>
         )}
 
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => onRemove(member)}
-          disabled={removeBlocked !== null}
-          title={removeBlocked ?? `Remove ${member.username}`}
-          aria-label={removeBlocked ?? `Remove ${member.username}`}
-          className="text-destructive hover:text-destructive hover:bg-destructive/15"
-          data-testid={`member-remove-${member.userId}`}
-        >
-          <UserMinus className="h-4 w-4" />
-        </Button>
+        <BlockedReason reason={removeBlocked}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onRemove(member)}
+            disabled={removeBlocked !== null}
+            title={removeBlocked ?? `Remove ${member.username}`}
+            aria-label={removeBlocked ?? `Remove ${member.username}`}
+            className="text-destructive hover:text-destructive hover:bg-destructive/15"
+            data-testid={`member-remove-${member.userId}`}
+          >
+            <UserMinus className="h-4 w-4" />
+          </Button>
+        </BlockedReason>
       </div>
     </div>
   );

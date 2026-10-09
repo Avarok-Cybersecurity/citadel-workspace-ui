@@ -78,6 +78,12 @@ export function SettingsModal({ open, onOpenChange, tab }: SettingsModalProps): 
                 <span className="hidden sm:inline">Perms</span>
               </TabsTrigger>
             </TabsList>
+            {/* The reason these two tabs are dimmed was only a hover title; a phone never showed it. */}
+            {!isConnected && (
+              <p className="mt-2 text-xs text-muted-foreground" data-testid="settings-tabs-need-workspace">
+                Connect and Perms open once you are connected to a workspace.
+              </p>
+            )}
           </div>
 
           <div className="flex-1 overflow-y-auto px-6 pb-6">
