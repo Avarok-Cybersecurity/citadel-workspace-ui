@@ -23,7 +23,7 @@ import { handleTransferRequest, handleTransferResponse } from './async-transfers
 import { ProtocolOfferCorrelator } from './protocol-offer-correlation';
 import { handleTransferCancel } from './p2p-transfers';
 import { openPeerChannelViaAutoConnect } from './open-peer-channel';
-import { agentStagesUploads } from '../agent-conversations/capabilities';
+import { agentNativePicker, agentStagesUploads } from '../agent-conversations/capabilities';
 import { sendQueuePort, wireSendQueue } from './send-queue-io';
 import { requestedShares, settleSharesOnOutcome } from './requested-shares';
 import { sendAgentFile, type AgentFile } from './send-agent-file';
@@ -81,7 +81,7 @@ export class FileTransferService {
       saveTransfer: this.saveTransfer.bind(this),
       saveSettings: this.saveSettings.bind(this),
       openPeerChannel: openPeerChannelViaAutoConnect,
-      agentStagesUploads,
+      agentStagesUploads, agentNativePicker,
       queue: sendQueuePort,
     };
   }

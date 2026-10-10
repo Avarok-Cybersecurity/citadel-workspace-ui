@@ -10,11 +10,11 @@
 import type { InternalServiceRequest, InternalServiceResponse } from 'citadel-workspace-client-ts';
 import { declareOnLeaderSocket, forgetCapabilities, watchGreeting, type Greeting } from '../capabilities';
 
-export async function greetAs(agent: 'older' | boolean): Promise<void> {
+export async function greetAs(agent: 'older' | boolean, extra: Record<string, unknown> = {}): Promise<void> {
   forgetCapabilities();
   const greeting: Greeting = watchGreeting();
   greeting.observe({
-    ServiceConnectionAccepted: agent === 'older' ? { cid: 0n, request_id: null } : { cid: 0n, request_id: null, agent_ilm: agent },
+    ServiceConnectionAccepted: agent === 'older' ? { cid: 0n, request_id: null } : { cid: 0n, request_id: null, agent_ilm: agent, ...extra },
   });
   let extract: (m: InternalServiceResponse) => unknown = () => undefined;
   let settle: (v: unknown) => void = () => undefined;

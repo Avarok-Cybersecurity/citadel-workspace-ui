@@ -21,6 +21,7 @@ import { debugLog } from '@/lib/debug-config';
 import type { Peer, PeerInfoResponse, PeerRegistrationOptions, PendingRequestEntry } from './types';
 import { POLLING_INTERVAL } from './constants';
 import { startPeerPoll, type PeerPoll } from './peer-poll';
+import { followReconnect } from './reconnect-pause';
 import { connectionManager } from '../connection';
 import {
   listAllPeers as doListAllPeers,
@@ -77,12 +78,11 @@ export class P2PRegistrationService {
         handleIncomingRegistration: (notificationCid, peerCid, peerUsername) =>
           doHandleIncomingRegistration(notificationCid, peerCid, peerUsername, this.pendingRequests, this.registeredPeers),
       });
+      if (this.poll) void followReconnect(this.poll, raw, getCurrentCid);
     });
 
-    // Re-sync as soon as the socket is back instead of waiting out the 30s
-    // poll. This listened for 'connection:status-changed', which nothing emits,
-    // so the immediate re-sync never ran. Replays start()'s options, because
-    // re-checking without them would silently drop autoRegisterAll.
+    // Re-sync as soon as the socket is back, not after the 30s poll (replays start()'s options:
+    // re-checking without them would drop autoRegisterAll).
     eventEmitter.on('on-ws-connection-success', async () => {
       if (!this.isRunning) return;
       await this.poll?.runNow();

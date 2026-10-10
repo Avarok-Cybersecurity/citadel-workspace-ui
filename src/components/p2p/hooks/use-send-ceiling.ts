@@ -8,7 +8,7 @@
  * and a failed question is said.
  */
 import { useEffect, useState } from 'react';
-import { agentStagesUploads } from '@/lib/agent-conversations/capabilities';
+import { agentNativePicker, agentStagesUploads } from '@/lib/agent-conversations/capabilities';
 import { TIMEOUT } from '@/lib/timeout-constants';
 
 /** The agent's answer, or a failure once the agent has had as long as a session request. */
@@ -21,6 +21,8 @@ function askBounded(): Promise<boolean> {
 
 export interface SendCeiling {
   stagesUploads: boolean | null;
+  /** Whether the agent can open a native file dialog: undefined until it says, and if it never does. */
+  nativePicker?: boolean;
   /** Why the agent could not be asked, or null. */
   failure: string | null;
 }
@@ -35,13 +37,18 @@ export function useSendCeiling(isOpen: boolean): SendCeiling {
     setCeiling({ stagesUploads: null, failure: null });
     if (!isOpen) return (): void => { live = false; };
     askBounded().then(
-      (stages: boolean): void => { if (live) setCeiling({ stagesUploads: stages, failure: null }); },
+      (stages: boolean): void => { if (live) setCeiling((c: SendCeiling): SendCeiling => ({ ...c, stagesUploads: stages, failure: null })); },
       (error: unknown): void => {
         if (!live) return;
         const why: string = error instanceof Error ? error.message : String(error);
         // Known to be unknown: the inline route is the one every agent takes.
-        setCeiling({ stagesUploads: false, failure: `Could not ask your Citadel agent how large a file it takes (${why}); assuming 16 MB. Close and reopen this dialog to ask again.` });
+        setCeiling((c: SendCeiling): SendCeiling => ({ ...c, stagesUploads: false, failure: `Could not ask your Citadel agent how large a file it takes (${why}); assuming 16 MB. Close and reopen this dialog to ask again.` }));
       },
+    );
+    // Asked on its own: unknown stays unknown (offered, as before) however long the agent takes.
+    agentNativePicker().then(
+      (nativePicker: boolean | undefined): void => { if (live) setCeiling((c: SendCeiling): SendCeiling => ({ ...c, nativePicker })); },
+      (): void => undefined,
     );
     return (): void => { live = false; };
   }, [isOpen]);
