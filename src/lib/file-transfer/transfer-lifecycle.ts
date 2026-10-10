@@ -29,6 +29,8 @@ export interface LifecycleDeps {
   queue: SendQueuePort;
   /** Whether the agent stages browser files (its greeting); decides the ceiling. */
   agentStagesUploads: () => Promise<boolean>;
+  /** Whether the agent can open a native file dialog (its greeting); absent means not asked. */
+  agentNativePicker?: () => Promise<boolean | undefined>;
 }
 
 export async function sendFile(

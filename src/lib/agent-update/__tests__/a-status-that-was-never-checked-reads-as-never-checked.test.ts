@@ -6,7 +6,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import type { UpdateStatus } from 'citadel-internal-service-wasm-client';
-import { versionLine } from '@/components/settings/AgentUpdateRow';
+import { versionLine } from '../version-line';
 import { fromStatus } from '../update-state';
 
 /** What serde-wasm-bindgen delivers for `last_checked: None, last_error: None`. */
