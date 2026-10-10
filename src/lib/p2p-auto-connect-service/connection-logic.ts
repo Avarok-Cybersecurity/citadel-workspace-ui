@@ -16,7 +16,7 @@ import type { AutoConnectState } from './state';
 import { BASE_DELAY_MS, MAX_DELAY_MS, POLL_INTERVAL_MS } from './constants';
 import { getCurrentCid } from './cid-resolver';
 import { refreshFromBackend, refreshOnlineStatus } from './polling';
-import { supervisedByAgent } from '../agent-supervisor/supervised';
+import { keepThroughAgent, supervisedByAgent } from '../agent-supervisor/supervised';
 import type { PeerConnectionInfo, ConnectionAttempt } from '@/lib/p2p-auto-connect/types';
 
 /**
@@ -39,12 +39,6 @@ export async function connectToPeer(
     return;
   }
 
-  // The supervising agent is the only dialler: no dial, and no retry left behind.
-  if (await supervisedByAgent()) {
-    state.cancelRetry(peerCid);
-    return;
-  }
-
   const currentCid: bigint | null = await getCurrentCid();
   if (!currentCid) {
     debugLog('P2PAutoConnectService', 'connectToPeer: ABORT - no currentCid');
@@ -60,6 +54,13 @@ export async function connectToPeer(
   // again; the periodic poll re-asks an unreadable record.
   if (await dialIsBlocked(currentCid, peerCid)) {
     debugLog('P2PAutoConnectService', `connectToPeer: SKIP - ${peerCid.toString().slice(0, 8)}... is paused`);
+    state.cancelRetry(peerCid);
+    return;
+  }
+
+  // The supervising agent is the only dialler: it is told the peer is wanted (a peer
+  // registered a moment ago is otherwise never dialled), and no retry is left behind.
+  if (await keepThroughAgent(currentCid, peerCid)) {
     state.cancelRetry(peerCid);
     return;
   }
