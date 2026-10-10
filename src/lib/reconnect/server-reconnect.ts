@@ -1,4 +1,5 @@
 import type { AgentReconnectEvent } from '@/types/agent-reconnect';
+import type { AdmissionReason } from '@/lib/admission/refusal';
 import { accountLinkPath } from '@/lib/onboarding/account-link';
 import { createValueStore, type ValueStore } from '@/lib/value-store';
 
@@ -57,7 +58,19 @@ function plainReason(reason: string | null): string | null {
   return text;
 }
 
-function signInMessage(server: string, reason: string | null): string {
+/**
+ * A reconnect the workspace's verification check refused cannot come back by itself: the
+ * agent cannot show the check. Say that, so the user knows the sign-in will ask for it.
+ */
+function admissionMessage(server: string, reasonCode: AdmissionReason): string {
+  const why: string = reasonCode === 'admission_required'
+    ? `${server} now asks for a verification check before you sign in`
+    : `${server}'s verification check did not accept the reconnect`;
+  return `${why}. Sign in again and complete the check to continue.`;
+}
+
+function signInMessage(server: string, reason: string | null, reasonCode: AdmissionReason | null): string {
+  if (reasonCode !== null) return admissionMessage(server, reasonCode);
   const plain: string | null = plainReason(reason);
   const why: string = plain === null ? '' : ` (${plain})`;
   return `Couldn't reconnect to ${server}${why}. Sign in again to continue.`;
@@ -66,8 +79,8 @@ function signInMessage(server: string, reason: string | null): string {
 /** Where to send the user, and what to tell them, for a session that cannot come back. */
 export interface SignInAfterLoss { path: string; message: string }
 
-export function signInAfterLoss(username: string, server: string, reason: string | null): SignInAfterLoss {
-  return { path: accountLinkPath({ username, server }), message: signInMessage(server, reason) };
+export function signInAfterLoss(username: string, server: string, reason: string | null, reasonCode: AdmissionReason | null): SignInAfterLoss {
+  return { path: accountLinkPath({ username, server }), message: signInMessage(server, reason, reasonCode) };
 }
 
 export async function handleServerReconnectEvent(event: AgentReconnectEvent, io: ServerReconnectIO): Promise<void> {
@@ -90,6 +103,7 @@ export async function handleServerReconnectEvent(event: AgentReconnectEvent, io:
   // Failed, or lost with the agent not retrying at all: either way this
   // session is gone and only signing in again brings it back.
   const reason: string | null = event.kind === 'failed' ? event.reason : null;
-  const signIn: SignInAfterLoss = signInAfterLoss(own.username, own.server, reason);
+  const reasonCode: AdmissionReason | null = event.kind === 'failed' ? event.reasonCode : null;
+  const signIn: SignInAfterLoss = signInAfterLoss(own.username, own.server, reason, reasonCode);
   io.signInAgain(signIn.path, signIn.message);
 }
