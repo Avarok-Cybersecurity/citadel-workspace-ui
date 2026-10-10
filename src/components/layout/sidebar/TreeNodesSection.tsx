@@ -159,8 +159,8 @@ export function TreeNodesSection({
   if (!isLoading && !treeData) {
     return (
       <SidebarGroup data-testid="hierarchy-section" className="flex-shrink-0 min-h-[4rem] mb-4">
-        <div className="flex items-center justify-between px-3 mb-2">
-          <SidebarGroupLabel className="text-primary-accent font-semibold m-0 px-0">
+        <div className="flex items-center justify-between gap-2 px-3 mb-2">
+          <SidebarGroupLabel className="text-primary-accent font-semibold m-0 px-0 min-w-0 shrink truncate" title={title}>
             {title}
           </SidebarGroupLabel>
           {onNodeCreate && <AddNodeButton onClick={handleCreateRoot} blockedReason={createBlockedReason} testId="add-root-node-button" />}
@@ -190,8 +190,8 @@ export function TreeNodesSection({
   return (
     <>
       <SidebarGroup data-testid="hierarchy-section" className="flex-shrink-0 min-h-[4rem] mb-4">
-        <div className="flex items-center justify-between px-3 mb-2">
-          <SidebarGroupLabel className="text-primary-accent font-semibold m-0 px-0">
+        <div className="flex items-center justify-between gap-2 px-3 mb-2">
+          <SidebarGroupLabel className="text-primary-accent font-semibold m-0 px-0 min-w-0 shrink truncate" title={title}>
             {title}
           </SidebarGroupLabel>
           {onNodeCreate && <AddNodeButton onClick={handleCreateRoot} blockedReason={createBlockedReason} testId="add-node-button" />}

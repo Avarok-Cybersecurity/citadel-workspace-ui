@@ -16,7 +16,7 @@ import { useSelfName } from '@/hooks/use-self-name';
 import { type MemberDisplay } from './MemberListItem';
 import { UserProfileCard } from './UserProfileCard';
 import { ConnectionRequestDialog } from './ConnectionRequestDialog';
-import WorkspaceService from '@/lib/workspace-service';
+import { useDomainMembers } from '@/hooks/use-domain-members';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useRegisteredPeers } from '@/hooks';
 import { usePeerDiscovery  , type Peer } from '@/components/p2p/usePeerDiscovery';
@@ -38,11 +38,9 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
   // Request member list on mount
   const [searchParams] = useSearchParams();
   const domainIdParam: string | undefined = searchParams.get('nodeId') || state.workspace?.id;
-  useEffect(() => {
-    debugLog('UserDirectory', 'Requesting member list for domain:', domainIdParam);
-    WorkspaceService.listMembers(domainIdParam || undefined)
-      .catch(err => debugLog('UserDirectory', 'Failed to load members:', err));
-  }, [domainIdParam]);
+  // The request, and whether the answer has arrived: `listMembers` resolves when the request is
+  // SENT, so "no members" before the reply is not a fact about the workspace.
+  const { isLoadingMembers, membersUnavailable } = useDomainMembers(domainIdParam ?? null);
 
   // This tab's account, from the one reader the top bar uses; state.currentUser is unset on resumed tabs.
   const { username: selfUsername, cid: selfCid } = useSelfName();
@@ -81,6 +79,9 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
     lastActive: undefined,
   // eslint-disable-next-line react-hooks/exhaustive-deps -- presenceVersion is the re-read trigger
   })), [state.members, registeredPeers, presenceVersion, selfUsername, selfCid]);
+
+  // Only an EMPTY list is unknown while the reply is in flight; one already in hand is shown as it is.
+  const awaitingMembers: boolean = isLoadingMembers && allMembers.length === 0;
 
   const filteredMembers: MemberDisplay[] = allMembers.filter(member => {
     // `=== true`: a member whose presence nobody has reported is not evidence
@@ -186,7 +187,7 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
               <div>
                 <CardTitle as="h2">Workspace Directory</CardTitle>
                 <CardDescription className="text-muted-foreground">
-                  {filteredMembers.length} {tab === 'online' ? 'online ' : ''}members
+                  {awaitingMembers ? 'Loading members…' : `${filteredMembers.length} ${tab === 'online' ? 'online ' : ''}members`}
                 </CardDescription>
               </div>
             </CardHeader>
@@ -205,6 +206,8 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
                     tab={tabValue as 'all' | 'online'}
                     members={filteredMembers}
                     totalMembers={allMembers.length}
+                    loading={awaitingMembers}
+                    unavailable={membersUnavailable}
                     presenceUnknown={allMembers.filter((m: MemberDisplay): boolean => m.isOnline === null).length}
                     onSendMessage={handleSendMessage}
                     onInvite={handleInviteUser}

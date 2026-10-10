@@ -66,7 +66,7 @@ export function VFSToolbar({
       <div className="flex items-center gap-1 text-sm text-foreground/80 overflow-x-auto min-w-0 flex-1">
         <button
           onClick={() => onNavigate('/')}
-          className="hover:text-foreground flex items-center gap-1 shrink-0"
+          className="tap-target hover:text-foreground flex items-center gap-1 shrink-0"
           data-testid="vfs-breadcrumb-root"
         >
           <Home className="h-4 w-4" />
@@ -79,7 +79,7 @@ export function VFSToolbar({
               <ChevronRight className="h-3 w-3 text-muted-foreground" />
               <button
                 onClick={() => onNavigate(path)}
-                className="hover:text-foreground"
+                className="tap-target hover:text-foreground"
               >
                 {seg}
               </button>

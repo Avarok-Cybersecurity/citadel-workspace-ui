@@ -47,7 +47,7 @@ vi.mock('@/hooks', async (importOriginal) => {
   return {
     ...actual,
     useRegisteredPeers: (): unknown => ({ registeredPeers: peers.current }),
-    useConversationPeers: (): unknown => ({ peersWithConversations: conversations.current }),
+    useConversationPeers: (): unknown => ({ peersWithConversations: conversations.current, conversationsLoaded: true }),
     useGroupConversations: (): unknown => ({ groups: groups.current, createGroup: vi.fn() }),
     useEventListener: (): void => undefined,
   };

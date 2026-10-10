@@ -19,8 +19,9 @@ import { UserPlus, UserX, Loader2, Clock } from 'lucide-react';
 import { peerRegistrationStore, PendingPeerRequest } from '@/lib/peer-registration-store';
 import { useToast, useEventListener } from '@/hooks';
 import { debugLog } from '@/lib/debug-config';
-import { peerDisplayName, peerInitials } from '@/lib/peer-display';
+import { peerDisplayName, peerHandleName } from '@/lib/peer-display';
 import { formatRelative } from '@/lib/format-time';
+import { MemberAvatar } from '@/components/shared/MemberAvatar';
 
 interface PendingRequestsModalProps {
   isOpen: boolean;
@@ -117,9 +118,7 @@ export const PendingRequestsModal: React.FC<PendingRequestsModalProps> = ({
                   className="flex items-center justify-between p-4 rounded-lg bg-card hover:bg-surface transition-colors"
                 >
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold">
-                      {peerInitials({ cid: request.peer_cid, username: request.peer_username })}
-                    </div>
+                    <MemberAvatar username={peerHandleName({ cid: request.peer_cid, username: request.peer_username })} name={peerDisplayName({ cid: request.peer_cid, username: request.peer_username })} className="h-10 w-10 text-sm" />
                     <div>
                       <p className="font-medium text-foreground">
                         {peerDisplayName({ cid: request.peer_cid, username: request.peer_username })}

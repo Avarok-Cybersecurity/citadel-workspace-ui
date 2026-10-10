@@ -7,9 +7,11 @@
  * classes that decide spacing are the shipped ones. What a scenario fakes is its INPUT (a
  * roster, a message list), never the component.
  */
-import { createServer } from 'vite';
+import { build, preview } from 'vite';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import react from '@vitejs/plugin-react-swc';
-import { dirname, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -19,12 +21,20 @@ export const APP_ROOT = resolve(HERE, '..', '..', '..');
 const WASM_STUB = '\0wasm-stub';
 const stubWasmClient = () => ({
   name: 'stub-wasm-client',
-  resolveId: (id) => (id.includes('citadel_internal_service_wasm_client') ? { id: WASM_STUB, moduleSideEffects: false } : undefined),
+  resolveId: (id) => (/citadel[-_]internal[-_]service[-_]wasm[-_]client/.test(id) ? { id: WASM_STUB, moduleSideEffects: false } : undefined),
   load: (id) => (id === WASM_STUB ? 'export default {}' : undefined),
 });
 
+/**
+ * Built once, then served as static files. A dev server transforms modules on first request and keeps an HMR
+ * socket open; a page whose first render raced either one came up blank (its socket failed at ~90 ms, the vite
+ * client polled for a "restart" and reloaded the page under the measurement, aborting its module loads), and
+ * only a later, clean page rendered. A built bundle has neither a compile to race nor a socket to lose, so the
+ * first render is the only render.
+ */
 export async function serveHarness(port) {
-  const server = await createServer({
+  const outDir = mkdtempSync(join(tmpdir(), 'polish-harness-'));
+  await build({
     root: HERE,
     configFile: false,
     logLevel: 'error',
@@ -37,8 +47,11 @@ export async function serveHarness(port) {
         'virtual:pwa-register': resolve(APP_ROOT, 'src/test/pwa-register-stub.ts'),
       },
     },
-    server: { port, strictPort: true, fs: { allow: [APP_ROOT] } },
+    build: { outDir, emptyOutDir: true, minify: false, chunkSizeWarningLimit: 100_000 },
   });
-  await server.listen();
-  return { origin: `http://localhost:${port}`, close: () => server.close() };
+  const server = await preview({ root: HERE, configFile: false, logLevel: 'error', build: { outDir }, preview: { port, strictPort: true } });
+  return {
+    origin: `http://localhost:${port}`,
+    close: async () => { await server.close(); rmSync(outDir, { recursive: true, force: true }); },
+  };
 }

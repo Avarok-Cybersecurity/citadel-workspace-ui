@@ -35,6 +35,7 @@ export function RingingCall(): JSX.Element | null {
   return (
     <IncomingCallCard
       callerName={callerName}
+      callerUsername={caller.username}
       media={caller.media}
       roomName={roomId ? roomNameFor(roomId, channels, groups) : null}
       onAccept={(media) => void accept(media)}

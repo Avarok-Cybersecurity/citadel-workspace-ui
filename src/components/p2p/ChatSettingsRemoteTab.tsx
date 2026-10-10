@@ -3,7 +3,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Info, Shield } from 'lucide-react';
 import { REVFS_DEFAULT_QUOTA_BYTES } from '@/types/messaging-layer';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { HelpHint } from '@/components/shared/HelpHint';
 import type { FileTransferSettings } from '@/lib/file-transfer';
 
 interface ChatSettingsRemoteTabProps {
@@ -22,24 +22,17 @@ export function ChatSettingsRemoteTab({
 }: ChatSettingsRemoteTabProps): JSX.Element {
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between p-4 rounded-lg bg-surface/50">
-        <div className="space-y-0.5">
+      <div className="flex items-center justify-between gap-4 p-4 rounded-lg bg-surface/50">
+        <div className="min-w-0 space-y-0.5">
           <div className="flex items-center gap-2">
             <Label htmlFor="allow-revfs" className="text-sm font-medium">
               Allow {peerName} to store files on your device
             </Label>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Shield className="h-4 w-4 text-success-emphasis cursor-help" />
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs bg-background border-surface text-foreground">
-                <p className="text-sm">
-                  <strong>Post-Quantum Secure:</strong> When you allow storage, you become a
-                  blind host. Files are encrypted with post-quantum algorithms — you cannot
-                  view or decrypt their contents. Only the file owner has the keys.
-                </p>
-              </TooltipContent>
-            </Tooltip>
+            <HelpHint topic="storing files for this peer">
+              <strong>Post-Quantum Secure:</strong> When you allow storage, you become a
+              blind host. Files are encrypted with post-quantum algorithms — you cannot
+              view or decrypt their contents. Only the file owner has the keys.
+            </HelpHint>
           </div>
           <p className="text-xs text-muted-foreground">Provide encrypted storage space for this peer</p>
         </div>
@@ -52,7 +45,7 @@ export function ChatSettingsRemoteTab({
       </div>
 
       <div className={`space-y-3 p-4 rounded-lg bg-surface/50 ${!settings.allowRevfsStorage ? 'opacity-50' : ''}`}>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <Label htmlFor="storage-quota-for-peername" className="text-sm font-medium">Storage quota for {peerName}</Label>
           <span className="text-sm text-primary-accent font-medium" data-testid="revfs-quota-value">{revfsQuotaMb} MB</span>
         </div>

@@ -106,29 +106,29 @@ export function VFSPropertiesDialog({
 
         <div className="space-y-4 text-sm">
           {/* Type */}
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Type:</span>
+          <div className="flex justify-between gap-4">
+            <span className="shrink-0 text-muted-foreground">Type:</span>
             <span>{isDir ? 'Folder' : (meta?.fileType || 'File')}</span>
           </div>
 
           {/* Path */}
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Location:</span>
-            <span className="truncate max-w-[250px]" title={node.path}>{node.path}</span>
+          <div className="flex justify-between gap-4">
+            <span className="shrink-0 text-muted-foreground">Location:</span>
+            <span className="min-w-0 truncate max-w-[250px]" title={node.path}>{node.path}</span>
           </div>
 
           {/* Size (for files) */}
           {meta && (
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Size:</span>
+            <div className="flex justify-between gap-4">
+              <span className="shrink-0 text-muted-foreground">Size:</span>
               <span>{formatBytes(meta.fileSize)}</span>
             </div>
           )}
 
           {/* Item count (for directories) */}
           {itemCounts && (
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Contains:</span>
+            <div className="flex justify-between gap-4">
+              <span className="shrink-0 text-muted-foreground">Contains:</span>
               <span>
                 {itemCounts.folders > 0 && `${itemCounts.folders} folder${itemCounts.folders !== 1 ? 's' : ''}`}
                 {itemCounts.folders > 0 && itemCounts.files > 0 && ', '}
@@ -140,8 +140,8 @@ export function VFSPropertiesDialog({
 
           {/* State (for files with state) */}
           {state && StateIcon && (
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">State:</span>
+            <div className="flex justify-between items-center gap-4">
+              <span className="shrink-0 text-muted-foreground">State:</span>
               <span className="flex items-center gap-2">
                 <StateIcon className="h-4 w-4" />
                 {state.label}
@@ -150,21 +150,21 @@ export function VFSPropertiesDialog({
           )}
 
           {/* Created */}
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Created:</span>
+          <div className="flex justify-between gap-4">
+            <span className="shrink-0 text-muted-foreground">Created:</span>
             <span>{formatDate(node.createdAt)}</span>
           </div>
 
           {/* Modified */}
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Modified:</span>
+          <div className="flex justify-between gap-4">
+            <span className="shrink-0 text-muted-foreground">Modified:</span>
             <span>{formatDate(node.updatedAt)}</span>
           </div>
 
           {/* File ID (for files) */}
           {meta?.fileId && (
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">File ID:</span>
+            <div className="flex justify-between gap-4">
+              <span className="shrink-0 text-muted-foreground">File ID:</span>
               <span className="truncate max-w-[200px] text-xs text-muted-foreground" title={meta.fileId}>
                 {meta.fileId}
               </span>

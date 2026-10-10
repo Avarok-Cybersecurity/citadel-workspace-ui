@@ -24,9 +24,8 @@ import {
 } from '@/components/ui/select';
 import type { GroupRole } from '@/types/group';
 import type { SelectedMember } from './create-group-types';
-import { avatarColor } from '@/lib/avatar-color';
-import { peerDisplayName } from '@/lib/peer-display';
-import { initialsOf } from '@/lib/initials';
+import { MemberAvatar } from '@/components/shared/MemberAvatar';
+import { peerDisplayName, peerHandleName } from '@/lib/peer-display';
 
 
 
@@ -67,19 +66,14 @@ export function MembersTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {selectedMembers.map((member, index) => (
+          {selectedMembers.map((member) => (
             <TableRow
               key={member.cid}
               className="border-border hover:bg-surface"
             >
               <TableCell className="py-2">
                 <div className="flex items-center gap-2">
-                  <div
-                    className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium text-foreground"
-                    style={{ backgroundColor: avatarColor(index) }}
-                  >
-                    {initialsOf(peerDisplayName(member))}
-                  </div>
+                  <MemberAvatar username={peerHandleName(member)} name={peerDisplayName(member)} />
                   <span className="text-sm text-foreground">{peerDisplayName(member)}</span>
                 </div>
               </TableCell>

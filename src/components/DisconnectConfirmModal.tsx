@@ -10,8 +10,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Loader2, AlertTriangle } from "lucide-react";
+import { MemberAvatar } from "@/components/shared/MemberAvatar";
 import type { ActiveSession } from "@/types/session-types";
-import { initialsOf } from '@/lib/initials';
 
 export type DisconnectAction = "disconnect" | "deregister";
 
@@ -83,9 +83,7 @@ export const DisconnectConfirmModal = ({
 
         <div className="my-4 p-4 bg-input rounded-lg border border-border">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-primary text-primary-foreground font-semibold">
-              {initialsOf(session.full_name || session.username)}
-            </div>
+            <MemberAvatar username={session.username} name={session.full_name || session.username} className="h-10 w-10 text-sm" />
             <div>
               <div className="font-medium text-foreground">
                 {session.full_name || session.username}

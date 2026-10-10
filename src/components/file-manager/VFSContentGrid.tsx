@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import { cn } from "@/lib/utils";
 import { findNodeByPath, type SortField, type SortDirection } from "./vfs-content-helpers";
 import { useVFSKeyboardShortcuts } from "./useVFSKeyboardShortcuts";
-import { activateOnKey } from '@/lib/a11y';
 
 export type { SortField, SortDirection };
 
@@ -166,9 +165,11 @@ export function VFSContentGrid({
       <div
         className={cn("flex-1 overflow-y-auto p-4", rootDragOver && "bg-success/10")}
         onClick={handleBackgroundClick}
-        role="button"
-        tabIndex={0}
-        onKeyDown={activateOnKey(handleBackgroundClick)}
+        // A pointer convenience (click the empty space to clear the selection), not a control: Escape
+        // does the same from the keyboard (vfs-shortcuts 'clear'). As role="button" it held every file
+        // in the grid as a nested interactive child, which assistive tech cannot present.
+        role="presentation"
+        tabIndex={-1}
         onDragOver={onRootDragOver} onDragLeave={() => setRootDragOver(false)} onDrop={onRootDrop}
       >
         <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2">

@@ -1,5 +1,6 @@
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BlockedReason } from '@/components/shared/BlockedReason';
 import { permits, type UsePermissionResult } from "@/hooks/use-permission-result";
 
 const NO_TREE_EDIT: string = 'You do not have permission to add offices or rooms here. An administrator can grant it.';
@@ -31,10 +32,11 @@ interface AddNodeButtonProps {
  */
 export function AddNodeButton({ onClick, blockedReason, testId }: AddNodeButtonProps): JSX.Element {
   return (
+    <BlockedReason reason={blockedReason}>
     <Button
       variant="ghost"
       size="icon"
-      className="tap-target h-6 w-6 text-primary-accent hover:bg-primary-accent/15 hover:text-foreground disabled:opacity-40"
+      className="tap-target h-6 w-6 shrink-0 text-primary-accent hover:bg-primary-accent/15 hover:text-foreground disabled:opacity-40"
       onClick={onClick}
       disabled={blockedReason !== null}
       data-testid={testId}
@@ -43,5 +45,6 @@ export function AddNodeButton({ onClick, blockedReason, testId }: AddNodeButtonP
     >
       <Plus className="h-4 w-4" />
     </Button>
+    </BlockedReason>
   );
 }

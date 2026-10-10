@@ -1,8 +1,7 @@
 import { AlertCircle, PhoneOff } from 'lucide-react';
 import { callFailureDetail, type CallFailureDetail } from '@/lib/call/call-failure-detail';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { Button } from '@/components/ui/button';
-import { getInitials } from '@/components/chat/shared/formatters';
 import { useRosterName } from './use-roster-name';
 import type { CallParticipant, CallState } from '@/lib/call/call-state';
 
@@ -56,11 +55,7 @@ export function OutgoingCallPanel({
           aria-hidden="true"
           className="absolute inset-0 rounded-full border-2 border-primary-accent motion-safe:animate-ring-pulse motion-safe:[animation-delay:1.2s]"
         />
-        <Avatar className="h-16 w-16 ring-2 ring-primary-accent/70">
-          <AvatarFallback className="bg-card text-lg text-foreground">
-            {getInitials(calleeName)}
-          </AvatarFallback>
-        </Avatar>
+        <MemberAvatar username={first?.username ?? calleeName} name={calleeName} className="h-16 w-16 text-lg ring-2 ring-primary-accent/70" />
       </div>
       <div className="text-center">
         <p className="text-sm font-medium text-foreground">{title}</p>

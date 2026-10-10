@@ -40,17 +40,17 @@ function member(cid: bigint, username: string): GroupMemberWithRole {
 
 describe('a group member', () => {
   it('is the roster name, not the stored login name', () => {
-    render(<GroupMemberIdentity member={member(555n, 'alice0924')} index={0} isOwner />);
+    render(<GroupMemberIdentity member={member(555n, 'alice0924')} isOwner />);
     expect(screen.getByTestId('group-member-name-555')).toHaveTextContent('Alice Anders');
   });
 
   it('whose record stored their CID is named from the roster by CID', () => {
-    render(<GroupMemberIdentity member={member(BOB, BOB.toString())} index={1} isOwner={false} />);
+    render(<GroupMemberIdentity member={member(BOB, BOB.toString())} isOwner={false} />);
     expect(screen.getByTestId(`group-member-name-${BOB}`)).toHaveTextContent('Bob Brown');
   });
 
   it('the roster does not know is a handle, never a CID', () => {
-    render(<GroupMemberIdentity member={member(4242424242424242n, '4242424242424242')} index={2} isOwner={false} />);
+    render(<GroupMemberIdentity member={member(4242424242424242n, '4242424242424242')} isOwner={false} />);
     const shown: string = screen.getByTestId('group-member-name-4242424242424242').textContent ?? '';
     expect(shown).toMatch(/^Peer /);
     expect(shown).not.toContain('4242424242424242');

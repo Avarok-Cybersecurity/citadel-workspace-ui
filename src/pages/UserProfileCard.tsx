@@ -1,4 +1,5 @@
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -6,7 +7,6 @@ import { MessageCircle, Mail, UserPlus, Clock, UserX, User, Search, AlertCircle,
 import { formatPresence } from '@/lib/date-utils';
 import type { UserData } from '@/components/user/UserSearch';
 import { getRoleBadgeClass } from './MemberListItem';
-import { initialsOf } from '@/lib/initials';
 
 interface UserProfileCardProps {
   selectedUser: UserData | null;
@@ -65,14 +65,9 @@ export function UserProfileCard({
           <UserX className="h-4 w-4" />
         </Button>
         <div className="flex flex-col items-center">
-          <Avatar className="h-20 w-20 mb-4 relative">
-            {/* Decorative: the card's heading is this person's name. */}
-            <AvatarImage src={selectedUser.avatarUrl} alt="" />
-            <AvatarFallback className="bg-primary text-xl">{initialsOf(selectedUser.displayName)}</AvatarFallback>
-            {selectedUser.isOnline && (
-              <span className="absolute bottom-0 right-0 block h-3.5 w-3.5 rounded-full bg-success ring-2 ring-card" />
-            )}
-          </Avatar>
+          <div className="mb-4">
+            <MemberAvatar username={selectedUser.id} name={selectedUser.displayName} className="h-20 w-20 text-xl" online={selectedUser.isOnline === true} />
+          </div>
           <CardTitle className="text-xl mb-1">{selectedUser.displayName}</CardTitle>
           {selectedUser.role && (
             <Badge className={`mb-2 ${getRoleBadgeClass(selectedUser.role)}`}>

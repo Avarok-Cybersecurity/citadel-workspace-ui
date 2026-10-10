@@ -214,19 +214,24 @@ export async function applyGroupInvite(
     // member list never fires, their callable roster stays empty, and group
     // calls remain disabled. The local commit above stays optimistic; the
     // member-state broadcast this triggers is the reconciliation.
+    let serverConfirmed: boolean = true;
     try {
       const { sendGroupRespond } = await import(
         '@/lib/group-conversations/group-requests'
       );
       await sendGroupRespond(data.groupId, data.inviterId, true);
     } catch (e) {
+      serverConfirmed = false;
       // The group still exists locally and P2P chat routing still works; what
       // is lost is server-side membership, which the settings panel's invite
       // path can re-establish. Losing the whole invite over it would be worse.
       debugLog('UseGroupConversations', 'Backend group acceptance failed:', e);
     }
     // The invitation itself was announced when it arrived; see bind-group-invites.
-    toast({ title: 'Joined group', description: `You joined "${inviteGroupLabel(data)}"` });
+    // Only claim the join when the server took it: a swallowed failure used to end in this same toast.
+    toast(serverConfirmed
+      ? { title: 'Joined group', description: `You joined "${inviteGroupLabel(data)}"` }
+      : { title: 'Joined here, not confirmed', description: `"${inviteGroupLabel(data)}" is open on this device, but the server did not confirm your join, so group calls stay unavailable. Ask the inviter to add you again if it does not settle.`, variant: 'destructive' });
   } catch (e) {
     // The inviter / inviteUsername fields come straight from the
     // network event, so an unexpected throw most often means the

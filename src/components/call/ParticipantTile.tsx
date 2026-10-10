@@ -1,9 +1,8 @@
 import { hasAnswered } from '@/lib/call/participant-presence';
 import { useEffect, useRef , type RefObject } from 'react';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { MicOff, SignalLow, SignalMedium, Volume2, WifiOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { getInitials } from '@/components/chat/shared/formatters';
 import type { CallParticipant } from '@/lib/call/call-state';
 import { useRosterName } from './use-roster-name';
 
@@ -85,11 +84,7 @@ export function ParticipantTile({ participant, stream, isSelf, quality = 'good' 
         />
       ) : (
         <div className="flex h-full w-full items-center justify-center">
-          <Avatar className="h-16 w-16">
-            <AvatarFallback className="bg-card text-lg text-foreground">
-              {getInitials(name)}
-            </AvatarFallback>
-          </Avatar>
+          <MemberAvatar username={participant.username} name={name} className="h-16 w-16 text-lg" />
         </div>
       )}
 

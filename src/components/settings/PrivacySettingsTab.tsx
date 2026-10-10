@@ -56,8 +56,8 @@ export function PrivacySettingsTab(): JSX.Element {
           Messaging
         </div>
 
-        <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
-          <div>
+        <div className="flex items-center justify-between gap-4 p-3 rounded-lg bg-background/50">
+          <div className="min-w-0">
             <Label htmlFor="typing-indicators" className="text-sm font-medium">Typing Indicators</Label>
             <p className="text-xs text-muted-foreground">Show when you're typing a message</p>
           </div>
@@ -67,8 +67,8 @@ export function PrivacySettingsTab(): JSX.Element {
           />
         </div>
 
-        <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
-          <div>
+        <div className="flex items-center justify-between gap-4 p-3 rounded-lg bg-background/50">
+          <div className="min-w-0">
             <Label htmlFor="read-receipts" className="text-sm font-medium">Read Receipts</Label>
             <p className="text-xs text-muted-foreground">Let others know when you've read their messages</p>
           </div>
@@ -93,8 +93,8 @@ export function PrivacySettingsTab(): JSX.Element {
           onLocalChange={(v: boolean) => update('acceptRequestsFromStrangers', v)}
         />
 
-        <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
-          <div>
+        <div className="flex items-center justify-between gap-4 p-3 rounded-lg bg-background/50">
+          <div className="min-w-0">
             <Label htmlFor="screenshot-alerts" className="text-sm font-medium">Screenshot Alerts</Label>
             <p className="text-xs text-muted-foreground">Get notified in a chat when the other person may have taken a screenshot.</p>
             <p className="text-xs text-warning-emphasis mt-1">{SCREENSHOT_ALERT_LIMITS}</p>

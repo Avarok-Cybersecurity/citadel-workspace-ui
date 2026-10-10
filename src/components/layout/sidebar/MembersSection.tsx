@@ -58,7 +58,7 @@ export const MembersSection: () => JSX.Element = (): JSX.Element => {
 
   const { groups: groupConversations, createGroup } = useGroupConversations();
   const { registeredPeers } = useRegisteredPeers();
-  const { peersWithConversations } = useConversationPeers({ registeredPeers });
+  const { peersWithConversations, conversationsLoaded } = useConversationPeers({ registeredPeers });
 
   const conversationPeerCids: Set<string> = new Set(peersWithConversations.map(c => c.peerCid));
   const filteredRegisteredPeers: RegisteredPeer[] = registeredPeers.filter(p => !conversationPeerCids.has(p.cid));
@@ -186,7 +186,7 @@ export const MembersSection: () => JSX.Element = (): JSX.Element => {
               {groupConversations.map((group) => (
                 <GroupConversationRow key={group.id} group={group} isActive={group.id === active.groupId} />
               ))}
-              {peersWithConversations.length === 0 && groupConversations.length === 0 && (
+              {conversationsLoaded && peersWithConversations.length === 0 && groupConversations.length === 0 && (
                 <SidebarMenuItem className="px-3 py-2 text-sm text-muted-foreground">
                   No conversations yet. Pick somebody above, or use the button to
                   start a group.

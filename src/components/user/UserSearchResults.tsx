@@ -10,7 +10,7 @@
 
 import React from 'react';
 import { User } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Card,
@@ -21,7 +21,6 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { getRoleBadgeClass , type UserData } from './user-search-types';
-import { initialsOf } from '@/lib/initials';
 
 /**
  * Ties the input to the list it controls via aria-controls/aria-expanded.
@@ -110,14 +109,7 @@ export const UserSearchResults: React.FC<UserSearchResultsProps> = ({
                   onClick={() => onSelectUser(user)}
                 >
                 <div className="flex items-center space-x-3">
-                  <Avatar className="h-10 w-10 relative">
-                    {/* Decorative: displayName is rendered below. */}
-                    <AvatarImage src={user.avatarUrl} alt="" />
-                    <AvatarFallback className="bg-primary">{initialsOf(user.displayName)}</AvatarFallback>
-                    {user.isOnline && (
-                      <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-success ring-2 ring-card" />
-                    )}
-                  </Avatar>
+                  <MemberAvatar username={user.id} name={user.displayName} className="h-10 w-10 text-sm" online={user.isOnline === true} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{user.displayName}</p>
                     {user.email && (

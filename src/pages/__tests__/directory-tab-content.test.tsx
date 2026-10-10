@@ -23,7 +23,7 @@ const handlers: Pick<ComponentProps<typeof DirectoryTabContent>, 'onSendMessage'
 describe('an empty directory tab', () => {
   it('says nobody is online when the workspace has offline members', () => {
     render(
-      <DirectoryTabContent tab="online" members={[]} totalMembers={3} presenceUnknown={0} {...handlers} />,
+      <DirectoryTabContent tab="online" members={[]} totalMembers={3} presenceUnknown={0} loading={false} unavailable={false} {...handlers} />,
     );
 
     expect(screen.getByText(/nobody is online/i)).toBeInTheDocument();
@@ -32,7 +32,7 @@ describe('an empty directory tab', () => {
 
   it('does not call members offline when their presence is not known', () => {
     render(
-      <DirectoryTabContent tab="online" members={[]} totalMembers={5} presenceUnknown={5} {...handlers} />,
+      <DirectoryTabContent tab="online" members={[]} totalMembers={5} presenceUnknown={5} loading={false} unavailable={false} {...handlers} />,
     );
 
     // Live: a member with no contacts saw "Everyone ... is currently offline"
@@ -43,7 +43,7 @@ describe('an empty directory tab', () => {
 
   it('distinguishes an empty workspace from an all-offline one', () => {
     render(
-      <DirectoryTabContent tab="online" members={[]} totalMembers={0} presenceUnknown={0} {...handlers} />,
+      <DirectoryTabContent tab="online" members={[]} totalMembers={0} presenceUnknown={0} loading={false} unavailable={false} {...handlers} />,
     );
 
     // Telling a lone user "everyone is offline" would be a lie about people
@@ -53,7 +53,7 @@ describe('an empty directory tab', () => {
   });
 
   it('tells a user with no members what to do about it', () => {
-    render(<DirectoryTabContent tab="all" members={[]} totalMembers={0} presenceUnknown={0} {...handlers} />);
+    render(<DirectoryTabContent tab="all" members={[]} totalMembers={0} presenceUnknown={0} loading={false} unavailable={false} {...handlers} />);
 
     expect(screen.getByText(/no members yet/i)).toBeInTheDocument();
     expect(screen.getByText(/invite someone/i)).toBeInTheDocument();
@@ -66,12 +66,36 @@ describe('an empty directory tab', () => {
         members={[member('1', true), member('2', false)]}
         totalMembers={2}
         presenceUnknown={0}
-        {...handlers}
+        loading={false} unavailable={false} {...handlers}
       />,
     );
 
     expect(screen.getByText('User 1')).toBeInTheDocument();
     expect(screen.getByText('User 2')).toBeInTheDocument();
     expect(screen.queryByText(/no members yet/i)).not.toBeInTheDocument();
+  });
+});
+
+describe('a directory tab before the member list has answered', () => {
+  it('says it is loading, not that nobody is here', () => {
+    render(<DirectoryTabContent tab="all" members={[]} totalMembers={0} presenceUnknown={0} loading unavailable={false} {...handlers} />);
+
+    // `listMembers` resolves when the request is SENT; the empty state is a statement of fact.
+    expect(screen.getByTestId('directory-loading')).toBeInTheDocument();
+    expect(screen.queryByText(/no members yet/i)).not.toBeInTheDocument();
+  });
+
+  it('says the list could not be loaded when nothing answered, instead of calling the workspace empty', () => {
+    render(<DirectoryTabContent tab="all" members={[]} totalMembers={0} presenceUnknown={0} loading={false} unavailable {...handlers} />);
+
+    expect(screen.getByText(/could not be loaded/i)).toBeInTheDocument();
+    expect(screen.queryByText(/no members yet/i)).not.toBeInTheDocument();
+  });
+
+  it('still shows the members it has while a refresh is in flight', () => {
+    render(<DirectoryTabContent tab="all" members={[member('a', true)]} totalMembers={1} presenceUnknown={0} loading unavailable={false} {...handlers} />);
+
+    expect(screen.getByText('User a')).toBeInTheDocument();
+    expect(screen.queryByTestId('directory-loading')).not.toBeInTheDocument();
   });
 });

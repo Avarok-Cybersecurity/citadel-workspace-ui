@@ -23,11 +23,11 @@ interface ConnectionFactsProps extends ConversationFacts {
 export function ConnectionFacts({ peerCid, firstContact, transferredBytes }: ConnectionFactsProps): JSX.Element {
   return (
     <>
-  <div className="flex items-center justify-between p-3 rounded-lg bg-surface/50">
+  <div className="flex items-center justify-between gap-4 p-3 rounded-lg bg-surface/50">
     <span className="text-sm text-muted-foreground">Peer CID</span>
     <span className="text-sm text-foreground/80 font-mono">{peerCid.slice(0, 16)}...</span>
   </div>
-  <div className="flex items-center justify-between p-3 rounded-lg bg-surface/50">
+  <div className="flex items-center justify-between gap-4 p-3 rounded-lg bg-surface/50">
     {/* "Connection Type" read as live status while being a
         constant. Relabelled to what it actually states: a
         property of the channel, true whether or not the peer is
@@ -36,13 +36,13 @@ export function ConnectionFacts({ peerCid, firstContact, transferredBytes }: Con
     <span className="text-sm text-foreground/80">End-to-end</span>
   </div>
   {firstContact !== null && (
-    <div className="flex items-center justify-between p-3 rounded-lg bg-surface/50" data-testid="fact-first-contact">
+    <div className="flex items-center justify-between gap-4 p-3 rounded-lg bg-surface/50" data-testid="fact-first-contact">
       <span className="text-sm text-muted-foreground">First Contact</span>
       <span className="text-sm text-foreground/80">{formatDay(firstContact)}</span>
     </div>
   )}
   {transferredBytes !== null && (
-    <div className="flex items-center justify-between p-3 rounded-lg bg-surface/50" data-testid="fact-transferred">
+    <div className="flex items-center justify-between gap-4 p-3 rounded-lg bg-surface/50" data-testid="fact-transferred">
       <span className="text-sm text-muted-foreground">Files Transferred (size)</span>
       <span className="text-sm text-foreground/80">{formatBytes(transferredBytes)}</span>
     </div>

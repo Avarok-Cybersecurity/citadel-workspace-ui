@@ -6,18 +6,14 @@
  * - Double check (amber/yellow): Some members have read (partial)
  * - Double check (blue): All members have read
  *
- * Includes tooltip showing who has viewed when not all members have seen it.
+ * Includes a details card showing who has viewed when not all members have seen it.
  */
 
 import { Check, CheckCheck } from 'lucide-react';
 import { GroupMessage, GroupMessageReadBy } from '@/types/workspace-entities';
 import { formatTime } from './shared';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { useId, useState } from 'react';
+import { StatusPanel, StatusTick } from '@/components/shared/StatusDetails';
 
 interface GroupMessageFooterProps {
   message: GroupMessage;
@@ -27,6 +23,12 @@ interface GroupMessageFooterProps {
 }
 
 type ReadStatus = 'sent' | 'partial' | 'all_read';
+
+const READ_STATUS_LABEL: Record<ReadStatus, string> = {
+  sent: 'Sent',
+  partial: 'Seen by some members',
+  all_read: 'Seen by everyone',
+};
 
 export function getReadStatus(message: GroupMessage, totalMembers: number | null): ReadStatus {
   const readBy: GroupMessageReadBy[] = message.read_by || [];
@@ -59,13 +61,13 @@ function getReadStatusIcon(status: ReadStatus): JSX.Element | null {
   }
 }
 
-interface ReadByTooltipContentProps {
+interface ReadByDetailsProps {
   readBy: GroupMessageReadBy[];
   totalMembers: number | null;
   status: ReadStatus;
 }
 
-export function ReadByTooltipContent({ readBy, totalMembers, status }: ReadByTooltipContentProps): JSX.Element {
+export function ReadByDetails({ readBy, totalMembers, status }: ReadByDetailsProps): JSX.Element {
   if (status === 'all_read') {
     return (
       <div className="text-sm">
@@ -119,8 +121,11 @@ export function GroupMessageFooter({ message, isOwn, totalMembers }: GroupMessag
   const readBy: GroupMessageReadBy[] = message.read_by || [];
   const status: ReadStatus = getReadStatus(message, totalMembers);
   const statusIcon: JSX.Element | null = getReadStatusIcon(status);
+  const [detailsOpen, setDetailsOpen] = useState<boolean>(false);
+  const panelId: string = useId();
 
   return (
+    <>
     <div className={`flex items-center gap-1 mt-1 ${isOwn ? 'justify-end' : 'justify-start'}`}>
       <span className="text-xs opacity-70" data-testid="message-timestamp">
         {formatTime(message.timestamp)}
@@ -129,27 +134,19 @@ export function GroupMessageFooter({ message, isOwn, totalMembers }: GroupMessag
         <span className="text-xs text-muted-foreground italic">(edited)</span>
       )}
       {isOwn && statusIcon && (
-        <TooltipProvider delayDuration={300}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="cursor-help inline-flex">
-                {statusIcon}
-              </span>
-            </TooltipTrigger>
-            <TooltipContent
-              side="top"
-              className="bg-background border-border p-3"
-            >
-              <ReadByTooltipContent
-                readBy={readBy}
-                totalMembers={totalMembers}
-                status={status}
-              />
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <StatusTick label={READ_STATUS_LABEL[status]} open={detailsOpen} onToggle={() => setDetailsOpen(!detailsOpen)} panelId={panelId}>
+          {statusIcon}
+        </StatusTick>
       )}
     </div>
+    {isOwn && statusIcon && detailsOpen && (
+      <div className="flex justify-end">
+        <StatusPanel id={panelId}>
+          <ReadByDetails readBy={readBy} totalMembers={totalMembers} status={status} />
+        </StatusPanel>
+      </div>
+    )}
+    </>
   );
 }
 

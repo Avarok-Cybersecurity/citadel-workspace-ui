@@ -48,8 +48,8 @@ export function NotificationPreviewRow(): JSX.Element | null {
   };
 
   return (
-    <div className="flex items-center justify-between p-3 rounded-lg bg-background/50">
-      <div>
+    <div className="flex items-center justify-between gap-4 p-3 rounded-lg bg-background/50">
+      <div className="min-w-0">
         <Label htmlFor="notification-preview" className="text-sm font-medium">Message Text in Notifications</Label>
         <p className="text-xs text-muted-foreground">Off: a notification says who wrote, not what. For this account only.</p>
         {error && <p role="alert" className="text-xs text-destructive mt-1">{error}</p>}

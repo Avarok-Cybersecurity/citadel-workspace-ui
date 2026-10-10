@@ -52,7 +52,7 @@ export function LoginAdvancedOptions({
 
       {isAdvancedOpen && (
         <div className="space-y-3 p-3 bg-input rounded-lg border border-border">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <span className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
               Security Settings
             </span>

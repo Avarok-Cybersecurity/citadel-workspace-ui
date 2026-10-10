@@ -15,18 +15,27 @@ interface MemberAvatarProps {
   /** What the initials are drawn from; the display name, falling back to the username. */
   name: string;
   className?: string;
+  /** True draws the presence dot, outside the avatar's clip so it is not cut in half. Omit for no dot. */
+  online?: boolean;
 }
 
-export function MemberAvatar({ username, name, className }: MemberAvatarProps): JSX.Element {
+export function MemberAvatar({ username, name, className, online }: MemberAvatarProps): JSX.Element {
   const avatarUrl: string | undefined = useAvatarUrl(username);
-  return (
-    <Avatar className={cn('h-6 w-6 shrink-0', className)} data-testid={`member-avatar-${username}`} data-avatar-src={avatarUrl ?? ''}>
+  const avatar: JSX.Element = (
+    <Avatar className={cn('h-6 w-6 shrink-0 text-xs', className)} data-testid={`member-avatar-${username}`} data-avatar-src={avatarUrl ?? ''}>
       {/* Decorative: the name is rendered beside it, so a meaningful alt would announce the
           person twice. */}
       {avatarUrl ? <AvatarImage src={avatarUrl} alt="" /> : null}
-      <AvatarFallback className="bg-primary-accent/15 text-primary-accent text-xs font-semibold">
+      <AvatarFallback className="bg-primary-accent/15 text-primary-accent font-semibold">
         {getUserInitials(name)}
       </AvatarFallback>
     </Avatar>
+  );
+  if (!online) return avatar;
+  return (
+    <span className="relative inline-flex shrink-0">
+      {avatar}
+      <span aria-hidden="true" data-testid={`member-presence-${username}`} className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-success ring-2 ring-card" />
+    </span>
   );
 }

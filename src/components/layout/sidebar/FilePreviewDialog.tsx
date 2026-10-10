@@ -23,11 +23,10 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Calendar, Check, Copy, FileSpreadsheet, FileText, FileType, FileCode, HardDrive, User } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { formatFileSize } from '@/lib/utils';
-import { useState } from 'react';
+import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
 import type { FileDetails } from './file-details';
-import { initialsOf } from '@/lib/initials';
 
 interface FilePreviewDialogProps {
   file: FileDetails | null;
@@ -57,7 +56,7 @@ const getFileIcon: (fileName: string) => JSX.Element = (fileName: string): JSX.E
 };
 
 function SavedLocation({ path }: { path: string }): JSX.Element {
-  const [copied, setCopied] = useState(false);
+  const { copied, copy: copyText } = useCopyToClipboard();
 
   if (!path) {
     // Reached when a transfer completed without reporting a path. Saying so is
@@ -69,15 +68,7 @@ function SavedLocation({ path }: { path: string }): JSX.Element {
     );
   }
 
-  const copy = (): void => {
-    void navigator.clipboard.writeText(path).then(
-      () => {
-        setCopied(true);
-        window.setTimeout(() => setCopied(false), 2000);
-      },
-      () => setCopied(false),
-    );
-  };
+  const copy = (): void => { void copyText(path); };
 
   return (
     <div className="space-y-2">
@@ -116,11 +107,11 @@ export const FilePreviewDialog = ({ file, isOpen, onClose }: FilePreviewDialogPr
 
         <div className="space-y-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <User className="h-4 w-4" aria-hidden="true" />
-            <Avatar className="h-6 w-6">
-              <AvatarImage src={file.sender.avatar} alt="" />
-              <AvatarFallback>{initialsOf(file.sender.name)}</AvatarFallback>
-            </Avatar>
+            {file.sender.username ? (
+              <MemberAvatar username={file.sender.username} name={file.sender.name} />
+            ) : (
+              <User className="h-4 w-4" aria-hidden="true" />
+            )}
             <span>{file.provenance}</span>
           </div>
 

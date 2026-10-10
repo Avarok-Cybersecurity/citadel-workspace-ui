@@ -47,7 +47,7 @@ export function GroupFileShareCard({ share, senderName }: { share: GroupFileShar
   return (
     <div data-testid="group-file-share">
       <div className="flex items-center gap-2">
-        <span aria-hidden="true">{getFileIcon(share.mimeType)}</span>
+        <span aria-hidden="true" className="shrink-0">{getFileIcon(share.mimeType)}</span>
         <div className="min-w-0">
           <p className="font-medium break-all">{share.name}</p>
           <p className="text-xs opacity-80">{formatBytes(share.size)} · shared by {senderName}</p>

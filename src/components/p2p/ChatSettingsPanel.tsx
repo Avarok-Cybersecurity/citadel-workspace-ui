@@ -140,7 +140,7 @@ export function ChatSettingsPanel({
                     subject is privacy, a switch that lies about what you are
                     broadcasting is the worst kind to fake. Bound to the same
                     store the Privacy settings tab writes. */}
-                <div className="flex items-center justify-between p-4 rounded-lg bg-surface/50">
+                <div className="flex items-center justify-between gap-4 p-4 rounded-lg bg-surface/50">
                   <div className="flex items-center gap-3">
                     <Eye className="h-5 w-5 text-primary-accent" />
                     <div>
@@ -155,7 +155,7 @@ export function ChatSettingsPanel({
                   />
                 </div>
 
-                <div className="flex items-center justify-between p-4 rounded-lg bg-surface/50">
+                <div className="flex items-center justify-between gap-4 p-4 rounded-lg bg-surface/50">
                   <div className="flex items-center gap-3">
                     <MessageSquare className="h-5 w-5 text-success-emphasis" />
                     <div>

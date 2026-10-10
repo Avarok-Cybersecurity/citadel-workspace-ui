@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { Button } from '@/components/ui/button';
 import { Phone, PhoneOff, Video } from 'lucide-react';
-import { getInitials } from '@/components/chat/shared/formatters';
 import type { CallMediaKinds } from '@/types/p2p-commands';
 
 interface IncomingCallCardProps {
   callerName: string;
+  /** Who to fetch the picture for; the name stands in when the caller is not in the roster. */
+  callerUsername?: string;
   media: CallMediaKinds;
   /** Room name for a group call; absent for 1:1. */
   roomName?: string | null;
@@ -28,6 +29,7 @@ interface IncomingCallCardProps {
  */
 export function IncomingCallCard({
   callerName,
+  callerUsername,
   media,
   roomName,
   onAccept,
@@ -88,11 +90,7 @@ export function IncomingCallCard({
             aria-hidden="true"
             className="absolute inset-0 rounded-full border-2 border-primary-accent motion-safe:animate-ring-pulse motion-safe:[animation-delay:1.2s]"
           />
-          <Avatar className="h-12 w-12 ring-2 ring-primary-accent">
-            <AvatarFallback className="bg-card text-foreground">
-              {getInitials(callerName)}
-            </AvatarFallback>
-          </Avatar>
+          <MemberAvatar username={callerUsername ?? callerName} name={callerName} className="h-12 w-12 text-sm ring-2 ring-primary-accent" />
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium text-popover-foreground">{callerName}</p>

@@ -84,7 +84,9 @@ describe('an upload the peer has not confirmed', () => {
   it('is listed, counted, and marked pending', async () => {
     const fm: { current: UseFileManagerContentResult } = await fileManager(true);
     await upload(fm);
-    expect(toasts).toEqual([expect.stringMatching(/^error: Not confirmed by the peer yet/)]);
+    // The progress toast (loading, then dismissed) is not an outcome; the one outcome is the refusal.
+    expect(toasts.filter((t: string) => !/^(loading|dismiss):/.test(t))).toEqual([expect.stringMatching(/^error: Not confirmed by the peer yet/)]);
+    expect(toasts.some((t: string) => t.startsWith('loading: Uploading'))).toBe(true);
     expect(names(fm)).toContain('revfs-0925.bin');
     expect(fm.current.storageUsed).toBe(4900);
     expect(fm.current.pendingPaths.has('/revfs-0925.bin')).toBe(true);

@@ -148,7 +148,7 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
     <div className="space-y-4" data-testid="members-tab-content">
       <MembersVisibilitySwitch entityType={entityType} entityId={entityId} />
       {/* Advanced Toggle */}
-      <div className="flex items-center justify-between p-3 bg-background rounded-lg">
+      <div className="flex items-center justify-between gap-4 p-3 bg-background rounded-lg">
         <div className="flex items-center gap-2">
           <Shield className="h-4 w-4 text-primary-accent" />
           <Label htmlFor="advanced-toggle" className="text-foreground cursor-pointer">

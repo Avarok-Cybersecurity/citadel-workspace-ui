@@ -23,8 +23,10 @@ import { Permission } from '@/contexts/PermissionsContext';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 import type { UsePermissionResult } from '@/hooks/use-permission-result';
 
-const { permission, asked } = vi.hoisted(() => ({
+const { permission, asked, conversationsLoaded, registered } = vi.hoisted(() => ({
+  registered: { current: [] as unknown[] },
   permission: { current: {} as Partial<UsePermissionResult> },
+  conversationsLoaded: { current: true },
   asked: [] as Array<[string | null | undefined, string]>,
 }));
 
@@ -50,8 +52,8 @@ vi.mock('@/hooks', async (importOriginal: () => Promise<Record<string, unknown>>
   ...(await importOriginal()),
   useGroupConversations: (): { groups: never[]; createGroup: () => Promise<string> } =>
     ({ groups: [], createGroup: async (): Promise<string> => '' }),
-  useRegisteredPeers: (): { registeredPeers: never[] } => ({ registeredPeers: [] }),
-  useConversationPeers: (): { peersWithConversations: never[] } => ({ peersWithConversations: [] }),
+  useRegisteredPeers: (): { registeredPeers: unknown[] } => ({ registeredPeers: registered.current }),
+  useConversationPeers: (): { peersWithConversations: never[]; conversationsLoaded: boolean } => ({ peersWithConversations: [], conversationsLoaded: conversationsLoaded.current }),
   useEventListener: (): void => {},
 }));
 vi.mock('@/lib/peer-registration-store', () => ({
@@ -82,7 +84,22 @@ function renderAt(url: string): void {
   );
 }
 
-beforeEach((): void => { permission.current = {}; asked.length = 0; });
+beforeEach((): void => { permission.current = {}; asked.length = 0; conversationsLoaded.current = true; registered.current = []; });
+
+describe('the conversations list', () => {
+  it('does not call the list empty before it has been read', () => {
+    registered.current = [{ cid: '9', username: 'bob' }];
+    conversationsLoaded.current = false;
+    renderAt('/workspace');
+    expect(screen.queryByText(/No conversations yet/)).toBeNull();
+  });
+
+  it('says so once it has been read and is empty', () => {
+    registered.current = [{ cid: '9', username: 'bob' }];
+    renderAt('/workspace');
+    expect(screen.getByText(/No conversations yet/)).toBeTruthy();
+  });
+});
 
 describe('Add member', () => {
   it('opens the add form for someone whose role permits it', async () => {

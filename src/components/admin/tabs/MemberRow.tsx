@@ -6,7 +6,8 @@
 import { Button } from '@/components/ui/button';
 import { inheritedRemoveReason } from '@/lib/member-access';
 import { isAdminRole } from '@/lib/role-predicate';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { MemberAvatar } from '@/components/shared/MemberAvatar';
+import { BlockedReason } from '@/components/shared/BlockedReason';
 import {
   Select,
   SelectContent,
@@ -15,7 +16,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Loader2, UserMinus, Shield } from 'lucide-react';
-import { getUserInitials } from '@/lib/workspace-metadata-service';
 import type { MemberData, UserRole } from '../types';
 import { USER_ROLES } from '../types';
 
@@ -88,14 +88,7 @@ export function MemberRow({
           the name that it rendered as "a…" — reachable controls acting on an
           unidentifiable person. A row per line gives the name its own width. */}
       <div className="flex items-center gap-3 min-w-0 flex-1">
-        <Avatar className="h-10 w-10 shrink-0">
-          {/* Decorative: the name is rendered as text beside this, so a
-              meaningful alt would announce the person twice. */}
-          <AvatarImage src={member.avatarUrl || ''} alt="" />
-          <AvatarFallback className="bg-card text-foreground">
-            {getUserInitials(member.name || member.username)}
-          </AvatarFallback>
-        </Avatar>
+        <MemberAvatar username={member.username} name={member.name || member.username} className="h-10 w-10 text-sm" />
         <div className="min-w-0">
           {/* break-all below `sm`, truncate above. Stacking alone still left the
               name 8px short of its box — a generated handle is one unbroken
@@ -167,18 +160,20 @@ export function MemberRow({
           </Select>
         )}
 
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => onRemove(member)}
-          disabled={removeBlocked !== null}
-          title={removeBlocked ?? `Remove ${member.username}`}
-          aria-label={removeBlocked ?? `Remove ${member.username}`}
-          className="text-destructive hover:text-destructive hover:bg-destructive/15"
-          data-testid={`member-remove-${member.userId}`}
-        >
-          <UserMinus className="h-4 w-4" />
-        </Button>
+        <BlockedReason reason={removeBlocked}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onRemove(member)}
+            disabled={removeBlocked !== null}
+            title={removeBlocked ?? `Remove ${member.username}`}
+            aria-label={removeBlocked ?? `Remove ${member.username}`}
+            className="text-destructive hover:text-destructive hover:bg-destructive/15"
+            data-testid={`member-remove-${member.userId}`}
+          >
+            <UserMinus className="h-4 w-4" />
+          </Button>
+        </BlockedReason>
       </div>
     </div>
   );

@@ -4,7 +4,8 @@ import { Badge } from '@/components/ui/badge';
 import { UserPlus, UserCheck, Loader2, Clock } from 'lucide-react';
 import type { PendingPeerRequest } from '@/lib/peer-registration-store';
 import type { Peer } from './usePeerDiscovery';
-import { peerDisplayName, peerInitials, isUnnamedPeer } from '@/lib/peer-display';
+import { peerDisplayName, peerHandleName, isUnnamedPeer } from '@/lib/peer-display';
+import { MemberAvatar } from '@/components/shared/MemberAvatar';
 
 interface PeerListItemProps {
   peer: Peer;
@@ -30,9 +31,7 @@ export const PeerListItem: React.FC<PeerListItemProps> = ({
       className="flex items-center justify-between p-3 rounded-lg bg-card hover:bg-surface transition-colors"
     >
       <div className="flex items-center space-x-3">
-        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold">
-          {peerInitials(peer)}
-        </div>
+        <MemberAvatar username={peerHandleName(peer)} name={peerDisplayName(peer)} className="h-10 w-10 text-sm" />
         <div>
           <p className="font-medium">{peerDisplayName(peer)}</p>
           {peer.fullName && peer.username && (

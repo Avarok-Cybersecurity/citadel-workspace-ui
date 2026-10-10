@@ -460,6 +460,14 @@ jobs:
         run: npm run check:mobile
         working-directory: parent/citadel-workspaces
 
+      - name: UI sweep geometry
+        # People, overlays, spacing and touch reach, measured in the engine that paints them.
+        if: matrix.project == 'citadel-workspaces'
+        run: npm run check:ui-sweep
+        env:
+          POLISH_ENGINES: chromium
+        working-directory: parent/citadel-workspaces
+
       # Delegates to the parent repo's gate rather than reimplementing it.
       #
       # This step carried its own bash copy of the 250-line rule with its own
@@ -592,6 +600,12 @@ jobs:
       - name: Every event has an emitter and a listener
         if: matrix.project == 'citadel-workspaces'
         run: npm run check:event-pairs
+        working-directory: parent/citadel-workspaces
+
+      - name: People are drawn by the shared avatar
+        # Eighteen views drew an initials-only circle of their own and dropped the picture.
+        if: matrix.project == 'citadel-workspaces'
+        run: npm run check:people-avatars
         working-directory: parent/citadel-workspaces
 
       - name: Spec locators match real app copy

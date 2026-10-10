@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { MessageSquare, Users, Bell, X } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { getInitials } from '@/components/chat/shared/formatters';
+import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { cn } from '@/lib/utils';
 import NotificationService, { 
   Notification, 
@@ -95,14 +94,9 @@ const NotificationItem: ({ notification }: NotificationItemProps) => JSX.Element
       )}
     >
       {notification.senderName ? (
-        <Avatar className="h-9 w-9 shrink-0">
-          {/* Decorative: the notification title carries the sender. Initials from the
-              name -- the id is a CID, and its first two digits read as "53". */}
-          <AvatarImage src="" alt="" />
-          <AvatarFallback className="bg-muted text-foreground text-xs font-medium">
-            {getInitials(notification.senderName)}
-          </AvatarFallback>
-        </Avatar>
+        // Decorative: the notification title carries the sender. Initials come from the name --
+        // the id is a CID, and its first two digits read as "53".
+        <MemberAvatar username={notification.senderName} name={notification.senderName} className="h-9 w-9" />
       ) : (
         <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted', chipTone())} aria-hidden="true">
           {getNotificationIcon()}

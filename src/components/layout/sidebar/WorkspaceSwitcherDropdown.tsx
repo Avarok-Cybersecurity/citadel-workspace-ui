@@ -5,7 +5,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import type { StoredWorkspace } from "./useWorkspaceSwitcher";
-import { initialsOf } from '@/lib/initials';
+import { MemberAvatar } from '@/components/shared/MemberAvatar';
 
 interface WorkspaceSwitcherDropdownProps {
   availableWorkspaces: StoredWorkspace[];
@@ -58,9 +58,7 @@ export function WorkspaceSwitcherDropdown({
               className="flex items-center gap-3 py-2.5 cursor-pointer text-foreground w-full pl-3 group bg-transparent workspace-item-hover focus:bg-primary-accent/15 focus:text-foreground"
               disabled={isSwitching}
             >
-              <div className="w-8 h-8 rounded-full flex items-center justify-center bg-primary text-primary-foreground text-sm font-semibold">
-                {initialsOf(workspace.fullName || workspace.username)}
-              </div>
+              <MemberAvatar username={workspace.username} name={workspace.fullName || workspace.username} className="h-8 w-8 text-sm" />
               <div className="flex-1 min-w-0">
                 <span className="font-semibold block text-sm truncate">
                   {workspace.fullName || workspace.username}

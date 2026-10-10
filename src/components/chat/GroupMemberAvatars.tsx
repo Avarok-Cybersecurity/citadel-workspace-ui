@@ -8,8 +8,8 @@
 import { useMemo } from 'react';
 import { membersByRank } from './members-by-rank';
 import type { GroupConversation, GroupMemberWithRole } from '@/types/group';
-import { memberAvatarColor } from '@/lib/avatar-color';
-import { initialsOf } from '@/lib/initials';
+import { MemberAvatar } from '@/components/shared/MemberAvatar';
+import { rosterMemberName } from '@/lib/roster-peer-name';
 
 const MAX_VISIBLE_AVATARS: number = 5;
 
@@ -23,24 +23,16 @@ export function GroupMemberAvatars({ group }: { group: GroupConversation }): JSX
   const visibleMembers: GroupMemberWithRole[] = sortedMembers.slice(0, MAX_VISIBLE_AVATARS);
   const overflowCount: number = Math.max(0, sortedMembers.length - MAX_VISIBLE_AVATARS);
 
-  // Get avatar color
-
   return (
     <div className="flex items-center">
       {visibleMembers.map((member, index) => (
         <div
           key={member.cid}
-          className="relative rounded-full flex items-center justify-center text-xs font-medium text-foreground border-2 border-background"
-          style={{
-            width: 32,
-            height: 32,
-            backgroundColor: memberAvatarColor(member, index),
-            marginLeft: index === 0 ? 0 : -10,
-            zIndex: visibleMembers.length - index,
-          }}
+          className="relative"
+          style={{ marginLeft: index === 0 ? 0 : -10, zIndex: visibleMembers.length - index }}
           title={member.username}
         >
-          {initialsOf(member.username)}
+          <MemberAvatar username={member.username} name={rosterMemberName(member)} className="h-8 w-8 border-2 border-background" />
         </div>
       ))}
       {overflowCount > 0 && (
