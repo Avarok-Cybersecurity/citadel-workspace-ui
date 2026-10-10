@@ -81,8 +81,7 @@ export class FileTransferService {
       saveTransfer: this.saveTransfer.bind(this),
       saveSettings: this.saveSettings.bind(this),
       openPeerChannel: openPeerChannelViaAutoConnect,
-      agentStagesUploads,
-      agentNativePicker,
+      agentStagesUploads, agentNativePicker,
       queue: sendQueuePort,
     };
   }
