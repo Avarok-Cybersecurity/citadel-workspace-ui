@@ -4,7 +4,8 @@
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { AgentUpdateRow, versionLine } from '../AgentUpdateRow';
+import { AgentUpdateRow } from '../AgentUpdateRow';
+import { versionLine } from '@/lib/agent-update/version-line';
 import { agentUpdate, updaterSettings, type UpdaterSettings } from '@/lib/agent-update/update-state';
 import { available, fakeUpdater, type FakeUpdater } from '@/lib/agent-update/__tests__/fake-updater';
 

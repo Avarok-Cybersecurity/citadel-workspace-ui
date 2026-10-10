@@ -22,6 +22,7 @@ const ROUTE_TITLES: ReadonlyArray<readonly [RegExp, string]> = [
   [/^\/$/, `${BRAND_NAME} — Post-Quantum Secure Collaboration`],
   [/^\/connect(\/|$)/, `Connect · ${SUFFIX}`],
   [/^\/create(\/|$)/, `Create a workspace · ${SUFFIX}`],
+  [/^\/agent(\/|$)/, `Citadel Agent · ${SUFFIX}`],
   [/^\/workspace(\/|$)/, `Workspace · ${SUFFIX}`],
   [/^\/messages(\/|$)/, `Messages · ${SUFFIX}`],
   [/^\/directory(\/|$)/, `Directory · ${SUFFIX}`],

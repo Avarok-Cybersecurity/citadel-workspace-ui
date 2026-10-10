@@ -46,6 +46,7 @@ const UserDirectory: LazyExoticComponent<() => JSX.Element> = lazy(() => import(
 const GroupChatPage: LazyExoticComponent<() => JSX.Element> = lazy((): Promise<{ default: never; } | { default: () => JSX.Element; }> =>
   import("./pages/GroupChatPage").then(m => ({ default: m.GroupChatPage }))
 );
+const Agent: LazyExoticComponent<() => JSX.Element> = lazy(() => import("./pages/Agent"));
 const NotFound: LazyExoticComponent<() => JSX.Element> = lazy(() => import("./pages/NotFound"));
 // Lazy too: only the protected routes mount it, and its start-up claim path
 // (retry, takeover offer) has no business on the landing page's critical path.
@@ -136,6 +137,7 @@ const App: () => JSX.Element = (): JSX.Element => {
                   <Route path="/connect" element={<Connect />} />
                   <Route path="/create" element={<CreateWorkspace />} />
                   <Route path="/create/done" element={<CreateWorkspace />} />
+                  <Route path="/agent" element={<Agent />} />
 
                   {/* Protected routes that require workspace data to be loaded */}
                   <Route

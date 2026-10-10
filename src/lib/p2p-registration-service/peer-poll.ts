@@ -30,12 +30,17 @@ export interface PeerPoll {
   /** Run a round now (skipped while one is in flight). */
   runNow(): Promise<void>;
   stop(): void;
+  /** Rounds are skipped while paused: the session is being re-dialled and cannot answer. */
+  pause(): void;
+  resume(): void;
   readonly running: boolean;
+  readonly paused: boolean;
 }
 
 export function startPeerPoll(deps: PeerPollDeps, intervalMs: number): PeerPoll {
   let timer: ReturnType<typeof setInterval> | null = null;
   let inFlight: boolean = false;
+  let paused: boolean = false;
 
   const stop = (): void => {
     if (timer !== null) clearInterval(timer);
@@ -50,7 +55,7 @@ export function startPeerPoll(deps: PeerPollDeps, intervalMs: number): PeerPoll 
   };
 
   const runNow = async (): Promise<void> => {
-    if (timer === null || inFlight) return;
+    if (timer === null || inFlight || paused) return;
     inFlight = true;
     try {
       await deps.check();
@@ -72,6 +77,9 @@ export function startPeerPoll(deps: PeerPollDeps, intervalMs: number): PeerPoll 
   return {
     runNow,
     stop,
+    pause: (): void => { paused = true; },
+    resume: (): void => { paused = false; },
+    get paused(): boolean { return paused; },
     get running(): boolean { return timer !== null; },
   };
 }

@@ -9,6 +9,7 @@
  * the header and the stack.
  */
 import { useEffect, useSyncExternalStore } from 'react';
+import { useLocation } from 'react-router-dom';
 import { eventEmitter } from '@/lib/event-emitter';
 import { applyUpdaterMessage } from '@/lib/agent-update/update-state';
 import { askUpdater } from '@/lib/agent-update/requests';
@@ -18,6 +19,7 @@ import { AgentUpdateBanner } from './AgentUpdateBanner';
 
 export function AgentUpdateWatcher(): JSX.Element | null {
   const update: AgentUpdate | null = useSyncExternalStore(agentUpdate.subscribe, agentUpdate.get);
+  const onAgentPage: boolean = useLocation().pathname === '/agent';
   useEffect(() => {
     const off: () => void = eventEmitter.on('websocket-message', (message: unknown): void => {
       applyUpdaterMessage(message);
@@ -25,7 +27,8 @@ export function AgentUpdateWatcher(): JSX.Element | null {
     askUpdater('UpdateGetStatus').catch((e: unknown): void => debugLog('AgentUpdate', 'no updater status', e));
     return off;
   }, []);
-  if (!update) return null;
+  // The /agent page shows the same update in full; a strip above it would say it twice.
+  if (!update || onAgentPage) return null;
   return (
     <div className="fixed inset-x-0 top-[calc(var(--app-header-height,0px)+var(--offline-banner-height,0px))] z-[105]">
       <AgentUpdateBanner update={update} />

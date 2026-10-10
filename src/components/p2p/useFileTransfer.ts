@@ -58,7 +58,7 @@ export function useFileTransfer({
   const [isSending, setIsSending] = useState(false);
   const [isPickingFile, setIsPickingFile] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [nativePickerAvailable, setNativePickerAvailable] = useState<false | null>(null);
+  const [pickerRefused, setNativePickerAvailable] = useState<false | null>(null);
   const fileInputRef: RefObject<HTMLInputElement> = useRef<HTMLInputElement>(null);
 
   // The one ceiling on a chosen or dropped file is the agent's
@@ -66,11 +66,12 @@ export function useFileTransfer({
   // 16 MiB inline through an older one. A file chosen before the agent has said
   // waits for the answer instead of being judged against a guess.
   const ceiling: SendCeiling = useSendCeiling(isOpen);
+  // Hidden once the agent's greeting says it has no picker, or the picker has refused; unknown is offered.
+  const nativePickerAvailable: false | null = ceiling.nativePicker === false ? false : pickerRefused;
   const stagesUploads: boolean | null = ceiling.stagesUploads;
   const maxFileSizeBytes: number | null = stagesUploads === null ? null : browserSendCeiling(stagesUploads);
   const [waitingFile, setWaitingFile] = useState<File | null>(null);
   const [isStoring, setIsStoring] = useState<boolean>(false);
-
 
   const handleRemoveFile = (): void => {
     setSelectedFile(null);

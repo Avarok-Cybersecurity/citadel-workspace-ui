@@ -22,6 +22,7 @@ import { TIMEOUT } from '../timeout-constants';
 import { greetingSupervises } from '@/types/agent-supervisor';
 import { eventEmitter } from '../event-emitter';
 import { createValueStore, type ValueStore } from '../value-store';
+import { agentFacts, readGreetingFacts } from '../agent-update/agent-facts';
 import type { InternalServiceRequest, InternalServiceResponse } from 'citadel-workspace-client-ts';
 
 /** What the leader's socket offers to declare through. */
@@ -37,6 +38,12 @@ export interface AgentCapabilities {
   supervisesP2p: boolean;
   /** The agent stages a browser file in chunks (`StageUploadChunk`); else inline only, 16 MiB. */
   stagesUploads: boolean;
+  /**
+   * Whether the agent can open a file dialog on this machine (`native_picker`). Absent from an
+   * older agent's greeting, which is unknown rather than false: such an agent is offered the
+   * picker as it always was.
+   */
+  nativePicker?: boolean;
 }
 
 /** What the leader tells a follower: its agent's capabilities, and `noticesHeard` as it stands. */
@@ -83,7 +90,8 @@ export function watchGreeting(): Greeting {
     offers,
     observe: (message: unknown): void => {
       const greeting: Record<string, unknown> | undefined = inner(message, 'ServiceConnectionAccepted');
-      if (greeting) settle({ agentIlm: greeting.agent_ilm === true, supervisesP2p: greetingSupervises(greeting), stagesUploads: greeting.stages_uploads === true });
+      if (greeting) agentFacts.set(readGreetingFacts(greeting));
+      if (greeting) settle({ agentIlm: greeting.agent_ilm === true, supervisesP2p: greetingSupervises(greeting), stagesUploads: greeting.stages_uploads === true, nativePicker: typeof greeting.native_picker === 'boolean' ? greeting.native_picker : undefined });
       // The socket's every message passes here; the agent's change of notifier is one.
       const heard: Record<string, unknown> | undefined = inner(message, 'NoticesHeardNotification');
       if (heard) noticesHeard.set(heard.heard === true);
@@ -200,9 +208,15 @@ export function agentStagesUploads(): Promise<boolean> {
   return capabilities().then((c: AgentCapabilities): boolean => c.stagesUploads);
 }
 
+/** Whether the agent can open a native file dialog: undefined when it did not say. */
+export function agentNativePicker(): Promise<boolean | undefined> {
+  return capabilities().then((c: AgentCapabilities): boolean | undefined => c.nativePicker);
+}
+
 /** The socket this answer was for is gone; the next socket declares again. */
 export function forgetCapabilities(): void {
   decided = null;
   supervision.set(null);
   noticesHeard.set(false);
+  agentFacts.set({});
 }

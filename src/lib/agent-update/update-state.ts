@@ -10,6 +10,7 @@
  */
 import type { UpdateAvailable, UpdateStatus } from 'citadel-internal-service-wasm-client';
 import { createValueStore, type ValueStore } from '@/lib/value-store';
+import { readAvailableExtras, readStatusExtras, type AvailableExtras, type StatusExtras } from './updater-extras';
 
 export interface AgentUpdate {
   current: string;
@@ -18,11 +19,15 @@ export interface AgentUpdate {
   downloadUrl: string;
   /** Downloaded and verified: "Restart to update" installs it. Otherwise only a link. */
   ready: boolean;
+  /** Download size and release notes, when the agent says (updater-extras.ts). */
+  sizeBytes?: number;
+  notes?: string;
 }
 
 export const agentUpdate: ValueStore<AgentUpdate | null> = createValueStore<AgentUpdate | null>('agent-update', null);
 
-export interface UpdaterSettings {
+/** Beyond the typed fields, the channel, download progress and ML-DSA verdict, when the agent says. */
+export interface UpdaterSettings extends StatusExtras {
   current: string;
   autoInstall: boolean;
   /** Seconds since the epoch, as the agent reports it. */
@@ -42,11 +47,12 @@ export function isReleaseLink(url: string): boolean {
 /** The update an `UpdateAvailable` names, or null when its links are not this project's. */
 export function fromAvailable(a: UpdateAvailable): AgentUpdate | null {
   if (!isReleaseLink(a.notes_url) || !isReleaseLink(a.download_url)) return null;
-  return { current: a.current, latest: a.latest, notesUrl: a.notes_url, downloadUrl: a.download_url, ready: a.ready };
+  const extras: AvailableExtras = readAvailableExtras(a);
+  return { current: a.current, latest: a.latest, notesUrl: a.notes_url, downloadUrl: a.download_url, ready: a.ready, ...extras };
 }
 
 export function fromStatus(s: UpdateStatus): UpdaterSettings {
-  return { current: s.current, autoInstall: s.auto_install, lastChecked: s.last_checked ?? null, lastError: s.last_error ?? null };
+  return { current: s.current, autoInstall: s.auto_install, lastChecked: s.last_checked ?? null, lastError: s.last_error ?? null, ...readStatusExtras(s) };
 }
 
 function variant<T>(message: unknown, name: string): T | undefined {

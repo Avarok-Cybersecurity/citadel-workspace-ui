@@ -4,7 +4,8 @@
  */
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { AgentUpdateBanner, RESTART_WARNING } from '../AgentUpdateBanner';
+import { AgentUpdateBanner } from '../AgentUpdateBanner';
+import { RESTART_WARNING } from '../RestartToUpdate';
 import { fromAvailable, type AgentUpdate } from '@/lib/agent-update/update-state';
 import { available, fakeUpdater, type FakeUpdater } from '@/lib/agent-update/__tests__/fake-updater';
 
