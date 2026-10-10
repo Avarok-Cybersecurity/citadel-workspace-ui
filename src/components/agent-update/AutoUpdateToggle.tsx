@@ -15,7 +15,7 @@ export function AutoUpdateToggle({ checked, onChange, description }: AutoUpdateT
     <div className="flex items-center justify-between gap-3">
       <div className="min-w-0">
         <Label htmlFor="agent-auto-install" className="text-sm font-medium">Automatically install updates when no account is signed in</Label>
-        <p id="agent-auto-install-description" className="text-xs text-muted-foreground">{description}</p>
+        <p id="agent-auto-install-description" className="text-sm text-muted-foreground">{description}</p>
       </div>
       <Switch id="agent-auto-install" aria-describedby="agent-auto-install-description" data-testid="agent-auto-install"
         checked={checked} onCheckedChange={onChange} />

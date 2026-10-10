@@ -42,7 +42,7 @@ function wordsFor(view: UpdateView, current: string): Words {
     case 'checking':
       return { Icon: Loader2, tone: 'text-primary-accent', headline: 'Checking for updates…', detail: 'The agent is asking GitHub for the latest release. This can take a minute.' };
     case 'error':
-      return { Icon: AlertTriangle, tone: 'text-destructive-emphasis', headline: 'The update did not finish', detail: view.message };
+      return { Icon: AlertTriangle, tone: 'text-destructive-emphasis', headline: 'The last update attempt did not finish', detail: view.message };
     case 'downloading':
       return { Icon: Download, tone: 'text-primary-accent', headline: `Downloading ${view.update.latest}`, detail: `You have ${current}.${sizeLine(view.update)}` };
     case 'ready':

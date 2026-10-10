@@ -1,7 +1,6 @@
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialog, AlertDialogAction, AlertDialogTrigger, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import type { RestartControl } from './use-restart-to-update';
@@ -15,13 +14,13 @@ export const RESTART_WARNING: string =
  * Updates tab, so the warning and the request have one home. Disabled while the agent restarts.
  */
 export function RestartToUpdate({ version, restart }: { version: string; restart: RestartControl }): JSX.Element {
-  const [confirming, setConfirming] = useState<boolean>(false);
   return (
     <>
-      <Button size="sm" data-testid="agent-update-restart" disabled={restart.phase.kind === 'restarting'} onClick={(): void => setConfirming(true)}>
-        Restart to update
-      </Button>
-      <AlertDialog open={confirming} onOpenChange={setConfirming}>
+      <AlertDialog>
+        {/* The trigger is what returns focus to the button when the dialog closes (APG modal pattern). */}
+        <AlertDialogTrigger asChild>
+          <Button size="sm" data-testid="agent-update-restart" disabled={restart.phase.kind === 'restarting'}>Restart to update</Button>
+        </AlertDialogTrigger>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Restart to update to {version}?</AlertDialogTitle>
@@ -29,7 +28,7 @@ export function RestartToUpdate({ version, restart }: { version: string; restart
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction data-testid="agent-update-confirm" onClick={restart.apply}>Restart to update</AlertDialogAction>
+            <AlertDialogAction data-testid="agent-update-confirm" onClick={restart.apply}>Restart and sign out</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

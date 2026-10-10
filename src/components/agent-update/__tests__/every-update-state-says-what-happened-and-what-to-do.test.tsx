@@ -68,6 +68,16 @@ describe('the update panel', () => {
     expect(screen.getByText('Restarting the agent…')).toBeInTheDocument();
   });
 
+  it('returns focus to Restart to update when the confirmation is cancelled', async () => {
+    fakeUpdater(available(true));
+    render(<Panel u={update(true)} />);
+    const button: HTMLElement = screen.getByTestId('agent-update-restart');
+    button.focus();
+    fireEvent.click(button);
+    fireEvent.click(await screen.findByText('Cancel'));
+    await waitFor(() => expect(document.activeElement).toBe(button));
+  });
+
   it('ready with automatic installs off says it waits for the person', () => {
     render(<Panel u={update(true)} s={settings({ autoInstall: false })} />);
     expect(screen.getByTestId('agent-update-ready-explainer')).toHaveTextContent(/Automatic installs are off/);
