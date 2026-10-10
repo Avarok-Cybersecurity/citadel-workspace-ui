@@ -11,6 +11,8 @@ export const RELEASE: string = 'https://github.com/Avarok-Cybersecurity/citadel-
 export function available(ready: boolean, latest: string = '0.9.0'): UpdateAvailable {
   return {
     cid: 0n, current: '0.8.8', latest, ready, request_id: null,
+    // The agent stages nothing whose ML-DSA release signature did not verify.
+    mldsa_verified: ready,
     notes_url: `${RELEASE}tag/agent-v${latest}`,
     download_url: ready ? `${RELEASE}download/agent-v${latest}/Citadel-Agent.dmg` : `${RELEASE}download/agent-v${latest}/citadel-agent-linux-x64.deb`,
   };
