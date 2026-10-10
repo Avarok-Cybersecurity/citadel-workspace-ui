@@ -1,7 +1,8 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { BookOpen, Download, ScrollText } from 'lucide-react';
 import { AgentDownloadLink } from '@/components/agent-setup/AgentDownloadLink';
-import { agentFacts, osLabel, type AgentFacts } from '@/lib/agent-update/agent-facts';
+import { agentFacts, type AgentFacts } from '@/lib/agent-update/agent-facts';
+import { osLabel } from '@/lib/agent-update/agent-os';
 import { fetchDeployedEntry, buildLabel } from '@/lib/agent-update/workspace-build';
 import { Button } from '@/components/ui/button';
 import { AgentVersionCard } from './AgentVersionCard';

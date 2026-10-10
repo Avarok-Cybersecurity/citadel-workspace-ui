@@ -4,7 +4,8 @@
  * running. Each says "unknown" rather than inventing a value.
  */
 import { describe, expect, it } from 'vitest';
-import { readGreetingFacts, osLabel } from '../agent-facts';
+import { readGreetingFacts } from '../agent-facts';
+import { osLabel } from '../agent-os';
 import { buildLabel } from '../workspace-build';
 import { parseNotes, type NotesBlock } from '../parse-notes';
 
