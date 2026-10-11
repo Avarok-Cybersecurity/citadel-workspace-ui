@@ -10,10 +10,10 @@
  * 6. User manually selects a file (test pauses for interaction)
  * 7. Verify SendFile protocol is used (not P2P chunking)
  *
- * IMPORTANT: This test requires:
- * - Internal-service running NATIVELY with --features native-dialogs
- * - NOT running in Docker (Docker can't show native dialogs)
- * - Manual user interaction to select a file
+ * The flow follows what the agent's greeting says (`native_picker`), read off the socket:
+ * - true or absent: the button above (needs an agent built with native-dialogs, and a person)
+ * - false (the Docker agent is headless): no button, no PickFile request, and the browser
+ *   upload is offered and carries a file through to the receiver
  */
 
 import { Page } from 'playwright';
@@ -31,6 +31,11 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import {
+  watchPickerFrames,
+  runBrowserFallback,
+  type PickerFrames,
+} from '../lib/native-picker.js';
 
 // ============================================================================
 // Types
@@ -52,6 +57,11 @@ interface TestResults {
     nativeButtonVisible: boolean;
     nativeButtonClicked: boolean;
     pickFileRequestSent: boolean;
+    agentPicker: string; // what the greeting said: true, false, absent or unseen
+    nativeButtonAbsent: boolean;
+    browserUploadOffered: boolean;
+    browserTransferOffered: boolean;
+    browserTransferCompleted: boolean;
     fileSelected: boolean; // User manually selected a file
     sendFileProtocolUsed: boolean;
     transferCompleted: boolean;
@@ -288,6 +298,11 @@ async function runTest(): Promise<boolean> {
       nativeButtonVisible: false,
       nativeButtonClicked: false,
       pickFileRequestSent: false,
+      agentPicker: 'unseen',
+      nativeButtonAbsent: false,
+      browserUploadOffered: false,
+      browserTransferOffered: false,
+      browserTransferCompleted: false,
       fileSelected: false,
       sendFileProtocolUsed: false,
       transferCompleted: false,
@@ -298,6 +313,8 @@ async function runTest(): Promise<boolean> {
     const page1 = await context.newPage();
     const page2 = await context2.newPage();
 
+    // Before the first navigation: the greeting is the first frame on the socket.
+    const frames: PickerFrames = watchPickerFrames(page1);
     setupConsoleCapture(page1, 'Alice', ['PickFile', 'SendFile', 'file', 'transfer', 'error', 'native', 'ILM']);
     setupConsoleCapture(page2, 'Bob', ['file', 'transfer', 'error', 'ILM']);
 
@@ -356,8 +373,18 @@ async function runTest(): Promise<boolean> {
     results.nativePickerFlow.modalOpened = await openFileTransferModal(page1, USER1);
     await takeScreenshot(page1, 'NATIVE_MODAL_alice');
 
-    if (results.nativePickerFlow.modalOpened) {
-      // Check for native picker button
+    results.nativePickerFlow.agentPicker = frames.agentPicker();
+    console.log(`  Agent greeting says native_picker: ${results.nativePickerFlow.agentPicker}`);
+
+    if (results.nativePickerFlow.modalOpened && results.nativePickerFlow.agentPicker === 'false') {
+      // The agent has no picker: the contract is no button, no PickFile, and the browser upload.
+      console.log('\n' + '-'.repeat(50));
+      console.log('STEP 6: Agent has no native picker -- browser upload is the path');
+      console.log('-'.repeat(50));
+      Object.assign(results.nativePickerFlow, await runBrowserFallback(page1, page2, frames, `native-picker fallback ${timestamp}`));
+      await takeScreenshot(page2, 'NATIVE_BROWSER_TRANSFER_bob');
+    } else if (results.nativePickerFlow.modalOpened && results.nativePickerFlow.agentPicker !== 'unseen') {
+      // Check for native picker button (offered when the agent says true, or says nothing)
       results.nativePickerFlow.nativeButtonVisible = await checkNativePickerButton(page1, USER1);
       await takeScreenshot(page1, 'NATIVE_BUTTON_VISIBLE_alice');
 
@@ -368,7 +395,8 @@ async function runTest(): Promise<boolean> {
         console.log('-'.repeat(50));
 
         results.nativePickerFlow.nativeButtonClicked = await clickNativePickerButton(page1, USER1);
-        results.nativePickerFlow.pickFileRequestSent = results.nativePickerFlow.nativeButtonClicked;
+        await sleep(1000);
+        results.nativePickerFlow.pickFileRequestSent = frames.pickFileSent() > 0;
 
         if (results.nativePickerFlow.nativeButtonClicked) {
           await takeScreenshot(page1, 'NATIVE_PICKER_CLICKED_alice');
@@ -426,10 +454,13 @@ async function runTest(): Promise<boolean> {
     console.log('TEST RESULTS');
     console.log('='.repeat(60));
 
-    const nativePickerPassed =
-      results.nativePickerFlow.modalOpened &&
-      results.nativePickerFlow.nativeButtonVisible &&
-      results.nativePickerFlow.nativeButtonClicked;
+    const flow = results.nativePickerFlow;
+    // An unseen greeting passes neither branch: the agent's word is never guessed.
+    const nativePickerPassed = flow.modalOpened && (flow.agentPicker === 'false'
+      ? flow.nativeButtonAbsent && !flow.pickFileRequestSent && flow.browserUploadOffered &&
+        flow.browserTransferOffered && flow.browserTransferCompleted
+      : (flow.agentPicker === 'true' || flow.agentPicker === 'absent') &&
+        flow.nativeButtonVisible && flow.nativeButtonClicked && flow.pickFileRequestSent);
 
     console.log('\nSetup:');
     console.log(`  Account Creation (Alice):     ${results.accountCreation.user1 ? 'PASS' : 'FAIL'}`);
@@ -441,9 +472,14 @@ async function runTest(): Promise<boolean> {
 
     console.log('\nNative File Picker Flow:');
     console.log(`  Modal Opened:                 ${results.nativePickerFlow.modalOpened ? 'PASS' : 'FAIL'}`);
-    console.log(`  Native Button Visible:        ${results.nativePickerFlow.nativeButtonVisible ? 'PASS' : 'FAIL'}`);
-    console.log(`  Native Button Clicked:        ${results.nativePickerFlow.nativeButtonClicked ? 'PASS' : 'FAIL'}`);
-    console.log(`  PickFile Request Sent:        ${results.nativePickerFlow.pickFileRequestSent ? 'PASS' : 'FAIL'}`);
+    console.log(`  Agent native_picker:          ${flow.agentPicker}`);
+    console.log(`  Native Button Absent (false): ${flow.nativeButtonAbsent ? 'PASS' : 'n/a or FAIL'}`);
+    console.log(`  Browser Upload Offered:       ${flow.browserUploadOffered ? 'PASS' : 'n/a or FAIL'}`);
+    console.log(`  Browser Transfer Offered:     ${flow.browserTransferOffered ? 'PASS' : 'n/a or FAIL'}`);
+    console.log(`  Browser Transfer Completed:   ${flow.browserTransferCompleted ? 'PASS' : 'n/a or FAIL'}`);
+    console.log(`  Native Button Visible:        ${flow.nativeButtonVisible ? 'PASS' : 'n/a or FAIL'}`);
+    console.log(`  Native Button Clicked:        ${flow.nativeButtonClicked ? 'PASS' : 'n/a or FAIL'}`);
+    console.log(`  PickFile Request Sent:        ${flow.pickFileRequestSent} (must be false when native_picker is false)`);
     console.log(`  File Selected (manual):       ${results.nativePickerFlow.fileSelected ? 'PASS' : 'SKIPPED/TIMEOUT'}`);
     console.log(`  SendFile Protocol Used:       ${results.nativePickerFlow.sendFileProtocolUsed ? 'PASS' : 'CHECK'}`);
     console.log(`  Transfer Completed:           ${results.nativePickerFlow.transferCompleted ? 'PASS' : 'CHECK'}`);

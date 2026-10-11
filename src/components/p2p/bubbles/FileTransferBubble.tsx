@@ -164,6 +164,7 @@ export function FileTransferBubble({
             <button
               type="button"
               onClick={handleAccept}
+              data-testid="file-transfer-accept"
               className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-success/20 hover:bg-success/30 text-success-emphasis rounded text-sm transition-colors"
             >
               <Check className="h-4 w-4" />
