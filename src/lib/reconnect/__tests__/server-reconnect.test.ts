@@ -65,7 +65,7 @@ describe('the agent reports on this tab session', () => {
 
   it('sends the user to sign in to the same account when the agent gives up', async () => {
     const r: Recorder = recorder();
-    await handleServerReconnectEvent({ kind: 'failed', cid: 42n, reason: 'session expired' }, r.io);
+    await handleServerReconnectEvent({ kind: 'failed', cid: 42n, reason: 'session expired', reasonCode: null }, r.io);
     expect(r.banner).toEqual([null]);
     expect(r.resumed()).toBe(0);
     const [path, message]: [string, string] = r.signIns[0];
@@ -80,7 +80,7 @@ describe('the agent reports on this tab session', () => {
     const r: Recorder = recorder();
     // The reason exactly as the agent reported it after a server restart lost its accounts.
     const reason: string = 'CID not registered to this node: CID 13052272920576059510 is not registered to this node';
-    await handleServerReconnectEvent({ kind: 'failed', cid: 42n, reason }, r.io);
+    await handleServerReconnectEvent({ kind: 'failed', cid: 42n, reason, reasonCode: null }, r.io);
     const [, message]: [string, string] = r.signIns[0];
     expect(message).toContain('the workspace no longer has this account');
     expect(message).not.toContain('CID');
@@ -98,7 +98,7 @@ describe('a report about some other session', () => {
     for (const event of [
       { kind: 'lost', cid: 7n, reconnecting: true },
       { kind: 'reconnected', cid: 7n },
-      { kind: 'failed', cid: 7n, reason: 'x' },
+      { kind: 'failed', cid: 7n, reason: 'x', reasonCode: null },
     ] satisfies AgentReconnectEvent[]) {
       const r: Recorder = recorder();
       await handleServerReconnectEvent(event, r.io);
@@ -111,7 +111,7 @@ describe('a report about some other session', () => {
 
   it('changes nothing on a tab that holds no session', async () => {
     const r: Recorder = recorder(null);
-    await handleServerReconnectEvent({ kind: 'failed', cid: 42n, reason: 'x' }, r.io);
+    await handleServerReconnectEvent({ kind: 'failed', cid: 42n, reason: 'x', reasonCode: null }, r.io);
     expect(r.signIns).toEqual([]);
   });
 });
@@ -120,7 +120,7 @@ describe('reading the notifications off the wire', () => {
   it('reads each of the three, bare or wrapped in Response', () => {
     expect(readAgentReconnectEvent({ ServerConnectionLost: { cid: 1n, reconnecting: true, request_id: null } })).toEqual({ kind: 'lost', cid: 1n, reconnecting: true });
     expect(readAgentReconnectEvent({ Response: { ServerReconnected: { cid: 1n, request_id: null } } })).toEqual({ kind: 'reconnected', cid: 1n });
-    expect(readAgentReconnectEvent({ ServerReconnectFailed: { cid: 1n, reason: 'r', request_id: null } })).toEqual({ kind: 'failed', cid: 1n, reason: 'r' });
+    expect(readAgentReconnectEvent({ ServerReconnectFailed: { cid: 1n, reason: 'r', request_id: null } })).toEqual({ kind: 'failed', cid: 1n, reason: 'r', reasonCode: null });
   });
 
   // What the WASM client actually delivers (captured in the browser): serde-wasm-bindgen
@@ -128,7 +128,7 @@ describe('reading the notifications off the wire', () => {
   it('reads them as the WASM client delivers them, request_id undefined', () => {
     expect(readAgentReconnectEvent({ ServerConnectionLost: { cid: 1n, reconnecting: true, request_id: undefined } })).toEqual({ kind: 'lost', cid: 1n, reconnecting: true });
     expect(readAgentReconnectEvent({ ServerReconnected: { cid: 1n } })).toEqual({ kind: 'reconnected', cid: 1n });
-    expect(readAgentReconnectEvent({ ServerReconnectFailed: { cid: 1n, reason: 'r', request_id: undefined } })).toEqual({ kind: 'failed', cid: 1n, reason: 'r' });
+    expect(readAgentReconnectEvent({ ServerReconnectFailed: { cid: 1n, reason: 'r', request_id: undefined } })).toEqual({ kind: 'failed', cid: 1n, reason: 'r', reasonCode: null });
   });
 
   it('refuses a body with the wrong field types', () => {
@@ -149,14 +149,14 @@ describe('reading the notifications off the wire', () => {
 describe('the account link it builds', () => {
   it('leaves out a server the parser would refuse, rather than breaking the link', async () => {
     const r: Recorder = recorder({ ...OWN, server: 'not a server' });
-    await handleServerReconnectEvent({ kind: 'failed', cid: 42n, reason: '' }, r.io);
+    await handleServerReconnectEvent({ kind: 'failed', cid: 42n, reason: '', reasonCode: null }, r.io);
     expect(parseAccountLink(new URLSearchParams(r.signIns[0][0].slice(2)))).toEqual({ username: 'alice' });
   });
 });
 
 describe('signing in after a session the agent could not keep', () => {
   it('opens sign-in for that account and says the session ended while its link was down', () => {
-    const { path, message } = signInAfterLoss('alice', 'bench.work.avarok.net', 'Session 42 is not claimable: SDK session is disconnected');
+    const { path, message } = signInAfterLoss('alice', 'bench.work.avarok.net', 'Session 42 is not claimable: SDK session is disconnected', null);
     expect(parseAccountLink(new URLSearchParams(path.slice(2)))).toEqual({ username: 'alice', server: 'bench.work.avarok.net' });
     expect(message).toBe("Couldn't reconnect to bench.work.avarok.net (the session ended while its link to the workspace was down). Sign in again to continue.");
   });

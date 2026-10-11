@@ -48,7 +48,7 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
   // Sign-in for that account, not /connect's server picker: the session is gone and
   // nothing else here can bring it back.
   const onSessionEnded: (username: string, server: string, reason: string) => void = useCallback((username: string, server: string, reason: string): void => {
-    const signIn: SignInAfterLoss = signInAfterLoss(username, server, reason);
+    const signIn: SignInAfterLoss = signInAfterLoss(username, server, reason, null);
     toast({ title: 'Signed out', description: signIn.message, variant: 'destructive' });
     navigate(signIn.path);
   }, [navigate, toast]);
