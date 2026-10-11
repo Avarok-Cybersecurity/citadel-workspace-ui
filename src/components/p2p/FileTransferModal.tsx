@@ -134,6 +134,7 @@ export function FileTransferModal({
             </span>
           </Button>
           <Button
+            data-testid="file-send"
             onClick={handleSend}
             disabled={!selectedFile || isSending || isStoring}
             className="text-primary-foreground bg-primary"
