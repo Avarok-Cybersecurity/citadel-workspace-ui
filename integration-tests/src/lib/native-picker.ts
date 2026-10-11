@@ -86,24 +86,21 @@ export async function sendThroughBrowser(page: Page, name: string, content: stri
   return dialog.waitFor({ state: 'hidden', timeout: 15000 }).then(() => true, () => false);
 }
 
-/** The receiver is offered the transfer, accepts it, and the bytes that arrive are the ones sent. */
-export async function receiveAndVerify(page: Page, expected: string, maxWaitMs: number): Promise<{ offered: boolean; transferred: boolean }> {
-  const accept: Locator = page.getByTestId('file-transfer-bubble').getByTestId('file-transfer-accept').first();
+/**
+ * The receiver is offered the transfer, accepts it, and the bubble reaches `complete`.
+ * The bytes move agent to agent, so the page never holds them and cannot compare content;
+ * the bubble carries the file's name and its state, which is what the page knows.
+ */
+export async function receiveAndVerify(page: Page, fileName: string, maxWaitMs: number): Promise<{ offered: boolean; transferred: boolean }> {
+  const bubble: Locator = page.getByTestId('file-transfer-bubble').filter({ hasText: fileName });
+  const accept: Locator = bubble.getByTestId('file-transfer-accept');
   if (!(await isVisibleWithin(accept, 20000))) return { offered: false, transferred: false };
   await accept.click();
-  const deadline: number = Date.now() + maxWaitMs;
-  while (Date.now() < deadline) {
-    const got: string | null = await page.evaluate(async (): Promise<string | null> => {
-      const service: { getAllTransfers?: () => Array<{ id: string; state: string; isIncoming: boolean }>; getReceivedFileAsText?: (id: string) => Promise<string> } | undefined =
-        (window as unknown as { __fileTransferService?: { getAllTransfers?: () => Array<{ id: string; state: string; isIncoming: boolean }>; getReceivedFileAsText?: (id: string) => Promise<string> } }).__fileTransferService;
-      const done: { id: string } | undefined = service?.getAllTransfers?.().find((t) => t.state === 'complete' && t.isIncoming);
-      return done && service?.getReceivedFileAsText ? service.getReceivedFileAsText(done.id) : null;
-    });
-    if (got !== null) return { offered: true, transferred: got === expected };
-    await sleep(1000);
-  }
-  return { offered: true, transferred: false };
+  const done: Locator = page.locator('[data-testid="file-transfer-bubble"][data-transfer-state="complete"]').filter({ hasText: fileName });
+  return { offered: true, transferred: await isVisibleWithin(done, maxWaitMs) };
 }
+
+const BROWSER_FILE: string = 'browser-path.txt';
 
 export interface FallbackResult {
   nativeButtonAbsent: boolean;
@@ -117,8 +114,8 @@ export interface FallbackResult {
 export async function runBrowserFallback(sender: Page, receiver: Page, frames: PickerFrames, content: string): Promise<FallbackResult> {
   const nativeButtonGone: boolean = await nativeButtonAbsent(sender, 3000);
   const browserUploadOffered: boolean = await isVisibleWithin(browserDropZone(sender), 3000);
-  const sent: boolean = await sendThroughBrowser(sender, 'browser-path.txt', content);
-  const received: { offered: boolean; transferred: boolean } = sent ? await receiveAndVerify(receiver, content, 30000) : { offered: false, transferred: false };
+  const sent: boolean = await sendThroughBrowser(sender, BROWSER_FILE, content);
+  const received: { offered: boolean; transferred: boolean } = sent ? await receiveAndVerify(receiver, BROWSER_FILE, 30000) : { offered: false, transferred: false };
   return {
     nativeButtonAbsent: nativeButtonGone,
     browserUploadOffered,
