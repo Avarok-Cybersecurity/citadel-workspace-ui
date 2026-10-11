@@ -17,10 +17,10 @@ const settings = (over: Partial<UpdaterSettings> = {}): UpdaterSettings =>
   ({ current: '0.8.8', autoInstall: true, lastChecked: 1_790_000_000n, lastError: null, ...over });
 const update = (ready: boolean, over: Partial<AgentUpdate> = {}): AgentUpdate => ({ ...(fromAvailable(available(ready)) as AgentUpdate), ...over });
 
-function Panel(props: { s?: UpdaterSettings; u?: AgentUpdate | null; checking?: boolean; error?: string | null; onCheck?: () => void }): JSX.Element {
+function Panel(props: { s?: UpdaterSettings; u?: AgentUpdate | null; checking?: boolean; onCheck?: () => void }): JSX.Element {
   const restart: RestartControl = useRestartToUpdate();
   const s: UpdaterSettings = props.s ?? settings();
-  const view: UpdateView = deriveUpdateView({ settings: s, update: props.u ?? null, checking: props.checking ?? false, error: props.error ?? null });
+  const view: UpdateView = deriveUpdateView({ settings: s, update: props.u ?? null, checking: props.checking ?? false, error: null });
   return <UpdateStatusPanel view={view} settings={s} onCheck={props.onCheck ?? ((): void => undefined)} restart={restart} />;
 }
 
