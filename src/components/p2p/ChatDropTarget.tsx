@@ -7,7 +7,10 @@ interface ChatDropTargetProps {
   onFile: (file: File) => void;
   /** Why a drop cannot land right now (words for the overlay), or null when it can. The drag is claimed either way. */
   unavailable: string | null;
-  peerName: string;
+  /** Who the file goes to, as the overlay names them ("Drop a file to send it to …"). */
+  recipient: string;
+  /** The line under the prompt when a drop can land: what happens to the file. */
+  hint: string;
   className: string;
   testId: string;
   children: ReactNode;
@@ -21,9 +24,9 @@ interface ChatDropTargetProps {
  * filling it is announced -- one created together with its text is announced inconsistently.
  * Keyboard users have the paperclip, which sends through the same path.
  */
-export function ChatDropTarget({ onFile, unavailable, peerName, className, testId, children }: ChatDropTargetProps): JSX.Element {
+export function ChatDropTarget({ onFile, unavailable, recipient, hint, className, testId, children }: ChatDropTargetProps): JSX.Element {
   const { dragging, handlers }: ChatFileDrop = useChatFileDrop(onFile, unavailable === null);
-  const prompt: string = unavailable ?? `Drop a file to send it to ${peerName}`;
+  const prompt: string = unavailable ?? `Drop a file to send it to ${recipient}`;
   return (
     <div className={cn('relative', className)} data-testid={testId} {...handlers}>
       {children}
@@ -35,7 +38,7 @@ export function ChatDropTarget({ onFile, unavailable, peerName, className, testI
         >
           <Upload className="h-8 w-8 text-primary-accent" aria-hidden="true" />
           <p className="text-base font-medium text-foreground">{prompt}</p>
-          {unavailable === null && <p className="text-sm text-muted-foreground">Only the first file is sent. You can cancel it from the conversation.</p>}
+          {unavailable === null && <p className="text-sm text-muted-foreground">{hint}</p>}
         </div>
       )}
       <div role="status" className="sr-only">{dragging ? prompt : ''}</div>

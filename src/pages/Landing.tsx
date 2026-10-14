@@ -41,7 +41,7 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
   const [serverAddress, setServerAddress] = useState('');
   const [serverPassword, setServerPassword] = useState('');
 
-  useJoinLink(useCallback((): void => setCurrentStep('server'), []), setServerAddress);
+  useJoinLink(useCallback((): void => setCurrentStep('server'), []), setServerAddress, currentStep !== 'none' && currentStep !== 'login');
 
   // The landing page used to call `listKnownServers({ cid: "0" })` here on
   // mount and DISCARD the result. `checkForServers` checked nothing: nothing
@@ -88,7 +88,7 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
 
   // Both buttons on this screen need the agent; see use-agent-gate.ts.
   const startLogin: () => void = useAgentGatedStep(setCurrentStep, 'login', 'none');
-  const { linkedUsername, startPlainLogin } = useLinkedLogin(startLogin);
+  const { linkedUsername, startPlainLogin } = useLinkedLogin(startLogin, currentStep === 'login');
   const handleLoginNext = async (cid: string): Promise<void> => {
     debugLog('Landing', `[Landing] handleLoginNext called with cid: ${cid}`);
     try {
