@@ -19,7 +19,7 @@ export default function Legal(): JSX.Element {
         <Link to="/" aria-label={`${BRAND_NAME} home`} className="rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
           <CitadelLogo variant="horizontal" height={30} />
         </Link>
-        <Link to="/" className="inline-flex min-h-6 items-center text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Back to sign in</Link>
+        <Link to="/" className="inline-flex min-h-[24px] items-center text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Back to sign in</Link>
       </header>
       <main className="mx-auto w-full max-w-3xl px-4 pb-12 pt-8 sm:px-6">
         <LegalLinks current={doc?.id} className="mb-8 print:hidden" />

@@ -22,7 +22,7 @@ export function LegalLinks({ current, className }: { readonly current?: LegalDoc
             <Link
               to={legalPath(id)}
               aria-current={id === current ? 'page' : undefined}
-              className={cn('inline-flex min-h-6 items-center text-sm underline-offset-4 hover:underline', id === current ? 'font-medium text-foreground' : 'text-muted-foreground hover:text-foreground')}
+              className={cn('inline-flex min-h-[24px] items-center text-sm underline-offset-4 hover:underline', id === current ? 'font-medium text-foreground' : 'text-muted-foreground hover:text-foreground')}
             >
               {SHORT_NAME[id]}
             </Link>

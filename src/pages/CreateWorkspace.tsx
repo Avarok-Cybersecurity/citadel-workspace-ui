@@ -201,7 +201,7 @@ function CreateUnavailable(): JSX.Element {
           This Citadel site does not host workspaces. If you run your own Citadel server, connect to it with its
           address and master password instead.
         </StepHeading>
-        <Link to="/?join=1" className="inline-flex min-h-6 items-center text-sm text-foreground underline underline-offset-4">
+        <Link to="/?join=1" className="inline-flex min-h-[24px] items-center text-sm text-foreground underline underline-offset-4">
           Connect to a server
         </Link>
       </div>

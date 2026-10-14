@@ -21,7 +21,7 @@ export function CreateWorkspaceCta(): JSX.Element | null {
       <Link
         to="/create"
         data-testid="create-workspace-link"
-        className="inline-flex min-h-6 items-center font-medium text-foreground underline underline-offset-4"
+        className="inline-flex min-h-[24px] items-center font-medium text-foreground underline underline-offset-4"
       >
         Create a new workspace
       </Link>

@@ -51,7 +51,7 @@ export function CreateWorkspaceLayout({ stepNumber, stepLabels, children }: Crea
         </Link>
         <Link
           to="/"
-          className="inline-flex min-h-6 items-center text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          className="inline-flex min-h-[24px] items-center text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
         >
           Back to sign in
         </Link>
