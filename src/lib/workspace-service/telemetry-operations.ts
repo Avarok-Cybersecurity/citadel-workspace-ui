@@ -20,16 +20,25 @@ type Answers = {
 };
 
 /** The answer's kind, when `payload` is a telemetry answer of kind `key`. */
-function answerOf<K extends keyof Answers>(payload: unknown, key: K): Answers[K] | null {
+export function answerOf<K extends keyof Answers>(payload: unknown, key: K): Answers[K] | null {
   if (!payload || typeof payload !== 'object' || !(key in payload)) return null;
   return (payload as { [P in K]: Answers[P] })[key];
 }
 
-async function exchange<K extends keyof Answers>(sender: ProtocolSender, request: TelemetryRequest, key: K): Promise<Answers[K]> {
+/**
+ * `reflects` is for requests that change something. The agent also asks `GetMyConsent` on its own
+ * and the server's answer reaches this tab too; the protocol has no request id, so a `Consent` is
+ * taken for ours unless it shows our change. One that does not is somebody else's and is skipped.
+ */
+async function exchange<K extends keyof Answers>(
+  sender: ProtocolSender, request: TelemetryRequest, key: K, reflects: (answer: Answers[K]) => boolean = (): boolean => true,
+): Promise<Answers[K]> {
   let answered: Answers[K] | null = null;
   await awaitWriteResponse('Telemetry', () => sender.sendProtocolRequest({ Telemetry: request }), (payload: unknown): boolean => {
-    answered = answerOf(payload, key);
-    return answered !== null;
+    const candidate: Answers[K] | null = answerOf(payload, key);
+    if (candidate === null || !reflects(candidate)) return false;
+    answered = candidate;
+    return true;
   });
   if (answered === null) throw new Error('Telemetry: the server\'s answer did not carry what was asked for');
   return answered;
@@ -38,9 +47,11 @@ async function exchange<K extends keyof Answers>(sender: ProtocolSender, request
 export const getTerms = (s: ProtocolSender): Promise<CurrentTerms> => exchange(s, 'GetTerms', 'Terms');
 export const getMyConsent = (s: ProtocolSender): Promise<MyConsent> => exchange(s, 'GetMyConsent', 'Consent');
 export const acceptTerms = (s: ProtocolSender, platformVersion: number, workspaceVersion: number | null): Promise<MyConsent> =>
-  exchange(s, { AcceptTerms: { platform_version: platformVersion, workspace_version: workspaceVersion } }, 'Consent');
+  exchange(s, { AcceptTerms: { platform_version: platformVersion, workspace_version: workspaceVersion } }, 'Consent',
+    (answer: MyConsent): boolean => answer.terms_current);
 export const setTelemetryConsent = (s: ProtocolSender, enabled: boolean): Promise<MyConsent> =>
-  exchange(s, { SetTelemetryConsent: { enabled } }, 'Consent');
+  exchange(s, { SetTelemetryConsent: { enabled } }, 'Consent',
+    (answer: MyConsent): boolean => answer.telemetry_enabled === enabled);
 export const deleteMyTelemetry = async (s: ProtocolSender): Promise<number> => (await exchange(s, 'DeleteMyTelemetry', 'Deleted')).segments;
 export const listTelemetry = (s: ProtocolSender, filter: TelemetryFilter, page: TelemetryPage): Promise<TelemetryPageResult> =>
   exchange(s, { ListTelemetry: { filter, page } }, 'Page');

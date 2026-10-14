@@ -11,6 +11,7 @@ import { useConfirm } from '@/components/shared/confirm-dialog';
 import { useToast } from '@/hooks';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { telemetryApi } from '@/lib/telemetry/telemetry-api';
+import { onServerConsent } from '@/lib/telemetry/consent-feed';
 import { describeFailure } from '@/lib/failure-message';
 import { toastSuccess } from '@/lib/toast-helpers';
 
@@ -35,7 +36,8 @@ export function DiagnosticsPrivacySection(): JSX.Element {
     Promise.all([telemetryApi.getMyConsent(), telemetryApi.getTerms()])
       .then(([mine, now]: [MyConsent, CurrentTerms]): void => { if (current) { setConsent(mine); setTerms(now); } })
       .catch((error: unknown): void => { if (current) setProblem(describeFailure(error, 'Diagnostic settings could not be read.')); });
-    return (): void => { current = false; };
+    const unfollow: () => void = onServerConsent((mine: MyConsent): void => { if (current) setConsent(mine); });
+    return (): void => { current = false; unfollow(); };
   }, []);
 
   const run = async (work: () => Promise<void>): Promise<void> => {

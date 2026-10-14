@@ -84,4 +84,21 @@ describe('telemetry requests', () => {
     const s: Sender = sender([{ Error: 'Permission denied: ViewTelemetry required' }]);
     await expect(ops.getTelemetrySettings(s)).rejects.toThrow('ViewTelemetry required');
   });
+
+  it('a volunteered Consent does not answer a change it does not show', async () => {
+    const stale: MyConsent = { ...CONSENT, telemetry_enabled: false };
+    const s: Sender = sender([{ Telemetry: { Consent: stale } }, { Telemetry: { Consent: { ...CONSENT, telemetry_enabled: true } } }]);
+    expect((await ops.setTelemetryConsent(s, true)).telemetry_enabled).toBe(true);
+  });
+
+  it('a volunteered Consent that is not current does not answer AcceptTerms', async () => {
+    const s: Sender = sender([{ Telemetry: { Consent: { ...CONSENT, terms_current: false } } }, { Telemetry: { Consent: CONSENT } }]);
+    expect((await ops.acceptTerms(s, 1, null)).terms_current).toBe(true);
+  });
+
+  it('a volunteered Consent does not answer a request for something else', async () => {
+    const terms = { platform: { version: 1, text: 'T' }, workspace: null };
+    const s: Sender = sender([{ Telemetry: { Consent: CONSENT } }, { Telemetry: { Terms: terms } }]);
+    expect(await ops.getTerms(s)).toEqual(terms);
+  });
 });

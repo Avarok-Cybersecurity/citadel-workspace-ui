@@ -9,6 +9,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { MyConsent } from 'citadel-workspace-client-ts';
+import { act } from '@testing-library/react';
+import { eventEmitter } from '@/lib/event-emitter';
 import { ConfirmDialogProvider } from '@/components/shared/confirm-dialog';
 import { WorkspaceProvider, type WorkspaceState } from '@/contexts/WorkspaceContext';
 
@@ -107,5 +109,25 @@ describe('the accepted terms', () => {
     expect(await screen.findByTestId('accepted-terms')).toHaveTextContent(/platform terms \(version 1\) and this workspace's terms \(version 2\)/);
     await userEvent.click(await screen.findByRole('button', { name: 'Read the terms' }));
     expect(screen.getByTestId('terms-dialog')).toHaveTextContent('platform words');
+  });
+});
+
+describe('a consent answer nobody on this screen asked for', () => {
+  it('moves the switch to what the server says', async () => {
+    api.getMyConsent.mockResolvedValue(consent());
+    renderSection();
+    const sw: HTMLElement = await screen.findByRole('switch', { name: 'Share diagnostic logs' });
+    await waitFor(() => expect(sw).toBeEnabled());
+    act(() => eventEmitter.emit('workspace:telemetry', { answer: { Consent: consent({ telemetry_enabled: true }) } }));
+    expect(sw).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('leaves the switch alone when the answer is of another kind', async () => {
+    api.getMyConsent.mockResolvedValue(consent());
+    renderSection();
+    const sw: HTMLElement = await screen.findByRole('switch', { name: 'Share diagnostic logs' });
+    await waitFor(() => expect(sw).toBeEnabled());
+    act(() => eventEmitter.emit('workspace:telemetry', { answer: { Deleted: { segments: 3 } } }));
+    expect(sw).toHaveAttribute('aria-checked', 'false');
   });
 });
