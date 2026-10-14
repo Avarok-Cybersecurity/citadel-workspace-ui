@@ -1,34 +1,16 @@
 /**
- * "Send file" for a peer group: pick a file, offer it to every member.
- *
- * Failure of the share as a whole (nothing was sent) is a toast; a member who
- * could not be reached is a row in the resulting bubble, not a toast, because
- * it is part of what happened to this file and has to outlive the toast.
+ * "Send file" for a peer group: pick a file, offer it to every member, through the
+ * conversation's one share path (useGroupFileShare.ts), which a drop on the conversation uses too.
  */
-import React, { useRef, useState, type RefObject } from 'react';
+import React, { useRef, type RefObject } from 'react';
 import { Paperclip, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
-import { describeFailure } from '@/lib/failure-message';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
-import { sendGroupFile } from '@/lib/group-conversations/send-group-file';
+import type { GroupFileShare } from './useGroupFileShare';
 
-export function GroupAttachButton({ groupId }: { groupId: string }): JSX.Element {
-  const { toast } = useToast();
+export function GroupAttachButton({ fileShare }: { fileShare: GroupFileShare }): JSX.Element {
   const inputRef: RefObject<HTMLInputElement> = useRef<HTMLInputElement>(null);
-  const [sending, setSending] = useState<boolean>(false);
-
-  const share = async (file: File): Promise<void> => {
-    setSending(true);
-    try {
-      await sendGroupFile(groupId, file);
-    } catch (error) {
-      toast({ title: 'File not shared', description: describeFailure(error, 'Please try again.'), variant: 'destructive' });
-    } finally {
-      setSending(false);
-    }
-  };
-
+  const { sending, share } = fileShare;
   const onChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const file: File | undefined = e.target.files?.[0];
     // Cleared so picking the same file again still fires a change.

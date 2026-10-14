@@ -22,7 +22,7 @@ const textDrag: { dataTransfer: { types: string[]; files: File[] } } = { dataTra
 
 function target(onFile: (file: File) => void, unavailable: string | null = null): JSX.Element {
   return (
-    <ChatDropTarget onFile={onFile} unavailable={unavailable} peerName="Ada" className="h-full" testId="chat">
+    <ChatDropTarget onFile={onFile} unavailable={unavailable} recipient="Ada" hint="Only the first file is sent." className="h-full" testId="chat">
       <p>conversation</p>
     </ChatDropTarget>
   );
@@ -88,7 +88,7 @@ describe('the chat behind an open Send File dialog', () => {
     // the dialog's drop would also reach the chat, which would reopen the dialog with the file.
     const onFile: (file: File) => void = vi.fn();
     render(
-      <ChatDropTarget onFile={onFile} unavailable={null} peerName="Ada" className="h-full" testId="chat">
+      <ChatDropTarget onFile={onFile} unavailable={null} recipient="Ada" hint="Only the first file is sent." className="h-full" testId="chat">
         <FileTransferModal isOpen onClose={vi.fn()} onSendFile={vi.fn()} peerCid="42" />
       </ChatDropTarget>,
     );
