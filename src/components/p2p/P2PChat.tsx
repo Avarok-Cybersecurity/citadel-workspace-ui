@@ -144,7 +144,7 @@ export function P2PChat({
 
 
   return (
-    <ChatDropTarget className="h-full flex flex-col bg-background" testId="p2p-chat" peerName={peerName} {...fileSend.drop}>
+    <ChatDropTarget className="h-full flex flex-col bg-background" testId="p2p-chat" recipient={peerName} hint="Only the first file is sent. You can cancel it from the conversation." {...fileSend.drop}>
       <P2PChatHeader
         peerName={peerName}
         peerUsername={peerUsername ?? peerName}

@@ -19,6 +19,9 @@ import { useGroupChat } from './useGroupChat';
 import { restrictionText, type GroupRestriction } from './group-restriction';
 import { GroupMessageItem } from './GroupMessageItem';
 import { GroupAttachButton } from './GroupAttachButton';
+import { useGroupFileShare, type GroupFileShare } from './useGroupFileShare';
+import { ChatDropTarget } from '@/components/p2p/ChatDropTarget';
+import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { groupSendTransport } from '@/lib/group-conversations/group-send-transport';
 import { groupReactionBinding } from './group-reaction-binding';
 import { markChannelOpen } from '@/lib/group-conversations/open-channel';
@@ -53,6 +56,12 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
   sendRestriction,
 }) => {
   const chat: ReturnType<typeof useGroupChat> = useGroupChat(groupId);
+  const fileShare: GroupFileShare = useGroupFileShare(groupId);
+  // Peer groups only: a node-backed channel's server has no file path.
+  const sharesFiles: boolean = groupSendTransport(groupId) === 'peer';
+  const dropUnavailable: string | null = !sharesFiles
+    ? 'Files can be shared in peer groups, not in this channel'
+    : fileShare.sending ? 'A file is already being shared' : null;
   // On screen, so the bell stays quiet for this channel (see open-channel).
   useEffect((): (() => void) => markChannelOpen(groupId), [groupId]);
   // The composer, for GroupMessageItem to focus after Edit or Reply (see focusComposer).
@@ -66,7 +75,14 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
   );
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <ChatDropTarget
+      className="flex flex-col h-full bg-background"
+      testId="group-chat"
+      recipient="everyone in the group"
+      hint="Only the first file is shared."
+      unavailable={dropUnavailable}
+      onFile={(file: File): void => runAsyncSetup(() => fileShare.share(file))}
+    >
       {/* Rules banner */}
       {rules && (
         <div className="px-4 py-2 bg-primary/20 border-b border-primary/40">
@@ -185,8 +201,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
       ) : (
       <div className="p-4 border-t border-border">
         <div className="flex gap-2">
-          {/* Peer groups only: a node-backed channel's server has no file path. */}
-          {groupSendTransport(groupId) === 'peer' && !chat.editingId && <GroupAttachButton groupId={groupId} />}
+          {sharesFiles && !chat.editingId && <GroupAttachButton fileShare={fileShare} />}
           <Textarea
             ref={composerRef}
             value={chat.editingId ? chat.editContent : chat.inputValue}
@@ -216,7 +231,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
         </div>
       </div>
       )}
-    </div>
+    </ChatDropTarget>
   );
 };
 
