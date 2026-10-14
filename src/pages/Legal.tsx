@@ -14,7 +14,7 @@ export default function Legal(): JSX.Element {
   const navigate: NavigateFunction = useNavigate();
   const doc: LegalDocument | undefined = legalDocument(id);
   return (
-    <div className="min-h-dvh bg-background text-foreground">
+    <div className="legal-print min-h-dvh bg-background text-foreground">
       <header className="mx-auto flex w-full max-w-3xl items-center justify-between px-4 pt-6 sm:px-6 print:hidden">
         <Link to="/" aria-label={`${BRAND_NAME} home`} className="rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
           <CitadelLogo variant="horizontal" height={30} />

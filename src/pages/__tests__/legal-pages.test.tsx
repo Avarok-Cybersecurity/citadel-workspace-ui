@@ -62,6 +62,15 @@ describe('moving between documents', () => {
   });
 });
 
+describe('printing', () => {
+  it('prints the document alone: black on white, without the index or the way back', () => {
+    at('/legal/terms');
+    expect(document.querySelector('.legal-print')).not.toBeNull();
+    expect(screen.getByRole('navigation', { name: 'Legal documents' })).toHaveClass('print:hidden');
+    expect(screen.getByRole('link', { name: 'Back to sign in' }).closest('header')).toHaveClass('print:hidden');
+  });
+});
+
 describe('the tab title', () => {
   it('is the legal one, not "page not found"', () => {
     expect(titleForPath('/legal/dpa')).toMatch(/^Legal · /);
