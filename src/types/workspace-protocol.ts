@@ -6,8 +6,6 @@
  * communication between the TypeScript frontend and Rust backend.
  */
 
-// Import the workspace types from internal files instead of a separate file
-// We'll define the types directly here for simplicity since we only need minimal types
 import type { SignInSettings, TelemetryRequest, WorkspaceLogoChange } from 'citadel-workspace-client-ts';
 
 /**
