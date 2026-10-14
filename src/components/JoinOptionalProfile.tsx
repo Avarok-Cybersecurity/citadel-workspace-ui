@@ -2,10 +2,11 @@ import { AvatarUpload } from './settings/AvatarUpload';
 import { PROFILE_PICTURE } from '@/components/settings/image-upload-kinds';
 import { ProfileDetailsFields, type ProfileDetailsValues } from './settings/ProfileDetailsFields';
 import type { SignupProfileFields } from '@/lib/signup-profile';
+import type { OptionalFieldChange } from './join-registration-shape';
 
 interface JoinOptionalProfileProps {
   values: SignupProfileFields;
-  onChange: <K extends keyof SignupProfileFields>(field: K, value: SignupProfileFields[K]) => void;
+  onChange: OptionalFieldChange;
   disabled: boolean;
 }
 

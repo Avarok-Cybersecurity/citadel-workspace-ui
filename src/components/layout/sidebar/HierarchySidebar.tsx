@@ -17,6 +17,7 @@ import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 import { usePermission } from '@/hooks/use-permission';
 import { Permission } from '@/contexts/PermissionsContext';
 import { createBlockedReason } from './AddNodeButton';
+import { childTypeChoice, type ChildTypeChoice } from './child-type-choice';
 import type { NavigateFunction } from 'react-router';
 
 /**
@@ -34,6 +35,8 @@ export function HierarchySidebar(): JSX.Element {
 
   // Modal state
   const [createModal, setCreateModal] = useState<{ parentId: string; entityType: string } | null>(null);
+  // Set while the schema allows several child types and the user has not chosen one.
+  const [typePick, setTypePick] = useState<{ parentId: string; parentName: string; types: string[] } | null>(null);
   const [editNode, setEditNode] = useState<DomainNode | null>(null);
   const [moveNode, setMoveNode] = useState<DomainNode | null>(null);
   const [adminNode, setAdminNode] = useState<DomainNode | null>(null);
@@ -117,17 +120,10 @@ export function HierarchySidebar(): JSX.Element {
       const workspaceRule: { parent_type: string; allowed_child_types: string[] } | undefined = state.treeSchema.rules?.find(
         r => r.parent_type === 'Workspace'
       );
-      const allowedTypes: string[] = workspaceRule?.allowed_child_types ?? [];
-      if (allowedTypes.length === 0) {
-        // "Initialize the workspace to become an admin" was true once and is
-        // not now: since the first-connect-admin change, initialization
-        // requires the operator's master password, so a member following that
-        // advice hits a modal they cannot complete. And this branch is
-        // effectively unreachable anyway -- GetTreeSchema returns the same
-        // global schema to everyone, with no actor check, and the default
-        // schema always permits an Office under the workspace. The real refusal
-        // arrives from the server after submit, which is where it is now
-        // reported verbatim.
+      const rootChoice: ChildTypeChoice = childTypeChoice(workspaceRule?.allowed_child_types);
+      if (rootChoice.kind === 'none') {
+        // GetTreeSchema answers everyone alike, so this is nearly unreachable; the real refusal
+        // arrives from the server after submit and is reported verbatim there.
         toastError(
           toast,
           'Cannot create here',
@@ -135,23 +131,28 @@ export function HierarchySidebar(): JSX.Element {
         );
         return;
       }
-      setCreateModal({ parentId: WORKSPACE_ROOT_ID, entityType: allowedTypes[0] });
+      if (rootChoice.kind === 'pick') {
+        setTypePick({ parentId: WORKSPACE_ROOT_ID, parentName: state.workspace?.name || 'Workspace', types: rootChoice.types });
+        return;
+      }
+      setCreateModal({ parentId: WORKSPACE_ROOT_ID, entityType: rootChoice.type });
       return;
     }
 
     const parentNode: DomainNode = state.nodes[parentId];
     if (!parentNode) return;
 
-    const allowedTypes: string[] | null = parentNode.allowed_child_types;
-    if (!allowedTypes || allowedTypes.length === 0) {
+    const choice: ChildTypeChoice = childTypeChoice(parentNode.allowed_child_types);
+    if (choice.kind === 'none') {
       toastError(toast, 'Cannot Add Here', `No child types are allowed under "${parentNode.name}".`);
       return;
     }
-
-    // If only one child type allowed, use it directly
-    // If multiple, default to first (future: show type picker)
-    setCreateModal({ parentId, entityType: allowedTypes[0] });
-  }, [state.nodes, state.treeSchema, toast]);
+    if (choice.kind === 'pick') {
+      setTypePick({ parentId, parentName: parentNode.name, types: choice.types });
+      return;
+    }
+    setCreateModal({ parentId, entityType: choice.type });
+  }, [state.nodes, state.treeSchema, state.workspace?.name, toast]);
 
   const handleAdminSettings: (node: DomainNode) => void = useCallback((node: DomainNode): void => {
     setAdminNode(node);
@@ -215,6 +216,12 @@ export function HierarchySidebar(): JSX.Element {
         createModal={createModal}
         editNode={editNode}
         adminNode={adminNode}
+        typePick={typePick}
+        onPickType={(entityType: string): void => {
+          if (typePick) setCreateModal({ parentId: typePick.parentId, entityType });
+          setTypePick(null);
+        }}
+        onCloseTypePick={() => setTypePick(null)}
         onCloseCreate={() => setCreateModal(null)}
         onCloseEdit={() => setEditNode(null)}
         onCloseAdmin={() => setAdminNode(null)}

@@ -537,24 +537,14 @@ async function runTest(): Promise<boolean> {
 
     console.log('\nSchema Enforcement (Custom Types):');
     console.log(`  Team Under Workspace Rejected:  ${results.teamUnderWorkspaceRejected ? 'PASS' : 'FAIL'}`);
-    // Not gated, and deliberately not reported as a plain FAIL: this is a known
-    // server-side gap, not a regression, and calling it FAIL invites someone to
-    // "fix" the test.
-    //
-    // CreateNodeType { name: "Team", allowed_parents: ["Department"] } writes a
-    // rule for parent_type "Department" and none for parent_type "Team".
-    // TreeSchema::is_child_allowed then hits its `.unwrap_or(true)` — "if no rule
-    // exists for this parent type, allow all children by default"
-    // (citadel-workspace-types/src/structs.rs:816) — so a custom type constrains
-    // what it can sit UNDER but never what it can CONTAIN, and an Office is
-    // accepted under a Team.
-    //
-    // Enforcement is asymmetric as a result: Team-under-Workspace and
-    // Room-under-Workspace are both correctly rejected, because those parents do
-    // have rules. Fixing it means either flipping that default or having
-    // CreateNodeType register a rule for the new type as a parent — a decision
-    // about existing workspaces, not something to change from a test.
-    console.log(`  Office Under Team Rejected:     ${results.officeUnderTeamRejected ? 'PASS' : 'KNOWN GAP (custom types do not constrain their children — see comment)'}`);
+    // A custom type constrains what it can CONTAIN as well as what it can sit under. It once did
+    // not: CreateNodeType { name: "Team", allowed_parents: ["Department"] } wrote a rule for
+    // parent_type "Department" and none for "Team", and TreeSchema::is_child_allowed answered
+    // "allow all" for a parent with no rule, so an Office was accepted under a Team. That lookup
+    // now answers closed (citadel-workspace-types/src/structs.rs, `is_child_allowed`), the same as
+    // `get_allowed_children`, so a Team with no rule contains nothing. Not in the pass/fail gate
+    // below only because that gate has always covered the default schema alone.
+    console.log(`  Office Under Team Rejected:     ${results.officeUnderTeamRejected ? 'PASS' : 'FAIL'}`);
     console.log(`  Schema Violation Error:         ${results.schemaViolationErrorReturned ? 'PASS' : 'FAIL'}`);
 
     console.log('\nDefault Schema Enforcement:');

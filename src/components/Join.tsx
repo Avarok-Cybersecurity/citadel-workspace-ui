@@ -10,6 +10,7 @@ import { useJoinRegistration, type JoinFormData } from "./useJoinRegistration";
 import type { SecuritySettingsValues } from "./SecuritySettings";
 import { JoinFormFields } from "./JoinFormFields";
 import { JoinOptionalProfile } from "./JoinOptionalProfile";
+import { JoinConsentFields } from "./JoinConsentFields";
 import { PostRegistrationSteps } from "./sign-in/PostRegistrationSteps";
 import { useState } from "react";
 import { AdmissionCheck } from "./admission/AdmissionCheck";
@@ -41,6 +42,7 @@ export const Join = ({ onNext, onBack, defaultWorkspace, serverAddress, serverPa
     handleOptionalChange,
     handleBlur,
     fieldErrors,
+    termsMissing,
     handleSubmit,
     handleConnectModalComplete,
     handleReturnToLogin,
@@ -115,6 +117,12 @@ export const Join = ({ onNext, onBack, defaultWorkspace, serverAddress, serverPa
                 values={formData}
                 onChange={handleOptionalChange}
                 disabled={isRegistering}
+              />
+              <JoinConsentFields
+                values={formData}
+                onChange={handleOptionalChange}
+                disabled={isRegistering}
+                termsError={termsMissing ? 'Accept the Terms to join.' : null}
               />
               <AdmissionCheck gate={admission} />
             </CardContent>

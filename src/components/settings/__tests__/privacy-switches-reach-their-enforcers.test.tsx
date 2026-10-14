@@ -21,6 +21,8 @@ vi.mock('@/lib/workspace-service', () => ({
   default: { updateUserProfile: vi.fn(async (u: ProfileUpdate): Promise<void> => { sent.push(u); }) },
 }));
 vi.mock('@/components/passkey/SignInKeysSection', () => ({ SignInKeysSection: (): null => null }));
+// Its own requests and confirmations are covered in diagnostics-privacy.test.tsx.
+vi.mock('../DiagnosticsPrivacySection', () => ({ DiagnosticsPrivacySection: (): null => null }));
 
 import { PrivacySettingsTab } from '../PrivacySettingsTab';
 import { getPrivacySettings, savePrivacySettings, DEFAULT_PRIVACY_SETTINGS } from '@/lib/privacy-settings';

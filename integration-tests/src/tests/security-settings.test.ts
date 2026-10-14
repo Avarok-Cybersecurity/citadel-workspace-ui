@@ -415,6 +415,7 @@ async function runTest(): Promise<boolean> {
         await sleep(300);
       }
 
+      await page.getByTestId('join-terms').check(); // required to Join
       const submitBtn = page.getByRole('button', { name: 'Join', exact: true });
       if (await submitBtn.isVisible()) {
         await submitBtn.click();

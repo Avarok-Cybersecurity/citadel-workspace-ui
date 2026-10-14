@@ -10,6 +10,7 @@ import { HierarchySidebar } from "./sidebar/HierarchySidebar";
 import { MembersSection } from "./sidebar/MembersSection";
 import { FilesSection } from "./sidebar/FilesSection";
 import { AdminSettingsSection } from "./sidebar/AdminSettingsSection";
+import { TermsGate } from "@/components/terms/TermsGate";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -82,6 +83,7 @@ export const AppLayout = ({ children }: AppLayoutProps): JSX.Element => {
           {children}
         </main>
       </div>
+      <TermsGate />
     </SidebarProvider>
   );
 };

@@ -99,6 +99,10 @@ export async function createAccount(page: Page, username: string, options: Creat
       await confirmPasswordInput.fill(password);
     }
 
+    // The Terms are required to Join; diagnostics stay at their default (off).
+    const termsBox = page.getByTestId('join-terms');
+    if (await termsBox.isVisible()) await termsBox.check();
+
     // The profile step's submit, by testid rather than by the word on it.
     const submitBtn = page.getByTestId('join-submit');
     if (await submitBtn.isVisible()) {

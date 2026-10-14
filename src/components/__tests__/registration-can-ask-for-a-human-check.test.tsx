@@ -4,7 +4,7 @@
  * on the check rather than as a generic "registration failed" toast.
  *
  * Doubled at the I/O seams (login-world.ts), plus ConnectionManager's session
- * store (IndexedDB) and the post-signup profile writes (workspace requests).
+ * store (IndexedDB) and the post-signup writes (profile, Terms and diagnostics: workspace requests).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -13,7 +13,7 @@ import { MemoryRouter } from 'react-router-dom';
 const toasts: { titles: string[] } = vi.hoisted(() => ({ titles: [] }));
 vi.mock('@/lib/websocket-service', async (orig: () => Promise<Record<string, unknown>>) => (await import('./login-world')).websocketServiceDouble(orig));
 vi.mock('@/lib/connection', () => ({ ConnectionManager: { getInstance: (): { handleAuthSuccess: () => Promise<void> } => ({ handleAuthSuccess: async (): Promise<void> => undefined }) } }));
-vi.mock('@/lib/signup-profile-io', () => ({ startSignupProfile: (): void => undefined }));
+vi.mock('@/lib/signup-follow-ups', () => ({ startSignupFollowUps: (): void => undefined }));
 vi.mock('@/lib/sign-in', async (orig: () => Promise<Record<string, unknown>>) => (await import('./login-world')).signInDouble(orig));
 vi.mock('@/lib/admission', async (orig: () => Promise<Record<string, unknown>>) => (await import('./login-world')).admissionDouble(orig));
 vi.mock('@/hooks/use-toast', () => ({ useToast: (): { toast: (t: { title: string }) => void } => ({ toast: (t: { title: string }): void => { toasts.titles.push(t.title); } }) }));
@@ -28,6 +28,8 @@ let turnstile: FakeTurnstile;
 const type = (id: string, value: string): void => { fireEvent.change(document.getElementById(id) as HTMLElement, { target: { value, name: id } }); };
 function register(): void {
   type('fullName', 'Alice Example'); type('username', 'alice'); type('password', 'Horse-battery-9'); type('confirmPassword', 'Horse-battery-9');
+  const terms: HTMLElement = screen.getByTestId('join-terms');
+  if (terms.getAttribute('aria-checked') !== 'true') fireEvent.click(terms);
   fireEvent.click(screen.getByTestId('join-submit'));
 }
 const registers = (): Record<string, unknown>[] => h.w.agent.sent.filter(([v]) => v === 'Register').map(([, b]) => b);
@@ -55,6 +57,17 @@ describe('registering where a human check is required', () => {
     await waitFor(() => expect(h.w.agent.accounts.map((a) => a.username)).toContain('alice'));
     expect(registers()[0]).toMatchObject({ admission_token: turnstile.issued[0] });
     expect(turnstile.rendered[0]).toMatchObject({ cData: 'bench' });
+  });
+
+  it('registers nothing until the Terms are ticked, and then does', async () => {
+    renderJoin();
+    type('fullName', 'Alice Example'); type('username', 'alice'); type('password', 'Horse-battery-9'); type('confirmPassword', 'Horse-battery-9');
+    fireEvent.click(screen.getByTestId('join-submit'));
+    expect(await screen.findByText('Accept the Terms to join.')).toBeInTheDocument();
+    expect(registers()).toEqual([]);
+    fireEvent.click(screen.getByTestId('join-terms'));
+    fireEvent.click(screen.getByTestId('join-submit'));
+    await waitFor(() => expect(registers()).toHaveLength(1));
   });
 
   it('signs in with a fresh check after registering, as the next step and not as an error', async () => {

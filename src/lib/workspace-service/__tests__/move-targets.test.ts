@@ -97,3 +97,15 @@ describe('where a node may be moved', () => {
     expect(targets.map((n) => n.id)).not.toContain('b');
   });
 });
+
+describe('under the default schema, where rooms may hold rooms', () => {
+  it('offers another room as a destination for a room, and not a node that allows nothing', () => {
+    const nodes: Record<string, DomainNode> = {
+      office: node('office', null, ['a', 'b', 'leaf'], ['Room', 'Office'], 'Office'),
+      a: node('a', 'office', [], ['Room']),
+      b: node('b', 'office', [], ['Room']),
+      leaf: node('leaf', 'office', [], []),
+    };
+    expect(moveTargets(nodes, 'a').map((n: DomainNode) => n.id).sort()).toEqual(['b']);
+  });
+});

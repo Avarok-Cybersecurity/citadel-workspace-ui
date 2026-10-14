@@ -89,6 +89,7 @@ test.describe('Error Handling', () => {
     await page.getByRole('textbox', { name: 'Profile Password', exact: true }).fill('correct-horse');
     await page.getByRole('textbox', { name: 'Confirm Profile Password' }).fill('battery-staple');
 
+    await page.getByTestId('join-terms').check(); // required to Join; the mismatch is what is under test
     await clickThroughRenderChurn(page, 'join-submit');
 
     await expect(errorSurface(page)).toBeVisible({ timeout: 15_000 });

@@ -20,6 +20,7 @@ import { WORKSPACE_ICON } from '@/components/settings/image-upload-kinds';
 import { WorkspaceAppearanceSection } from '@/components/settings/WorkspaceAppearanceSection';
 import { kernelAdmissionSetting } from '@/lib/admission/workspace-setting';
 import { TurnstileAdmissionSwitch } from './TurnstileAdmissionSwitch';
+import { TelemetrySection } from './telemetry/TelemetrySection';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
 import { toastSuccess } from '@/lib/toast-helpers';
@@ -123,6 +124,10 @@ export function WorkspaceSettingsDialog({ open, onOpenChange }: WorkspaceSetting
 
         <div className="border-t border-border pt-4">
           <WorkspaceAppearanceSection />
+        </div>
+
+        <div className="border-t border-border pt-4 empty:hidden">
+          <TelemetrySection />
         </div>
       </DialogContent>
     </Dialog>

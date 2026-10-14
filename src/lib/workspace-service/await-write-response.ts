@@ -38,6 +38,8 @@ export const SUCCESS_RESPONSES: Record<string, readonly string[]> = {
   UpdateNode: ['Node'],
   SetMembersVisible: ['Node'],
   // The sign-in settings, read and written; both answered with what the server holds.
+  // Every telemetry request is answered with a Telemetry response; telemetry-operations picks the kind.
+  Telemetry: ['Telemetry'],
   GetSignInSettings: ['SignInSettings'],
   UpdateSignInSettings: ['SignInSettings'],
   DeleteNode: ['NodeDeleted'],

@@ -129,6 +129,9 @@ async function registerUser(page: Page, username: string, password: string): Pro
         await sleep(300);
       }
 
+      // The Terms are required to Join.
+      await page.getByTestId('join-terms').check();
+
       // Click JOIN button
       const submitBtn = page.getByRole('button', { name: 'Join', exact: true });
       if (await submitBtn.isVisible()) {

@@ -9,4 +9,7 @@ export const BLANK_JOIN_FORM: JoinFormData = Object.freeze({
   avatarData: null,
   email: '',
   title: '',
+  // Off until ticked: the Terms are required to Join, diagnostics are never assumed.
+  termsAccepted: false,
+  shareDiagnostics: false,
 });

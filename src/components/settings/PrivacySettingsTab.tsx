@@ -6,6 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { OnlineStatusRow, ProfileVisibilityRow, StrangerRequestsRow } from './PrivacyServerRows';
 import { NotificationPreviewRow } from './NotificationPreviewRow';
+import { DiagnosticsPrivacySection } from './DiagnosticsPrivacySection';
 import {
   getPrivacySettings,
   savePrivacySettings,
@@ -105,6 +106,8 @@ export function PrivacySettingsTab(): JSX.Element {
           />
         </div>
       </div>
+
+      <DiagnosticsPrivacySection />
     </div>
   );
 }

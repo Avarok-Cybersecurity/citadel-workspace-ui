@@ -28,6 +28,7 @@ function renderJoin(formData: Partial<JoinRegistration['formData']>): { onOption
     connectStatus: 'connecting',
     handleInputChange: vi.fn(),
     handleOptionalChange: onOptional as unknown as JoinRegistration['handleOptionalChange'],
+    termsMissing: false,
     handleBlur: vi.fn(),
     fieldErrors: { fullName: null, username: null, password: null, confirmPassword: null },
     handleSubmit: vi.fn(),

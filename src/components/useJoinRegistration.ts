@@ -13,8 +13,9 @@ import { mapSecuritySettings } from "@/lib/security-utils";
 import type { ConnectStatus } from "./LoadingModal";
 import { debugLog } from '@/lib/debug-config';
 import { createRegistrationResponseHandler } from './registration-response-handler';
-import { startSignupProfile } from '@/lib/signup-profile-io';
+import { startSignupFollowUps } from '@/lib/signup-follow-ups';
 import type { SignupProfileFields } from '@/lib/signup-profile';
+import type { SignupConsentFields } from '@/lib/signup-consent';
 import { BLANK_JOIN_FORM } from './join-form-blank';
 import { serverPasswordMismatchMessage } from '@/lib/server-password-error';
 import { describeFailure } from '@/lib/failure-message';
@@ -23,7 +24,7 @@ import { RegisteredAwaitingSignIn } from '@/lib/admission/refusal';
 import { connectAfterRegistration } from './sign-in/connect-after-registration';
 
 /** The required credentials plus the optional profile fields sent after registration. */
-export interface JoinFormData extends SignupProfileFields {
+export interface JoinFormData extends SignupProfileFields, SignupConsentFields {
   fullName: string;
   username: string;
   password: string;
@@ -98,7 +99,7 @@ export function useJoinRegistration(
     });
   };
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>): void =>
-    setField(e.target.name as Exclude<keyof JoinFormData, 'avatarData'>, e.target.value);
+    setField(e.target.name as Exclude<keyof JoinFormData, 'avatarData' | keyof SignupConsentFields>, e.target.value);
 
   const handleConnectSuccess = async (
     data: Record<string, unknown>,
@@ -140,9 +141,10 @@ export function useJoinRegistration(
       !formData.fullName || !formData.username || !formData.password || !formData.confirmPassword;
     const firstError: string | null =
       rawErrors.fullName ?? rawErrors.username ?? rawErrors.password ?? rawErrors.confirmPassword;
-    if (missingField || firstError) {
+    if (missingField || firstError || !formData.termsAccepted) {
       setSubmitAttempted(true);
-      focusFirstProblem();
+      if (missingField || firstError) focusFirstProblem();
+      else document.getElementById('join-terms')?.focus();
       return;
     }
     const admissionToken: string | null | 'missing' = admission.take();
@@ -190,7 +192,7 @@ export function useJoinRegistration(
       // already finished and was visible for a single frame.
       debugLog('Join', "Register Response:", response);
       // After, never instead: the account exists whatever happens to these.
-      startSignupProfile({ avatarData: formData.avatarData, email: formData.email, title: formData.title });
+      startSignupFollowUps(formData);
 
       toast({ title: "Registration Successful", description: "Your account has been registered. Connecting to workspace...", variant: "default" });
       setRegisteredCid(response.cid);
@@ -225,10 +227,11 @@ export function useJoinRegistration(
     showConnectModal,
     connectStatus,
     handleInputChange,
-    // Sound: JoinFormData extends SignupProfileFields, so the keys agree; tsc cannot see it through the generic.
+    // Sound: JoinFormData extends both field sets, so the keys agree; tsc cannot see it through the generic.
     handleOptionalChange: setField as JoinRegistration['handleOptionalChange'],
     handleBlur,
     fieldErrors,
+    termsMissing: submitAttempted && !formData.termsAccepted,
     handleSubmit,
     handleConnectModalComplete,
     handleReturnToLogin,
@@ -237,7 +240,7 @@ export function useJoinRegistration(
     finishSignIn: async (admissionToken: string): Promise<bigint> => {
       const cid: bigint = await connectAfterRegistration(formData.username, formData.password, admissionToken, mapSecuritySettings(securitySettings));
       await new Promise<void>((done, fail) => { void handleConnectSuccess({ cid }, (): void => done(), fail); });
-      startSignupProfile({ avatarData: formData.avatarData, email: formData.email, title: formData.title });
+      startSignupFollowUps(formData);
       return cid;
     },
   };
