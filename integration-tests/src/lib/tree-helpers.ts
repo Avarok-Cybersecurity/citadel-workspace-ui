@@ -588,6 +588,18 @@ export async function createRoomViaUI(
     }
 
     await createItem.click();
+
+    // A parent whose schema allows more than one child type first asks which to add. The level
+    // names are the admin's to choose; these suites run on the default template, whose Office
+    // holds Offices and Rooms, and this helper adds its "Room". The picker is itself a dialog, so
+    // the form check below cannot tell them apart.
+    const picker = page.locator('[data-testid="child-type-picker"]');
+    const form = page.locator('input#name, input[id="name"]').first();
+    await picker.or(form).first().waitFor({ state: 'visible', timeout: 5000 }).catch(() => undefined);
+    if (await picker.isVisible()) {
+      await picker.locator('[data-testid="child-type-Room"]').click();
+      console.log('  [UI] Picked Room in the child type picker');
+    }
     await sleep(500);
 
     // Wait for modal to open - look for the dialog
