@@ -24,13 +24,11 @@ export interface JoinRegistration {
   showConnectModal: boolean;
   connectStatus: ConnectStatus;
   handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  /** The optional fields (picture as base64 or null, email, title) and the Terms and diagnostics choices. */
+  /** The optional fields (picture as base64 or null, email, title) and the diagnostics choice. */
   handleOptionalChange: OptionalFieldChange;
   handleBlur: (e: React.FocusEvent<HTMLInputElement>) => void;
   /** Per-field messages, shown only once a field has been touched or submitted. */
   fieldErrors: JoinFieldErrorsResult['fieldErrors'];
-  /** Join was pressed without the Terms ticked. */
-  termsMissing: boolean;
   handleSubmit: (e: React.FormEvent) => Promise<void>;
   handleConnectModalComplete: () => void;
   handleReturnToLogin: () => void;

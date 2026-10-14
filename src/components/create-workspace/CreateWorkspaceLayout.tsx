@@ -2,6 +2,7 @@ import type { JSX, ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { CitadelLogo } from '@/components/brand/CitadelLogo';
 import { BRAND_NAME } from '@/components/brand/artwork/brand-rules.generated';
+import { LegalLinks } from '@/components/terms/LegalLinks';
 import { StepIndicator } from '@/components/ui/step-indicator';
 
 export interface CreateWorkspaceLayoutProps {
@@ -71,6 +72,7 @@ export function CreateWorkspaceLayout({ stepNumber, stepLabels, children }: Crea
         <p className="mt-6 text-center text-xs text-muted-foreground">
           Every Citadel workspace is end-to-end encrypted with post-quantum cryptography.
         </p>
+        <LegalLinks className="mt-3 flex justify-center" />
       </main>
     </div>
   );

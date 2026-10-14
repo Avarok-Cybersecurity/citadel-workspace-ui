@@ -989,3 +989,14 @@ h1, h2, h3, h4, h5, h6 {
     ) !important;
   }
 }
+
+/* A legal page printed or saved as a PDF is black on white whatever the screen theme is. */
+@media print {
+  :root, .dark {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 0%;
+    --muted-foreground: 0 0% 25%;
+    --border: 0 0% 70%;
+    --primary: 0 0% 0%;
+  }
+}

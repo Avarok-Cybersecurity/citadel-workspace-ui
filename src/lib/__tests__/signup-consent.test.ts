@@ -1,6 +1,6 @@
 /**
- * The Terms and diagnostics choices of a new account: nothing is sent without the Terms ticked,
- * diagnostics go out only when ticked, and acceptance is recorded only for the terms that were
+ * The Terms and diagnostics choices of a new account: Terms are accepted only if they were put to
+ * the person, diagnostics go out only when ticked, and acceptance is recorded only for the terms that were
  * shown. Doubled: the five effects (wire, wait, toast); the rules are production.
  */
 import { describe, it, expect, vi } from 'vitest';
@@ -23,10 +23,17 @@ function effects(terms: CurrentTerms = TERMS): SignupConsentEffects & { calls: s
 }
 
 describe('applySignupConsent', () => {
-  it('sends nothing when the Terms were not ticked', async () => {
+  it('sends nothing when neither the Terms nor diagnostics were chosen', async () => {
+    const e = effects();
+    await applySignupConsent({ termsAccepted: false, shareDiagnostics: false }, e);
+    expect(e.calls).toEqual([]);
+  });
+
+  it('on a server whose Terms were never put to the person, diagnostics alone are asked for and no terms are accepted', async () => {
     const e = effects();
     await applySignupConsent({ termsAccepted: false, shareDiagnostics: true }, e);
-    expect(e.calls).toEqual([]);
+    expect(e.calls).toEqual(['wait', 'diagnostics true']);
+    expect(e.acceptTerms).not.toHaveBeenCalled();
   });
 
   it('accepts the shown terms and leaves diagnostics off by default', async () => {

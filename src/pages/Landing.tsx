@@ -1,3 +1,4 @@
+import { LegalLinks } from '@/components/terms/LegalLinks';
 import { useNavigate } from "react-router-dom";
 import { useRegistrationChoices, type RegistrationChoices } from "@/components/registration-choices";
 import { LazyLandingSteps as LandingSteps } from "./lazy-landing-steps";
@@ -220,6 +221,7 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
               Citadel uses <span className="text-primary-accent font-medium">lattice-based cryptography</span>. All connections are end-to-end encrypted and resistant to quantum compute attacks.
             </p>
           </div>
+          <LegalLinks className="mt-6 max-w-md" />
         </div>
       </main>
 

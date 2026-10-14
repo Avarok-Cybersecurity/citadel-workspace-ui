@@ -55,7 +55,7 @@ describe('errors', () => {
     const fake: ContractFake = contractFake();
     fake.createReplies.push({ status: 503, body: { error: 'STRIPE_SECRET unset' } });
     const error: ControlPlaneError = await refusal(
-      client(fake).createTenant({ slug: 'acme', display_name: 'Acme', tier: 'free', turnstile_token: 't' }),
+      client(fake).createTenant({ slug: 'acme', display_name: 'Acme', tier: 'free', turnstile_token: 't', accepted_customer_terms_version: 1 }),
     );
     expect(error.notConfigured).toBe(true);
     expect(error.transient).toBe(false);
@@ -68,7 +68,7 @@ describe('errors', () => {
     const fake: ContractFake = contractFake();
     fake.createReplies.push({ status: 403, body: { error: 'Human verification failed.' } });
     const error: ControlPlaneError = await refusal(
-      client(fake).createTenant({ slug: 'acme', display_name: 'Acme', tier: 'free', turnstile_token: 't' }),
+      client(fake).createTenant({ slug: 'acme', display_name: 'Acme', tier: 'free', turnstile_token: 't', accepted_customer_terms_version: 1 }),
     );
     expect(error.status).toBe(403);
     expect(error.message).toBe('Human verification failed.');
@@ -104,13 +104,13 @@ describe('creating a tenant', () => {
     const fake: ContractFake = contractFake();
     fake.createReplies.push({ status: 200, body: { claim_code: 'CLAIM-1', workspace_host: 'acme.work.avarok.net' } });
     const result: CreateTenantResult = await client(fake).createTenant({
-      slug: 'acme', display_name: 'Acme', tier: 'free', turnstile_token: 'tok',
+      slug: 'acme', display_name: 'Acme', tier: 'free', turnstile_token: 'tok', accepted_customer_terms_version: 1,
     });
     expect(result).toEqual({ kind: 'created', claimCode: 'CLAIM-1', workspaceHost: 'acme.work.avarok.net' });
     expect(fake.requests[0]).toEqual({
       method: 'POST',
       path: '/api/tenants',
-      body: { slug: 'acme', display_name: 'Acme', tier: 'free', turnstile_token: 'tok' },
+      body: { slug: 'acme', display_name: 'Acme', tier: 'free', turnstile_token: 'tok', accepted_customer_terms_version: 1 },
     });
   });
 
@@ -118,7 +118,7 @@ describe('creating a tenant', () => {
     const fake: ContractFake = contractFake();
     fake.createReplies.push({ status: 200, body: { checkout_url: 'https://checkout.stripe.com/c/pay/cs_test_1' } });
     expect(await client(fake).createTenant({
-      slug: 'acme', display_name: 'Acme', tier: 'team', interval: 'year', seats: 4, storage_blocks: 1, turnstile_token: 't',
+      slug: 'acme', display_name: 'Acme', tier: 'team', interval: 'year', seats: 4, storage_blocks: 1, turnstile_token: 't', accepted_customer_terms_version: 1,
     })).toEqual({ kind: 'checkout', checkoutUrl: 'https://checkout.stripe.com/c/pay/cs_test_1' });
   });
 
@@ -126,7 +126,7 @@ describe('creating a tenant', () => {
     const fake: ContractFake = contractFake();
     fake.createReplies.push({ status: 200, body: { checkout_url: 'https://checkout.stripe.com.evil.example/pay' } });
     const error: ControlPlaneError = await refusal(
-      client(fake).createTenant({ slug: 'a1b', display_name: 'A', tier: 'team', turnstile_token: 't' }),
+      client(fake).createTenant({ slug: 'a1b', display_name: 'A', tier: 'team', turnstile_token: 't', accepted_customer_terms_version: 1 }),
     );
     expect(error.status).toBe(502);
     expect(isCheckoutUrl('https://checkout.stripe.com/x')).toBe(true);
@@ -138,7 +138,7 @@ describe('creating a tenant', () => {
     const fake: ContractFake = contractFake();
     fake.createReplies.push({ status: 200, body: { workspace_host: 'acme.work.avarok.net' } });
     expect((await refusal(
-      client(fake).createTenant({ slug: 'acme', display_name: 'Acme', tier: 'free', turnstile_token: 't' }),
+      client(fake).createTenant({ slug: 'acme', display_name: 'Acme', tier: 'free', turnstile_token: 't', accepted_customer_terms_version: 1 }),
     )).status).toBe(502);
   });
 });

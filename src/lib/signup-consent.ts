@@ -1,6 +1,7 @@
 /**
- * What a new account agreed to on the wizard's Profile step: the Terms (required) and sharing
- * diagnostic logs with the workspace's admins (optional, off unless ticked).
+ * What a new account agreed to on the wizard's Profile step: the Terms (put to the person at Join on
+ * an Avarok-hosted server, so `termsAccepted` is true only there) and sharing diagnostic logs with
+ * the workspace's admins (optional, off unless ticked; the server decides whether it may be on).
  *
  * The server records both, and only once the session exists, so they are sent after sign-in like
  * the profile (`signup-profile.ts`). Acceptance is recorded only for terms the user was shown:
@@ -34,12 +35,14 @@ export function termsMatchWhatWasShown(terms: CurrentTerms): boolean {
 
 /** Never rejects: every failure is reported through `reportFailure`. */
 export async function applySignupConsent(fields: SignupConsentFields, effects: SignupConsentEffects): Promise<void> {
-  if (!fields.termsAccepted) return;
+  if (!fields.termsAccepted && !fields.shareDiagnostics) return;
   try {
     await effects.waitForWorkspace();
-    const terms: CurrentTerms = await effects.getTerms();
-    if (!termsMatchWhatWasShown(terms)) return;
-    await effects.acceptTerms(terms.platform.version, null);
+    if (fields.termsAccepted) {
+      const terms: CurrentTerms = await effects.getTerms();
+      if (!termsMatchWhatWasShown(terms)) return;
+      await effects.acceptTerms(terms.platform.version, null);
+    }
     if (fields.shareDiagnostics) await effects.setDiagnostics(true);
   } catch (error: unknown) {
     const reason: string = describeFailure(error, 'no reason was given');

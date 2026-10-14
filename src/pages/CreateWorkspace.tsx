@@ -32,6 +32,7 @@ import {
 } from '@/lib/onboarding/create-flow';
 import { deriveSlug, sanitizeSlugInput } from '@/lib/onboarding/slug';
 import { useSlugAvailability, type Availability } from '@/lib/onboarding/slug-availability';
+import { SHOWN_CUSTOMER_TERMS_VERSION } from '@/lib/terms/customer-terms';
 import { clampSeats, clampStorageBlocks, isPaid, type PlanSelection } from '@/lib/onboarding/tiers';
 
 export interface CreateWorkspaceFlowProps {
@@ -46,6 +47,7 @@ function requestFor(draft: FlowDraft, turnstileToken: string): CreateTenantReque
     display_name: draft.displayName.trim(),
     tier: draft.plan.tier,
     turnstile_token: turnstileToken,
+    accepted_customer_terms_version: SHOWN_CUSTOMER_TERMS_VERSION,
     ...(draft.reservationToken ? { reservation_token: draft.reservationToken } : {}),
   };
   if (!isPaid(draft.plan.tier)) return base;

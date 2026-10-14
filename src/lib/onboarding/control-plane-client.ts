@@ -29,6 +29,8 @@ export interface CreateTenantRequest {
   readonly seats?: number;
   readonly storage_blocks?: number;
   readonly turnstile_token: string;
+  /** The Customer Terms version the person accepted; the control plane refuses any but the current one. */
+  readonly accepted_customer_terms_version: number;
   readonly reservation_token?: string;
 }
 

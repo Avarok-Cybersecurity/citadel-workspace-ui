@@ -22,6 +22,7 @@ import { describeFailure } from '@/lib/failure-message';
 import type { AdmissionGate } from './admission/useAdmissionGate';
 import { RegisteredAwaitingSignIn } from '@/lib/admission/refusal';
 import { connectAfterRegistration } from './sign-in/connect-after-registration';
+import type { HostedTerms } from './use-hosted-terms';
 
 /** The required credentials plus the optional profile fields sent after registration. */
 export interface JoinFormData extends SignupProfileFields, SignupConsentFields {
@@ -39,7 +40,7 @@ export function useJoinRegistration(
   serverPassword: string,
   /** The workspace's human check, if it asks for one: a fresh token per attempt. */
   admission: AdmissionGate,
-  providedSecuritySettings?: SecuritySettingsValues,
+  providedSecuritySettings: SecuritySettingsValues | undefined,
   /**
    * The profile the user has already typed, and where to keep it.
    *
@@ -50,7 +51,9 @@ export function useJoinRegistration(
    * security settings survived (they are lifted for the same reason), which made
    * the loss look like a glitch rather than the rule.
    */
-  draft?: { initial: JoinFormData; onChange: (next: JoinFormData) => void },
+  draft: { initial: JoinFormData; onChange: (next: JoinFormData) => void } | undefined,
+  /** Avarok's Terms of Use, asked for after the form is valid and before anything is sent. */
+  terms: HostedTerms,
 ): JoinRegistration {
   const { toast } = useToast();
   const [isRegistering, setIsRegistering] = useState(false);
@@ -125,28 +128,16 @@ export function useJoinRegistration(
 
     setSubmitAttempted(true);
 
-    // Refused submits are reported by the FIELD, not by a toast.
-    //
-    // Both used to fire: the inline error rendered and was announced, and a
-    // destructive toast repeated the same sentence. A screen-reader user heard
-    // it twice, and the toast then took focus -- Sonner focuses the toast it
-    // mounts -- so the attempt to put the cursor on the offending field lost a
-    // race with the thing announcing the problem. Measured: after a mismatched
-    // password the active element was the toast's `<li>`.
-    //
-    // The inline error is already in a live region, already associated with the
-    // field through `aria-describedby`, and now the field takes focus. The toast
-    // was the third copy of a message that two better channels were carrying.
+    // Refused submits are reported by the FIELD (inline, announced, focused), not also by a toast.
     const missingField: boolean =
       !formData.fullName || !formData.username || !formData.password || !formData.confirmPassword;
     const firstError: string | null =
       rawErrors.fullName ?? rawErrors.username ?? rawErrors.password ?? rawErrors.confirmPassword;
-    if (missingField || firstError || !formData.termsAccepted) {
-      setSubmitAttempted(true);
-      if (missingField || firstError) focusFirstProblem();
-      else document.getElementById('join-terms')?.focus();
+    if (missingField || firstError) {
+      focusFirstProblem();
       return;
     }
+    if (terms.required && !(await terms.ask())) return; // Cancelled: nothing has been sent.
     const admissionToken: string | null | 'missing' = admission.take();
     if (admissionToken === 'missing') return;
 
@@ -192,7 +183,7 @@ export function useJoinRegistration(
       // already finished and was visible for a single frame.
       debugLog('Join', "Register Response:", response);
       // After, never instead: the account exists whatever happens to these.
-      startSignupFollowUps(formData);
+      startSignupFollowUps({ ...formData, termsAccepted: terms.required || formData.termsAccepted });
 
       toast({ title: "Registration Successful", description: "Your account has been registered. Connecting to workspace...", variant: "default" });
       setRegisteredCid(response.cid);
@@ -231,7 +222,6 @@ export function useJoinRegistration(
     handleOptionalChange: setField as JoinRegistration['handleOptionalChange'],
     handleBlur,
     fieldErrors,
-    termsMissing: submitAttempted && !formData.termsAccepted,
     handleSubmit,
     handleConnectModalComplete,
     handleReturnToLogin,
@@ -240,7 +230,7 @@ export function useJoinRegistration(
     finishSignIn: async (admissionToken: string): Promise<bigint> => {
       const cid: bigint = await connectAfterRegistration(formData.username, formData.password, admissionToken, mapSecuritySettings(securitySettings));
       await new Promise<void>((done, fail) => { void handleConnectSuccess({ cid }, (): void => done(), fail); });
-      startSignupFollowUps(formData);
+      startSignupFollowUps({ ...formData, termsAccepted: terms.required || formData.termsAccepted });
       return cid;
     },
   };

@@ -53,6 +53,5 @@ export async function joinFromTheSwitcher(level: string): Promise<void> {
   await userEvent.type(document.getElementById('username') as HTMLElement, JOIN_USERNAME);
   await userEvent.type(document.getElementById('password') as HTMLElement, 'cobol-1959-nav');
   await userEvent.type(document.getElementById('confirmPassword') as HTMLElement, 'cobol-1959-nav');
-  await userEvent.click(screen.getByTestId('join-terms'));
   await userEvent.click(screen.getByTestId('join-submit'));
 }

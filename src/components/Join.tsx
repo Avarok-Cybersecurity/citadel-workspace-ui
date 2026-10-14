@@ -16,6 +16,7 @@ import { useState } from "react";
 import { AdmissionCheck } from "./admission/AdmissionCheck";
 import { useAdmissionGate, type AdmissionGate } from "./admission/useAdmissionGate";
 import { ADMISSION_ACTION } from "@/lib/admission/copy";
+import { useHostedTerms, type HostedTerms } from "./use-hosted-terms";
 
 interface JoinProps {
   onNext: (cid: string) => void;
@@ -31,6 +32,7 @@ interface JoinProps {
 export const Join = ({ onNext, onBack, defaultWorkspace, serverAddress, serverPassword, securitySettings, profileDraft }: JoinProps): JSX.Element => {
   // The account exists from here; the key and recovery-code steps come before the workspace.
   const [joinedCid, setJoinedCid] = useState<string | null>(null);
+  const terms: HostedTerms = useHostedTerms(serverAddress);
   const admission: AdmissionGate = useAdmissionGate(ADMISSION_ACTION.register, { serverAddress, reauth: false, accountNamed: false });
   const {
     formData,
@@ -42,14 +44,13 @@ export const Join = ({ onNext, onBack, defaultWorkspace, serverAddress, serverPa
     handleOptionalChange,
     handleBlur,
     fieldErrors,
-    termsMissing,
     handleSubmit,
     handleConnectModalComplete,
     handleReturnToLogin,
     recoveryCodes,
     awaitingSignIn,
     finishSignIn,
-  } = useJoinRegistration(onBack, setJoinedCid, serverAddress, serverPassword, admission, securitySettings, profileDraft);
+  } = useJoinRegistration(onBack, setJoinedCid, serverAddress, serverPassword, admission, securitySettings, profileDraft, terms);
 
   /**
    * Delegated while a nested dialog is up, exactly as Login already does for
@@ -60,7 +61,7 @@ export const Join = ({ onNext, onBack, defaultWorkspace, serverAddress, serverPa
    * second document-level Escape handler, with `role="dialog" aria-modal="true"`
    * asserted twice at once. The fix existed; it was never carried here.
    */
-  const nestedDialogOpen: boolean = showNotInitializedModal || showConnectModal;
+  const nestedDialogOpen: boolean = showNotInitializedModal || showConnectModal || terms.dialog !== null;
   const { ref: dialogRef, dialogProps } = useDialogOverlay({
     label: 'Create your profile',
     onDismiss: onBack,
@@ -122,7 +123,7 @@ export const Join = ({ onNext, onBack, defaultWorkspace, serverAddress, serverPa
                 values={formData}
                 onChange={handleOptionalChange}
                 disabled={isRegistering}
-                termsError={termsMissing ? 'Accept the Terms to join.' : null}
+                termsAtJoin={terms.required}
               />
               <AdmissionCheck gate={admission} />
             </CardContent>
@@ -160,6 +161,7 @@ export const Join = ({ onNext, onBack, defaultWorkspace, serverAddress, serverPa
         </Card>
       </div>
 
+      {terms.dialog}
       <ConnectLoadingModal
         open={showConnectModal}
         status={connectStatus}

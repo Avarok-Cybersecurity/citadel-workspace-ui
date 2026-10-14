@@ -8,67 +8,16 @@
  *   - Cloudflare's Turnstile widget, as `window.turnstile` (the real one needs
  *     the network and a person). The page's own loader and widget component run.
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor, fireEvent, type RenderResult } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { CreateWorkspaceFlow } from '../CreateWorkspace';
-import { createControlPlane, type ControlPlane } from '@/lib/onboarding/control-plane-client';
-import { forgetIssuedClaim, recordIssuedClaim, revealClaimCode } from '@/lib/onboarding/claim-handoff';
-import { clearDraft, loadDraft, saveDraft } from '@/lib/onboarding/create-flow';
+import { loadDraft, saveDraft } from '@/lib/onboarding/create-flow';
+import { recordIssuedClaim, revealClaimCode } from '@/lib/onboarding/claim-handoff';
+import { MemoryRouter } from 'react-router-dom';
 import { ClaimStep } from '@/components/create-workspace/ClaimStep';
 import { contractFake, type ContractFake } from '@/lib/onboarding/__tests__/contract-fake';
+import { nameIt, renderFlow, resets, submitWithTerms, throughToReview, installFlowHooks } from './create-flow-harness';
 
-let tokens: number = 0;
-const resets: string[] = [];
-
-function installTurnstile(): void {
-  window.turnstile = {
-    render: (_el: HTMLElement, options: { callback: (token: string) => void }): string => {
-      setTimeout(() => options.callback(`token-${++tokens}`), 0);
-      window.turnstileCallback = options.callback;
-      return 'widget-1';
-    },
-    reset: (id: string): void => {
-      resets.push(id);
-      setTimeout(() => window.turnstileCallback?.(`token-${++tokens}`), 0);
-    },
-    remove: (): void => {},
-  };
-}
-
-declare global {
-  interface Window {
-    turnstileCallback?: (token: string) => void;
-  }
-}
-
-function renderFlow(fake: ContractFake, at: string = '/create', redirect: (url: string) => void = vi.fn()): RenderResult {
-  const api: ControlPlane = createControlPlane(fake.fetch, '/api');
-  return render(
-    <MemoryRouter initialEntries={[at]}>
-      <Routes>
-        <Route path="/create" element={<CreateWorkspaceFlow api={api} redirect={redirect} />} />
-        <Route path="/create/done" element={<CreateWorkspaceFlow api={api} redirect={redirect} />} />
-        <Route path="/" element={<p>landing</p>} />
-      </Routes>
-    </MemoryRouter>,
-  );
-}
-
-async function nameIt(name: string): Promise<void> {
-  fireEvent.change(screen.getByTestId('create-display-name'), { target: { value: name } });
-}
-
-beforeEach(() => {
-  installTurnstile();
-  forgetIssuedClaim();
-  clearDraft();
-  tokens = 0;
-  resets.length = 0;
-});
-afterEach(() => {
-  delete window.turnstile;
-});
+installFlowHooks();
 
 describe('naming the workspace', () => {
   it('derives the address from the name and says it is available', async () => {
@@ -100,15 +49,6 @@ describe('naming the workspace', () => {
   });
 });
 
-async function throughToReview(choosePlan: () => void): Promise<void> {
-  await nameIt('Acme');
-  await waitFor(() => expect(screen.getByTestId('create-name-continue')).toBeEnabled());
-  fireEvent.click(screen.getByTestId('create-name-continue'));
-  choosePlan();
-  fireEvent.click(screen.getByTestId('create-plan-continue'));
-  await waitFor(() => expect(screen.getByTestId('create-submit')).toBeEnabled());
-}
-
 describe('a free workspace', () => {
   it('is created, shows its claim code once, and hands over to the join wizard', async () => {
     const fake: ContractFake = contractFake();
@@ -116,10 +56,10 @@ describe('a free workspace', () => {
     renderFlow(fake);
     await throughToReview(() => {});
     expect(screen.getByTestId('review-total')).toHaveTextContent('Free');
-    fireEvent.click(screen.getByTestId('create-submit'));
+    await submitWithTerms();
 
     await waitFor(() => expect(screen.getByTestId('claim-code')).toHaveTextContent('CLAIM-7Q2'));
-    expect(fake.requests.at(-1)?.body).toEqual({ slug: 'acme', display_name: 'Acme', tier: 'free', turnstile_token: 'token-1' });
+    expect(fake.requests.at(-1)?.body).toEqual({ slug: 'acme', display_name: 'Acme', tier: 'free', turnstile_token: 'token-1', accepted_customer_terms_version: 1 });
     expect(screen.getByText(/becomes the owner/)).toBeInTheDocument();
 
     expect(screen.getByTestId('claim-continue')).toBeDisabled();
@@ -138,11 +78,11 @@ describe('a free workspace', () => {
     fake.createReplies.push({ status: 200, body: { claim_code: 'C', workspace_host: 'acme.work.avarok.net' } });
     renderFlow(fake);
     await throughToReview(() => {});
-    fireEvent.click(screen.getByTestId('create-submit'));
+    await submitWithTerms();
     await waitFor(() => expect(screen.getByTestId('create-error')).toHaveTextContent('Human verification failed.'));
     expect(resets).toEqual(['widget-1']);
     await waitFor(() => expect(screen.getByTestId('create-submit')).toBeEnabled());
-    fireEvent.click(screen.getByTestId('create-submit'));
+    await submitWithTerms();
     await waitFor(() => expect(screen.getByTestId('claim-step')).toBeInTheDocument());
     const sent: unknown[] = fake.requests.filter((r) => r.method === 'POST').map((r) => (r.body as { turnstile_token: string }).turnstile_token);
     expect(sent).toEqual(['token-1', 'token-2']);
@@ -163,11 +103,11 @@ describe('a paid workspace', () => {
       expect(screen.getByTestId('plan-total-amount')).toHaveTextContent('$260 / year');
     });
     expect(screen.getByTestId('review-total')).toHaveTextContent('$260 / year');
-    fireEvent.click(screen.getByTestId('create-submit'));
+    await submitWithTerms();
 
     await waitFor(() => expect(redirect).toHaveBeenCalledWith('https://checkout.stripe.com/c/pay/cs_test_9'));
     expect(fake.requests.at(-1)?.body).toEqual({
-      slug: 'acme', display_name: 'Acme', tier: 'team', interval: 'year', seats: 4, storage_blocks: 1, turnstile_token: 'token-1',
+      slug: 'acme', display_name: 'Acme', tier: 'team', interval: 'year', seats: 4, storage_blocks: 1, turnstile_token: 'token-1', accepted_customer_terms_version: 1,
     });
     expect(loadDraft('acme')?.plan.seats).toBe(4);
     expect(loadDraft('acme')?.reservationToken).toBe('rt_first');
@@ -182,7 +122,7 @@ describe('a paid workspace', () => {
     fireEvent.click(screen.getByTestId('cancelled-back-to-plans'));
     fireEvent.click(screen.getByTestId('create-plan-continue'));
     await waitFor(() => expect(screen.getByTestId('create-submit')).toBeEnabled());
-    fireEvent.click(screen.getByTestId('create-submit'));
+    await submitWithTerms();
     await waitFor(() => expect(redirect).toHaveBeenCalledWith('https://checkout.stripe.com/c/pay/cs_test_10'));
     expect((fake.requests.at(-1)?.body as { reservation_token?: string }).reservation_token).toBe('rt_first');
     expect(loadDraft('acme')?.reservationToken).toBe('rt_second');
@@ -193,7 +133,7 @@ describe('a paid workspace', () => {
     fake.createReplies.push({ status: 409, body: { error: 'slug-taken', detail: 'Someone has just taken acme.work.avarok.net.' } });
     renderFlow(fake);
     await throughToReview(() => {});
-    fireEvent.click(screen.getByTestId('create-submit'));
+    await submitWithTerms();
     await waitFor(() => expect(screen.getByTestId('create-error')).toHaveTextContent('Someone has just taken acme.work.avarok.net.'));
     expect(screen.getByTestId('create-error')).not.toHaveTextContent('slug-taken');
   });
