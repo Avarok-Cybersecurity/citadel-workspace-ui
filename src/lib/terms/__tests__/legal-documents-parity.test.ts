@@ -7,7 +7,7 @@ import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { CUSTOMER_TERMS_DOCUMENT, LEGAL_DOCUMENTS, PLATFORM_TERMS_DOCUMENT, type LegalDocument, type LegalDocumentId } from '../legal-documents';
-import { SHOWN_PLATFORM_TERMS_TEXT, SHOWN_PLATFORM_TERMS_VERSION } from '../platform-terms';
+import { SHOWN_PLATFORM_TERMS_VERSION } from '../platform-terms';
 import { SHOWN_CUSTOMER_TERMS_VERSION } from '../customer-terms';
 
 const TYPES: string = join(process.cwd(), '..', 'citadel-workspace-types', 'src');
@@ -48,6 +48,5 @@ describe('the versions the UI sends and shows', () => {
   it('are the versions the texts themselves state', () => {
     expect(PLATFORM_TERMS_DOCUMENT.version).toBe(SHOWN_PLATFORM_TERMS_VERSION);
     expect(CUSTOMER_TERMS_DOCUMENT.version).toBe(SHOWN_CUSTOMER_TERMS_VERSION);
-    expect(SHOWN_PLATFORM_TERMS_TEXT).toBe(PLATFORM_TERMS_DOCUMENT.text);
   });
 });

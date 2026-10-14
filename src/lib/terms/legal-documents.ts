@@ -9,8 +9,9 @@ import privacyNotice from './documents/privacy_notice.md?raw';
 import dpa from './documents/dpa.md?raw';
 import subprocessors from './documents/subprocessors.md?raw';
 import { headingOf, type LegalHeading } from './legal-text';
+import { LEGAL_DOCUMENT_IDS, legalPath, type LegalDocumentId } from './legal-index';
 
-export type LegalDocumentId = 'terms' | 'customer-terms' | 'privacy' | 'dpa' | 'subprocessors';
+export type { LegalDocumentId } from './legal-index';
 
 export interface LegalDocument extends LegalHeading {
   readonly id: LegalDocumentId;
@@ -20,17 +21,21 @@ export interface LegalDocument extends LegalHeading {
 }
 
 function document(id: LegalDocumentId, text: string): LegalDocument {
-  return { id, path: `/legal/${id}`, text, ...headingOf(text) };
+  return { id, path: legalPath(id), text, ...headingOf(text) };
 }
 
+const TEXT: Readonly<Record<LegalDocumentId, string>> = {
+  terms: platformTerms,
+  'customer-terms': customerTerms,
+  privacy: privacyNotice,
+  dpa,
+  subprocessors,
+};
+
 /** In the order the index lists them. */
-export const LEGAL_DOCUMENTS: readonly LegalDocument[] = [
-  document('terms', platformTerms),
-  document('customer-terms', customerTerms),
-  document('privacy', privacyNotice),
-  document('dpa', dpa),
-  document('subprocessors', subprocessors),
-];
+export const LEGAL_DOCUMENTS: readonly LegalDocument[] = LEGAL_DOCUMENT_IDS.map(
+  (id: LegalDocumentId): LegalDocument => document(id, TEXT[id])
+);
 
 export function legalDocument(id: string | undefined): LegalDocument | undefined {
   return LEGAL_DOCUMENTS.find((doc: LegalDocument): boolean => doc.id === id);

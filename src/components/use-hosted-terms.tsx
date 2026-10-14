@@ -1,7 +1,8 @@
-import { useRef, useState, type JSX } from 'react';
-import { TermsAcceptanceModal } from '@/components/terms/TermsAcceptanceModal';
+import { lazy, Suspense, useRef, useState, type JSX } from 'react';
 import { isAvarokHosted } from '@/lib/onboarding/hosted';
-import { PLATFORM_TERMS_DOCUMENT } from '@/lib/terms/legal-documents';
+
+// The terms text is too large for the landing page's path, which this hook is on.
+const HostedTermsModal = lazy(() => import('@/components/terms/HostedTermsModal'));
 
 /** Avarok's Terms of Use, put to a person creating an account on a server Avarok hosts. */
 export interface HostedTerms {
@@ -28,13 +29,9 @@ export function useHostedTerms(serverAddress: string): HostedTerms {
       setOpen(true);
     }),
     dialog: open ? (
-      <TermsAcceptanceModal
-        title="Terms of Use"
-        documents={[PLATFORM_TERMS_DOCUMENT]}
-        agreement="I have read and agree to the Terms of Use."
-        onAccept={(): void => finish(true)}
-        onCancel={(): void => finish(false)}
-      />
+      <Suspense fallback={null}>
+        <HostedTermsModal onAccept={(): void => finish(true)} onCancel={(): void => finish(false)} />
+      </Suspense>
     ) : null,
   };
 }
