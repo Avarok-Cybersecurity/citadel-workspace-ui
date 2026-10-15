@@ -45,7 +45,7 @@ import { handleIncomingRegistrationWithCid as doHandleIncomingRegistration } fro
 import { stableLists, type PeerLists } from './peers-snapshot';
 
 export class P2PRegistrationService {
-  private static instance: P2PRegistrationService;
+  private static instance: P2PRegistrationService | undefined;
   private isRunning: boolean = false;
   private registeredPeers: Map<bigint, Peer> = new Map<bigint, Peer>();
   private allPeers: Map<bigint, Peer> = new Map<bigint, Peer>();
@@ -59,10 +59,7 @@ export class P2PRegistrationService {
   }
 
   public static getInstance(): P2PRegistrationService {
-    if (!P2PRegistrationService.instance) {
-      P2PRegistrationService.instance = new P2PRegistrationService();
-    }
-    return P2PRegistrationService.instance;
+    return (P2PRegistrationService.instance ??= new P2PRegistrationService());
   }
 
   private setupEventListeners(): void {
@@ -201,6 +198,9 @@ export class P2PRegistrationService {
   public async registerPeer(peerCid: bigint, options: PeerRegistrationOptions = {}): Promise<void> {
     return doRegisterPeer(peerCid, options, this.pendingRequests);
   }
+
+  /** A peer round now rather than at the next tick, for a lookup that missed (workspace-peers.ts). */
+  public async refreshPeers(): Promise<void> { await this.poll?.runNow(); }
 
   /** See peers-snapshot.ts: the identity of this result is part of the contract. */
   private peersSnapshot: PeerLists | null = null;

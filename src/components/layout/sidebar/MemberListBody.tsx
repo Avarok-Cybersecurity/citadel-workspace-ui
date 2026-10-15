@@ -7,8 +7,8 @@ import type { MemberActionBlocks } from './member-actions-gate';
 import { useLevelName } from '@/hooks/use-level-name';
 import { useOpenConversation } from './use-open-conversation';
 import type { RegisteredPeer } from '@/hooks/use-registered-peers';
-import { workspacePeerNamed } from '@/lib/workspace-peers';
-import { memberChatTarget, type MemberChatTarget } from './member-chat-target';
+import { refreshWorkspacePeers, workspacePeerNamed } from '@/lib/workspace-peers';
+import { resolveMemberChat, type MemberChatTarget } from './member-chat-target';
 import { toast } from '@/hooks/use-toast';
 import { unreachableMemberCopy } from '@/pages/reachable-peer';
 import type { User as WorkspaceMember } from '@/types/workspace-entities';
@@ -67,12 +67,14 @@ export function MemberListBody({
   const openChatWith = (member: WorkspaceMember): (() => void) | null => {
     if (member.username === currentUsername) return null;
     return (): void => {
-      const target: MemberChatTarget = memberChatTarget(member.username, currentUsername, contacts,
-        (username: string): bigint | undefined => workspacePeerNamed(username)?.cid);
-      if (target?.kind === 'conversation') void openConversation(target.cid.toString(), member.username);
-      else if (target?.kind === 'unreachable') {
-        toast({ title: 'Cannot open that conversation', description: unreachableMemberCopy(member.displayName || member.username), variant: 'destructive' });
-      }
+      void resolveMemberChat(member.username, currentUsername, contacts,
+        (username: string): bigint | undefined => workspacePeerNamed(username)?.cid, refreshWorkspacePeers,
+      ).then(async (target: MemberChatTarget): Promise<void> => {
+        if (target?.kind === 'conversation') await openConversation(target.cid.toString(), member.username);
+        else if (target?.kind === 'unreachable') {
+          toast({ title: 'Cannot open that conversation', description: unreachableMemberCopy(member.displayName || member.username), variant: 'destructive' });
+        }
+      });
     };
   };
   if (isLoading) {

@@ -14,3 +14,12 @@ export function workspacePeerNamed(username: string): Peer | undefined {
 export function workspacePeerWithCid(cid: bigint): Peer | undefined {
   return p2pRegistrationService.getPeers().allPeers.find((peer: Peer): boolean => peer.cid === cid);
 }
+
+/**
+ * Ask the agent for its listing now. The listing is polled every 30s, so a colleague who has just
+ * come online can be listed by the agent and still missing here; clicking their row then said
+ * they were unreachable until the next round.
+ */
+export function refreshWorkspacePeers(): Promise<void> {
+  return p2pRegistrationService.refreshPeers();
+}

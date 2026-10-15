@@ -21,3 +21,22 @@ export function memberChatTarget(
   const cid: bigint | undefined = contact ? BigInt(contact.cid) : listedCid(username);
   return cid === undefined ? { kind: 'unreachable' } : { kind: 'conversation', cid };
 }
+
+/**
+ * `memberChatTarget`, asking the listing for a fresh round once when it cannot address them.
+ *
+ * The listing is polled every 30s, so a colleague the agent already lists could still be missing
+ * from it, and the click said they were unreachable until the next round.
+ */
+export async function resolveMemberChat(
+  username: string,
+  currentUsername: string | undefined,
+  contacts: readonly RegisteredPeer[],
+  listedCid: (username: string) => bigint | undefined,
+  refreshListing: () => Promise<void>,
+): Promise<MemberChatTarget> {
+  const target: MemberChatTarget = memberChatTarget(username, currentUsername, contacts, listedCid);
+  if (target?.kind !== 'unreachable') return target;
+  await refreshListing();
+  return memberChatTarget(username, currentUsername, contacts, listedCid);
+}
