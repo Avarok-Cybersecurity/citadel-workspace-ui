@@ -13,7 +13,6 @@ export interface TermsAcceptanceModalProps {
   readonly documents: readonly LegalDocument[];
   /** The sentence beside the checkbox. */
   readonly agreement: string;
-  readonly busy?: boolean;
   readonly onAccept: () => void;
   /** Cancel, Escape and the close button all come here; nothing has been accepted. */
   readonly onCancel: () => void;
@@ -29,13 +28,13 @@ export function documentFacts(doc: LegalDocument): string {
  * and creating a workspace on an Avarok-hosted server. Accept stays disabled until the box is
  * ticked, and the dialog cannot be left by accident with the box ticked and nothing sent.
  */
-export function TermsAcceptanceModal({ title, documents, agreement, busy = false, onAccept, onCancel }: TermsAcceptanceModalProps): JSX.Element {
+export function TermsAcceptanceModal({ title, documents, agreement, onAccept, onCancel }: TermsAcceptanceModalProps): JSX.Element {
   const [agreed, setAgreed] = useState<boolean>(false);
   const agreeId: string = useId();
   const first: LegalDocument | undefined = documents[0];
   if (first === undefined) throw new Error('TermsAcceptanceModal needs at least one document');
   return (
-    <Dialog open onOpenChange={(open: boolean): void => { if (!open && !busy) onCancel(); }}>
+    <Dialog open onOpenChange={(open: boolean): void => { if (!open) onCancel(); }}>
       <DialogContent
         data-testid="terms-acceptance-modal"
         className="flex max-h-[min(90dvh,52rem)] max-w-3xl flex-col gap-0 overflow-hidden p-0 max-sm:top-[var(--offline-banner-bottom,0px)] max-sm:translate-y-0 max-sm:h-[calc(100dvh-var(--offline-banner-bottom,0px))] max-sm:max-h-[calc(100dvh-var(--offline-banner-bottom,0px))] max-sm:w-full max-sm:max-w-none max-sm:rounded-none max-sm:border-0"
@@ -63,14 +62,14 @@ export function TermsAcceptanceModal({ title, documents, agreement, busy = false
         </Tabs>
         <div className="space-y-4 border-t border-border bg-background px-5 py-4 sm:px-6">
           <div className="flex items-start gap-3">
-            <Checkbox id={agreeId} data-testid="terms-agree" checked={agreed} disabled={busy}
+            <Checkbox id={agreeId} data-testid="terms-agree" checked={agreed}
               onCheckedChange={(on: boolean | 'indeterminate'): void => setAgreed(on === true)} />
             <label htmlFor={agreeId} className="text-sm leading-[24px] text-foreground">{agreement}</label>
           </div>
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <Button type="button" variant="outline" data-testid="terms-cancel" disabled={busy} onClick={onCancel}>Cancel</Button>
-            <Button type="button" data-testid="terms-accept" disabled={!agreed || busy} onClick={onAccept}>
-              {busy ? 'Working…' : 'Accept and continue'}
+            <Button type="button" variant="outline" data-testid="terms-cancel" onClick={onCancel}>Cancel</Button>
+            <Button type="button" data-testid="terms-accept" disabled={!agreed} onClick={onAccept}>
+              Accept and continue
             </Button>
           </div>
         </div>
