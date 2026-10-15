@@ -378,23 +378,32 @@ async function runTest(): Promise<boolean> {
         results.maxDepthPathBuilt = depth4Node !== null && depth4Node.depth === 4;
         console.log(`  Parent chain reaches depth 4: ${report(results.maxDepthPathBuilt)} (actual depth ${depth4Node?.depth})`);
 
-        if (depth4ParentId && results.maxDepthPathBuilt) {
-          console.log('\n  Creating node at depth 5 (should succeed)...');
+        // The child types come from the live schema: level names are the admin's to choose, and
+        // under the default template a Room holds only Rooms.
+        const depth5Type = depth4Node?.allowed_child_types?.[0];
+        if (results.maxDepthPathBuilt && !depth5Type) {
+          console.log('  The depth-4 node allows no child type; the limit cannot be reached');
+          results.maxDepthConstraintEnforced = false;
+        }
+        if (depth4ParentId && results.maxDepthPathBuilt && depth5Type) {
+          console.log(`\n  Creating ${depth5Type} at depth 5 (should succeed)...`);
           const depth5Result = await createNodeViaProtocol(
             page,
             depth4ParentId,
-            { Child: 'Office' },
+            { Child: depth5Type },
             `MaxDepthTest_${timestamp}`,
             'At the max_depth limit — should be accepted'
           );
 
           if (depth5Result.success && depth5Result.nodeId) {
             createdNodeIds.push(depth5Result.nodeId);
-            console.log('\n  Attempting to create node at depth 6 (should be rejected)...');
+            // A type the parent allows, so that only the depth limit can refuse it.
+            const depth6Type = (await getNodeViaProtocol(page, depth5Result.nodeId))?.allowed_child_types?.[0] ?? depth5Type;
+            console.log(`\n  Attempting to create ${depth6Type} at depth 6 (should be rejected)...`);
             const depth6Result = await createNodeViaProtocol(
               page,
               depth5Result.nodeId,
-              { Child: 'Room' },
+              { Child: depth6Type },
               `TooDeepNode_${timestamp}`,
               'Should be rejected'
             );
