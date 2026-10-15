@@ -488,6 +488,13 @@ async function main() {
           `${el.tagName}:${(el.getAttribute('aria-label') || el.id || (el.textContent || '').trim()).slice(0, 24)}`;
         const expected = [...scope.querySelectorAll('button, a[href], input, select, textarea')]
           .filter((el) => el.offsetParent !== null && !el.disabled)
+          // Radix mirrors a checkbox inside a <form> with a native input that
+          // is aria-hidden, invisible and pointer-events:none: nobody, by any
+          // means, can act on it. Only that combination is excluded -- an
+          // aria-hidden control a pointer can still reach stays expected.
+          .filter((el) => !(el.closest('[aria-hidden="true"]')
+            && getComputedStyle(el).pointerEvents === 'none'
+            && getComputedStyle(el).opacity === '0'))
           // NOT filtered on `tabindex="-1"`.
           //
           // That filter was here first, and it made the rule unable to fail:
