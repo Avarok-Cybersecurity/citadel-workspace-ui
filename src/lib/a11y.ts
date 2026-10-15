@@ -17,7 +17,7 @@ import type { KeyboardEvent } from 'react';
  * nested-interactive pattern, which screen readers do not present consistently —
  * the container claims to be one button while containing more. Split the row
  * instead, so the identity part is a button and the actions are its siblings
- * (see MemberListItem, or TreeNodeItem in the sidebar).
+ * (see MemberListItem).
  *
  * Spread `interactive(onActivate)` onto the element:
  *

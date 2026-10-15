@@ -136,8 +136,8 @@ test.describe.serial('Office & Room CRUD', () => {
 
     test('Create a room inside the office', async () => {
         // Signature is (page, name, description, parentName). Without parentName the
-        // helper falls back to the FIRST node in the sidebar — the workspace root —
-        // and creates the room there instead of inside the office under test.
+        // helper uses whichever node is selected, so the parent is named here
+        // rather than left to whatever the previous test happened to select.
         const created = await createRoomViaUI(page, ROOM_NAME, '', OFFICE_NAME);
         // `.success`, not the object. `createRoomViaUI` returns
         // `{ success, name }`, and an object is always truthy -- so

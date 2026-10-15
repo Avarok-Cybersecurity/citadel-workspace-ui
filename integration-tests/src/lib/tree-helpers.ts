@@ -7,7 +7,8 @@
 
 import type { Page } from 'playwright';
 import { sleep } from './utils.js';
-import { isVisibleWithin } from './utils.js';
+import { isHiddenWithin, isVisibleWithin } from './utils.js';
+import { nodeAbsentFromWorkspace, openNodeMenu, openSelectedNodeMenu, revealNode, rootRow, selectRoot, treeRow } from './focused-tree.js';
 
 // ============================================================================
 // Types
@@ -433,7 +434,15 @@ export async function createOfficeViaUI(
   console.log(`  [UI] Creating top-level node: ${name}`);
 
   try {
-    // The hierarchy sidebar uses add-node-button for top-level node creation
+    // The header's "+" adds inside the SELECTED node, so a top-level node needs
+    // the workspace root selected first. An empty workspace has no tree yet; its
+    // "+" is add-root-node-button and always adds at the top.
+    const rootOrEmpty = rootRow(page).or(page.getByTestId('add-root-node-button')).first();
+    if (await isVisibleWithin(rootOrEmpty, 10_000) && (await rootRow(page).isVisible()) && (await selectRoot(page)) === null) {
+      console.log('  [UI] Could not select the workspace root');
+      return { success: false, name };
+    }
+
     const addBtnSelectors = [
       '[data-testid="add-node-button"]',
       '[data-testid="add-root-node-button"]',
@@ -542,8 +551,8 @@ export async function pickChildTypeIfAsked(page: Page, childType: string): Promi
 
 /**
  * Create a child node (e.g. room) via UI by using the parent node's "create child" menu item.
- * The parent node must be visible and expanded in the hierarchy sidebar.
- * @param parentName - Name of the parent node to find in the sidebar (required for reliable operation)
+ * The parent is revealed (selected) first, wherever it is in the hierarchy.
+ * @param parentName - Name of the parent node; without it, the selected node is the parent
  */
 export async function createRoomViaUI(
   page: Page,
@@ -558,34 +567,16 @@ export async function createRoomViaUI(
     await page.keyboard.press('Escape');
     await sleep(300);
 
-    // Find the parent node's menu button by searching sidebar items
-    const menuTestId = await page.evaluate((pName: string | undefined) => {
-      const buttons = Array.from(document.querySelectorAll('[data-sidebar="menu-button"]'));
-      for (const btn of buttons) {
-        if (pName && !btn.textContent?.includes(pName)) continue;
-        const parent = btn.closest('.group');
-        if (parent) {
-          const menuBtn = parent.querySelector('button[data-testid^="tree-node-menu-"]');
-          if (menuBtn) {
-            return menuBtn.getAttribute('data-testid');
-          }
-        }
-      }
-      return null;
-    }, parentName);
-
-    if (!menuTestId) {
-      console.log(`  [UI] Parent node menu button not found${parentName ? ` for "${parentName}"` : ''}`);
+    // Reveal the parent (which selects it) and open its ⋯ menu. Without a
+    // parent name, the node already selected is the parent.
+    const nodeId: string | null = parentName
+      ? await openNodeMenu(page, parentName)
+      : await openSelectedNodeMenu(page);
+    if (!nodeId) {
+      console.log(`  [UI] Parent node menu not found${parentName ? ` for "${parentName}"` : ''}`);
       return { success: false, name };
     }
-
-    const nodeId = menuTestId.replace('tree-node-menu-', '');
-    console.log(`  [UI] Found parent node menu: ${menuTestId}`);
-
-    // Click the menu button to open dropdown (force: true handles opacity:0)
-    const menuBtn = page.locator(`[data-testid="${menuTestId}"]`);
-    await menuBtn.click({ force: true, timeout: 2000 });
-    await sleep(500);
+    console.log(`  [UI] Opened the menu of parent node ${nodeId}`);
 
     // Now look for the create-child item in the open dropdown
     const createChildTestId = `create-child-${nodeId}`;
@@ -652,9 +643,8 @@ export async function createRoomViaUI(
         return { success: false, name };
       }
 
-      // Verify creation - the node should appear in the sidebar
-      const nodeInSidebar = page.locator(`[data-sidebar="menu-button"]:has-text("${name}")`).first();
-      const exists = await isVisibleWithin(nodeInSidebar, 5000);
+      // Verify creation: the parent stays selected, so its new child is one of its rows.
+      const exists = await isVisibleWithin(treeRow(page, name).first(), 5000);
 
       console.log(`  [UI] Child node "${name}" created: ${exists}`);
       return { success: exists, name };
@@ -670,40 +660,24 @@ export async function createRoomViaUI(
 }
 
 /**
- * Navigate to a node in the hierarchy sidebar.
+ * Navigate to a node in the hierarchy sidebar: reveal it, which selects it.
  */
 export async function navigateToNodeViaUI(
   page: Page,
   nodeName: string
 ): Promise<boolean> {
   console.log(`  [UI] Navigating to node: ${nodeName}`);
-
-  const selectors = [
-    `[data-sidebar="menu-button"]:has-text("${nodeName}")`,
-    `button:has-text("${nodeName}")`,
-    `a:has-text("${nodeName}")`,
-  ];
-
-  for (const selector of selectors) {
-    const nodeBtn = page.locator(selector).first();
-    if (await isVisibleWithin(nodeBtn, 2000)) {
-      await nodeBtn.click();
-      await sleep(1000);
-      console.log(`  [UI] Navigated to node "${nodeName}"`);
-      return true;
-    }
-  }
-
-  console.log(`  [UI] Node "${nodeName}" not found`);
-  return false;
+  const nodeId: string | null = await revealNode(page, nodeName);
+  console.log(nodeId ? `  [UI] Navigated to node "${nodeName}"` : `  [UI] Node "${nodeName}" not found`);
+  return nodeId !== null;
 }
 
 /** @deprecated Use navigateToNodeViaUI instead */
 export const navigateToOfficeViaUI = navigateToNodeViaUI;
 
 /**
- * Delete a node via UI using the hierarchy sidebar's tree-node-menu.
- * Uses page.evaluate() to find menu buttons by node name.
+ * Delete a node via UI using the hierarchy sidebar's tree-node-menu,
+ * revealing the node first.
  */
 export async function deleteNodeViaUI(
   page: Page,
@@ -717,36 +691,12 @@ export async function deleteNodeViaUI(
     await page.keyboard.press('Escape');
     await sleep(300);
 
-    // Find the node's menu button using page.evaluate
-    // New tree uses data-testid="tree-node-menu-{id}" pattern
-    const menuTestId = await page.evaluate((name: string) => {
-      const buttons = Array.from(document.querySelectorAll('[data-sidebar="menu-button"]'));
-      for (const btn of buttons) {
-        if (btn.textContent?.includes(name)) {
-          const parent = btn.closest('.group');
-          if (parent) {
-            const menuBtn = parent.querySelector('button[data-testid^="tree-node-menu-"]');
-            if (menuBtn) {
-              return menuBtn.getAttribute('data-testid');
-            }
-          }
-        }
-      }
-      return null;
-    }, nodeName);
-
-    if (!menuTestId) {
-      console.log(`  [UI] Menu button not found for "${nodeName}"`);
+    const nodeId: string | null = await openNodeMenu(page, nodeName);
+    if (!nodeId) {
+      console.log(`  [UI] Menu not found for "${nodeName}"`);
       return { success: false, cascaded: false };
     }
-
-    console.log(`  [UI] Found menu button: ${menuTestId}`);
-    const nodeId = menuTestId.replace('tree-node-menu-', '');
-
-    // Click the menu button with force to handle opacity:0 styling
-    const menuBtn = page.locator(`[data-testid="${menuTestId}"]`);
-    await menuBtn.click({ force: true, timeout: 2000 });
-    await sleep(600);
+    console.log(`  [UI] Opened the menu of ${nodeId}`);
 
     // Click delete option using the new testid pattern
     const deleteOption = page.locator(`[data-testid="delete-node-${nodeId}"]`).first();
@@ -767,16 +717,14 @@ export async function deleteNodeViaUI(
       await confirmBtn.click();
       console.log(`  [UI] Node delete confirmed`);
 
-      // Wait for the node to be removed from sidebar
-      const nodeLocator = page.locator(`[data-sidebar="menu-button"]:has-text("${nodeName}")`).first();
-      try {
-        await nodeLocator.waitFor({ state: 'hidden', timeout: 5000 });
+      // Its row, by id. It was the selection a moment ago, so its going is not
+      // the vacuous "hidden" of a locator that never matched.
+      if (await isHiddenWithin(page.getByTestId(`tree-node-${nodeId}`), 5000)) {
         console.log(`  [UI] Node removed from sidebar`);
         return { success: true, cascaded: true };
-      } catch {
-        console.log(`  [UI] WARNING: Node still visible after delete`);
-        return { success: false, cascaded: true };
       }
+      console.log(`  [UI] WARNING: Node still visible after delete`);
+      return { success: false, cascaded: true };
     }
 
     console.log(`  [UI] Confirmation dialog not found`);
@@ -789,58 +737,33 @@ export async function deleteNodeViaUI(
 }
 
 /**
- * Check if a node exists in the sidebar.
- */
-/**
- * Locator for a node in the hierarchy sidebar.
- *
- * Matches any button carrying the name as well as
- * `[data-sidebar="menu-button"]`.
- *
- * The comment here used to say that pinning to the attribute would make the
- * helper depend on which of TWO SidebarMenuButton implementations a node
- * happened to use — `components/ui/sidebar.tsx` and
- * `components/ui/sidebar/SidebarMenu.tsx`. There was indeed a second copy. It
- * had zero importers: a file beats a directory of the same name in module
- * resolution, so `@/components/ui/sidebar` always meant the 764-line file, and
- * the tidy split version was never loaded by anything. It has been deleted.
- *
- * The broad match is kept because it is what the passing legacy suite has
- * always used and narrowing it is a separate change with its own evidence —
- * but the reason written down for it was not true, and a false reason is worse
- * than none: it stops the question being asked again.
+ * The sidebar row of a node, if it is on screen now. The sidebar is a focused
+ * tree, so this matches only nodes near the selection; to bring any node on
+ * screen use revealNode (focused-tree.ts).
  */
 export function sidebarNode(page: Page, nodeName: string) {
-  return page.locator(`button:has-text("${nodeName}"), [data-sidebar="menu-button"]:has-text("${nodeName}")`).first();
+  return treeRow(page, nodeName).first();
 }
 
 /**
- * Wait for a node to disappear from the sidebar.
+ * Wait for a node to disappear from the workspace.
  *
- * Asserting absence with `nodeExistsInUI(...) === false` burns the full
- * appearance timeout on every deletion check, because it waits for something
- * that is never going to show up. This waits for the opposite state, so it
- * returns as soon as the node is actually gone.
+ * "Not on screen" proves nothing in a focused tree -- most nodes are off screen
+ * -- so this asks the sidebar's filter, which searches every node, and returns
+ * as soon as it has no node of that name.
  */
 export async function nodeGoneFromUI(page: Page, nodeName: string, timeout = 10_000): Promise<boolean> {
-  const gone = await sidebarNode(page, nodeName)
-    .waitFor({ state: 'hidden', timeout })
-    .then(() => true)
-    .catch(() => false);
+  const gone = await nodeAbsentFromWorkspace(page, nodeName, timeout);
   console.log(`  [UI] Node "${nodeName}" gone: ${gone}`);
   return gone;
 }
 
+/**
+ * Wait for a node to exist in the sidebar, revealing (and so selecting) it.
+ * Creation round-trips to the workspace server, so this retries until `timeout`.
+ */
 export async function nodeExistsInUI(page: Page, nodeName: string, timeout = 10_000): Promise<boolean> {
-  // waitFor, NOT isVisible({ timeout }). Playwright ignores the timeout option on
-  // isVisible — it is an immediate snapshot, not a wait. Creation round-trips to
-  // the workspace server and the sidebar re-renders from the response, so an
-  // immediate check reports "does not exist" for a node that is about to appear.
-  // That mistake is why so much of this suite needed sleeps to work at all.
-  const exists = await sidebarNode(page, nodeName)
-    .waitFor({ state: 'visible', timeout })
-    .then(() => true)
-    .catch(() => false);
+  const exists = (await revealNode(page, nodeName, timeout)) !== null;
   console.log(`  [UI] Node "${nodeName}" exists: ${exists}`);
   return exists;
 }

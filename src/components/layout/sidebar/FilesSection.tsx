@@ -171,7 +171,7 @@ export const FilesSection: () => JSX.Element = (): JSX.Element => {
               <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={isFileManagerActive}
-                  // See TreeNodeItem: white belongs on a primary fill, not on the page.
+                  // White belongs on a primary fill, not on the page: see selected-states-do-not-borrow-a-solid-fills-foreground.test.ts.
                   className={`text-foreground hover:bg-primary-accent/15 hover:text-foreground transition-colors ${
                     isFileManagerActive ? "bg-primary-accent/20 text-primary-accent" : ""
                   }`}

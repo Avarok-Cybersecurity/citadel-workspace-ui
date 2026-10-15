@@ -26,6 +26,7 @@ import {
   TestHarness,
   runTestMain,
   restartBackendServices,
+  treeRow,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
 
@@ -94,8 +95,11 @@ const mdxTextarea = (page: Page) =>
 /** BaseOffice's view-mode wrapper — present only once MDX has compiled. */
 const renderedContent = (page: Page) => page.locator('div.prose').first();
 
-const sidebarNode = (page: Page, name: string) =>
-  page.locator(`[data-sidebar="menu-button"]:has-text("${name}")`).first();
+/**
+ * A top-level node's sidebar row. The focused tree always shows the top level:
+ * as the root's children, as the selection's peers, or as an ancestor.
+ */
+const sidebarNode = (page: Page, name: string) => treeRow(page, name).first();
 
 // ============================================================================
 // Helper Functions

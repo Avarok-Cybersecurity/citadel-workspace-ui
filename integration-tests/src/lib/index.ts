@@ -195,6 +195,8 @@ export {
   nodeExistsInUI,
   nodeGoneFromUI,
 } from './tree-helpers.js';
+// The focused hierarchy sidebar: reaching a node by clicking down its path.
+export { hierarchyTree, treeRow, rootRow, rowNodeId, revealNode, revealPeekToggle, selectRoot, openNodeMenu } from './focused-tree.js';
 export type {
   NodeEntityType,
   DomainNode,

@@ -12,7 +12,7 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
-import { isVisibleWithin } from '../lib/index.js';
+import { isVisibleWithin, hierarchyTree, openNodeMenu, revealNode, rootRow, selectRoot, treeRow } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -84,13 +84,14 @@ function getAdminDialog(page: Page) {
   return page.locator('[role="dialog"][data-testid="admin-modal"]');
 }
 
-async function openNodeContextMenu(page: Page, _nodeName: string): Promise<boolean> {
-  const nodeItem = page.locator(`[data-testid^="tree-node-menu-"]`).first();
+/**
+ * Open `nodeName`'s ⋯ menu. The focused sidebar puts menus on the selection and
+ * its peers only, so the node is revealed (selected) first; the first menu on
+ * screen is whichever row happens to be first, usually the workspace root.
+ */
+async function openNodeContextMenu(page: Page, nodeName: string): Promise<boolean> {
   try {
-    await nodeItem.click({ force: true, timeout: 5000 });
-    await sleep(300);
-    const menu = page.locator('[role="menu"]');
-    return await isVisibleWithin(menu, 3000);
+    return (await openNodeMenu(page, nodeName)) !== null;
   } catch {
     return false;
   }
@@ -139,16 +140,35 @@ async function countTabs(page: Page): Promise<number> {
   }
 }
 
-async function openRoomContextMenu(page: Page): Promise<boolean> {
-  // Find a child node menu button (second tree-node-menu if multiple exist)
-  const allMenuBtns = page.locator('[data-testid^="tree-node-menu-"]');
-  const count = await allMenuBtns.count();
-  if (count < 2) return false;
+/**
+ * Select a room: the first child of the first office that has one. Returns its
+ * id, or null when no office on screen holds a room.
+ *
+ * The fully expanded tree used to show every room at once, and "the second ⋯
+ * menu" was one. The focused tree shows children of the selection only, and
+ * menus only on the selection and its peers, so the room is reached by clicking
+ * down to it.
+ */
+async function selectFirstRoom(page: Page): Promise<string | null> {
+  if ((await selectRoot(page)) === null) return null;
+  const nodeRows = (level: number) =>
+    hierarchyTree(page).locator(`[role="treeitem"][aria-level="${level}"][data-testid^="tree-node-"]`);
+  const officeNames = (await nodeRows(2).evaluateAll((rows: Element[]) =>
+    rows.map((row: Element) => row.getAttribute('aria-label') ?? ''))).filter((name: string) => name !== '');
+  for (const office of officeNames) {
+    if ((await revealNode(page, office, 5000)) === null) continue;
+    const room = nodeRows(3).first();
+    if (!(await isVisibleWithin(room, 2000))) continue;
+    const roomName = await room.getAttribute('aria-label');
+    if (roomName) return revealNode(page, roomName, 5000);
+  }
+  return null;
+}
+
+async function openRoomContextMenu(page: Page, roomId: string): Promise<boolean> {
   try {
-    await allMenuBtns.nth(1).click({ force: true, timeout: 5000 });
-    await sleep(300);
-    const menu = page.locator('[role="menu"]');
-    return await isVisibleWithin(menu, 3000);
+    await page.getByTestId(`tree-node-menu-${roomId}`).click({ force: true, timeout: 5000 });
+    return await isVisibleWithin(page.locator('[role="menu"]'), 3000);
   } catch {
     return false;
   }
@@ -254,6 +274,10 @@ async function runTest(): Promise<boolean> {
 
     await sleep(1000);
 
+    // "+" adds inside the selected node, so select the root for a top-level
+    // office. (An empty workspace has no root row; its "+" adds at the top.)
+    if (await rootRow(page).isVisible()) await selectRoot(page);
+
     // Click the "+" button in the HIERARCHY section to create a new node
     const addNodeBtn = page.locator('[data-testid="add-node-button"], [data-testid="add-root-node-button"]').first();
     if (await isVisibleWithin(addNodeBtn, 5000)) {
@@ -279,9 +303,9 @@ async function runTest(): Promise<boolean> {
     await page.keyboard.press('Escape');
     await sleep(500);
 
-    // Verify office appears in sidebar
-    const nodeMenuButton = page.locator('[data-testid^="tree-node-menu-"]').first();
-    results.officeCreated = await isVisibleWithin(nodeMenuButton, 10000);
+    // Verify office appears in sidebar: its own row, by name. "Any ⋯ menu" was
+    // satisfied by the workspace root's, whether or not the office was created.
+    results.officeCreated = await isVisibleWithin(treeRow(page, TEST_OFFICE_NAME).first(), 10000);
     console.log(`  Office created: ${results.officeCreated ? 'PASS' : 'FAIL'}`);
     await takeScreenshot(page, 'admin_02_office_created');
 
@@ -466,12 +490,10 @@ async function runTest(): Promise<boolean> {
     console.log('STEP 7: Test Room Admin Modal');
     console.log('─'.repeat(50));
 
-    // Check if any room menu buttons exist (rooms are visible in sidebar when office is selected)
-    // Use a short timeout to avoid hanging
-    // Check if any child nodes exist (rooms) — look for 2nd tree-node-menu
-    const allMenuBtns = page.locator('[data-testid^="tree-node-menu-"]');
-    const menuBtnCount = await allMenuBtns.count();
-    const roomExists = menuBtnCount >= 2;
+    // Close the admin modal left open by the steps above, then click down to a room.
+    await closeAnyModals(page);
+    const roomId = await selectFirstRoom(page);
+    const roomExists = roomId !== null;
     // Recorded as a RESULT, not just a branch. When room checks stayed
     // `undefined` they were filtered out of both the numerator and the
     // denominator below — so a regression that stopped rendering child nodes
@@ -484,7 +506,7 @@ async function runTest(): Promise<boolean> {
       results.roomCreated = true;
 
       // Try to open room context menu
-      const roomMenuOpened = await openRoomContextMenu(page);
+      const roomMenuOpened = roomId !== null && (await openRoomContextMenu(page, roomId));
       console.log(`  Room context menu opened: ${roomMenuOpened ? 'PASS' : 'FAIL'}`);
 
       if (roomMenuOpened) {
