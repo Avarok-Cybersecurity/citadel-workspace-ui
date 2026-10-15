@@ -525,6 +525,22 @@ export async function createOfficeViaUI(
 }
 
 /**
+ * Call right after clicking "Add Child". A parent whose schema allows more than one child type
+ * first asks which to add, in a dialog of its own that is easy to mistake for the create form;
+ * this picks `childType` there. Type names are the schema's, which admins may rename; the suites
+ * run on the default template (Workspace -> Office -> Office | Room).
+ */
+export async function pickChildTypeIfAsked(page: Page, childType: string): Promise<void> {
+  const picker = page.locator('[data-testid="child-type-picker"]');
+  const form = page.locator('input#name, input[id="name"]').first();
+  await picker.or(form).first().waitFor({ state: 'visible', timeout: 5000 }).catch(() => undefined);
+  if (await picker.isVisible()) {
+    await picker.locator(`[data-testid="child-type-${childType}"]`).click();
+    console.log(`  [UI] Picked ${childType} in the child type picker`);
+  }
+}
+
+/**
  * Create a child node (e.g. room) via UI by using the parent node's "create child" menu item.
  * The parent node must be visible and expanded in the hierarchy sidebar.
  * @param parentName - Name of the parent node to find in the sidebar (required for reliable operation)
@@ -589,17 +605,7 @@ export async function createRoomViaUI(
 
     await createItem.click();
 
-    // A parent whose schema allows more than one child type first asks which to add. The level
-    // names are the admin's to choose; these suites run on the default template, whose Office
-    // holds Offices and Rooms, and this helper adds its "Room". The picker is itself a dialog, so
-    // the form check below cannot tell them apart.
-    const picker = page.locator('[data-testid="child-type-picker"]');
-    const form = page.locator('input#name, input[id="name"]').first();
-    await picker.or(form).first().waitFor({ state: 'visible', timeout: 5000 }).catch(() => undefined);
-    if (await picker.isVisible()) {
-      await picker.locator('[data-testid="child-type-Room"]').click();
-      console.log('  [UI] Picked Room in the child type picker');
-    }
+    await pickChildTypeIfAsked(page, 'Room');
     await sleep(500);
 
     // Wait for modal to open - look for the dialog

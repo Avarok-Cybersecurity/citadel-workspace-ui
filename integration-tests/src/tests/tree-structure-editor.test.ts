@@ -36,6 +36,7 @@ import {
   listNodesViaProtocol,
   verifyNodeDepth,
   verifyNodeParent,
+  pickChildTypeIfAsked,
   type TreeNode,
   type DiagnosticsHandle,
 } from '../lib/index.js';
@@ -259,10 +260,10 @@ async function submitNodeForm(
 /**
  * Create a node through the sidebar and return the server id it was given.
  *
- * `nodeType` is documentation only — the app picks the entity type from the
- * schema's allowed children for the chosen parent (HierarchySidebar
- * handleNodeCreate). Under the default Workspace → Office → Room schema that
- * means root creates an Office and a child of an Office is a Room.
+ * Under a parent the schema lets hold several types, the app asks which;
+ * `nodeType` is the one picked there (pickChildTypeIfAsked). At the root,
+ * where only one type is allowed, the app chooses and `nodeType` only labels
+ * the log. The names are the default template's.
  */
 async function createNodeViaUI(
   page: Page,
@@ -302,6 +303,7 @@ async function createNodeViaUI(
       return null;
     }
     await createChild.click();
+    await pickChildTypeIfAsked(page, nodeType);
   }
 
   if (!(await submitNodeForm(page, { name, description }))) {
