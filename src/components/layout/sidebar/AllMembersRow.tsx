@@ -26,12 +26,24 @@ interface AllMembersRowProps {
   onManagePermissions: () => void;
   onEditMember: () => void;
   onRemoveMember: () => void;
+  /** Opens the chat with this member; null for yourself. */
+  onOpenChat: (() => void) | null;
 }
 
-export function AllMembersRow({ member, currentUsername, blocks, nameOfLevel, onManagePermissions, onEditMember, onRemoveMember }: AllMembersRowProps): JSX.Element {
+export function AllMembersRow({ member, currentUsername, blocks, nameOfLevel, onManagePermissions, onEditMember, onRemoveMember, onOpenChat }: AllMembersRowProps): JSX.Element {
   const role: string = member.role || 'member';
   return (
     <div className="flex items-center gap-2 p-3 rounded-lg hover:bg-card transition-colors" data-testid={`all-members-row-${member.username}`}>
+      {/* A real button beside the menu, not around it: a member opens their chat here as in the
+          sidebar list, and the menu's own button is never nested inside another. */}
+      <button
+        type="button"
+        onClick={onOpenChat ?? undefined}
+        disabled={onOpenChat === null}
+        aria-label={onOpenChat === null ? undefined : `Message ${member.displayName || member.username}`}
+        data-testid={`all-members-open-${member.username}`}
+        className="flex min-w-0 flex-1 items-center gap-2 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default"
+      >
       <MemberAvatar username={member.username} name={member.displayName || member.username} className="h-8 w-8" />
       <div className="min-w-0 flex-1 break-words">
         <p className="text-foreground font-medium">{member.displayName || member.username}</p>
@@ -40,6 +52,7 @@ export function AllMembersRow({ member, currentUsername, blocks, nameOfLevel, on
         {member.title && <p className="text-xs text-foreground/80" data-testid="member-title">{member.title}</p>}
         {member.email && <p className="text-xs text-muted-foreground" data-testid="member-email">{member.email}</p>}
       </div>
+      </button>
       <Badge variant="secondary" className={`${roleBadgeClass(role)} shrink-0 text-xs`}>{roleLabel(role)}</Badge>
       {currentUsername !== member.username && (
         <DropdownMenu>

@@ -129,7 +129,7 @@ export function MemberListItems({
       })}
       {members.length > MEMBERS_TO_SHOW && (
         <SidebarMenuItem>
-          <SidebarMenuButton onClick={onShowAllMembers} className="text-primary-accent hover:bg-primary-accent/15 hover:text-foreground transition-colors">
+          <SidebarMenuButton onClick={onShowAllMembers} data-testid="members-view-all" className="text-primary-accent hover:bg-primary-accent/15 hover:text-foreground transition-colors">
             <Users className="h-4 w-4 mr-2" />View all {members.length} members
           </SidebarMenuButton>
         </SidebarMenuItem>

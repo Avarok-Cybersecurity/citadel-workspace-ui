@@ -11,6 +11,7 @@
  */
 
 import { InviteToWorkspaceDialog } from '@/components/workspace/InviteToWorkspaceDialog';
+import { useMemberChatOpener, type MemberChatOpener } from './use-member-chat-opener';
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 
@@ -102,6 +103,10 @@ export function MembersSectionModals({
   const navigate: GuardedNavigate = useGuardedNavigate();
   const memberBlocks: MemberActionBlocks = useMemberActionBlocks(currentNodeId ?? WORKSPACE_ROOT_ID);
   const nameOfLevel: (levelId: string) => string = useLevelName();
+  const openChatWith: MemberChatOpener = useMemberChatOpener(currentUsername, registeredPeers);
+  // Opening a chat leaves the dialog: the chat is what the click was for.
+  const withClose = (open: (() => void) | null): (() => void) | null =>
+    open === null ? null : (): void => { onSetShowAllMembersDialog(false); open(); };
   // Leaving the workspace view unmounts the editor, so ask first -- as every
   // other navigation out of the sidebar does.
   const openDirectory = async (): Promise<void> => {
@@ -135,6 +140,7 @@ export function MembersSectionModals({
                   onManagePermissions={() => { onManagePermissions(member); onSetShowAllMembersDialog(false); }}
                   onEditMember={() => { onEditMember(member); onSetShowAllMembersDialog(false); }}
                   onRemoveMember={() => { onRemoveMember(member); onSetShowAllMembersDialog(false); }}
+                  onOpenChat={withClose(openChatWith(member))}
                 />
               ))}
             </div>
