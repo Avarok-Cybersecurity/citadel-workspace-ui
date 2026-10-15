@@ -34,6 +34,7 @@ const PAYLOADS: Record<string, unknown> = {
   GroupMessageDeleted: { group_id: 'g1', message_id: 'm1' },
   SignInSettings: { require_turnstile_sign_in: true },
   Telemetry: { Deleted: { segments: 0 } },
+  MessagingTrust: { Settings: { workspace: 'AllTrusted', mine: null, effective_root: 'workspace-root' } },
 };
 
 /**

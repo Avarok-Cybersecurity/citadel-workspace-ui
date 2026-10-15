@@ -32,6 +32,7 @@ describe('the direct-message composer', () => {
         showMarkdownPreview={false}
         paused={false}
         isSending={false}
+        notConnectedWith={null}
         onInputChange={vi.fn()}
         onInputFocus={vi.fn()}
         onInputBlur={vi.fn()}

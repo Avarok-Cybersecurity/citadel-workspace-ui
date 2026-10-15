@@ -33,6 +33,7 @@ import { useCatchUpRead } from './hooks/use-catch-up-read';
 import { NewMessagesPill } from '@/components/chat/NewMessagesPill';
 import { usePeerPause, type PeerPauseBinding } from './hooks/use-peer-pause';
 import { PausedBanner } from './PausedBanner';
+import { ConnectRequestBanner } from './ConnectRequestBanner';
 import { callCapabilityWhile } from '@/lib/p2p-pause/pause-copy';
 import { useScreenshotNotice, sendScreenshotNotice } from './hooks/useScreenshotNotice';
 import type { DirectCallBinding } from '@/components/p2p/hooks/use-direct-call';
@@ -165,6 +166,7 @@ export function P2PChat({
         }}
       />
       {paused && <PausedBanner busy={pause.busy} onResume={pause.resume} />}
+      {!isGroupMode && <ConnectRequestBanner peerCid={peerCid} peerName={peerName} peerUsername={peerUsername} registered={isRegistered} />}
 
       {/* Docked above the messages, so the conversation stays usable during a
           call — which is the entire reason to put calling inside a messenger. */}
@@ -226,7 +228,7 @@ export function P2PChat({
             />
             <P2PMessageInput
               ref={inputRef} inputMessage={inputMessage} messageType={messageType}
-              showMarkdownPreview={showMarkdownPreview} paused={paused} isSending={isSending}
+              showMarkdownPreview={showMarkdownPreview} paused={paused} isSending={isSending} notConnectedWith={isRegistered || isGroupMode ? null : peerName}
               onInputChange={setInputMessage} onInputFocus={handleInputFocus}
               onInputBlur={handleInputBlur} onSubmit={handleSendMessage}
               onFileClick={fileSend.openDialog} onFormat={applyFormat}

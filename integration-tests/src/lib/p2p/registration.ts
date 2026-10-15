@@ -305,12 +305,19 @@ export async function closePeerDiscoveryModal(page: Page): Promise<void> {
 }
 
 /**
- * Accept a pending P2P request
+ * Accept a pending P2P request -- or confirm there was none to accept because the client took it
+ * unasked.
+ *
+ * Under the workspace's messaging trust policy (AllTrusted by default) a colleague's request is
+ * accepted automatically and no pending card ever appears; waiting for the badge then failed a
+ * registration that had succeeded. With `requesterUsername` the requester showing up as a contact
+ * row counts as accepted. Without it only the badge does, which is what a Strict workspace shows.
  */
 export async function acceptP2PRequest(
   page: Page,
   username: string,
-  uxTracker: UxIssueTracker | null = null
+  uxTracker: UxIssueTracker | null = null,
+  requesterUsername: string | null = null,
 ): Promise<boolean> {
   console.log(`\n=== ${username}: Checking for P2P requests ===`);
 
@@ -333,6 +340,10 @@ export async function acceptP2PRequest(
   // Wait longer for the badge to appear - P2P registration notification may take time
   const MAX_WAIT_ATTEMPTS = 20;
   for (let i = 0; i < MAX_WAIT_ATTEMPTS; i++) {
+    if (requesterUsername !== null && (await page.getByTestId(`peer-row-${requesterUsername}`).count()) > 0) {
+      console.log(`  ✓ ${requesterUsername} is already a contact: accepted automatically under the workspace's messaging trust`);
+      return true;
+    }
     const badge = page.locator(badgeSelector).first();
     const isVisible = await isVisibleWithin(badge, 1000);
 

@@ -233,7 +233,7 @@ async function runTest(): Promise<boolean> {
     // rest of the spec does not depend on the handshake landing.
     results.p2pRegistered = await p2pRegister(page1, USER1, USER2);
     await sleep(3000);
-    await acceptP2PRequest(page2, USER2);
+    await acceptP2PRequest(page2, USER2, null, USER1);
     await sleep(5000);
 
     await closeAnyModals(page1);

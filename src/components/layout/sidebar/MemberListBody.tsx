@@ -7,6 +7,10 @@ import type { MemberActionBlocks } from './member-actions-gate';
 import { useLevelName } from '@/hooks/use-level-name';
 import { useOpenConversation } from './use-open-conversation';
 import type { RegisteredPeer } from '@/hooks/use-registered-peers';
+import { workspacePeerNamed } from '@/lib/workspace-peers';
+import { memberChatTarget, type MemberChatTarget } from './member-chat-target';
+import { toast } from '@/hooks/use-toast';
+import { unreachableMemberCopy } from '@/pages/reachable-peer';
 import type { User as WorkspaceMember } from '@/types/workspace-entities';
 
 interface MemberListBodyProps {
@@ -58,11 +62,18 @@ export function MemberListBody({
   const blocks: MemberActionBlocks = useMemberActionBlocks(activeDomainId);
   const nameOfLevel: (levelId: string) => string = useLevelName();
   const openConversation: (cid: string, username: string) => Promise<void> = useOpenConversation();
-  // A member row did nothing when clicked -- beside a contact row for the same
-  // person that opened the chat (live, 2026-09-29). Now both open it.
+  // Every other member's row opens the chat, contact or not (member-chat-target.ts). Resolved at
+  // click time, against the listing as it is then; an unaddressable member is told so.
   const openChatWith = (member: WorkspaceMember): (() => void) | null => {
-    const peer: RegisteredPeer | undefined = contacts.find((p: RegisteredPeer): boolean => p.username === member.username);
-    return peer ? (): void => { void openConversation(peer.cid, peer.username); } : null;
+    if (member.username === currentUsername) return null;
+    return (): void => {
+      const target: MemberChatTarget = memberChatTarget(member.username, currentUsername, contacts,
+        (username: string): bigint | undefined => workspacePeerNamed(username)?.cid);
+      if (target?.kind === 'conversation') void openConversation(target.cid.toString(), member.username);
+      else if (target?.kind === 'unreachable') {
+        toast({ title: 'Cannot open that conversation', description: unreachableMemberCopy(member.displayName || member.username), variant: 'destructive' });
+      }
+    };
   };
   if (isLoading) {
     return (

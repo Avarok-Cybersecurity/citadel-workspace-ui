@@ -396,7 +396,7 @@ async function runTest(): Promise<boolean> {
 
     results.p2pSetup.registered = await p2pRegister(pageAlice, ALICE, BOB, uxTracker);
     await sleep(3000);
-    results.p2pSetup.accepted = await acceptP2PRequest(pageBob, BOB, uxTracker);
+    results.p2pSetup.accepted = await acceptP2PRequest(pageBob, BOB, uxTracker, ALICE);
     // Wait longer for P2P channel to be fully established before file operations
     console.log('  Waiting 10s for P2P channel to fully establish...');
     await sleep(10000);

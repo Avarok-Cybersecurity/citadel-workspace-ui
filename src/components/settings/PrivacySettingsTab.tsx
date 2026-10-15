@@ -6,6 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { OnlineStatusRow, ProfileVisibilityRow, StrangerRequestsRow } from './PrivacyServerRows';
 import { NotificationPreviewRow } from './NotificationPreviewRow';
+import { AutoConnectRow } from './AutoConnectRow';
 import { DiagnosticsPrivacySection } from './DiagnosticsPrivacySection';
 import {
   getPrivacySettings,
@@ -88,6 +89,8 @@ export function PrivacySettingsTab(): JSX.Element {
           <Users className="h-4 w-4 text-primary-accent" />
           Access Control
         </div>
+
+        <AutoConnectRow />
 
         <StrangerRequestsRow
           accepts={settings.acceptRequestsFromStrangers}

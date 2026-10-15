@@ -41,7 +41,7 @@ export async function connectPair(
   acceptor: PeerSession,
 ): Promise<void> {
   await p2pRegister(initiator.page, initiator.username, acceptor.username);
-  await acceptP2PRequest(acceptor.page, acceptor.username);
+  await acceptP2PRequest(acceptor.page, acceptor.username, null, initiator.username);
 
   // Both sides into the conversation, so warmup messages can be typed and seen.
   expect(await openConversation(initiator.page, initiator.username, acceptor.username)).toBe(true);

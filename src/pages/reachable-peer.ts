@@ -25,10 +25,11 @@ export function reachablePeer(
     );
   }
   const peer: Peer | undefined = discovered.find((candidate): boolean => candidate.username === member.id);
-  if (!peer) {
-    throw new Error(
-      `${member.displayName} is not reachable yet. They need to be online at least once before a request can be sent.`,
-    );
-  }
+  if (!peer) throw new Error(unreachableMemberCopy(member.displayName));
   return peer;
+}
+
+/** Why a member the agent has never listed cannot be messaged or asked to connect yet. */
+export function unreachableMemberCopy(displayName: string): string {
+  return `${displayName} is not reachable yet. They need to be online at least once before a request can be sent.`;
 }

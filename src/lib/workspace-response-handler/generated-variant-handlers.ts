@@ -200,5 +200,13 @@ export function handleGeneratedVariants(
     return true;
   }
 
+  if (isVariant(response, 'MessagingTrust')) {
+    // The settings screens follow it (messaging-trust/settings-feed.ts); the requests in
+    // messaging-trust-operations.ts wait on the raw event for their own answer.
+    eventEmitter.emit('workspace:messaging-trust', { answer: response.MessagingTrust, connection: connectionInfo });
+    eventEmitter.emit('workspace:raw-response', response);
+    return true;
+  }
+
   return false;
 }

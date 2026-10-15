@@ -33,7 +33,8 @@
  * and treating one as unknown would be a fifth version of the same bug.
  */
 
-import { p2pRegistrationService, type Peer } from './p2p-registration-service';
+import { type Peer } from './p2p-registration-service';
+import { workspacePeerNamed, workspacePeerWithCid } from './workspace-peers';
 import { p2pAutoConnectService } from './p2p-auto-connect-service';
 import { debugLog } from './debug-config';
 import { instanceManager } from './multi-instance';
@@ -97,13 +98,11 @@ export function memberIdToCid(memberId: string): bigint | null {
  * username would otherwise be looked up as somebody else's CID.
  */
 function findPeer(memberId: string): Peer | undefined {
-  const { allPeers } = p2pRegistrationService.getPeers();
-
-  const byUsername: ReturnType<typeof allPeers.find> = allPeers.find((peer): boolean => peer.username === memberId);
+  const byUsername: Peer | undefined = workspacePeerNamed(memberId);
   if (byUsername) return byUsername;
 
   const cid: bigint | null = memberIdToCid(memberId);
-  return cid === null ? undefined : allPeers.find((peer) => peer.cid === cid);
+  return cid === null ? undefined : workspacePeerWithCid(cid);
 }
 
 /**

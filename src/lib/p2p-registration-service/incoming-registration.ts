@@ -7,6 +7,9 @@
 import { peerRegistrationStore } from '../peer-registration-store';
 import { sendRegistrationDecline } from '../peer-registration-store/lifecycle';
 import { getPrivacySettings } from '@/lib/privacy-settings';
+import { messagingTrustApi } from '@/lib/messaging-trust/messaging-trust-api';
+import { askPeerTrust } from '@/lib/messaging-trust/peer-trust';
+import type { PeerTrust } from '@/lib/workspace-service/messaging-trust-operations';
 import { debugLog } from '@/lib/debug-config';
 import type { Peer, PendingRequestEntry } from './types';
 import { acceptRegistrationRequest, getAutoAcceptSetting } from './connection';
@@ -29,6 +32,10 @@ export async function handleIncomingRegistrationWithCid(
   const action: IncomingRequestAction = await handleIncomingRegistration(
     { recipientCid: notificationCid, peerCid, peerUsername },
     {
+      trustedByWorkspace: async (r: IncomingRegistration): Promise<boolean> => {
+        const answer: PeerTrust = await askPeerTrust(messagingTrustApi, r.recipientCid, r.peerUsername);
+        return answer.trusted;
+      },
       acceptsRequestsFromStrangers: (): boolean => getPrivacySettings().acceptRequestsFromStrangers,
       isContact: (peer: bigint): boolean => registeredPeers.has(peer),
       weAskedThemFirst: (peer: bigint, cid: bigint): boolean => peerRegistrationStore.hasOutgoingRequestTo(peer, cid),

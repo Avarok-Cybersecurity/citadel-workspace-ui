@@ -193,7 +193,7 @@ async function runTest(): Promise<boolean> {
     await sleep(3000);
 
     // User2 accepts the P2P request
-    const p2pAccepted = await acceptP2PRequest(page2, USER2_NAME, uxTracker);
+    const p2pAccepted = await acceptP2PRequest(page2, USER2_NAME, uxTracker, USER1_NAME);
 
     results.push({
       step: 'Phase 2b: P2P Accept Request (user2)',

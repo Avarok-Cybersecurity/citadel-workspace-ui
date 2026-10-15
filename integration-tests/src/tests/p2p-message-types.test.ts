@@ -322,7 +322,7 @@ async function runTest(): Promise<boolean> {
 
     results.p2pRegistration = await p2pRegister(page1, USER1, USER2);
     await sleep(3000);
-    results.p2pAccept = await acceptP2PRequest(page2, USER2);
+    results.p2pAccept = await acceptP2PRequest(page2, USER2, null, USER1);
 
     console.log('  Waiting for P2P connection...');
     await sleep(5000);

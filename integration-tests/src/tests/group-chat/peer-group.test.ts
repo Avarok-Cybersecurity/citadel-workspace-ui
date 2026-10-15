@@ -93,7 +93,8 @@ async function establishAllP2PConnections(
       const accepted = await acceptP2PRequest(
         user2.page,
         user2.username,
-        uxTracker
+        uxTracker,
+        user1.username
       );
 
       if (!accepted) {

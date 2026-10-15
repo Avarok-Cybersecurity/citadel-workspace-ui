@@ -349,7 +349,7 @@ async function runTest(): Promise<boolean> {
     console.log('-'.repeat(50));
 
     await sleep(3000);
-    results.p2pAccept = await acceptP2PRequest(page2, USER2, uxTracker);
+    results.p2pAccept = await acceptP2PRequest(page2, USER2, uxTracker, USER1);
     await sleep(5000);
 
     // ========== STEP 4: Open Conversations ==========

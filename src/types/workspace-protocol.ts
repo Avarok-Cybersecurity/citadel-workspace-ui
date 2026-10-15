@@ -6,7 +6,7 @@
  * communication between the TypeScript frontend and Rust backend.
  */
 
-import type { SignInSettings, TelemetryRequest, WorkspaceLogoChange } from 'citadel-workspace-client-ts';
+import type { MessagingTrustRequest, SignInSettings, TelemetryRequest, WorkspaceLogoChange } from 'citadel-workspace-client-ts';
 
 /**
  * The main protocol payload that wraps either a request or response
@@ -160,8 +160,8 @@ export interface WorkspaceProtocolRequestTS {
   };
   SetMembersVisible?: { node_id: string; visible: boolean };
   // The sign-in settings (lib/workspace-service/sign-in-settings.ts).
-  /** Terms, consent and the diagnostic-log service. */
-  Telemetry?: TelemetryRequest;
+  Telemetry?: TelemetryRequest; // Terms, consent and the diagnostic-log service.
+  MessagingTrust?: MessagingTrustRequest; // Who connects without asking (messaging-trust-operations.ts).
   GetSignInSettings?: null;
   UpdateSignInSettings?: { settings: SignInSettings };
   DeleteNode?: { node_id: string; cascade: boolean };

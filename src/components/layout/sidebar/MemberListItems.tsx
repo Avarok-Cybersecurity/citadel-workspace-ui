@@ -36,7 +36,7 @@ interface MemberListItemsProps {
   blocks: MemberActionBlocks;
   /** Names a member's `accessVia` level; see hooks/use-level-name. */
   nameOfLevel: (levelId: string) => string;
-  /** Opens the chat with this member when they are a contact; null when they are not. */
+  /** Opens the chat with this member, connected or not; null on your own row. */
   openChatWith: (member: WorkspaceMember) => (() => void) | null;
   currentUsername?: string;
   onEditMember: (member: WorkspaceMember) => void;

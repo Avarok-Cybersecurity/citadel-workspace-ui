@@ -11,6 +11,7 @@ import { connectionManager } from "@/lib/connection";
 import { useRegisteredPeers } from "@/hooks";
 import { peerDisplayName } from "@/lib/peer-display";
 import { tryParseCid } from '@/lib/utils/cid-utils';
+import { workspacePeerWithCid } from '@/lib/workspace-peers';
 import type { NavigateFunction } from 'react-router';
 import type { RegisteredPeer } from '@/hooks/use-registered-peers';
 
@@ -36,21 +37,17 @@ const Messages: () => JSX.Element = (): JSX.Element => {
   const currentUserCid: bigint | undefined = selfCid(self, connectionManager.getConnectionInfo());
   const currentUserName: string = self.name || 'You';
 
-  // The roster key for the peer's picture; `selectedPeerName` below is a display name.
+  // The roster key for the peer's picture and their connect request; `selectedPeerName` below is
+  // a display name. A contact's, else -- a colleague not connected yet -- the agent's listing.
   const selectedPeerUsername: string | undefined = useMemo((): string | undefined => {
-    const username: string | undefined = registeredPeers.find((p: RegisteredPeer) => p.cid === selectedPeerCid)?.username;
+    const username: string | undefined = registeredPeers.find((p: RegisteredPeer) => p.cid === selectedPeerCid)?.username
+      ?? (parsedPeerCid === undefined ? undefined : workspacePeerWithCid(parsedPeerCid)?.username);
     return isPlaceholderName(username) ? undefined : username;
-  }, [selectedPeerCid, registeredPeers]);
+  }, [selectedPeerCid, parsedPeerCid, registeredPeers]);
 
-  // Resolve peer CID to username
-  const selectedPeerName: string = useMemo(() => {
-    if (!selectedPeerCid) return '';
-    const peer: RegisteredPeer | undefined = registeredPeers.find(p => p.cid === selectedPeerCid);
-    const username: string | undefined = isPlaceholderName(peer?.username) ? undefined : peer?.username;
-    // peerDisplayName, not a truncated CID: the decimal prefix is unreadable and
-    // identical for peers whose CIDs share leading digits. See lib/peer-display.
-    return peerDisplayName({ cid: selectedPeerCid, username });
-  }, [selectedPeerCid, registeredPeers]);
+  // peerDisplayName, not a truncated CID: the decimal prefix is unreadable and
+  // identical for peers whose CIDs share leading digits. See lib/peer-display.
+  const selectedPeerName: string = selectedPeerCid ? peerDisplayName({ cid: selectedPeerCid, username: selectedPeerUsername }) : '';
 
   // Sync URL param with selected peer
   useEffect(() => {

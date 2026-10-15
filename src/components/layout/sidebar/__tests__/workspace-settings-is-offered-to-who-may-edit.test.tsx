@@ -24,6 +24,10 @@ vi.mock('@/components/settings/WorkspaceAppearanceSection', () => ({
   // Its own suite covers it; here it would need the theme provider too.
   WorkspaceAppearanceSection: (): JSX.Element => <div />,
 }));
+vi.mock('@/components/admin/workspace-settings/MessagingTrustSection', () => ({
+  // Its own suite covers it (messaging-trust-is-set-and-narrowed); here it would ask a server.
+  MessagingTrustSection: (): JSX.Element => <div />,
+}));
 
 const { AdminSettingsSection } = await import('../AdminSettingsSection');
 

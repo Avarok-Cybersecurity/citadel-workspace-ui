@@ -90,34 +90,24 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
     return true;
   });
 
+  // Opens the conversation whether or not they are a contact yet (owner, 2026-10-15): the chat
+  // says you are not connected and offers the request, so there is no dead end here.
+  //
+  // By CID, under `?channel=`, which is what Messages selects a peer by. A member `id` is a
+  // USERNAME, so the CID comes from the contact, else from the agent's listing.
   const handleSendMessage = (userId: string): void => {
-    if (isUserConnected(userId)) {
-      // Two separate defects lived in the one line this replaces.
-      //
-      // It navigated to `?user=`, and Messages reads `?channel=` — so the
-      // parameter was dropped and the user landed on "No conversation selected"
-      // beside a peer list, i.e. Send Message did nothing at all.
-      //
-      // Renaming the parameter is not enough. A member `id` is a USERNAME (the
-      // server derives it via `get_username_by_cid`), while Messages selects a
-      // peer by CID (`registeredPeers.find(p => p.cid === selectedPeerCid)`).
-      // Passing the username under the right parameter name still matches
-      // nothing — it would look fixed and behave identically.
-      const peer: RegisteredPeer | undefined = registeredPeers.find((p) => p.username === userId);
-      if (!peer) {
-        toast({
-          title: 'Cannot open that conversation',
-          description:
-            'This person is a workspace member but not a connected peer yet. Send them a connection request first.',
-          variant: 'destructive',
-        });
-        return;
-      }
-      navigate(`/messages?channel=${peer.cid}`);
-    } else {
+    const contact: RegisteredPeer | undefined = registeredPeers.find((p) => p.username === userId);
+    if (contact) {
+      navigate(`/messages?channel=${contact.cid}`);
+      return;
+    }
+    try {
+      const member: { id: string; displayName: string } = allMembers.find((m) => m.id === userId) ?? { id: userId, displayName: userId };
+      navigate(`/messages?channel=${reachablePeer(discoveredPeers, member).cid}`);
+    } catch (error) {
       toast({
-        title: 'Connection Required',
-        description: 'You need to establish a connection with this user before sending messages.',
+        title: 'Cannot open that conversation',
+        description: describeFailure(error, 'This person cannot be reached yet.'),
         variant: 'destructive',
       });
     }

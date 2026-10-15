@@ -62,7 +62,7 @@ export async function makePeers(world: MultiWindowWorld, a: string, b: string, u
     && (await waitForWorkspaceLoaded(world.b, 60_000));
   if (!ready.accounts) return ready;
 
-  ready.registered = (await p2pRegister(world.a1, a, b, { uxTracker })) && (await acceptP2PRequest(world.b, b, uxTracker));
+  ready.registered = (await p2pRegister(world.a1, a, b, { uxTracker })) && (await acceptP2PRequest(world.b, b, uxTracker, a));
   if (!ready.registered) return ready;
 
   ready.conversations = (await openConversation(world.a1, a, b, uxTracker)) && (await openConversation(world.b, b, a, uxTracker));
