@@ -581,6 +581,13 @@ jobs:
         run: ${{ github.workspace }}/parent/node_modules/.bin/eslint . --max-warnings 0
         working-directory: parent/${{ matrix.path }}
 
+      - name: Every declaration carries a type
+        # The parent runs this on every pointer bump and nothing ran it here, so
+        # #146 merged 58 untyped declarations and the release PR found them.
+        if: matrix.project == 'citadel-workspaces'
+        run: node scripts/check-explicit-types.mjs
+        working-directory: parent/citadel-workspaces
+
       # Static gates that need no build, no browser and no running stack.
       #
       # `check:spec-copy` had an npm script and NO CI invocation, so it had
