@@ -32,6 +32,7 @@ import {
 } from '@/lib/onboarding/create-flow';
 import { deriveSlug, sanitizeSlugInput } from '@/lib/onboarding/slug';
 import { useSlugAvailability, type Availability } from '@/lib/onboarding/slug-availability';
+import { SHOWN_CUSTOMER_TERMS_VERSION } from '@/lib/terms/customer-terms';
 import { clampSeats, clampStorageBlocks, isPaid, type PlanSelection } from '@/lib/onboarding/tiers';
 
 export interface CreateWorkspaceFlowProps {
@@ -46,6 +47,7 @@ function requestFor(draft: FlowDraft, turnstileToken: string): CreateTenantReque
     display_name: draft.displayName.trim(),
     tier: draft.plan.tier,
     turnstile_token: turnstileToken,
+    accepted_customer_terms_version: SHOWN_CUSTOMER_TERMS_VERSION,
     ...(draft.reservationToken ? { reservation_token: draft.reservationToken } : {}),
   };
   if (!isPaid(draft.plan.tier)) return base;
@@ -199,7 +201,7 @@ function CreateUnavailable(): JSX.Element {
           This Citadel site does not host workspaces. If you run your own Citadel server, connect to it with its
           address and master password instead.
         </StepHeading>
-        <Link to="/?join=1" className="inline-flex min-h-6 items-center text-sm text-foreground underline underline-offset-4">
+        <Link to="/?join=1" className="inline-flex min-h-[24px] items-center text-sm text-foreground underline underline-offset-4">
           Connect to a server
         </Link>
       </div>

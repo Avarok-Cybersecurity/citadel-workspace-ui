@@ -427,7 +427,7 @@ async function runTest(): Promise<boolean> {
     console.log('-'.repeat(50));
 
     // Create a deep hierarchy starting from workspace root
-    // This alternates Office -> Room -> Office -> Room -> Office
+    // This nests Office -> Room -> Room -> Room -> Room (the default schema lets rooms hold rooms)
     deepHierarchyIds = await createDeepHierarchy(
       adminContext.page,
       5, // 5 levels deep

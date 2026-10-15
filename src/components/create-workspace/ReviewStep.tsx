@@ -7,6 +7,8 @@ import { INTERVAL_NAME } from './PlanStep';
 import { StepHeading } from './StepHeading';
 import { TurnstileWidget } from './TurnstileWidget';
 import { TURNSTILE_ACTION, TURNSTILE_SITEKEY } from '@/lib/onboarding/turnstile';
+import { TermsAcceptanceModal } from '@/components/terms/TermsAcceptanceModal';
+import { CUSTOMER_TERMS_DOCUMENT, PLATFORM_TERMS_DOCUMENT } from '@/lib/terms/legal-documents';
 
 export interface ReviewStepProps {
   readonly displayName: string;
@@ -35,12 +37,17 @@ export function ReviewStep({ displayName, slug, plan, onBack, onSubmit }: Review
   const [resetSignal, setResetSignal] = useState<number>(0);
   const [busy, setBusy] = useState<boolean>(false);
   const [error, setError] = useState<string | undefined>(undefined);
+  const [asking, setAsking] = useState<boolean>(false);
   const paid: boolean = isPaid(plan.tier);
   const q: Quote = quote(plan);
   const per: string = INTERVAL_NAME[plan.interval];
 
   const submit = async (): Promise<void> => {
-    if (!token || busy) return;
+    if (busy) return;
+    if (!token) {
+      setError('The human check expired while you were reading. Wait for it to refresh, then press the button again.');
+      return;
+    }
     // One use only: siteverify rejects a token it has seen, so it is dropped
     // here whatever the outcome, and a refusal asks the widget for a new one.
     const spent: string = token;
@@ -91,7 +98,7 @@ export function ReviewStep({ displayName, slug, plan, onBack, onSubmit }: Review
           type="button"
           size="lg"
           disabled={!token || busy}
-          onClick={() => { void submit(); }}
+          onClick={() => setAsking(true)}
           data-testid="create-submit"
           className="h-11 gap-2"
         >
@@ -99,6 +106,16 @@ export function ReviewStep({ displayName, slug, plan, onBack, onSubmit }: Review
           {busy ? 'Working…' : paid ? 'Continue to payment' : 'Create workspace'}
         </Button>
       </div>
+
+      {asking && (
+        <TermsAcceptanceModal
+          title="Customer Terms and Terms of Use"
+          documents={[CUSTOMER_TERMS_DOCUMENT, PLATFORM_TERMS_DOCUMENT]}
+          agreement="I agree to the Customer Terms and the Terms of Use, on behalf of myself or the organization I represent."
+          onCancel={() => setAsking(false)}
+          onAccept={() => { setAsking(false); void submit(); }}
+        />
+      )}
     </div>
   );
 }

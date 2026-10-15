@@ -24,7 +24,7 @@ export const SIGNUP_PROFILE_WORKSPACE_WAIT_MS: number = 30_000;
  * succeeds, and the load that follows is the one this tab issues for the
  * session it has just selected.
  */
-function nextWorkspaceLoad(timeoutMs: number): Promise<void> {
+export function nextWorkspaceLoad(timeoutMs: number): Promise<void> {
   return new Promise<void>((resolve, reject): void => {
     const timer: ReturnType<typeof setTimeout> = setTimeout((): void => {
       unsubscribe();

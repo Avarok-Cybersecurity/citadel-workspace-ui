@@ -33,6 +33,7 @@ const PAYLOADS: Record<string, unknown> = {
   GroupMessageEdited: { group_id: 'g1', message_id: 'm1' },
   GroupMessageDeleted: { group_id: 'g1', message_id: 'm1' },
   SignInSettings: { require_turnstile_sign_in: true },
+  Telemetry: { Deleted: { segments: 0 } },
 };
 
 /**

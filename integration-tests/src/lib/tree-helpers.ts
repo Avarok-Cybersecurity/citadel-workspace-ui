@@ -525,6 +525,22 @@ export async function createOfficeViaUI(
 }
 
 /**
+ * Call right after clicking "Add Child". A parent whose schema allows more than one child type
+ * first asks which to add, in a dialog of its own that is easy to mistake for the create form;
+ * this picks `childType` there. Type names are the schema's, which admins may rename; the suites
+ * run on the default template (Workspace -> Office -> Office | Room).
+ */
+export async function pickChildTypeIfAsked(page: Page, childType: string): Promise<void> {
+  const picker = page.locator('[data-testid="child-type-picker"]');
+  const form = page.locator('input#name, input[id="name"]').first();
+  await picker.or(form).first().waitFor({ state: 'visible', timeout: 5000 }).catch(() => undefined);
+  if (await picker.isVisible()) {
+    await picker.locator(`[data-testid="child-type-${childType}"]`).click();
+    console.log(`  [UI] Picked ${childType} in the child type picker`);
+  }
+}
+
+/**
  * Create a child node (e.g. room) via UI by using the parent node's "create child" menu item.
  * The parent node must be visible and expanded in the hierarchy sidebar.
  * @param parentName - Name of the parent node to find in the sidebar (required for reliable operation)
@@ -588,6 +604,8 @@ export async function createRoomViaUI(
     }
 
     await createItem.click();
+
+    await pickChildTypeIfAsked(page, 'Room');
     await sleep(500);
 
     // Wait for modal to open - look for the dialog
@@ -962,7 +980,8 @@ export async function verifyNodeDeleted(
 /**
  * Create a deep hierarchy of nodes.
  * Returns array of created node IDs in order from root to deepest.
- * Automatically updates tree schema to allow Office/Room nesting at arbitrary depth.
+ * Nests under rooms with the schema as it is: the default is Office -> [Room, Office],
+ * Room -> [Room], with no depth limit, so no schema change is needed at any depth.
  */
 export async function createDeepHierarchy(
   page: Page,
@@ -970,48 +989,12 @@ export async function createDeepHierarchy(
   workspaceRootId: string,
   namePrefix: string = 'Level'
 ): Promise<string[]> {
-  // First, update tree schema to allow circular Office↔Room nesting
-  const schema = await getTreeSchema(page);
-  if (schema) {
-    let schemaModified = false;
-    // Ensure Room→Office nesting is allowed (for depth 3+)
-    const roomRule = schema.rules.find((r: NestingRule) => r.parent_type === 'Room');
-    if (roomRule) {
-      if (!roomRule.allowed_child_types.includes('Office')) {
-        roomRule.allowed_child_types.push('Office');
-        schemaModified = true;
-      }
-    } else {
-      schema.rules.push({ parent_type: 'Room', allowed_child_types: ['Office'] });
-      schemaModified = true;
-    }
-    // Ensure Office→Office nesting is allowed (for same-type chains)
-    const officeRule = schema.rules.find((r: NestingRule) => r.parent_type === 'Office');
-    if (officeRule) {
-      if (!officeRule.allowed_child_types.includes('Office')) {
-        officeRule.allowed_child_types.push('Office');
-        schemaModified = true;
-      }
-    }
-    // Also ensure max_depth allows the requested depth
-    if (schema.max_depth !== undefined && schema.max_depth !== null && schema.max_depth < depth + 1) {
-      schema.max_depth = depth + 1;
-      schemaModified = true;
-      console.log(`  [DeepHierarchy] Increasing max_depth to ${depth + 1} `);
-    }
-    if (schemaModified) {
-      console.log('  [DeepHierarchy] Updating tree schema for deep nesting');
-      await updateTreeSchema(page, schema);
-      await sleep(200);
-    }
-  }
-
   const nodeIds: string[] = [];
   let parentId: string | null = workspaceRootId;
 
   for (let i = 1; i <= depth; i++) {
-    // Alternate between Office and Room for default schema
-    const entityType: NodeEntityType = i % 2 === 1
+    // An Office at the top, then rooms inside rooms: the default schema allows exactly that.
+    const entityType: NodeEntityType = i === 1
       ? { Child: 'Office' }
       : { Child: 'Room' };
 

@@ -34,7 +34,7 @@ import {
 
 import type { Page, Browser } from 'playwright';
 import { waitForAdminRole } from '../lib/admin-role.js';
-import { isVisibleWithin, isHiddenWithin } from '../lib/index.js';
+import { isVisibleWithin, isHiddenWithin, pickChildTypeIfAsked } from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -221,6 +221,7 @@ async function clickAddRoomButton(page: Page, parentName?: string): Promise<bool
   const createItem = page.locator(`[data-testid="${createChildTestId}"]`);
   if (await isVisibleWithin(createItem, 2000)) {
     await createItem.click();
+    await pickChildTypeIfAsked(page, 'Room');
     await sleep(500);
     console.log(`  Clicked Create Child button (${createChildTestId})`);
     return true;

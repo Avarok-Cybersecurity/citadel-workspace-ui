@@ -12,6 +12,8 @@ import { WorkspaceContext } from '@/contexts/WorkspaceContext';
 import WorkspaceService from '@/lib/workspace-service';
 import { WorkspaceSettingsDialog } from '../WorkspaceSettingsDialog';
 
+// Permission-gated and covered in telemetry/__tests__; it needs a PermissionsProvider this test has no use for.
+vi.mock('../telemetry/TelemetrySection', () => ({ TelemetrySection: (): null => null }));
 vi.mock('@/components/settings/WorkspaceAppearanceSection', () => ({
   // Its own suite covers it; here it would need the theme and permission providers too.
   WorkspaceAppearanceSection: (): JSX.Element => <div data-testid="appearance-section" />,

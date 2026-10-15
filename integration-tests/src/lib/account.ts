@@ -99,6 +99,9 @@ export async function createAccount(page: Page, username: string, options: Creat
       await confirmPasswordInput.fill(password);
     }
 
+    // Diagnostics stay at their default (off). The Terms are put to the person only on an
+    // Avarok-hosted server (a dialog at Join), never on the local stack these tests run against.
+
     // The profile step's submit, by testid rather than by the word on it.
     const submitBtn = page.getByTestId('join-submit');
     if (await submitBtn.isVisible()) {

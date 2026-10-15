@@ -192,5 +192,13 @@ export function handleGeneratedVariants(
     return true;
   }
 
+  if (isVariant(response, 'Telemetry')) {
+    // Not logged here: its records are other people's diagnostic lines. The requests in
+    // telemetry-operations.ts wait on the raw event.
+    eventEmitter.emit('workspace:telemetry', { answer: response.Telemetry, connection: connectionInfo });
+    eventEmitter.emit('workspace:raw-response', response);
+    return true;
+  }
+
   return false;
 }

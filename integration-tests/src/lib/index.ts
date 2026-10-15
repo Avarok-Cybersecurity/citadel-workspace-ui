@@ -188,6 +188,7 @@ export {
   // UI-based helpers (use these instead of protocol ones)
   createOfficeViaUI,
   createRoomViaUI,
+  pickChildTypeIfAsked,
   navigateToNodeViaUI,
   navigateToOfficeViaUI,
   deleteNodeViaUI,

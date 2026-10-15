@@ -197,13 +197,13 @@ export const ConnectionRetryModal: React.FC<ConnectionRetryModalProps> = ({
             // red, directly beneath the plain-language explanation. Worth
             // keeping for a bug report; not worth leading with.
             //
-            // min-h-6 on the summary because it is the interactive element here
+            // min-h-[24px] on the summary because it is the interactive element here
             // and a bare line of text falls under the 24px WCAG 2.2 target.
             <details className="group rounded-md bg-muted/50 p-3 text-sm">
               {/* The chevron is not decoration. A `summary` laid out as flex
                   loses its native disclosure marker, which left this looking
                   like an inert grey box with no sign it opened at all. */}
-              <summary className="flex min-h-6 cursor-pointer items-center gap-1.5 text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
+              <summary className="flex min-h-[24px] cursor-pointer items-center gap-1.5 text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
                 <ChevronRight
                   className="h-3.5 w-3.5 shrink-0 transition-transform group-open:rotate-90"
                   aria-hidden="true"

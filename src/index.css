@@ -989,3 +989,13 @@ h1, h2, h3, h4, h5, h6 {
     ) !important;
   }
 }
+
+/* A legal page printed or saved as a PDF is black on white whatever the screen theme is. The theme
+   tokens are not redeclared here: the contrast gates read each one exactly twice, light then dark. */
+@media print {
+  .legal-print, .legal-print * {
+    color: black !important;
+    background: white !important;
+    border-color: gray !important;
+  }
+}

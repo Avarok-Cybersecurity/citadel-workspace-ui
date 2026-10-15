@@ -28,6 +28,8 @@ export enum Permission {
   UpdateWorkspace = 'UpdateWorkspace',
   DeleteWorkspace = 'DeleteWorkspace',
   EditWorkspaceConfig = 'EditWorkspaceConfig',
+  /** Read the workspace's diagnostic logs and who has read them. */
+  ViewTelemetry = 'ViewTelemetry',
   /** Edit the workspace theme every member sees. */
   Themes = 'Themes',
   // Content permissions
@@ -88,6 +90,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   [Permission.UpdateWorkspace]: 'Update Workspace',
   [Permission.DeleteWorkspace]: 'Delete Workspace',
   [Permission.EditWorkspaceConfig]: 'Edit Workspace Config',
+  [Permission.ViewTelemetry]: 'View diagnostic logs',
   [Permission.Themes]: 'Edit Workspace Theme',
   [Permission.EditTreeStructure]: 'Reorganise the workspace',
   [Permission.ManageNodeTypes]: 'Define new kinds of space',
@@ -173,6 +176,7 @@ export const PERMISSION_CATEGORIES = {
       Permission.UpdateWorkspace,
       Permission.DeleteWorkspace,
       Permission.EditWorkspaceConfig,
+      Permission.ViewTelemetry,
       Permission.Themes,
     ],
   },

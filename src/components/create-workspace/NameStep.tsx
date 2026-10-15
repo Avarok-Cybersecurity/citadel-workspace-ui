@@ -128,7 +128,7 @@ export function NameStep(props: NameStepProps): JSX.Element {
       <div className="mt-8 flex flex-col-reverse gap-4 sm:flex-row sm:items-center justify-between">
         <Link
           to="/?join=1"
-          className="inline-flex min-h-6 items-center text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+          className="inline-flex min-h-[24px] items-center text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
         >
           Running your own Citadel server? Use its address instead
         </Link>

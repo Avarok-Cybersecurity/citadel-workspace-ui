@@ -53,6 +53,7 @@ const PERMISSION_DESCRIPTIONS: Record<Permission, string> = {
   [Permission.UpdateWorkspace]: 'Can rename and update the workspace',
   [Permission.DeleteWorkspace]: 'Can delete the workspace',
   [Permission.EditWorkspaceConfig]: 'Can change workspace configuration',
+  [Permission.ViewTelemetry]: 'Can read the workspace diagnostic logs',
   [Permission.Themes]: 'Can change the theme every member sees',
   [Permission.AddUsers]: 'Can add new members',
   [Permission.RemoveUsers]: 'Can remove members',
