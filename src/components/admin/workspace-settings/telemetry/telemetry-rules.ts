@@ -6,7 +6,8 @@ import type { TelemetryFilter, TelemetryLevel, TelemetrySettings } from 'citadel
 
 export interface FilterForm {
   user: string;
-  peerCid: string;
+  /** The text typed in the field; filterFromForm turns it into the bigint CID. */
+  peerCidText: string;
   /** '' for any level, else the lowest level shown. */
   minLevel: '' | TelemetryLevel;
   /** `datetime-local` values: local time, '' for no bound. */
@@ -14,7 +15,7 @@ export interface FilterForm {
   until: string;
 }
 
-export const EMPTY_FILTER_FORM: FilterForm = { user: '', peerCid: '', minLevel: '', since: '', until: '' };
+export const EMPTY_FILTER_FORM: FilterForm = { user: '', peerCidText: '', minLevel: '', since: '', until: '' };
 
 const U64_MAX: bigint = 2n ** 64n - 1n;
 
@@ -27,7 +28,7 @@ function localMs(value: string): bigint | null | undefined {
 }
 
 export function filterFromForm(form: FilterForm): FilterResult {
-  const peer: string = form.peerCid.trim();
+  const peer: string = form.peerCidText.trim();
   if (peer !== '' && (!/^\d+$/.test(peer) || BigInt(peer) > U64_MAX)) return { ok: false, problem: 'A peer CID is a whole number.' };
   const since: bigint | null | undefined = localMs(form.since);
   const until: bigint | null | undefined = localMs(form.until);

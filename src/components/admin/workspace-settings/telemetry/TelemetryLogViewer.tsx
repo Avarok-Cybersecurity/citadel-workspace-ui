@@ -45,7 +45,7 @@ export function TelemetryLogViewer({ onRead }: { onRead: () => void }): JSX.Elem
         <div className="space-y-1"><Label htmlFor="tl-user">User</Label>
           <Input id="tl-user" value={form.user} onChange={(e) => set('user', e.target.value)} /></div>
         <div className="space-y-1"><Label htmlFor="tl-peer">Peer CID</Label>
-          <Input id="tl-peer" inputMode="numeric" value={form.peerCid} onChange={(e) => set('peerCid', e.target.value)} /></div>
+          <Input id="tl-peer" inputMode="numeric" value={form.peerCidText} onChange={(e) => set('peerCidText', e.target.value)} /></div>
         <div className="space-y-1"><Label htmlFor="tl-level">Level</Label>
           <select id="tl-level" className={SELECT_CLASS} value={form.minLevel} onChange={(e) => set('minLevel', e.target.value as FilterForm['minLevel'])}>
             <option value="">Warnings and errors</option>
