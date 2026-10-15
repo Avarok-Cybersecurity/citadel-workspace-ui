@@ -10,8 +10,11 @@
  */
 
 import type { Locator, Page } from 'playwright';
-import { isVisibleWithin } from './utils.js';
+import { isHiddenWithin, isVisibleWithin } from './utils.js';
 import { rootRow, rowNodeId } from './focused-tree.js';
+
+/** useIsMobile's breakpoint (src/hooks/use-mobile.tsx). */
+const MOBILE_BREAKPOINT_PX = 768;
 
 /** The admin modal, identified by its own testid rather than "some dialog". */
 export function adminDialog(page: Page) {
@@ -34,11 +37,14 @@ export async function openNodeContextMenu(page: Page): Promise<boolean> {
 
   if ((await root.getAttribute('aria-selected')) !== 'true') {
     await root.click();
-    // At phone width a selection closes the sidebar sheet; open it again.
-    if (!(await isVisibleWithin(root.and(page.locator('[aria-selected="true"]')), 5000))) {
-      await page.getByTestId('sidebar-toggle').click({ force: true });
-      if (!(await isVisibleWithin(root.and(page.locator('[aria-selected="true"]')), 5000))) return false;
+    // Below the app's 768px mobile breakpoint a selection closes the sidebar
+    // sheet. Wait for it to finish closing -- while it slides out the row is
+    // still visible, and a menu opened then goes with it -- and open it again.
+    if ((page.viewportSize()?.width ?? Infinity) < MOBILE_BREAKPOINT_PX) {
+      if (!(await isHiddenWithin(root, 5000))) return false;
+      await page.getByTestId('sidebar-toggle').click();
     }
+    if (!(await isVisibleWithin(root.and(page.locator('[aria-selected="true"]')), 5000))) return false;
   }
 
   // Not forced: force skips Playwright's stability wait, and a row that was
