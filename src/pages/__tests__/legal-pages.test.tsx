@@ -72,7 +72,7 @@ describe('printing', () => {
 });
 
 describe('the tab title', () => {
-  it('is the legal one, not "page not found"', () => {
-    expect(titleForPath('/legal/dpa')).toMatch(/^Legal · /);
+  it('names the document, not "page not found"', () => {
+    expect(titleForPath('/legal/dpa')).toMatch(/^Data Processing Addendum · /);
   });
 });

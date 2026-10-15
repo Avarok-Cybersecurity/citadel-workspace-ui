@@ -38,7 +38,7 @@ export function TermsAcceptanceModal({ title, documents, agreement, busy = false
     <Dialog open onOpenChange={(open: boolean): void => { if (!open && !busy) onCancel(); }}>
       <DialogContent
         data-testid="terms-acceptance-modal"
-        className="flex max-h-[min(90dvh,52rem)] max-w-3xl flex-col gap-0 overflow-hidden p-0 max-sm:h-dvh max-sm:max-h-dvh max-sm:w-full max-sm:max-w-none max-sm:rounded-none max-sm:border-0"
+        className="flex max-h-[min(90dvh,52rem)] max-w-3xl flex-col gap-0 overflow-hidden p-0 max-sm:top-[var(--offline-banner-bottom,0px)] max-sm:translate-y-0 max-sm:h-[calc(100dvh-var(--offline-banner-bottom,0px))] max-sm:max-h-[calc(100dvh-var(--offline-banner-bottom,0px))] max-sm:w-full max-sm:max-w-none max-sm:rounded-none max-sm:border-0"
       >
         <Tabs defaultValue={first.id} className="flex min-h-0 flex-1 flex-col">
           <div className="sticky top-0 z-10 space-y-3 border-b border-border bg-background px-5 pb-3 pt-5 pr-12 sm:px-6">
@@ -63,9 +63,9 @@ export function TermsAcceptanceModal({ title, documents, agreement, busy = false
         </Tabs>
         <div className="space-y-4 border-t border-border bg-background px-5 py-4 sm:px-6">
           <div className="flex items-start gap-3">
-            <Checkbox id={agreeId} data-testid="terms-agree" checked={agreed} disabled={busy} className="mt-0.5"
+            <Checkbox id={agreeId} data-testid="terms-agree" checked={agreed} disabled={busy}
               onCheckedChange={(on: boolean | 'indeterminate'): void => setAgreed(on === true)} />
-            <label htmlFor={agreeId} className="text-sm text-foreground">{agreement}</label>
+            <label htmlFor={agreeId} className="text-sm leading-[24px] text-foreground">{agreement}</label>
           </div>
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button type="button" variant="outline" data-testid="terms-cancel" disabled={busy} onClick={onCancel}>Cancel</Button>

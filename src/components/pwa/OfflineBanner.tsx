@@ -54,17 +54,26 @@ export function OfflineBanner(): JSX.Element | null {
   useLayoutEffect(() => {
     const root: HTMLElement = document.documentElement;
     const el: HTMLDivElement | null = ref.current;
-    if (!showing || !el) {
+    // `--offline-banner-bottom` is where the strip ends on screen, header included: a full-screen
+    // dialog (TermsAcceptanceModal on a phone) starts there instead of under the strip.
+    const clear = (): void => {
       root.style.removeProperty('--offline-banner-height');
+      root.style.removeProperty('--offline-banner-bottom');
+    };
+    if (!showing || !el) {
+      clear();
       return;
     }
-    const publish = (): void => root.style.setProperty('--offline-banner-height', `${el.offsetHeight}px`);
+    const publish = (): void => {
+      root.style.setProperty('--offline-banner-height', `${el.offsetHeight}px`);
+      root.style.setProperty('--offline-banner-bottom', `${el.getBoundingClientRect().bottom}px`);
+    };
     publish();
     const observer: ResizeObserver = new ResizeObserver(publish);
     observer.observe(el);
     return (): void => {
       observer.disconnect();
-      root.style.removeProperty('--offline-banner-height');
+      clear();
     };
   }, [showing]);
 

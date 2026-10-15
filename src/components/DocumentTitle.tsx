@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { BRAND_NAME } from '@/components/brand/artwork/brand-rules.generated';
+import { LEGAL_DOCUMENT_IDS, LEGAL_SHORT_NAME, legalPath, type LegalDocumentId } from '@/lib/terms/legal-index';
 
 /**
  * Keeps the browser tab title in step with the route.
@@ -22,6 +23,7 @@ const ROUTE_TITLES: ReadonlyArray<readonly [RegExp, string]> = [
   [/^\/$/, `${BRAND_NAME} — Post-Quantum Secure Collaboration`],
   [/^\/connect(\/|$)/, `Connect · ${SUFFIX}`],
   [/^\/create(\/|$)/, `Create a workspace · ${SUFFIX}`],
+  ...LEGAL_DOCUMENT_IDS.map((id: LegalDocumentId): readonly [RegExp, string] => [new RegExp(`^${legalPath(id)}/?$`), `${LEGAL_SHORT_NAME[id]} · ${SUFFIX}`]),
   [/^\/legal(\/|$)/, `Legal · ${SUFFIX}`],
   [/^\/agent(\/|$)/, `Citadel Agent · ${SUFFIX}`],
   [/^\/workspace(\/|$)/, `Workspace · ${SUFFIX}`],

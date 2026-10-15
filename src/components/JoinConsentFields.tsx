@@ -31,9 +31,9 @@ export function JoinConsentFields({ values, onChange, disabled, termsAtJoin }: J
       <div className="flex items-start gap-2">
         <Checkbox id="join-diagnostics" data-testid="join-diagnostics" checked={values.shareDiagnostics} disabled={disabled}
           onCheckedChange={(on: boolean | 'indeterminate'): void => onChange('shareDiagnostics', on === true)} />
-        <label htmlFor="join-diagnostics" className="text-sm text-foreground">
+        <label htmlFor="join-diagnostics" className="text-sm leading-[24px] text-foreground">
           Share diagnostic logs with this workspace&apos;s admins
-          <span className="block text-xs text-muted-foreground">{DIAGNOSTICS_SENT} Optional; change it any time in Settings &gt; Privacy.</span>
+          <span className="block text-xs leading-snug text-muted-foreground">{DIAGNOSTICS_SENT} Optional; change it any time in Settings &gt; Privacy.</span>
         </label>
       </div>
     </section>

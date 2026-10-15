@@ -128,7 +128,7 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
 
       {/* Background Image with proper positioning */}
       <div
-        className="absolute inset-0 z-[1] bg-center bg-no-repeat bg-contain w-full h-full fixed md:bg-right"
+        className="absolute inset-0 z-[1] bg-center bg-no-repeat bg-cover md:bg-contain w-full h-full fixed md:bg-right"
         style={{
           backgroundImage: "url('/backgrounds/landing-hero.webp')",
         }}

@@ -6,7 +6,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TermsAcceptanceModal, documentFacts } from '../TermsAcceptanceModal';
-import { CUSTOMER_TERMS_DOCUMENT, PLATFORM_TERMS_DOCUMENT } from '@/lib/terms/legal-documents';
+import { CUSTOMER_TERMS_DOCUMENT, PLATFORM_TERMS_DOCUMENT, legalDocument, type LegalDocument } from '@/lib/terms/legal-documents';
 
 function open(documents = [PLATFORM_TERMS_DOCUMENT]): { accept: ReturnType<typeof vi.fn>; cancel: ReturnType<typeof vi.fn> } {
   const accept: ReturnType<typeof vi.fn> = vi.fn();
@@ -68,6 +68,19 @@ describe('the document', () => {
     const link: HTMLElement = screen.getAllByRole('link').find((a: HTMLElement): boolean => a.getAttribute('href') === '/legal/subprocessors') as HTMLElement;
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
+  });
+
+  it('opens mail links in the mail client, without leaving an empty tab', () => {
+    open();
+    const mail: HTMLElement[] = screen.getAllByRole('link').filter((a: HTMLElement): boolean => a.getAttribute('href')?.startsWith('mailto:') ?? false);
+    expect(mail.length).toBeGreaterThan(0);
+    for (const link of mail) expect(link).not.toHaveAttribute('target');
+  });
+
+  it('puts a table in its own scroll box, so a wide one cannot push the page sideways', () => {
+    open([legalDocument('subprocessors') as LegalDocument]);
+    const table: HTMLTableElement | null = screen.getByTestId('legal-markdown').querySelector('table');
+    expect(table?.parentElement).toHaveAttribute('data-testid', 'legal-table-scroll');
   });
 });
 
