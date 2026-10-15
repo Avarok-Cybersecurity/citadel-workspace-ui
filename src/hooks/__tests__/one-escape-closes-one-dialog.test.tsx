@@ -11,7 +11,7 @@
  * fix); the first case is the one that fails without it, and the real-browser
  * check lives in the UX review script.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, type Mock } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
@@ -43,9 +43,9 @@ function Overlay({ onDismiss }: { onDismiss: () => void }): JSX.Element {
 
 describe('a nested dialog closed by Escape', () => {
   it('an Escape another layer already handled does not dismiss this one', () => {
-    const onDismiss = vi.fn();
+    const onDismiss: Mock<() => void> = vi.fn();
     render(<Overlay onDismiss={onDismiss} />);
-    const handled = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    const handled: KeyboardEvent = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
     handled.preventDefault();
     document.dispatchEvent(handled);
     expect(onDismiss).not.toHaveBeenCalled();
@@ -55,7 +55,7 @@ describe('a nested dialog closed by Escape', () => {
   });
 
   it('closes only itself; the overlay behind it stays', async () => {
-    const onDismiss = vi.fn();
+    const onDismiss: Mock<() => void> = vi.fn();
     render(<Wizard onDismiss={onDismiss} />);
     expect(screen.getByRole('dialog', { name: 'Terms of Use' })).toBeInTheDocument();
 
@@ -66,7 +66,7 @@ describe('a nested dialog closed by Escape', () => {
   });
 
   it('leaves the overlay answering the next Escape', async () => {
-    const onDismiss = vi.fn();
+    const onDismiss: Mock<() => void> = vi.fn();
     render(<Wizard onDismiss={onDismiss} />);
 
     await userEvent.keyboard('{Escape}');

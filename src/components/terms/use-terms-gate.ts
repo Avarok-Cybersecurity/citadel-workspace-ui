@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type MutableRefObject } from 'react';
 import type { CurrentTerms, MyConsent } from 'citadel-workspace-client-ts';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { telemetryApi } from '@/lib/telemetry/telemetry-api';
@@ -28,7 +28,7 @@ export function useTermsGate(): TermsGate {
   const [owed, setOwed] = useState<CurrentTerms | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [accepting, setAccepting] = useState<boolean>(false);
-  const fetching = useRef<boolean>(false);
+  const fetching: MutableRefObject<boolean> = useRef<boolean>(false);
 
   useEffect((): (() => void) | void => {
     if (member === undefined || workspace === undefined) return;

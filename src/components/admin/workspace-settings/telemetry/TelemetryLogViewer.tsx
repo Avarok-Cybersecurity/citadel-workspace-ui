@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { telemetryApi } from '@/lib/telemetry/telemetry-api';
 import { describeFailure } from '@/lib/failure-message';
 import { formatDateTime } from '@/lib/format-time';
-import { EMPTY_FILTER_FORM, filterFromForm, type FilterForm } from './telemetry-rules';
+import { EMPTY_FILTER_FORM, filterFromForm, type FilterForm, type FilterResult } from './telemetry-rules';
 import { SELECT_CLASS } from './select-class';
 
 /** Records per page: the server's page cap is larger. */
@@ -34,7 +34,7 @@ export function TelemetryLogViewer({ onRead }: { onRead: () => void }): JSX.Elem
   };
 
   const search = (): void => {
-    const parsed = filterFromForm(form);
+    const parsed: FilterResult = filterFromForm(form);
     if (!parsed.ok) { setProblem(parsed.problem); return; }
     void load(parsed.filter, 0);
   };

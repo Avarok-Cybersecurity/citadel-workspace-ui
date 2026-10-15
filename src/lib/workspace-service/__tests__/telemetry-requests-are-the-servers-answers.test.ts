@@ -6,7 +6,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { eventEmitter } from '@/lib/event-emitter';
 import type { WorkspaceProtocolRequestTS } from '@/types/workspace-protocol';
-import type { MyConsent } from 'citadel-workspace-client-ts';
+import type { CurrentTerms, MyConsent, TelemetryFilter, TelemetrySettings } from 'citadel-workspace-client-ts';
 import * as ops from '../telemetry-operations';
 import type { ProtocolSender } from '../workspace-operations';
 
@@ -31,7 +31,7 @@ const CONSENT: MyConsent = {
 
 describe('telemetry requests', () => {
   it('GetTerms is a bare variant and resolves with the terms', async () => {
-    const terms = { platform: { version: 1, text: 'T' }, workspace: null };
+    const terms: CurrentTerms = { platform: { version: 1, text: 'T' }, workspace: null };
     const s: Sender = sender([{ Telemetry: { Terms: terms } }]);
     expect(await ops.getTerms(s)).toEqual(terms);
     expect(s.sent).toEqual([{ Telemetry: 'GetTerms' }]);
@@ -61,7 +61,7 @@ describe('telemetry requests', () => {
   });
 
   it('policy, support access, terms text and the lists put their arguments on the wire', async () => {
-    const settings = { policy: { retention_days: 7, per_user_bytes: 1n }, max_retention_days: 90, max_per_user_bytes: 2n, support_access: { enabled: false, until_ms: null } };
+    const settings: TelemetrySettings = { policy: { retention_days: 7, per_user_bytes: 1n }, max_retention_days: 90, max_per_user_bytes: 2n, support_access: { enabled: false, until_ms: null } };
     const s: Sender = sender([{ Telemetry: { Settings: settings } }]);
     await ops.setTelemetryPolicy(s, 7, 1n);
     await ops.setSupportAccess(s, true, 99n);
@@ -74,7 +74,7 @@ describe('telemetry requests', () => {
     expect(t.sent).toEqual([{ Telemetry: { SetWorkspaceTerms: { text: 'W' } } }]);
     const l: Sender = sender([{ Telemetry: { AccessLog: [] } }]);
     expect(await ops.listTelemetryAccessLog(l)).toEqual([]);
-    const f = { user_id: null, peer_cid: 5n, min_level: null, since_ms: null, until_ms: null };
+    const f: TelemetryFilter = { user_id: null, peer_cid: 5n, min_level: null, since_ms: null, until_ms: null };
     const p: Sender = sender([{ Telemetry: { Page: { records: [], has_more: false } } }]);
     expect(await ops.listTelemetry(p, f, { offset: 0, limit: 50 })).toEqual({ records: [], has_more: false });
     expect(p.sent).toEqual([{ Telemetry: { ListTelemetry: { filter: f, page: { offset: 0, limit: 50 } } } }]);
@@ -97,7 +97,7 @@ describe('telemetry requests', () => {
   });
 
   it('a volunteered Consent does not answer a request for something else', async () => {
-    const terms = { platform: { version: 1, text: 'T' }, workspace: null };
+    const terms: CurrentTerms = { platform: { version: 1, text: 'T' }, workspace: null };
     const s: Sender = sender([{ Telemetry: { Consent: CONSENT } }, { Telemetry: { Terms: terms } }]);
     expect(await ops.getTerms(s)).toEqual(terms);
   });

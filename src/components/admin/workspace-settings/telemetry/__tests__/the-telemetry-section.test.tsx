@@ -5,10 +5,11 @@
  * Mocked: `usePermission` (an agent round-trip) and the telemetry requests (workspace I/O). The
  * section, its forms and the rules are production.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { TelemetrySettings } from 'citadel-workspace-client-ts';
+import type { TelemetryApi } from '@/lib/telemetry/telemetry-api';
 import type { UsePermissionResult } from '@/hooks/use-permission-result';
 
 const granted: { current: Set<string> } = vi.hoisted(() => ({ current: new Set<string>() }));
@@ -16,7 +17,8 @@ vi.mock('@/hooks/use-permission', () => ({
   usePermission: (_domain: string, permission: string): UsePermissionResult =>
     ({ allowed: granted.current.has(permission), loading: false, reason: null, unanswered: false, answered: true, refresh: async (): Promise<void> => {} }) as UsePermissionResult,
 }));
-const api = vi.hoisted(() => ({ getSettings: vi.fn(), list: vi.fn(), accessLog: vi.fn(), setPolicy: vi.fn(), setSupportAccess: vi.fn(), getTerms: vi.fn(), setWorkspaceTerms: vi.fn() }));
+type ApiMocks<K extends keyof TelemetryApi> = { [P in K]: Mock<TelemetryApi[P]> };
+const api: ApiMocks<'getSettings' | 'list' | 'accessLog' | 'setPolicy' | 'setSupportAccess' | 'getTerms' | 'setWorkspaceTerms'> = vi.hoisted(() => ({ getSettings: vi.fn(), list: vi.fn(), accessLog: vi.fn(), setPolicy: vi.fn(), setSupportAccess: vi.fn(), getTerms: vi.fn(), setWorkspaceTerms: vi.fn() }));
 vi.mock('@/lib/telemetry/telemetry-api', () => ({ telemetryApi: api }));
 import { TelemetrySection } from '../TelemetrySection';
 
@@ -145,8 +147,8 @@ describe('workspace terms and the access log', () => {
 
   it('lists who read the logs, support by name', async () => {
     api.accessLog.mockResolvedValue([
-      { at_ms: 1_700_000_000_000n, accessor: 'Support', filter: {}, returned: 3 },
-      { at_ms: 1_700_000_100_000n, accessor: { Member: { user_id: 'carol' } }, filter: {}, returned: 1 },
+      { at_ms: 1_700_000_000_000n, accessor: 'Support', filter: { user_id: null, peer_cid: null, min_level: null, since_ms: null, until_ms: null }, returned: 3 },
+      { at_ms: 1_700_000_100_000n, accessor: { Member: { user_id: 'carol' } }, filter: { user_id: null, peer_cid: null, min_level: null, since_ms: null, until_ms: null }, returned: 1 },
     ]);
     render(<TelemetrySection />);
     const log: HTMLElement = await screen.findByTestId('telemetry-access-log');

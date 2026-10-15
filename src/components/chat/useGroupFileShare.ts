@@ -21,7 +21,7 @@ export interface GroupFileShare {
 export function useGroupFileShare(groupId: string): GroupFileShare {
   const { toast } = useToast();
   const [sending, setSending] = useState<boolean>(false);
-  const share = useCallback(async (file: File): Promise<void> => {
+  const share: (file: File) => Promise<void> = useCallback(async (file: File): Promise<void> => {
     setSending(true);
     try {
       await sendGroupFile(groupId, file);

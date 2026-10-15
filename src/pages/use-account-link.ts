@@ -5,6 +5,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useConfirm } from '@/components/shared/confirm-dialog';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { ACCOUNT_LINK_PARAMS, hasAccountLinkParams } from '@/lib/onboarding/account-link-params';
+import type { AccountLinkDecision } from '@/lib/onboarding/open-account-link';
+import type { OrphanSessionWithWorkspace } from '@/components/useOrphanSessions';
 import { useClearAfterClose } from './use-clear-after-close';
 
 /**
@@ -31,7 +33,7 @@ export function useAccountLink(onLogin: (username: string) => void, signInOpen: 
   latestOnLogin.current = onLogin;
   const [signInPending, setSignInPending] = useState<boolean>(false);
 
-  const clearLink = useCallback((): void => {
+  const clearLink: () => void = useCallback((): void => {
     setSignInPending(false);
     setSearchParams((current: URLSearchParams): URLSearchParams => {
       const next: URLSearchParams = new URLSearchParams(current);
@@ -49,7 +51,7 @@ export function useAccountLink(onLogin: (username: string) => void, signInOpen: 
     runAsyncSetup(async (): Promise<void> => {
       const { runAccountLink } = await import('./account-link-runner');
       const login = (username: string): void => { setSignInPending(true); latestOnLogin.current(username); };
-      const outcome = await runAccountLink(linkParams, { navigate, toast, confirm, login });
+      const outcome: AccountLinkDecision<OrphanSessionWithWorkspace> | null = await runAccountLink(linkParams, { navigate, toast, confirm, login });
       if (outcome?.kind !== 'login') clearLink();
     });
   }, [searchParams, navigate, toast, confirm, clearLink]);

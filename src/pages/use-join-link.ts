@@ -27,7 +27,7 @@ export function useJoinLink(openServerStep: () => void, fillServer: (address: st
     setPending(true);
   }, [searchParams, openServerStep, fillServer]);
 
-  const clear = useCallback((): void => {
+  const clear: () => void = useCallback((): void => {
     setPending(false);
     setSearchParams((current: URLSearchParams): URLSearchParams => withoutJoinParams(current), { replace: true });
   }, [setSearchParams]);

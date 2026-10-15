@@ -2,15 +2,15 @@
  * The dialog where terms are read and accepted. No doubles: the real dialog primitives, tabs and
  * Markdown renderer, with the real bundled documents.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, type Mock } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TermsAcceptanceModal, documentFacts } from '../TermsAcceptanceModal';
 import { CUSTOMER_TERMS_DOCUMENT, PLATFORM_TERMS_DOCUMENT, legalDocument, type LegalDocument } from '@/lib/terms/legal-documents';
 
-function open(documents = [PLATFORM_TERMS_DOCUMENT]): { accept: ReturnType<typeof vi.fn>; cancel: ReturnType<typeof vi.fn> } {
-  const accept: ReturnType<typeof vi.fn> = vi.fn();
-  const cancel: ReturnType<typeof vi.fn> = vi.fn();
+function open(documents: LegalDocument[] = [PLATFORM_TERMS_DOCUMENT]): { accept: Mock; cancel: Mock } {
+  const accept: Mock = vi.fn();
+  const cancel: Mock = vi.fn();
   render(<TermsAcceptanceModal title="Terms of Use" documents={documents} agreement="I agree." onAccept={accept} onCancel={cancel} />);
   return { accept, cancel };
 }
