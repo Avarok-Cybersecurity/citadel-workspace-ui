@@ -68,8 +68,8 @@ function ClaimCodePanel({ claimCode, onStored }: { readonly claimCode: string; r
       </p>
 
       <div className="flex items-start gap-3">
-        <Checkbox id="claim-stored" checked={stored} onCheckedChange={(v) => setStored(v === true)} data-testid="claim-stored" className="mt-0.5" />
-        <label htmlFor="claim-stored" className="text-sm text-foreground">
+        <Checkbox id="claim-stored" checked={stored} onCheckedChange={(v) => setStored(v === true)} data-testid="claim-stored" />
+        <label htmlFor="claim-stored" className="text-sm leading-[24px] text-foreground">
           I have stored the claim code somewhere safe.
         </label>
       </div>

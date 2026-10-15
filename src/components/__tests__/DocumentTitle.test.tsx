@@ -25,6 +25,13 @@ describe('titleForPath', () => {
     expect(new Set(titles).size).toBe(paths.length);
   });
 
+  it('names each legal document, so its tab and history entry say which one', () => {
+    const titles: string[] = ['terms', 'customer-terms', 'privacy', 'dpa', 'subprocessors'].map((id: string): string => titleForPath(`/legal/${id}`));
+    expect(new Set(titles).size).toBe(titles.length);
+    expect(titleForPath('/legal/dpa')).toMatch(/^Data Processing Addendum · /);
+    expect(titleForPath('/legal/unknown')).toMatch(/^Legal · /);
+  });
+
   it('keeps the landing page as the product title', () => {
     expect(titleForPath('/')).toMatch(/Post-Quantum Secure Collaboration/);
   });

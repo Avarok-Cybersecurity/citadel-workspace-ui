@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { telemetryApi } from '@/lib/telemetry/telemetry-api';
 import { describeFailure } from '@/lib/failure-message';
-import { megabytesOf, policyFromForm } from './telemetry-rules';
+import { megabytesOf, policyFromForm, type PolicyResult } from './telemetry-rules';
 
 interface TelemetryPolicyFormProps {
   settings: TelemetrySettings;
@@ -21,7 +21,7 @@ export function TelemetryPolicyForm({ settings, canEdit, onSaved }: TelemetryPol
   const [problem, setProblem] = useState<string | null>(null);
 
   const save = async (): Promise<void> => {
-    const policy = policyFromForm(days, megabytes, settings);
+    const policy: PolicyResult = policyFromForm(days, megabytes, settings);
     if (!policy.ok) { setProblem(policy.problem); return; }
     setBusy(true);
     setProblem(null);

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { TelemetrySettings } from 'citadel-workspace-client-ts';
-import { EMPTY_FILTER_FORM, filterFromForm, megabytesOf, policyFromForm, supportAccessUntil } from '../telemetry-rules';
+import { EMPTY_FILTER_FORM, filterFromForm, megabytesOf, policyFromForm, supportAccessUntil, type FilterResult } from '../telemetry-rules';
 
 const SETTINGS: TelemetrySettings = {
   policy: { retention_days: 30, per_user_bytes: 20n * 1024n * 1024n }, max_retention_days: 90, max_per_user_bytes: 50n * 1024n * 1024n,
@@ -12,7 +12,7 @@ describe('filterFromForm', () => {
     expect(filterFromForm(EMPTY_FILTER_FORM)).toEqual({ ok: true, filter: { user_id: null, peer_cid: null, min_level: null, since_ms: null, until_ms: null } });
   });
   it('reads a peer CID as a bigint, however large', () => {
-    const r = filterFromForm({ ...EMPTY_FILTER_FORM, peerCid: '18446744073709551615', user: ' alice ', minLevel: 'Error' });
+    const r: FilterResult = filterFromForm({ ...EMPTY_FILTER_FORM, peerCid: '18446744073709551615', user: ' alice ', minLevel: 'Error' });
     expect(r).toMatchObject({ ok: true, filter: { peer_cid: 18446744073709551615n, user_id: 'alice', min_level: 'Error' } });
   });
   it('refuses a CID that is not a u64', () => {
@@ -20,7 +20,7 @@ describe('filterFromForm', () => {
     expect(filterFromForm({ ...EMPTY_FILTER_FORM, peerCid: '18446744073709551616' }).ok).toBe(false);
   });
   it('turns local times into milliseconds and refuses a reversed range', () => {
-    const r = filterFromForm({ ...EMPTY_FILTER_FORM, since: '2026-10-01T00:00', until: '2026-10-02T00:00' });
+    const r: FilterResult = filterFromForm({ ...EMPTY_FILTER_FORM, since: '2026-10-01T00:00', until: '2026-10-02T00:00' });
     expect(r).toMatchObject({ ok: true });
     if (r.ok) expect(r.filter.until_ms! - r.filter.since_ms!).toBe(86_400_000n);
     expect(filterFromForm({ ...EMPTY_FILTER_FORM, since: '2026-10-02T00:00', until: '2026-10-01T00:00' }).ok).toBe(false);

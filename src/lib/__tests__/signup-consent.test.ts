@@ -10,7 +10,9 @@ import { SHOWN_PLATFORM_TERMS_VERSION } from '../terms/platform-terms';
 
 const TERMS: CurrentTerms = { platform: { version: SHOWN_PLATFORM_TERMS_VERSION, text: 't' }, workspace: null };
 
-function effects(terms: CurrentTerms = TERMS): SignupConsentEffects & { calls: string[] } {
+type RecordedEffects = SignupConsentEffects & { calls: string[] };
+
+function effects(terms: CurrentTerms = TERMS): RecordedEffects {
   const calls: string[] = [];
   return {
     calls,
@@ -24,27 +26,27 @@ function effects(terms: CurrentTerms = TERMS): SignupConsentEffects & { calls: s
 
 describe('applySignupConsent', () => {
   it('sends nothing when neither the Terms nor diagnostics were chosen', async () => {
-    const e = effects();
+    const e: RecordedEffects = effects();
     await applySignupConsent({ termsAccepted: false, shareDiagnostics: false }, e);
     expect(e.calls).toEqual([]);
   });
 
   it('on a server whose Terms were never put to the person, diagnostics alone are asked for and no terms are accepted', async () => {
-    const e = effects();
+    const e: RecordedEffects = effects();
     await applySignupConsent({ termsAccepted: false, shareDiagnostics: true }, e);
     expect(e.calls).toEqual(['wait', 'diagnostics true']);
     expect(e.acceptTerms).not.toHaveBeenCalled();
   });
 
   it('accepts the shown terms and leaves diagnostics off by default', async () => {
-    const e = effects();
+    const e: RecordedEffects = effects();
     await applySignupConsent({ termsAccepted: true, shareDiagnostics: false }, e);
     expect(e.calls).toEqual(['wait', 'getTerms', `accept ${SHOWN_PLATFORM_TERMS_VERSION} null`]);
     expect(e.setDiagnostics).not.toHaveBeenCalled();
   });
 
   it('turns diagnostics on, after the acceptance it depends on, only when ticked', async () => {
-    const e = effects();
+    const e: RecordedEffects = effects();
     await applySignupConsent({ termsAccepted: true, shareDiagnostics: true }, e);
     expect(e.calls.slice(-2)).toEqual([`accept ${SHOWN_PLATFORM_TERMS_VERSION} null`, 'diagnostics true']);
   });
@@ -54,7 +56,7 @@ describe('applySignupConsent', () => {
       { platform: { version: SHOWN_PLATFORM_TERMS_VERSION + 1, text: 'new' }, workspace: null },
       { platform: TERMS.platform, workspace: { version: 1, text: 'ours' } },
     ] as CurrentTerms[]) {
-      const e = effects(terms);
+      const e: RecordedEffects = effects(terms);
       await applySignupConsent({ termsAccepted: true, shareDiagnostics: true }, e);
       expect(e.acceptTerms).not.toHaveBeenCalled();
       expect(e.setDiagnostics).not.toHaveBeenCalled();
@@ -63,7 +65,7 @@ describe('applySignupConsent', () => {
   });
 
   it('reports a refusal instead of throwing', async () => {
-    const e = effects();
+    const e: RecordedEffects = effects();
     e.acceptTerms = vi.fn(async () => { throw new Error('Terms version is not current'); });
     await applySignupConsent({ termsAccepted: true, shareDiagnostics: true }, e);
     expect(e.reportFailure).toHaveBeenCalledWith(expect.stringContaining('Terms version is not current'));

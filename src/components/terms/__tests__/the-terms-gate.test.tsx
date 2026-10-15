@@ -3,27 +3,29 @@
  * has is never shown it. Mocked: the telemetry requests (workspace I/O). The context, the gate
  * and the dialog are production.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import type { CurrentTerms, MyConsent } from 'citadel-workspace-client-ts';
+import type { TelemetryApi } from '@/lib/telemetry/telemetry-api';
 import { MemoryRouter } from 'react-router-dom';
 import { WorkspaceProvider, type WorkspaceState } from '@/contexts/WorkspaceContext';
 import { ConfirmDialogProvider } from '@/components/shared/confirm-dialog';
 import { eventEmitter } from '@/lib/event-emitter';
 
-const api = vi.hoisted(() => ({ getMyConsent: vi.fn(), getTerms: vi.fn(), acceptTerms: vi.fn() }));
+type ApiMocks<K extends keyof TelemetryApi> = { [P in K]: Mock<TelemetryApi[P]> };
+const api: ApiMocks<'getMyConsent' | 'getTerms' | 'acceptTerms'> = vi.hoisted(() => ({ getMyConsent: vi.fn(), getTerms: vi.fn(), acceptTerms: vi.fn() }));
 vi.mock('@/lib/telemetry/telemetry-api', () => ({ telemetryApi: api }));
 // The session store, the WASM client and the tab's stored selection are the sign-out's I/O.
-const session = vi.hoisted(() => ({
+const session: Record<'disconnect' | 'removeSession' | 'stop' | 'clearSelectedUser', Mock> = vi.hoisted(() => ({
   disconnect: vi.fn(), removeSession: vi.fn(), stop: vi.fn(), clearSelectedUser: vi.fn(),
 }));
 vi.mock('@/lib/connection', () => ({
   connectionManager: {
-    getTabSelectedSession: async () => ({ cid: 9n, username: 'u', serverAddress: 'srv' }),
+    getTabSelectedSession: async (): Promise<{ cid: bigint; username: string; serverAddress: string }> => ({ cid: 9n, username: 'u', serverAddress: 'srv' }),
     disconnect: session.disconnect, removeSession: session.removeSession,
   },
 }));
-vi.mock('@/lib/tab-context', () => ({ getSelectedUser: async () => ({ selectedCid: 9n }), clearSelectedUser: session.clearSelectedUser }));
+vi.mock('@/lib/tab-context', () => ({ getSelectedUser: async (): Promise<{ selectedCid: bigint }> => ({ selectedCid: 9n }), clearSelectedUser: session.clearSelectedUser }));
 vi.mock('@/lib/wasm-connection-manager', () => ({ wasmConnectionManager: { stop: session.stop } }));
 import { TermsGate } from '../TermsGate';
 import { trackSignupConsent } from '@/lib/telemetry/signup-consent-pending';
@@ -33,7 +35,7 @@ const consent = (current: boolean): MyConsent => ({
   required_workspace_version: null, terms_current: current, telemetry_enabled: false, uploads_allowed: false,
 });
 const TERMS: CurrentTerms = { platform: { version: 2, text: 'new platform text' }, workspace: { version: 4, text: 'our house rules' } };
-const STATE = { workspace: { id: 'w', name: 'W' }, currentUser: { id: 'u', username: 'u', name: 'U' }, members: {}, nodes: {} } as unknown as WorkspaceState;
+const STATE: WorkspaceState = { workspace: { id: 'w', name: 'W' }, currentUser: { id: 'u', username: 'u', name: 'U' }, members: {}, nodes: {} } as unknown as WorkspaceState;
 
 function renderGate(state: WorkspaceState = STATE): void {
   render(

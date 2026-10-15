@@ -80,7 +80,9 @@ export function useDialogOverlay<T extends HTMLElement = HTMLDivElement>({
     if (!enabled) return;
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key === 'Escape' && onDismiss) {
-        onDismiss();
+        // Handled already: a Radix dialog nested in this one closed on this key,
+        // and re-enabled this overlay before the event reached it.
+        if (!event.defaultPrevented) onDismiss();
         return;
       }
       if (event.key !== 'Tab' || !ref.current) return;

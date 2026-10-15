@@ -31,8 +31,19 @@ function anchorFor(onOpenDocument: LegalMarkdownProps['onOpenDocument']): Compon
         </a>
       );
     }
+    // A mail link opens the mail client; a new tab for it is only an empty tab left behind.
+    if (href?.startsWith('mailto:')) return <a href={href}>{children}</a>;
     return <a href={own ?? href} target="_blank" rel="noopener noreferrer">{children}</a>;
   };
+}
+
+/** A table scrolls inside itself at phone width rather than pushing the page sideways. */
+function LegalTable({ children }: { children?: ReactNode }): JSX.Element {
+  return (
+    <div className="overflow-x-auto" data-testid="legal-table-scroll">
+      <table>{children}</table>
+    </div>
+  );
 }
 
 /**
@@ -46,7 +57,7 @@ export function LegalMarkdown({ text, onOpenDocument }: LegalMarkdownProps): JSX
       data-testid="legal-markdown"
       className="prose prose-sm sm:prose-base max-w-[68ch] break-words prose-headings:text-foreground prose-headings:scroll-mt-4 prose-h2:mt-8 prose-strong:text-foreground prose-li:text-foreground prose-a:underline prose-a:underline-offset-2"
     >
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: anchorFor(onOpenDocument) }}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: anchorFor(onOpenDocument), table: LegalTable }}>
         {text}
       </ReactMarkdown>
     </div>

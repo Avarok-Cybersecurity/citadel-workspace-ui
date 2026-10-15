@@ -5,16 +5,18 @@
  * Mocked: the telemetry requests (workspace I/O). The confirm dialog, switch and terms dialog are
  * production.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { MyConsent } from 'citadel-workspace-client-ts';
+import type { CurrentTerms, MyConsent } from 'citadel-workspace-client-ts';
+import type { TelemetryApi } from '@/lib/telemetry/telemetry-api';
 import { act } from '@testing-library/react';
 import { eventEmitter } from '@/lib/event-emitter';
 import { ConfirmDialogProvider } from '@/components/shared/confirm-dialog';
 import { WorkspaceProvider, type WorkspaceState } from '@/contexts/WorkspaceContext';
 
-const api = vi.hoisted(() => ({ getMyConsent: vi.fn(), getTerms: vi.fn(), setConsent: vi.fn(), deleteMine: vi.fn() }));
+type ApiMocks<K extends keyof TelemetryApi> = { [P in K]: Mock<TelemetryApi[P]> };
+const api: ApiMocks<'getMyConsent' | 'getTerms' | 'setConsent' | 'deleteMine'> = vi.hoisted(() => ({ getMyConsent: vi.fn(), getTerms: vi.fn(), setConsent: vi.fn(), deleteMine: vi.fn() }));
 vi.mock('@/lib/telemetry/telemetry-api', () => ({ telemetryApi: api }));
 import { DiagnosticsPrivacySection } from '../DiagnosticsPrivacySection';
 
@@ -22,10 +24,10 @@ const consent = (over: Partial<MyConsent> = {}): MyConsent => ({
   accepted_platform_version: 1, accepted_workspace_version: null, required_platform_version: 1, required_workspace_version: null,
   terms_current: true, telemetry_enabled: false, uploads_allowed: false, ...over,
 });
-const TERMS = { platform: { version: 1, text: 'platform words' }, workspace: null };
+const TERMS: CurrentTerms = { platform: { version: 1, text: 'platform words' }, workspace: null };
 
 function renderSection(): void {
-  const state = { workspace: { id: 'w', name: 'Acme' }, members: {}, nodes: {} } as unknown as WorkspaceState;
+  const state: WorkspaceState = { workspace: { id: 'w', name: 'Acme' }, members: {}, nodes: {} } as unknown as WorkspaceState;
   render(<ConfirmDialogProvider><WorkspaceProvider state={state}><DiagnosticsPrivacySection /></WorkspaceProvider></ConfirmDialogProvider>);
 }
 

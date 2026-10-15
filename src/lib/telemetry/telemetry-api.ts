@@ -5,7 +5,25 @@
 import WorkspaceService from '@/lib/workspace-service';
 import * as ops from '@/lib/workspace-service/telemetry-operations';
 
-export const telemetryApi = {
+/** An operation with its first argument, the session's sender, already supplied. */
+type Bound<F> = F extends (sender: never, ...rest: infer A) => infer R ? (...args: A) => R : never;
+
+/** Each signature is the operation's own, so the two cannot drift. */
+export interface TelemetryApi {
+  getTerms: Bound<typeof ops.getTerms>;
+  getMyConsent: Bound<typeof ops.getMyConsent>;
+  acceptTerms: Bound<typeof ops.acceptTerms>;
+  setConsent: Bound<typeof ops.setTelemetryConsent>;
+  deleteMine: Bound<typeof ops.deleteMyTelemetry>;
+  list: Bound<typeof ops.listTelemetry>;
+  getSettings: Bound<typeof ops.getTelemetrySettings>;
+  setPolicy: Bound<typeof ops.setTelemetryPolicy>;
+  setSupportAccess: Bound<typeof ops.setSupportAccess>;
+  accessLog: Bound<typeof ops.listTelemetryAccessLog>;
+  setWorkspaceTerms: Bound<typeof ops.setWorkspaceTerms>;
+}
+
+export const telemetryApi: TelemetryApi = {
   getTerms: () => ops.getTerms(WorkspaceService),
   getMyConsent: () => ops.getMyConsent(WorkspaceService),
   acceptTerms: (platformVersion: number, workspaceVersion: number | null) => ops.acceptTerms(WorkspaceService, platformVersion, workspaceVersion),
@@ -18,5 +36,3 @@ export const telemetryApi = {
   accessLog: () => ops.listTelemetryAccessLog(WorkspaceService),
   setWorkspaceTerms: (text: string | null) => ops.setWorkspaceTerms(WorkspaceService, text),
 };
-
-export type TelemetryApi = typeof telemetryApi;
