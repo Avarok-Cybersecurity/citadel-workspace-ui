@@ -15,6 +15,10 @@ import type { User, UserRole } from '@/types/workspace-entities';
 import type { StoredSession } from '@/types/session-types';
 import { isForDomain } from '@/lib/workspace-events/is-for-domain';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
+import { coalesce, type Coalesced } from '@/lib/coalesce';
+
+/** How long a burst of reload requests is gathered into one ListMembers. */
+const MEMBERS_RELOAD_COALESCE_MS: number = 250;
 
 interface UseMemberEventSetupProps {
   setState: React.Dispatch<React.SetStateAction<WorkspaceEventState>>;
@@ -46,6 +50,14 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
       if (cancelled) unsubscribe();
       else unsubscribes.push(unsubscribe);
     };
+
+    const reload: Coalesced = coalesce((): void => {
+      debugLog('UseMemberEventSetup', 'Reloading members list...');
+      const params: URLSearchParams = new URLSearchParams(window.location.search);
+      // No nodeId is the workspace view, whose roster is the root's. This
+      // skipped it, so a member added at the root never appeared.
+      runAsyncSetup(() => WorkspaceService.listMembers(params.get("nodeId") ?? WORKSPACE_ROOT_ID));
+    }, MEMBERS_RELOAD_COALESCE_MS);
 
     const setupMemberListeners = async (): Promise<void> => {
       // Member events
@@ -218,14 +230,11 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
         });
       }));
 
-      // Members reload event
-      keep(workspaceEvents.onWorkspaceEvent('members:reload', async () => {
-        debugLog('UseMemberEventSetup', 'Reloading members list...');
-        const params: URLSearchParams = new URLSearchParams(window.location.search);
-        // No nodeId is the workspace view, whose roster is the root's. This
-        // skipped it, so a member added at the root never appeared.
-        await WorkspaceService.listMembers(params.get("nodeId") ?? WORKSPACE_ROOT_ID);
-      }));
+      // Members reload event. Coalesced: a write's confirmation and the
+      // server's announcement of the same change both ask, as do several
+      // colleagues joining at once, and each would be the same round trip.
+      keep(workspaceEvents.onWorkspaceEvent('members:reload', reload.request));
+      keep(reload.cancel);
     };
 
     runAsyncSetup(setupMemberListeners);

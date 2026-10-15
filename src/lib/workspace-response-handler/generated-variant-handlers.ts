@@ -11,6 +11,7 @@ import { debugLog } from '@/lib/debug-config';
 import { isVariant , type SignInSettings, type WorkspaceProtocolResponse } from 'citadel-workspace-client-ts';
 import type { ConnectionInfo } from './workspace-handlers';
 import { mapWasmMember } from './member-mapping';
+import { membershipChanged } from './membership-change';
 import { recordMemberNames } from '@/lib/member-names';
 import { recordPresenceChoices } from '@/lib/published-presence';
 import type { MappedMember } from '@/lib/workspace-response-handler/member-mapping';
@@ -41,6 +42,10 @@ export function handleGeneratedVariants(
       },
       connection: connectionInfo,
     });
+    // Someone joined or left: the rosters on screen re-read (membership-change.ts).
+    if (membershipChanged(response.Workspace.id, response.Workspace.members)) {
+      eventEmitter.emit('members:reload', undefined);
+    }
     // Also raw, so a caller awaiting confirmation can see it.
     //
     // `Success` and `Error` emit this; the handled variants did not — they
