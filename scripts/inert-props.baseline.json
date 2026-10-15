@@ -8,10 +8,6 @@
   "src/components/layout/sidebar/TopBar.tsx:TopBar": [
     "currentWorkspace"
   ],
-  "src/components/layout/sidebar/TreeNodesSection.tsx:TreeNodesSection": [
-    "initialExpandedIds",
-    "maxHeight"
-  ],
   "src/components/p2p/CollaborativeEditor.tsx:CollaborativeEditor": [
     "creatorCid"
   ],

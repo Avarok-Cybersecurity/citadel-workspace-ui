@@ -3,8 +3,9 @@
  *
  * `GroupConversationRow.isActive` had a default, a class that highlights the
  * row, and one caller that never supplied it: the sidebar could not say which
- * conversation was open. `TreeNodesSection.initialExpandedIds` had no caller
- * either, and the tree forgot every branch on reload. Both read as working
+ * conversation was open. `TreeNodesSection.initialExpandedIds` (since removed
+ * with the expandable tree) had no caller either, and the tree forgot every
+ * branch on reload. Both read as working
  * code, because the component honours the prop perfectly.
  *
  * This finds the shape mechanically: an OPTIONAL prop on a component's own

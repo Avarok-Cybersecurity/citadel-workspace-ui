@@ -223,6 +223,10 @@ export function HierarchySidebar(): JSX.Element {
         }}
         onCloseTypePick={() => setTypePick(null)}
         onCloseCreate={() => setCreateModal(null)}
+        // Reveal what was just made by selecting the parent it went into: the
+        // focused tree unfolds exactly the selected node's children, so the new
+        // node is on screen without opening it -- which nobody asked for.
+        onCreated={(parentId: string): void => { void handleNodeSelect(parentId); }}
         onCloseEdit={() => setEditNode(null)}
         onCloseAdmin={() => setAdminNode(null)}
       />

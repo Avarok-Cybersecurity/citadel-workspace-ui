@@ -19,6 +19,8 @@ interface NodeManagementModalProps {
   parentId?: string;
   /** Existing node data — required for edit mode. */
   node?: DomainNode;
+  /** Create mode: the server accepted the new node under `parentId`. */
+  onCreated?: (parentId: string) => void;
 }
 
 function buildModes(label: string): Record<'create' | 'edit', ModeConfig> {
@@ -63,6 +65,7 @@ export function NodeManagementModal({
   entityType,
   parentId,
   node,
+  onCreated,
 }: NodeManagementModalProps): JSX.Element {
   const { toast } = useToast();
   const meta: EntityTypeMetadata = getEntityMetadata(entityType);
@@ -81,6 +84,7 @@ export function NodeManagementModal({
         formData.description ?? '',
       );
       toastSuccess(toast, `${meta.label} Created`, `${formData.name} has been created successfully`);
+      onCreated?.(parentId);
     } else if (mode === 'edit' && node) {
       await WorkspaceService.updateNode(node.id, {
         name: formData.name,

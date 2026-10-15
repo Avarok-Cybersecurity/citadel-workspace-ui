@@ -49,8 +49,10 @@ function renderSidebar(nodes: TestNode[]): void {
   render(<HierarchySidebar />, { wrapper: wrap });
 }
 
+/** Select the node first: the focused tree offers a node's ⋯ menu on its own row, once it is in view. */
 async function openMenu(id: string): Promise<void> {
-  await userEvent.click(screen.getByTestId(`tree-node-menu-${id}`));
+  await userEvent.click(screen.getByTestId(`tree-node-${id}`));
+  await userEvent.click(await screen.findByTestId(`tree-node-menu-${id}`));
 }
 
 describe('Add Child', () => {
