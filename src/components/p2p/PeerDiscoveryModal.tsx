@@ -119,7 +119,7 @@ export const PeerDiscoveryModal: React.FC<PeerDiscoveryModalProps> = ({ isOpen, 
                     incomingRequest={incomingRequests.get(peer.cid)}
                     acceptingPeerCid={acceptingPeerCid}
                     onAccept={acceptIncomingRequest}
-                    onRegister={registerWithPeer}
+                    onRegister={(cid: string, name: string): void => { const _: Promise<boolean> = registerWithPeer(cid, name, true); }}
                   />
                 ))}
               </div>

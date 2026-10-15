@@ -36,10 +36,10 @@ function banner(registered: boolean): void {
 }
 
 describe('the connect banner', () => {
-  it('sends the request unprompted when the server trusts the peer both ways', async () => {
+  it('sends the request unprompted, and without a toast, when the server trusts the peer both ways', async () => {
     h.trust = { trusted: true, peerTrustsCaller: true };
     banner(false);
-    await waitFor((): void => expect(h.registerWithPeer).toHaveBeenCalledWith('42', 'bob'));
+    await waitFor((): void => expect(h.registerWithPeer).toHaveBeenCalledWith('42', 'bob', false));
     expect(h.checkPeer).toHaveBeenCalledWith('bob');
     expect(screen.getByTestId('p2p-connect-banner').textContent).toContain('Connecting with Bob');
   });
@@ -58,7 +58,7 @@ describe('the connect banner', () => {
     expect(screen.getByTestId('p2p-connect-banner').textContent).toContain("You aren't connected with Bob yet");
     expect(h.registerWithPeer).not.toHaveBeenCalled();
     fireEvent.click(screen.getByTestId('p2p-connect-request'));
-    await waitFor((): void => expect(h.registerWithPeer).toHaveBeenCalledWith('42', 'bob'));
+    await waitFor((): void => expect(h.registerWithPeer).toHaveBeenCalledWith('42', 'bob', true));
   });
 
   it('is absent, and asks nothing, once you are connected', async () => {

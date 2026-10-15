@@ -129,7 +129,7 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
       // registering the request id, so a PeerRegisterFailure for it matched
       // nothing and the user kept a green "Request Sent" for a refused request.
       const peer: Peer = reachablePeer(discoveredPeers, selectedUser);
-      if (await registerWithPeer(peer.cid, selectedUser.id)) setRequestDialogOpen(false);
+      if (await registerWithPeer(peer.cid, selectedUser.id, true)) setRequestDialogOpen(false);
     } catch (error) {
       debugLog('UserDirectory', 'Failed to send connection request:', error);
       toast({

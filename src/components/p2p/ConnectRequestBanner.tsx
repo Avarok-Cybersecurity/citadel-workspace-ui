@@ -30,7 +30,8 @@ export function ConnectRequestBanner({ peerCid, peerName, peerUsername, register
   const deps: ConnectRequestDeps = {
     askTrust: (): Promise<PeerTrust> =>
       currentCid === null ? Promise.resolve(UNTRUSTED) : askPeerTrust(messagingTrustApi, currentCid, username),
-    send: (): Promise<boolean> => (username ? registerWithPeer(peerCid.toString(), username) : Promise.resolve(false)),
+    send: (announce: boolean): Promise<boolean> =>
+      (username ? registerWithPeer(peerCid.toString(), username, announce) : Promise.resolve(false)),
     alreadyAsked: (): boolean => currentCid !== null && peerRegistrationStore.hasOutgoingRequestTo(peerCid, currentCid),
   };
   const { stage, request }: ConnectRequest = useConnectRequest(registered, currentCid !== null, deps);

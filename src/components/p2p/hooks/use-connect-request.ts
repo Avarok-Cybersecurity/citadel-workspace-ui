@@ -18,8 +18,11 @@ export type ConnectStage = 'offer' | 'sending' | 'connecting' | 'waiting';
 
 export interface ConnectRequestDeps {
   askTrust: () => Promise<PeerTrust>;
-  /** Resolves true once the request is on the wire; false when it was not sent (already said why). */
-  send: () => Promise<boolean>;
+  /**
+   * Resolves true once the request is on the wire; false when it was not sent (already said why).
+   * `announce` is false for the send made on open: nobody asked for it, so nothing pops up.
+   */
+  send: (announce: boolean) => Promise<boolean>;
   /** A request of ours to this peer is already outstanding. */
   alreadyAsked: () => boolean;
 }
@@ -44,9 +47,9 @@ export function useConnectRequest(registered: boolean, ready: boolean, deps: Con
   depsRef.current = deps;
   const peerTrustsCaller: MutableRefObject<boolean> = useRef<boolean>(false);
 
-  const sendNow: () => Promise<void> = useCallback(async (): Promise<void> => {
+  const sendNow: (announce: boolean) => Promise<void> = useCallback(async (announce: boolean): Promise<void> => {
     setStage('sending');
-    const sent: boolean = await depsRef.current.send().catch((): boolean => false);
+    const sent: boolean = await depsRef.current.send(announce).catch((): boolean => false);
     setStage(stageAfterSend(sent, peerTrustsCaller.current));
   }, []);
 
@@ -62,12 +65,12 @@ export function useConnectRequest(registered: boolean, ready: boolean, deps: Con
       peerTrustsCaller.current = trust.peerTrustsCaller;
       if (!trust.trusted) return;
       if (depsRef.current.alreadyAsked()) setStage(stageAfterSend(true, trust.peerTrustsCaller));
-      else await sendNow();
+      else await sendNow(false);
     };
     const _: Promise<void> = decide();
     return (): void => { live = false; };
   }, [registered, ready, sendNow]);
 
-  const request: () => void = useCallback((): void => { const _: Promise<void> = sendNow(); }, [sendNow]);
+  const request: () => void = useCallback((): void => { const _: Promise<void> = sendNow(true); }, [sendNow]);
   return { stage, request };
 }
