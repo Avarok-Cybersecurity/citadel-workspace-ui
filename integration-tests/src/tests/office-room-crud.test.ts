@@ -111,7 +111,12 @@ async function clickAddOfficeButton(page: Page): Promise<boolean> {
         console.log(`  Add Node button present but disabled (${selector})`);
         return false;
       }
-      await btn.click();
+      // It can still turn disabled between the check and the click, when the permission answer
+      // lands; that is the known "no", not a reason to wait out the 30s action timeout.
+      if (!(await btn.click({ timeout: 5000 }).then(() => true).catch(() => false))) {
+        console.log(`  Add Node button turned disabled before the click (${selector})`);
+        return false;
+      }
       await sleep(500);
       console.log(`  Clicked Add Node button (${selector})`);
       return true;
@@ -724,6 +729,12 @@ async function runTest(): Promise<boolean> {
 
       // Try to create an office as non-admin
       console.log('  Testing non-admin office creation...');
+      // "+" is offered until the permission answer arrives and disabled once it is a known "no"
+      // (AddNodeButton). Reading it once raced that answer: the button was enabled at the check,
+      // disabled by the click, and the click waited out its 30s timeout. Wait for the answer.
+      await nonAdminPage
+        .waitForSelector('[data-testid="add-node-button"][disabled], [data-testid="add-root-node-button"][disabled]', { timeout: 15_000 })
+        .catch(() => console.log('  Add Node button still enabled after 15s; trying it'));
       if (await clickAddOfficeButton(nonAdminPage)) {
         await fillNodeModal(nonAdminPage, 'UnauthorizedOffice', 'Should fail');
 
