@@ -458,9 +458,12 @@ async function runTest(): Promise<boolean> {
           await page.keyboard.press('Escape');
           await sleep(500);
 
-          await clickAdminSettingsMenuItem(page);
-          await sleep(500);
-          const reopened = await navigateToTab(page, 'chat');
+          // The menu closed when Admin Settings opened the modal: reopen it first.
+          // (Never reached until the menu was the office's own -- the root's
+          // chat tab is the workspace message, which skips this round trip.)
+          const reopened = await openOfficeContextMenu(page, TEST_OFFICE_NAME)
+            && await clickAdminSettingsMenuItem(page)
+            && await navigateToTab(page, 'chat');
           if (!reopened) {
             console.log('  Could not reopen chat tab to verify persistence');
             results.chatSettingsPersist = false;
