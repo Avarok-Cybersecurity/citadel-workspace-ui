@@ -13,13 +13,13 @@ import { setTreeSchema } from '@/lib/entity-type-registry';
 import { applyAppearanceSettings, defaultAppearanceSettings } from '@/lib/appearance-settings';
 
 const config = (type, label, plural, icon) => ({ type_name: type, icon, label, plural_label: plural, name_placeholder: '', description_placeholder: '' });
-setTreeSchema({
+const SCHEMA = {
   entity_type_configs: [
     config('Workspace', 'Workspace', 'Workspaces', 'building-2'), config('City', 'City', 'Cities', 'layers'),
     config('Building', 'Building', 'Buildings', 'building-2'), config('Floor', 'Floor', 'Floors', 'folder-kanban'),
     config('Office', 'Office', 'Offices', 'briefcase'), config('Room', 'Room', 'Rooms', 'message-square'),
   ],
-});
+};
 
 const CHILD = { City: ['Building'], Building: ['Floor'], Floor: ['Office'], Office: ['Room'], Room: ['Room'] };
 const node = (id, parent, type, name, extra) => ({
@@ -40,13 +40,23 @@ const ESTATE = [
   node('crit', 'design', 'Room', 'Crit Room'), node('quiet', 'design', 'Room', 'Quiet Room'), node('research', 'design', 'Room', 'Research'),
 ];
 
-const params = new URLSearchParams(location.search);
-applyAppearanceSettings({ ...defaultAppearanceSettings, animationsEnabled: params.get('anim') !== 'off' });
-
 const NOTHING = () => {};
 
+/**
+ * The schema and the Animations switch are global, and every scenario shares
+ * this module graph: set at import, they would reach the other scenarios too
+ * (the root font size alone rescales every rem-based gap). Set once, here,
+ * before this scenario's first render.
+ */
+function prepare() {
+  const params = new URLSearchParams(location.search);
+  setTreeSchema(SCHEMA);
+  applyAppearanceSettings({ ...defaultAppearanceSettings, animationsEnabled: params.get('anim') !== 'off' });
+  return params.get('sel') ?? undefined;
+}
+
 function FocusedSidebar() {
-  const [selected, setSelected] = useState(params.get('sel') ?? undefined);
+  const [selected, setSelected] = useState(prepare);
   return (
     <SidebarProvider>
       <TooltipProvider delayDuration={0}>
