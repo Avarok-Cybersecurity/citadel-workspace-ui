@@ -23,6 +23,8 @@
  * does not is worse than having none.
  */
 
+import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
+
 class WorkspaceNavigation {
   private static instance: WorkspaceNavigation;
 
@@ -67,4 +69,24 @@ export function getWorkspacePath(additionalParams?: Record<string, string>): str
 
 export function buildWorkspacePath(existingParams?: URLSearchParams): string {
   return workspaceNavigation.buildWorkspacePath(existingParams);
+}
+
+/**
+ * The node a `nodeId` parameter puts on screen; null means the workspace home.
+ *
+ * The workspace root is a sentinel on the server, never a stored node, so
+ * `?nodeId=workspace-root` -- what the sidebar navigates to when the root row
+ * is selected, what a call's Return uses for a workspace-level room, and what
+ * any bookmark of either holds -- names nothing in `state.nodes`. It read as a
+ * deleted page: the home rendered on landing (no nodeId), and the same home,
+ * reached again from the sidebar, said "This page is no longer here".
+ *
+ * The parameter is kept rather than removed on selection: an absent nodeId is
+ * also how Office decides to redirect to the default space, so the root row
+ * would bounce anyone with a default space straight back out of the home.
+ * When a server does send the root as a node, that node is shown as itself.
+ */
+export function nodeInView(nodeId: string | null | undefined, stored: Readonly<Record<string, unknown>>): string | null {
+  if (!nodeId) return null;
+  return nodeId === WORKSPACE_ROOT_ID && !(nodeId in stored) ? null : nodeId;
 }
