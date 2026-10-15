@@ -2,7 +2,7 @@
  * A messaging trust choice: the options as a radio group, and under the node option the node
  * picker. Shared by the workspace's section and the member's own row so the two read alike.
  *
- * Each option is a whole-row label, so the target is the row (well over 24px), not the 16px dot.
+ * Each option is a whole-row label; the radio itself is a 24px target around its 16px ring.
  */
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
@@ -41,7 +41,7 @@ export function TrustChoiceGroup<C extends string>(props: TrustChoiceGroupProps<
       {choices.map((choice: C) => (
         <div key={choice} className="rounded-md">
           <div className="flex min-h-11 items-start gap-3 rounded-md p-2 hover:bg-surface/60">
-            <RadioGroupItem value={choice} id={`${id}-${choice}`} className="mt-0.5" disabled={unavailable.has(choice)} data-testid={`trust-choice-${id}-${choice}`} />
+            <RadioGroupItem value={choice} id={`${id}-${choice}`} className="-mt-0.5" disabled={unavailable.has(choice)} data-testid={`trust-choice-${id}-${choice}`} />
             <Label htmlFor={`${id}-${choice}`} className="flex-1 cursor-pointer text-sm font-normal leading-snug">
               <span className="font-medium">{copy[choice].label}</span>
               <span className="block text-xs text-muted-foreground">{copy[choice].detail}</span>
