@@ -20,6 +20,7 @@
  */
 import { expect } from '@playwright/test';
 import { adminMemberTest } from '../fixtures/multi-user.fixture.js';
+import { hierarchyTree } from '../lib/focused-tree.js';
 
 /**
  * The sidebar's empty state, addressed by TESTID.
@@ -87,9 +88,12 @@ adminMemberTest('the sidebar never reports an empty member list while loading', 
 
     // Click a different node to trigger a reload, then watch the whole window
     // between request and response.
-    const targets = page.locator('[data-testid^="tree-node-"]:not([data-testid^="tree-node-menu-"])');
-    if (await targets.count() > 1) {
-        await targets.nth(1).click({ force: true });
+    // Any node row other than the selection: an ancestor, a peer or a child.
+    // The old prefix match also took the peek chevrons (`tree-node-toggle-`),
+    // which unfold a peer in place and switch nothing.
+    const targets = hierarchyTree(page).locator('[role="treeitem"][aria-selected="false"][data-testid^="tree-node-"]');
+    if (await targets.count() > 0) {
+        await targets.first().click({ force: true });
     }
 
     // ONE sample per tick, taken inside a single `evaluate`.

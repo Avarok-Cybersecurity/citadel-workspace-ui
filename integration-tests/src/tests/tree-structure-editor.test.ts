@@ -19,7 +19,6 @@
 import type { Page, Browser, Locator } from 'playwright';
 import { waitForAdminRole } from '../lib/admin-role.js';
 import {
-  sleep,
   createBrowser,
   createAccount,
   takeScreenshot,
@@ -37,6 +36,13 @@ import {
   verifyNodeDepth,
   verifyNodeParent,
   pickChildTypeIfAsked,
+  nodeExistsInUI,
+  nodeGoneFromUI,
+  navigateToNodeViaUI,
+  openNodeMenu,
+  revealNode,
+  rootRow,
+  selectRoot,
   type TreeNode,
   type DiagnosticsHandle,
 } from '../lib/index.js';
@@ -115,95 +121,24 @@ function dialog(page: Page): Locator {
 }
 
 /**
- * The server id of a sidebar node, read from its `tree-node-<id>` testid.
- *
- * The row button carries both `data-sidebar="menu-button"` and the testid;
- * the ⋯ trigger (`tree-node-menu-…`) and the expand chevron
- * (`tree-node-toggle-…`) also start with `tree-node-`, which is why the
- * `data-sidebar` attribute is part of the selector rather than a prefix match
- * on its own.
- *
- * This replaces a lookup for `[data-node-id]` and `window.__workspaceContext`,
- * neither of which the app has ever rendered or exposed — so it always fell
- * through to `created-${Date.now()}`, a fabricated id that could not be used to
- * check anything and was passed around as if it were real.
+ * Whether a node with this name is in the workspace. The sidebar is a focused
+ * tree, so this reveals the node (selecting it) rather than looking for a row
+ * that may simply be off screen.
  */
-async function sidebarNodeId(page: Page, nodeName: string): Promise<string | null> {
-  return page.evaluate((name: string) => {
-    const rows = Array.from(
-      document.querySelectorAll('[data-sidebar="menu-button"][data-testid^="tree-node-"]')
-    );
-    for (const row of rows) {
-      if (row.textContent?.includes(name)) {
-        return row.getAttribute('data-testid')!.replace('tree-node-', '');
-      }
-    }
-    return null;
-  }, nodeName);
-}
-
-/** Whether a node with this name is currently in the sidebar. */
 async function nodeExistsInSidebar(page: Page, nodeName: string, timeout = 5000): Promise<boolean> {
-  return isVisibleWithin(
-    page.locator(`[data-sidebar="menu-button"]:has-text("${nodeName}")`).first(),
-    timeout
-  );
+  return nodeExistsInUI(page, nodeName, timeout);
 }
 
 /**
- * Whether a node with this name has left the sidebar.
+ * Whether a node with this name has left the workspace, asked of the sidebar's
+ * filter: in a focused tree most nodes have no row on screen, so a row's absence
+ * would hold whether or not the node was deleted.
  *
  * Not `!(await nodeExistsInSidebar(...))`: that spends the whole appearance
- * timeout waiting for something that is never going to show up. Waiting for the
- * hidden state returns as soon as it holds.
+ * timeout waiting for something that is never going to show up.
  */
 async function nodeGoneFromSidebar(page: Page, nodeName: string, timeout = 8000): Promise<boolean> {
-  return isHiddenWithin(
-    page.locator(`[data-sidebar="menu-button"]:has-text("${nodeName}")`).first(),
-    timeout
-  );
-}
-
-/**
- * Open a TreeNodeItem's ⋯ dropdown and return the node's id.
- *
- * Radix only renders `DropdownMenuContent` after the trigger is clicked, so
- * querying for `create-child-…` / `edit-node-…` / `delete-node-…` without
- * opening the menu first finds nothing.
- *
- * The trigger is `opacity-0 group-hover:opacity-100`, which fails Playwright's
- * actionability check, hence `force: true`. Hovering first is not reliable —
- * the hover is dropped as soon as the locator query re-runs.
- */
-async function openNodeMenu(page: Page, nodeName?: string): Promise<string | null> {
-  await page.keyboard.press('Escape');
-  await sleep(200);
-
-  const menuTestId = await page.evaluate((name: string | undefined) => {
-    const buttons = Array.from(document.querySelectorAll('[data-sidebar="menu-button"]'));
-    for (const btn of buttons) {
-      if (name && !btn.textContent?.includes(name)) continue;
-      const parent = btn.closest('.group');
-      const trigger = parent?.querySelector('button[data-testid^="tree-node-menu-"]');
-      if (trigger) return trigger.getAttribute('data-testid');
-    }
-    return null;
-  }, nodeName);
-
-  if (!menuTestId) {
-    console.log(`  WARNING: tree-node-menu trigger not found${nodeName ? ` for ${nodeName}` : ''}`);
-    return null;
-  }
-
-  await page.locator(`[data-testid="${menuTestId}"]`).click({ force: true, timeout: 2000 });
-
-  // Wait for the menu itself rather than sleeping past its open animation.
-  if (!(await isVisibleWithin(page.locator('[role="menu"]').first(), 5000))) {
-    console.log('  WARNING: node menu did not open');
-    return null;
-  }
-
-  return menuTestId.replace('tree-node-menu-', '');
+  return nodeGoneFromUI(page, nodeName, timeout);
 }
 
 /**
@@ -275,6 +210,12 @@ async function createNodeViaUI(
   console.log(`\n  Creating ${nodeType} node: ${name}`);
 
   if (nodeType === 'Office') {
+    // "+" adds inside the selected node: the root, for a top-level node. An
+    // empty workspace has no root row; its add-root-node-button adds at the top.
+    if ((await rootRow(page).isVisible()) && (await selectRoot(page)) === null) {
+      console.log('  WARNING: could not select the workspace root');
+      return null;
+    }
     const addBtn = page
       .locator('[data-testid="add-node-button"], [data-testid="add-root-node-button"]')
       .first();
@@ -291,7 +232,7 @@ async function createNodeViaUI(
       .catch(() => undefined);
     await addBtn.click();
   } else {
-    const parentNodeId = await openNodeMenu(page, parentName);
+    const parentNodeId = parentName ? await openNodeMenu(page, parentName) : null;
     if (!parentNodeId) {
       console.log('  WARNING: parent node menu unreachable');
       return null;
@@ -310,28 +251,14 @@ async function createNodeViaUI(
     return null;
   }
 
-  if (!(await nodeExistsInSidebar(page, name, 15_000))) {
+  // The real server id, read from the revealed row's `tree-node-<id>` testid.
+  const newNodeId = await revealNode(page, name, 15_000);
+  if (!newNodeId) {
     console.log(`  WARNING: "${name}" never appeared in the sidebar`);
     return null;
   }
-
-  const newNodeId = await sidebarNodeId(page, name);
   console.log(`  Created node "${name}" with id: ${newNodeId}`);
   return newNodeId;
-}
-
-/** Select a node in the sidebar. */
-async function navigateToNode(page: Page, nodeName: string): Promise<boolean> {
-  console.log(`  Navigating to node: ${nodeName}`);
-
-  const btn = page.locator(`[data-sidebar="menu-button"]:has-text("${nodeName}")`).first();
-  if (await isVisibleWithin(btn, 5000)) {
-    await btn.click();
-    return true;
-  }
-
-  console.log(`  WARNING: node "${nodeName}" not found in sidebar`);
-  return false;
 }
 
 /** Delete a node through its ⋯ menu and confirm the alert dialog. */
@@ -539,7 +466,7 @@ async function runTest(): Promise<boolean> {
 
     let roomDepthCorrect = false;
     if (results.officeNodeCreated && testOfficeId) {
-      await navigateToNode(page, TEST_OFFICE_NAME);
+      await navigateToNodeViaUI(page, TEST_OFFICE_NAME);
       testRoomId = await createNodeViaUI(
         page,
         'Room',
@@ -671,7 +598,7 @@ async function runTest(): Promise<boolean> {
     console.log(`  Second office created: ${testOffice2Id !== null}`);
 
     if (results.nodeUpdated) {
-      await navigateToNode(page, updatedOfficeName);
+      await navigateToNodeViaUI(page, updatedOfficeName);
       testRoom2Id = await createNodeViaUI(
         page,
         'Room',
@@ -702,7 +629,7 @@ async function runTest(): Promise<boolean> {
 
     if (testOffice2Id) {
       const office2Id = testOffice2Id;
-      await navigateToNode(page, TEST_OFFICE_2_NAME);
+      await navigateToNodeViaUI(page, TEST_OFFICE_2_NAME);
       tempRoomId = await createNodeViaUI(
         page,
         'Room',

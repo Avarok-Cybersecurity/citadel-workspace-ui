@@ -20,17 +20,20 @@ interface AddNodeButtonProps {
   onClick: () => void;
   /** Null when the button may be pressed; otherwise why it may not, shown as its title. */
   blockedReason: string | null;
+  /** What pressing it does, e.g. "Add Room to Flex HQ"; the accessible name and the title. */
+  label: string;
   testId: string;
 }
 
 /**
- * The hierarchy's "+", once for both the empty and the populated tree.
+ * The hierarchy's "+", once for both the empty and the populated tree. In the
+ * populated tree it adds inside the selected node, and says so.
  *
  * Disabled, with the reason, whenever pressing it can only end in a refusal:
  * the schema has not arrived, or the server would refuse this person
  * (CreateNode needs EditTreeStructure on the workspace).
  */
-export function AddNodeButton({ onClick, blockedReason, testId }: AddNodeButtonProps): JSX.Element {
+export function AddNodeButton({ onClick, blockedReason, label, testId }: AddNodeButtonProps): JSX.Element {
   return (
     <BlockedReason reason={blockedReason}>
     <Button
@@ -40,8 +43,8 @@ export function AddNodeButton({ onClick, blockedReason, testId }: AddNodeButtonP
       onClick={onClick}
       disabled={blockedReason !== null}
       data-testid={testId}
-      aria-label={blockedReason === null ? 'Add to this workspace' : `Add to this workspace (${blockedReason})`}
-      title={blockedReason ?? 'Add to this workspace'}
+      aria-label={blockedReason === null ? label : `${label} (${blockedReason})`}
+      title={blockedReason ?? label}
     >
       <Plus className="h-4 w-4" />
     </Button>

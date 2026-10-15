@@ -18,6 +18,8 @@ interface HierarchySidebarModalsProps {
   onPickType: (entityType: string) => void;
   onCloseTypePick: () => void;
   onCloseCreate: () => void;
+  /** A node was created under `parentId`. */
+  onCreated: (parentId: string) => void;
   onCloseEdit: () => void;
   onCloseAdmin: () => void;
 }
@@ -30,6 +32,7 @@ export function HierarchySidebarModals({
   onPickType,
   onCloseTypePick,
   onCloseCreate,
+  onCreated,
   onCloseEdit,
   onCloseAdmin,
 }: HierarchySidebarModalsProps): JSX.Element {
@@ -51,6 +54,7 @@ export function HierarchySidebarModals({
           mode="create"
           entityType={createModal.entityType}
           parentId={createModal.parentId}
+          onCreated={onCreated}
         />
       )}
 

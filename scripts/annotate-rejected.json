@@ -6,7 +6,6 @@
   "src/components/hooks/useConnectionHandler.ts:78",
   "src/components/hooks/useWorkspaceEventSetup.ts:70",
   "src/components/layout/sidebar/MembersSection.tsx:39",
-  "src/components/layout/sidebar/TreeNodesSection.tsx:71",
   "src/components/mdx/MDXEditor.tsx:87",
   "src/components/office/OfficeLayout.tsx:29",
   "src/components/office/use-compiled-mdx.ts:62",

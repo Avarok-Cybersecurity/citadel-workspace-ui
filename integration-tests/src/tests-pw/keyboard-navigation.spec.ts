@@ -10,13 +10,15 @@
  * most — someone who cannot complete registration never reaches the rest.
  */
 
-import { test, expect, type BrowserContext, type Page } from '@playwright/test';
+import { test, expect, type BrowserContext, type Locator, type Page } from '@playwright/test';
 import {
   clearBrowserStorage,
   closeAnyModals,
   createAccount,
   waitForAppReady,
   waitForWorkspaceLoaded,
+  revealPeekToggle,
+  rootRow,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
 import { pressAccountMenuItem } from '../lib/account-menu.js';
@@ -226,22 +228,25 @@ test.describe.serial('Keyboard operability (workspace)', () => {
     // It used to be a <span role="button" tabIndex={0}> INSIDE the row button.
     // That is nested interactive content: the row claimed to be one control
     // while containing another, and which one Tab reached was up to the browser.
-    const toggle = page.locator('[data-testid^="tree-node-toggle-"]').first();
-
+    //
+    // The focused tree puts the chevron (the "peek") on a peer of the selection
+    // that has children, so whether one is on screen depends on what is
+    // selected. revealPeekToggle selects its way to one.
+    //
     // isVisible() answers immediately -- it does not wait. Asked before the tree
     // has painted it returns false, the test skips itself, and the run reports a
     // benign "no expandable tree node" while the assertions below never execute.
     // A test that can silently disable itself reports safety it did not check.
-    //
-    // Waiting first makes the skip mean what it says: this workspace genuinely
-    // has no expandable node, rather than the tree merely not being ready yet.
-    const hasExpandableNode: boolean = await toggle
-      .waitFor({ state: 'visible', timeout: 15_000 })
-      .then((): boolean => true)
-      .catch((): boolean => false);
-    if (!hasExpandableNode) {
+    // Waiting for the tree first makes the skip mean what it says: this
+    // workspace genuinely has no peer with children, rather than the tree
+    // merely not being ready yet.
+    await expect(rootRow(page), 'the hierarchy should render').toBeVisible({ timeout: 15_000 });
+    const found: Locator | null = await revealPeekToggle(page);
+    if (!found) {
       test.skip(true, 'no expandable tree node in this workspace');
+      return;
     }
+    const toggle: Locator = found;
 
     await expect(toggle).toHaveJSProperty('tagName', 'BUTTON');
 

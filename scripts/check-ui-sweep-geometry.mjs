@@ -1,5 +1,6 @@
 /**
  * Measured layout for the quality sweep: people, overlays, spacing, touch reach, in a real browser engine.
+ * The focused sidebar's rows, ARIA and motion (a selection must glide, not jump) are measured here too.
  * Serves the real components (see lib/polish-harness) and asserts bounding boxes, in Chromium and WebKit,
  * light and dark, at desktop and phone widths.
  */
@@ -8,5 +9,6 @@ import { PEOPLE_CHECKS } from './lib/polish-harness/checks-people.mjs';
 import { OVERLAY_CHECKS } from './lib/polish-harness/checks-overlays.mjs';
 import { SPACING_CHECKS } from './lib/polish-harness/checks-spacing.mjs';
 import { CONTROL_CHECKS } from './lib/polish-harness/checks-controls.mjs';
+import { SIDEBAR_CHECKS } from './lib/polish-harness/checks-sidebar.mjs';
 
-process.exit(await runChecks({ ...PEOPLE_CHECKS, ...OVERLAY_CHECKS, ...CONTROL_CHECKS, ...SPACING_CHECKS }, Number(process.env.SWEEP_PORT ?? 4198)));
+process.exit(await runChecks({ ...PEOPLE_CHECKS, ...OVERLAY_CHECKS, ...CONTROL_CHECKS, ...SPACING_CHECKS, ...SIDEBAR_CHECKS }, Number(process.env.SWEEP_PORT ?? 4198)));

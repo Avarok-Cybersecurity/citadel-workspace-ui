@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 
-const settled = (page) => page.waitForFunction(() => document.getAnimations().every((a) => a.playState === 'finished' || a.playState === 'idle'), undefined, { timeout: 5000 });
+export const settled = (page) => page.waitForFunction(() => document.getAnimations().every((a) => a.playState === 'finished' || a.playState === 'idle'), undefined, { timeout: 5000 });
 
 /** WCAG 2.2 target size minimum, in CSS px. */
 const MIN_TARGET = 24;
@@ -38,7 +38,7 @@ async function anOffSwitchIsVisible({ page, url }) {
 }
 
 /** Every control on the screen is a target of at least 24px, in both directions. */
-const targetsAreBigEnough = (scenario, ready) => async ({ page, url }) => {
+export const targetsAreBigEnough = (scenario, ready) => async ({ page, url }) => {
   await page.goto(url(scenario));
   await page.locator(ready).first().waitFor({ state: 'visible' });
   await settled(page);

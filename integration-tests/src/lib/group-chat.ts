@@ -11,6 +11,7 @@ import { takeScreenshot } from './screenshots.js';
 import type { UxIssueTracker } from './ux-tracker.js';
 import { waitForTreeDataLoaded } from './modals.js';
 import { createNodeViaProtocol, listNodesViaProtocol, updateNodeViaProtocol } from './tree-helpers.js';
+import { revealNode, rootRow, selectRoot, treeRow } from './focused-tree.js';
 import { isVisibleWithin } from './utils.js';
 
 export interface GroupChatOptions {
@@ -18,7 +19,28 @@ export interface GroupChatOptions {
 }
 
 /**
- * Navigate to an office by clicking on it in the sidebar
+ * Reveal a node in the focused sidebar -- which selects it -- and screenshot
+ * where that left the page. Offices and rooms are reached the same way: by
+ * clicking down their path from the workspace root.
+ */
+async function goToNode(page: Page, username: string, kind: 'office' | 'room', nodeName: string): Promise<boolean> {
+  console.log(`\n=== ${username}: Navigating to ${kind} "${nodeName}" ===`);
+  try {
+    if ((await revealNode(page, nodeName)) === null) {
+      console.log(`  WARNING: Could not find ${kind} "${nodeName}"`);
+      return false;
+    }
+    console.log(`  Selected ${kind} "${nodeName}"`);
+    await takeScreenshot(page, `${username}_${kind}_${nodeName}`);
+    return true;
+  } catch (error) {
+    console.log(`  ERROR navigating to ${kind}: ${error}`);
+    return false;
+  }
+}
+
+/**
+ * Navigate to an office by selecting it in the sidebar
  */
 export async function navigateToOffice(
   page: Page,
@@ -26,59 +48,11 @@ export async function navigateToOffice(
   officeName: string,
   _options: GroupChatOptions = {}
 ): Promise<boolean> {
-  console.log(`\n=== ${username}: Navigating to office "${officeName}" ===`);
-
-  try {
-    // Try multiple selectors for the office button in the sidebar
-    const selectors = [
-      `[data-sidebar="menu-button"]:has-text("${officeName}")`,
-      `[data-testid^="tree-node-"]:has-text("${officeName}")`,
-      `button:has-text("${officeName}")`,
-      `a:has-text("${officeName}")`,
-    ];
-
-    for (const selector of selectors) {
-      const officeLink = page.locator(selector).first();
-      if (await isVisibleWithin(officeLink, 2000)) {
-        // Use JavaScript click to bypass any Playwright click issues
-        await officeLink.evaluate((el: HTMLElement) => el.click());
-        await sleep(2000);
-        console.log(`  Clicked on office "${officeName}" (${selector})`);
-        await takeScreenshot(page, `${username}_office_${officeName}`);
-        return true;
-      }
-    }
-
-    // Try expanding hierarchy section first
-    const officesHeader = page.getByText('HIERARCHY').or(page.locator('[data-testid="hierarchy-section"]')).first();
-    if (await isVisibleWithin(officesHeader, 2000)) {
-      await officesHeader.click();
-      await sleep(1000);
-
-      // Try again after expanding
-      for (const selector of selectors) {
-        const officeLink = page.locator(selector).first();
-        if (await isVisibleWithin(officeLink, 2000)) {
-          // Use JavaScript click to bypass any Playwright click issues
-          await officeLink.evaluate((el: HTMLElement) => el.click());
-          await sleep(2000);
-          console.log(`  Clicked on office "${officeName}" (after expanding)`);
-          await takeScreenshot(page, `${username}_office_${officeName}`);
-          return true;
-        }
-      }
-    }
-
-    console.log(`  WARNING: Could not find office "${officeName}"`);
-    return false;
-  } catch (error) {
-    console.log(`  ERROR navigating to office: ${error}`);
-    return false;
-  }
+  return goToNode(page, username, 'office', officeName);
 }
 
 /**
- * Navigate to a room within an office
+ * Navigate to a room by selecting it in the sidebar
  */
 export async function navigateToRoom(
   page: Page,
@@ -86,64 +60,7 @@ export async function navigateToRoom(
   roomName: string,
   _options: GroupChatOptions = {}
 ): Promise<boolean> {
-  console.log(`\n=== ${username}: Navigating to room "${roomName}" ===`);
-
-  try {
-    // Try multiple selectors for the room in the sidebar tree
-    // Use the same approach as navigateToOffice which works reliably
-    const selectors = [
-      `[data-sidebar="menu-button"]:has-text("${roomName}")`,
-      `[data-testid^="tree-node-"]:has-text("${roomName}")`,
-      `button:has-text("${roomName}")`,
-      `a:has-text("${roomName}")`,
-    ];
-
-    for (const selector of selectors) {
-      const roomLink = page.locator(selector).first();
-      if (await isVisibleWithin(roomLink, 2000)) {
-        // Use JavaScript click to bypass any Playwright click issues
-        await roomLink.evaluate((el: HTMLElement) => el.click());
-        await sleep(2000);
-        console.log(`  Clicked on room "${roomName}" (${selector})`);
-        await takeScreenshot(page, `${username}_room_${roomName}`);
-        return true;
-      }
-    }
-
-    // Try expanding tree nodes that might contain the room
-    // The room may be a child of an office node that needs expanding
-    const toggleBtns = page.locator('[data-testid^="tree-node-toggle-"]');
-    const toggleCount = await toggleBtns.count();
-    if (toggleCount > 0) {
-      console.log(`  Expanding ${toggleCount} tree toggle(s) to find room...`);
-      for (let i = 0; i < toggleCount; i++) {
-        const toggle = toggleBtns.nth(i);
-        if (await toggle.isVisible().catch(() => false)) {
-          await toggle.click();
-          await sleep(500);
-        }
-      }
-      await sleep(1000);
-
-      // Try selectors again after expanding
-      for (const selector of selectors) {
-        const roomLink = page.locator(selector).first();
-        if (await isVisibleWithin(roomLink, 2000)) {
-          await roomLink.evaluate((el: HTMLElement) => el.click());
-          await sleep(2000);
-          console.log(`  Clicked on room "${roomName}" (after expanding, ${selector})`);
-          await takeScreenshot(page, `${username}_room_${roomName}`);
-          return true;
-        }
-      }
-    }
-
-    console.log(`  WARNING: Could not find room "${roomName}"`);
-    return false;
-  } catch (error) {
-    console.log(`  ERROR navigating to room: ${error}`);
-    return false;
-  }
+  return goToNode(page, username, 'room', roomName);
 }
 
 /**
@@ -503,8 +420,8 @@ export async function hasOffices(page: Page, username: string): Promise<boolean>
   console.log(`\n=== ${username}: Checking if child nodes (offices) exist ===`);
 
   try {
-    // Check for the "No nodes yet" empty-state message
-    const noNodesMsg = page.locator('text=No nodes yet').first();
+    // The empty state, by testid: its copy changed and "No nodes yet" matched nothing.
+    const noNodesMsg = page.getByTestId('tree-empty');
     if (await isVisibleWithin(noNodesMsg, 2000)) {
       console.log(`  No nodes found (empty state)`);
       return false;
@@ -549,6 +466,14 @@ export async function createOffice(
     // state.treeSchema is populated, causing the modal to not open.
     console.log('  Waiting for tree data to load...');
     await waitForTreeDataLoaded(page, 15000);
+
+    // The header's "+" adds inside the selected node: select the root so the new
+    // node is top-level. An empty workspace has no root row, and its "+" is
+    // add-root-node-button, which always adds at the top.
+    if ((await rootRow(page).isVisible()) && (await selectRoot(page)) === null) {
+      console.log('  Could not select the workspace root');
+      return false;
+    }
 
     const addBtnSelectors = [
       '[data-testid="add-node-button"]',
@@ -630,8 +555,9 @@ export async function createOffice(
       return false;
     }
 
-    // Verify node was created
-    const nodeInList = page.locator(`button:has-text("${officeName}")`).first();
+    // Verify node was created: its row among the root's children. A row is a
+    // treeitem, not a button, so `button:has-text` no longer finds it.
+    const nodeInList = treeRow(page, officeName).first();
     if (await isVisibleWithin(nodeInList, 5000)) {
       console.log(`  Node "${officeName}" created successfully`);
 

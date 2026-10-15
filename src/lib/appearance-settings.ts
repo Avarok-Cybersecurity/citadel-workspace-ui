@@ -20,6 +20,12 @@ export interface AppearanceSettings {
   animationsEnabled: boolean;
 }
 
+/**
+ * The class that turns motion off when Animations is switched off. index.css
+ * reads it for CSS motion; use-motion-allowed reads it for script-driven motion.
+ */
+export const REDUCE_MOTION_CLASS: "reduce-motion" = 'reduce-motion';
+
 export const APPEARANCE_STORAGE_KEY: "citadel:appearance-settings" = 'citadel:appearance-settings';
 
 export const defaultAppearanceSettings: AppearanceSettings = {
@@ -76,7 +82,7 @@ export function applyAppearanceSettings(settings: AppearanceSettings): void {
   const root: HTMLElement = document.documentElement;
   root.style.fontSize = `${settings.fontSize}px`;
   root.style.setProperty('--appearance-sidebar-width', SIDEBAR_WIDTHS[settings.sidebarWidth]);
-  root.classList.toggle('reduce-motion', !settings.animationsEnabled);
+  root.classList.toggle(REDUCE_MOTION_CLASS, !settings.animationsEnabled);
   // An attribute rather than a class: it reads as state, and the CSS rule that
   // consumes it sits next to the reduced-motion block it mirrors.
   root.dataset.avatars = settings.showAvatars ? 'on' : 'off';

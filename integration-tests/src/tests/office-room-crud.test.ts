@@ -34,7 +34,16 @@ import {
 
 import type { Page, Browser } from 'playwright';
 import { waitForAdminRole } from '../lib/admin-role.js';
-import { isVisibleWithin, isHiddenWithin, pickChildTypeIfAsked } from '../lib/index.js';
+import {
+  isVisibleWithin,
+  pickChildTypeIfAsked,
+  openNodeMenu,
+  rootRow,
+  selectRoot,
+  deleteNodeViaUI,
+  nodeExistsInUI,
+  nodeGoneFromUI,
+} from '../lib/index.js';
 
 // ============================================================================
 // Types
@@ -94,6 +103,13 @@ const TEST_ROOM_NAME = `TestRoom_${timestamp}`;
  */
 async function clickAddOfficeButton(page: Page): Promise<boolean> {
   console.log('  Looking for Add Node button...');
+
+  // "+" adds inside the selected node; with the root selected the new node is
+  // top-level. An empty workspace has no root row, and add-root-node-button.
+  if ((await rootRow(page).isVisible()) && (await selectRoot(page)) === null) {
+    console.log('  WARNING: Could not select the workspace root');
+    return false;
+  }
 
   const selectors = [
     '[data-testid="add-node-button"]',
@@ -185,41 +201,20 @@ async function fillNodeModal(
  * Opens the parent's context menu and clicks the create-child menu item.
  * @param parentName - Name of the parent node to find in the sidebar
  */
-async function clickAddRoomButton(page: Page, parentName?: string): Promise<boolean> {
-  console.log(`  Looking for Create Child button in tree (parent: ${parentName ?? 'any'})...`);
+async function clickAddRoomButton(page: Page, parentName: string): Promise<boolean> {
+  console.log(`  Looking for Create Child button in tree (parent: ${parentName})...`);
 
   // Close any stale menus/modals first
   await page.keyboard.press('Escape');
   await sleep(300);
 
-  // Find the parent node's menu button by searching sidebar items
-  const menuTestId = await page.evaluate((name: string | undefined) => {
-    const buttons = Array.from(document.querySelectorAll('[data-sidebar="menu-button"]'));
-    for (const btn of buttons) {
-      if (name && !btn.textContent?.includes(name)) continue;
-      const parent = btn.closest('.group');
-      if (parent) {
-        const menuBtn = parent.querySelector('button[data-testid^="tree-node-menu-"]');
-        if (menuBtn) {
-          return menuBtn.getAttribute('data-testid');
-        }
-      }
-    }
-    return null;
-  }, parentName);
-
-  if (!menuTestId) {
+  // Reveal the parent -- which selects it -- and open its ⋯ menu.
+  const nodeId: string | null = await openNodeMenu(page, parentName);
+  if (!nodeId) {
     console.log('  WARNING: Parent node menu button not found');
     return false;
   }
-
-  const nodeId = menuTestId.replace('tree-node-menu-', '');
-  console.log(`  Found parent node menu: ${menuTestId}`);
-
-  // Click the menu button to open dropdown (force: true handles opacity:0)
-  const menuBtn = page.locator(`[data-testid="${menuTestId}"]`);
-  await menuBtn.click({ force: true, timeout: 2000 });
-  await sleep(500);
+  console.log(`  Opened the menu of parent node ${nodeId}`);
 
   // Now look for the create-child item in the open dropdown
   const createChildTestId = `create-child-${nodeId}`;
@@ -248,32 +243,8 @@ async function clickAddRoomButton(page: Page, parentName?: string): Promise<bool
 async function openEditModal(page: Page, itemName: string, _type: 'office' | 'room' = 'office'): Promise<boolean> {
   console.log(`  Opening edit modal for node: ${itemName}`);
 
-  // Find the node's menu button using page.evaluate
-  const menuTestId = await page.evaluate((name: string) => {
-    const buttons = Array.from(document.querySelectorAll('[data-sidebar="menu-button"]'));
-    for (const btn of buttons) {
-      if (btn.textContent?.includes(name)) {
-        const parent = btn.closest('.group');
-        if (parent) {
-          const menuBtn = parent.querySelector('button[data-testid^="tree-node-menu-"]');
-          if (menuBtn) {
-            return menuBtn.getAttribute('data-testid');
-          }
-        }
-      }
-    }
-    return null;
-  }, itemName);
-
-  if (menuTestId) {
-    const nodeId = menuTestId.replace('tree-node-menu-', '');
-
-    // Click the menu button with force to handle opacity:0 styling
-    const menuBtn = page.locator(`[data-testid="${menuTestId}"]`);
-    await menuBtn.click({ force: true, timeout: 2000 });
-    await sleep(500);
-
-    // Click the edit option using new testid pattern
+  const nodeId: string | null = await openNodeMenu(page, itemName);
+  if (nodeId) {
     const editOption = page.locator(`[data-testid="edit-node-${nodeId}"]`).first();
     if (await isVisibleWithin(editOption, 1000)) {
       await editOption.click();
@@ -287,83 +258,17 @@ async function openEditModal(page: Page, itemName: string, _type: 'office' | 'ro
 }
 
 /**
- * Delete a node via the UI using the hierarchy sidebar's tree-node-menu.
- * Uses JavaScript click to bypass opacity:0 styling.
+ * Delete a node via the UI: reveal it, open its ⋯ menu, confirm.
  */
 async function deleteNode(page: Page, nodeName: string): Promise<boolean> {
   console.log(`\n=== Deleting node: ${nodeName} ===`);
-
-  // First close any open dialogs/menus
-  await page.keyboard.press('Escape');
-  await sleep(300);
-
-  try {
-    // Find the node in sidebar and get its menu button testid
-    const menuTestId = await page.evaluate((name: string) => {
-      const buttons = Array.from(document.querySelectorAll('[data-sidebar="menu-button"]'));
-      for (const btn of buttons) {
-        if (btn.textContent?.includes(name)) {
-          const parent = btn.closest('.group');
-          if (parent) {
-            const menuBtn = parent.querySelector('button[data-testid^="tree-node-menu-"]');
-            if (menuBtn) {
-              return menuBtn.getAttribute('data-testid');
-            }
-          }
-        }
-      }
-      return null;
-    }, nodeName);
-
-    if (menuTestId) {
-      console.log(`  Found menu button: ${menuTestId}`);
-      const nodeId = menuTestId.replace('tree-node-menu-', '');
-
-      // Use Playwright click with force to handle opacity:0
-      const menuBtn = page.locator(`[data-testid="${menuTestId}"]`);
-      await menuBtn.click({ force: true, timeout: 2000 });
-      await sleep(600);
-
-      // Look for Delete option using new testid pattern
-      const deleteOption = page.locator(`[data-testid="delete-node-${nodeId}"]`).first();
-      if (await isVisibleWithin(deleteOption, 3000)) {
-        await deleteOption.click();
-        await sleep(500);
-
-        // Confirm deletion
-        const confirmBtn = page.locator('[role="alertdialog"] button:has-text("Delete")').first();
-        if (await isVisibleWithin(confirmBtn, 2000)) {
-          await confirmBtn.click();
-          console.log('  Node delete confirmed');
-
-          // Wait for the node to be removed from sidebar
-          const nodeLocator = page.locator(`[data-sidebar="menu-button"]:has-text("${nodeName}")`).first();
-          try {
-            await nodeLocator.waitFor({ state: 'hidden', timeout: 5000 });
-            console.log('  Node removed from sidebar');
-            return true;
-          } catch {
-            console.log('  WARNING: Node still visible after delete');
-          }
-        } else {
-          console.log('  WARNING: Confirm button not found');
-        }
-      } else {
-        console.log('  WARNING: Delete option not found');
-        const allMenuItems = await page.locator('[role="menuitem"]').count();
-        console.log(`  DEBUG: Found ${allMenuItems} menu items`);
-      }
-    } else {
-      console.log('  WARNING: Could not find menu button');
-    }
-  } catch (err) {
-    console.log('  WARNING: Error:', err);
+  const { success } = await deleteNodeViaUI(page, nodeName);
+  if (!success) {
+    await page.keyboard.press('Escape');
+    await sleep(300);
+    console.log('  WARNING: Could not delete node');
   }
-
-  await page.keyboard.press('Escape');
-  await sleep(300);
-  console.log('  WARNING: Could not delete node');
-  return false;
+  return success;
 }
 
 /** @deprecated Use deleteNode instead */
@@ -372,39 +277,25 @@ const deleteOffice = deleteNode;
 const deleteRoom = deleteNode;
 
 /**
- * The hierarchy sidebar row for a node, if it has one.
- *
- * Scoped to `[data-sidebar="menu-button"]`, which is what the tree actually
- * renders and what the rest of this file already keys off. The old locator was
- * `button:has-text(name), [data-testid*=name]`: the second half could never match
- * (tree testids are `tree-node-<uuid>`, they do not contain the node's name), and
- * the first half matched any button on the page — including the submit button of
- * the very modal that had just been used to type that name in.
- */
-function sidebarItem(page: Page, itemName: string) {
-  return page.locator(`[data-sidebar="menu-button"]:has-text("${itemName}")`).first();
-}
-
-/**
- * Whether `itemName` shows up in the sidebar, waiting for it to appear.
- *
- * `isVisible({ timeout })` ignores its timeout argument, so the previous version
- * asked the question the instant a create/update request was fired and recorded a
- * miss before the tree had re-rendered.
+ * Whether `itemName` is in the workspace, waiting for it to appear. The sidebar
+ * is a focused tree, so this reveals the node (selecting it) rather than looking
+ * for a row that may simply be off screen.
  */
 async function itemExistsInSidebar(page: Page, itemName: string): Promise<boolean> {
-  return isVisibleWithin(sidebarItem(page, itemName), 5000);
+  return nodeExistsInUI(page, itemName, 5000);
 }
 
 /**
- * Whether `itemName` is gone from the sidebar.
+ * Whether `itemName` is gone from the workspace.
  *
- * Deliberately not `!(await itemExistsInSidebar(...))`: that spends the whole
- * timeout waiting for something that is supposed to be absent. This waits for the
- * hidden state and returns as soon as it holds.
+ * Asked of the sidebar's filter, which searches every node: in a focused tree
+ * "no row on screen" holds for most nodes that exist -- a cascaded room is off
+ * screen the moment its office is -- so it would pass whether or not the room
+ * was deleted. Deliberately not `!(await itemExistsInSidebar(...))`, which
+ * spends the whole timeout waiting for something that is supposed to be absent.
  */
 async function itemGoneFromSidebar(page: Page, itemName: string): Promise<boolean> {
-  return isHiddenWithin(sidebarItem(page, itemName), 5000);
+  return nodeGoneFromUI(page, itemName, 5000);
 }
 
 /**

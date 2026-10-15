@@ -14,7 +14,7 @@ const REASON: string = 'You do not have permission to add offices or rooms here.
 
 function mount(blockedReason: string | null): { pressed: () => number } {
   let presses: number = 0;
-  render(<><Toaster /><AddNodeButton onClick={(): void => { presses += 1; }} blockedReason={blockedReason} testId="add" /></>);
+  render(<><Toaster /><AddNodeButton onClick={(): void => { presses += 1; }} blockedReason={blockedReason} label="Add to this workspace" testId="add" /></>);
   return { pressed: (): number => presses };
 }
 
