@@ -14,6 +14,7 @@ import { useTabIdentity } from '@/hooks/use-tab-identity';
 import { selfCid, type TabIdentity } from '@/lib/tab-identity';
 import { tryParseCid } from '@/lib/utils/cid-utils';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
+import { nodeInView } from '@/lib/workspace-navigation';
 import type { CurrentConnectionInfo } from '@/lib/connection/types';
 import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 import { useP2PChannelParam } from './use-p2p-channel-param';
@@ -22,8 +23,10 @@ interface WorkspaceViewProps {
   nodeId?: string | null;
 }
 
-export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId }) => {
+export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId: nodeParam }) => {
   const { state } = useWorkspace();
+  // The root's sentinel id is the home, not a missing page; see nodeInView.
+  const nodeId: string | null = nodeInView(nodeParam, state.nodes);
   const location: ReturnType<typeof useLocation> = useLocation();
   const me: TabIdentity | null = useTabIdentity();
 

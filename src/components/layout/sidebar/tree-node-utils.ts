@@ -1,4 +1,3 @@
-import { searchMatcher } from '@/lib/fold-for-search';
 import { isVariant } from 'citadel-workspace-client-ts';
 import { getEntityTypeString } from '@/lib/entity-type-registry';
 import type { DomainNode, TreeNode } from './tree-node-types';
@@ -66,7 +65,23 @@ export function buildTreeFromNodes(nodes: DomainNode[], rootName: string): TreeN
   }
 
   // Multiple roots: wrap in synthetic workspace node so all are visible
-  const syntheticRoot: DomainNode = {
+  const syntheticRoot: DomainNode = syntheticWorkspaceRoot(roots, rootName);
+
+  return {
+    node: syntheticRoot,
+    children: roots.map(buildNode),
+  };
+}
+
+/**
+ * The workspace root the client stands in for when the server sends none.
+ *
+ * WORKSPACE_ROOT_ID is a sentinel on the server, never a stored node, so the
+ * row that represents the workspace is invented here: named after it, holding
+ * `roots`, offering their types as its children.
+ */
+export function syntheticWorkspaceRoot(roots: DomainNode[], rootName: string): DomainNode {
+  return {
     id: WORKSPACE_ROOT_ID,
     parent_id: null,
     entity_type: 'Workspace',
@@ -93,11 +108,19 @@ export function buildTreeFromNodes(nodes: DomainNode[], rootName: string): TreeN
     created_at: 0n,
     updated_at: 0n,
   };
+}
 
-  return {
-    node: syntheticRoot,
-    children: roots.map(buildNode),
-  };
+/**
+ * The node the sidebar promotes as the workspace: the real root when the server
+ * sent one, otherwise a synthetic one -- even over a SINGLE top-level space,
+ * which `buildTreeFromNodes` returns bare. That space is an office, not the
+ * workspace, and labelling it WORKSPACE would make it a peer of nothing.
+ */
+export function workspaceRoot(nodes: DomainNode[], rootName: string): DomainNode | null {
+  const tree: TreeNode | null = buildTreeFromNodes(nodes, rootName);
+  if (!tree) return null;
+  const isWorkspace: boolean = tree.node.id === WORKSPACE_ROOT_ID || tree.node.entity_type === 'Workspace';
+  return isWorkspace ? tree.node : syntheticWorkspaceRoot([tree.node], rootName);
 }
 
 /**
@@ -132,22 +155,4 @@ export function descendantCount(nodes: readonly DomainNode[], nodeId: string): n
     pending.push(...(byParent.get(next) ?? []));
   }
   return count;
-}
-
-/**
- * The tree cut down to the nodes whose name matches `query`, plus their
- * ancestors; the tree itself when the query is blank, null when nothing matches.
- * Folded, and folded ONCE -- see fold-for-search.ts. The walk recurses over the
- * whole tree, so a per-node fold is a per-node normalisation.
- */
-export function filterTree(tree: TreeNode | null, query: string): TreeNode | null {
-  if (!tree || !query.trim()) return tree;
-  const matches: (haystack: string) => boolean = searchMatcher(query);
-  function filterNode(tn: TreeNode): TreeNode | null {
-    const children: TreeNode[] = tn.children
-      .map(filterNode)
-      .filter((c: TreeNode | null): c is TreeNode => c !== null);
-    return matches(tn.node.name) || children.length > 0 ? { ...tn, children } : null;
-  }
-  return filterNode(tree);
 }

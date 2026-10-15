@@ -27,6 +27,7 @@ function tree(props: { isLoading: boolean; unavailable: boolean }): void {
         nodes={undefined}
         isLoading={props.isLoading}
         unavailable={props.unavailable}
+        onNodeSelect={(): void => {}}
       />
       </SidebarProvider>
     </MemoryRouter>,

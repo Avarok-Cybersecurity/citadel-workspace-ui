@@ -9,22 +9,48 @@
  * the next spec from inventing a third one.
  */
 
-import type { Page } from 'playwright';
-import { isVisibleWithin } from './utils.js';
+import type { Locator, Page } from 'playwright';
+import { isHiddenWithin, isVisibleWithin } from './utils.js';
+import { rootRow, rowNodeId } from './focused-tree.js';
+
+/** useIsMobile's breakpoint (src/hooks/use-mobile.tsx). */
+const MOBILE_BREAKPOINT_PX = 768;
 
 /** The admin modal, identified by its own testid rather than "some dialog". */
 export function adminDialog(page: Page) {
   return page.locator('[role="dialog"][data-testid="admin-modal"]');
 }
 
-/** Open the ⋯ context menu on the first tree node in the sidebar. */
+/**
+ * Open the ⋯ context menu of the workspace root.
+ *
+ * Not "the first menu on screen": the focused sidebar shows menus on the
+ * selection and its peers only, and landing selects the default node, so the
+ * first menu belonged to an office -- whose Members tab lists workspace
+ * administrators as inherited and locked, which is not the panel callers want.
+ */
 export async function openNodeContextMenu(page: Page): Promise<boolean> {
-  const trigger = page.locator('[data-testid^="tree-node-menu-"]').first();
-  if (!(await isVisibleWithin(trigger, 10_000))) return false;
+  const root: Locator = rootRow(page);
+  if (!(await isVisibleWithin(root, 10_000))) return false;
+  const rootId: string | null = await rowNodeId(root);
+  if (rootId === null) return false;
 
-  // force: the trigger is opacity-0 until the row is hovered, so Playwright's
-  // visibility check would otherwise wait for a hover that never comes.
-  await trigger.click({ force: true });
+  if ((await root.getAttribute('aria-selected')) !== 'true') {
+    await root.click();
+    // Below the app's 768px mobile breakpoint a selection closes the sidebar
+    // sheet. Wait for it to finish closing -- while it slides out the row is
+    // still visible, and a menu opened then goes with it -- and open it again.
+    if ((page.viewportSize()?.width ?? Infinity) < MOBILE_BREAKPOINT_PX) {
+      if (!(await isHiddenWithin(root, 5000))) return false;
+      await page.getByTestId('sidebar-toggle').click();
+    }
+    if (!(await isVisibleWithin(root.and(page.locator('[aria-selected="true"]')), 5000))) return false;
+  }
+
+  // Not forced: force skips Playwright's stability wait, and a row that was
+  // just selected is still gliding -- the click lands where the trigger was.
+  // (opacity-0 until hover does not need force; Playwright counts it visible.)
+  await page.getByTestId(`tree-node-menu-${rootId}`).click({ timeout: 10_000 });
   return await isVisibleWithin(page.locator('[role="menu"]'), 5000);
 }
 

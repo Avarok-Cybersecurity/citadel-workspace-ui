@@ -45,7 +45,6 @@ const RECORDED_DEBT: Record<string, string> = {
   'lib/session-startup-sequence.ts': 'startup continues on failure by design; the message needs rethinking with it',
   'components/p2p/LiveDocumentModal.tsx': 'document create; inline error already shown, wording needs review',
   'components/login-session-redirect.ts': 'redirect failure; overlaps the retry modal',
-  'components/layout/sidebar/TreeNodesSection.tsx': 'delete dialog renders its own alert; needs checking for double-reporting',
   'components/chat/CreateGroupDialog.tsx': 'inline error already shown; wording needs review',
   'components/admin/tabs/GeneralTab.tsx': 'workspace rename; overlaps awaitWriteResponse messaging',
 };

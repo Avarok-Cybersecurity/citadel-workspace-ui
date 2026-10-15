@@ -31,8 +31,9 @@ import {
   updateTreeSchema,
   createNodeType,
   nodeExistsInUI,
-  nodeGoneFromUI,
   navigateToNodeViaUI,
+  treeRow,
+  isHiddenWithin,
   type DiagnosticsHandle,
   type TreeSchema,
   type TreeNode,
@@ -83,8 +84,8 @@ interface TestResults {
   epsilonNavigation: boolean;
 
   // Expand/Collapse
-  collapseAlphaHidesChildren: boolean;
-  expandAlphaShowsChildren: boolean;
+  collapseHidesChildren: boolean;
+  expandShowsChildren: boolean;
 
   // Sibling Nodes
   siblingNodesCreated: boolean;
@@ -158,8 +159,8 @@ async function runTest(): Promise<boolean> {
     charlieNavigation: false,
     deltaNavigation: false,
     epsilonNavigation: false,
-    collapseAlphaHidesChildren: false,
-    expandAlphaShowsChildren: false,
+    collapseHidesChildren: false,
+    expandShowsChildren: false,
     siblingNodesCreated: false,
     siblingNodesVisible: false,
   };
@@ -452,8 +453,8 @@ async function runTest(): Promise<boolean> {
       }
     }
 
-    // Check sibling visibility. Every sibling that was created should be in the
-    // sidebar — TreeNodesSection auto-expands any node that has children — so
+    // Check sibling visibility. Every sibling that was created should be
+    // reachable in the sidebar -- nodeExistsInUI clicks down to each one -- so
     // check them all rather than spot-checking one and calling it a pass.
     let allSiblingsVisible = siblingNames.length > 0;
     for (const name of siblingNames) {
@@ -476,37 +477,37 @@ async function runTest(): Promise<boolean> {
     console.log('STEP 8: Expand/Collapse Test');
     console.log('-'.repeat(50));
 
-    if (nodeIds.Alpha) {
-      // Find the Alpha toggle button
-      const toggleSelector = `[data-testid="tree-node-toggle-${nodeIds.Alpha}"]`;
-      const toggleBtn = page.locator(toggleSelector).first();
+    // The focused sidebar unfolds only the selected node's children; a peer of
+    // the selection unfolds in place with its peek chevron. Beta has children
+    // and a peer with none (Beta_sibling1), so selecting the peer puts Beta's
+    // chevron on screen with Beta's children folded away.
+    const peerName = `${LEVEL_NAMES[1]}_sibling1_${timestamp}`;
+    const charlieName = `${LEVEL_NAMES[2]}_${timestamp}`;
+    if (nodeIds.Beta && siblingNames.includes(peerName) && (await navigateToNodeViaUI(page, peerName))) {
+      const toggleBtn = page.getByTestId(`tree-node-toggle-${nodeIds.Beta}`);
 
       if (await isVisibleWithin(toggleBtn, 3000)) {
-        const betaName = `${LEVEL_NAMES[1]}_${timestamp}`;
+        const charlieRow = treeRow(page, charlieName).first();
+        const foldedAtFirst = await isHiddenWithin(charlieRow, 3000);
 
-        // Click to collapse
+        // Expand first, so that the collapse below is measured against a row
+        // that was on screen -- "hidden" for a row never shown proves nothing.
         await toggleBtn.click();
-
-        // Wait for the opposite state instead of `!(await nodeExistsInUI(...))`:
-        // the "exists" helper waits for the node to appear, so asserting absence
-        // through it burns its full timeout on every run and, worse, reports
-        // "hidden" for a node that simply had not re-rendered yet.
-        results.collapseAlphaHidesChildren = await nodeGoneFromUI(page, betaName, 5000);
-        console.log(`  Collapse hides children: ${results.collapseAlphaHidesChildren}`);
-
-        await takeScreenshot(page, `${ADMIN_USER}_collapsed`);
-
-        // Click to expand. The old code checked for Beta in the same tick as
-        // the click, with no wait at all, so it raced the re-render.
-        await toggleBtn.click();
-
-        results.expandAlphaShowsChildren = await nodeExistsInUI(page, betaName, 5000);
-        console.log(`  Expand shows children: ${results.expandAlphaShowsChildren}`);
+        results.expandShowsChildren = foldedAtFirst && (await isVisibleWithin(charlieRow, 5000));
+        console.log(`  Expand shows children: ${results.expandShowsChildren}`);
 
         await takeScreenshot(page, `${ADMIN_USER}_expanded`);
+
+        await toggleBtn.click();
+        results.collapseHidesChildren = results.expandShowsChildren && (await isHiddenWithin(charlieRow, 5000));
+        console.log(`  Collapse hides children: ${results.collapseHidesChildren}`);
+
+        await takeScreenshot(page, `${ADMIN_USER}_collapsed`);
       } else {
-        console.log('  Toggle button not found for Alpha node');
+        console.log('  Peek toggle not found for Beta');
       }
+    } else {
+      console.log(`  Could not select ${peerName}, so Beta could not be peeked`);
     }
 
     // ========================================================================
@@ -573,8 +574,8 @@ async function runTest(): Promise<boolean> {
     }
 
     console.log('\nExpand/Collapse:');
-    console.log(`  Collapse Hides Children:      ${results.collapseAlphaHidesChildren ? 'PASS' : 'FAIL'}`);
-    console.log(`  Expand Shows Children:        ${results.expandAlphaShowsChildren ? 'PASS' : 'FAIL'}`);
+    console.log(`  Collapse Hides Children:      ${results.collapseHidesChildren ? 'PASS' : 'FAIL'}`);
+    console.log(`  Expand Shows Children:        ${results.expandShowsChildren ? 'PASS' : 'FAIL'}`);
 
     console.log('\nSibling Nodes:');
     console.log(`  Siblings Created:             ${results.siblingNodesCreated ? 'PASS' : 'FAIL'}`);
@@ -612,8 +613,8 @@ async function runTest(): Promise<boolean> {
       results.charlieNavigation,
       results.deltaNavigation,
       results.epsilonNavigation,
-      results.collapseAlphaHidesChildren,
-      results.expandAlphaShowsChildren,
+      results.collapseHidesChildren,
+      results.expandShowsChildren,
       results.siblingNodesCreated,
       results.siblingNodesVisible,
     ];

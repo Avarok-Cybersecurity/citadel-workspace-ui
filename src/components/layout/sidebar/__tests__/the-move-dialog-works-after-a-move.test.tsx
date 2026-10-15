@@ -54,7 +54,11 @@ function renderSidebar(): void {
   render(<HierarchySidebar />, { wrapper: wrap });
 }
 
+/** Click down to the room (its office, then the room itself) so its own row carries the ⋯ menu. */
 async function openMove(nodeId: string): Promise<HTMLElement> {
+  for (const step of [NODES[nodeId].parent_id, nodeId]) {
+    if (step !== null) await userEvent.click(await screen.findByTestId(`tree-node-${step}`));
+  }
   await userEvent.click(await screen.findByTestId(`tree-node-menu-${nodeId}`));
   await userEvent.click(await screen.findByTestId(`move-node-${nodeId}`));
   return screen.findByRole('dialog');

@@ -27,7 +27,7 @@ const SRC: string = join(process.cwd(), 'src');
  * being composed to confirm.
  */
 const EXEMPT: Record<string, string> = {
-  'components/layout/sidebar/TreeNodeItem.tsx':
+  'components/layout/sidebar/FocusedTree/useTreeKeyboard.ts':
     'Enter/Space activates a tree row; the row is not a text field',
   'components/file-manager/VFSGridItem.tsx':
     'Enter opens a directory tile; the tile is not a text field',

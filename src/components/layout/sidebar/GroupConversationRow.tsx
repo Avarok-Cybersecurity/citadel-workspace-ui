@@ -121,7 +121,7 @@ export function GroupConversationRow({
         onClick={handleClick}
         // Announced, not only coloured -- see PeerListRow.
         aria-current={isActive ? 'page' : undefined}
-        // See TreeNodeItem: white belongs on a primary fill, not on the page.
+        // White belongs on a primary fill, not on the page: see selected-states-do-not-borrow-a-solid-fills-foreground.test.ts.
         className={`${rowClass(isActive)} h-9 py-1`}
       >
         <div ref={containerRef} className="flex items-center gap-2 w-full">

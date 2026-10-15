@@ -309,7 +309,7 @@ export async function assertNoToastConflict(
 /**
  * Wait for tree data to be loaded in the sidebar.
  * The sidebar shows either tree-node elements (when nodes exist) or
- * "No nodes yet" (empty state). Either indicates the tree data has loaded.
+ * the empty state (tree-empty). Either indicates the tree data has loaded.
  * This is more reliable than waitForWorkspaceLoaded() for operations
  * that depend on state.treeSchema being populated.
  */
@@ -321,7 +321,8 @@ export async function waitForTreeDataLoaded(page: Page, timeout = 30000): Promis
     const treeNode = page.locator(
       '[data-testid^="tree-node-"]:not([data-testid^="tree-node-menu-"]):not([data-testid^="tree-node-toggle-"])'
     );
-    const emptyState = page.locator('text=No nodes yet');
+    // By testid: the empty state's copy changed and "No nodes yet" matched nothing.
+    const emptyState = page.getByTestId('tree-empty');
 
     if (await treeNode.first().isVisible().catch(() => false)) {
       console.log('  Tree data loaded (nodes visible)');
