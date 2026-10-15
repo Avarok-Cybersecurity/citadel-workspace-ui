@@ -154,8 +154,10 @@ export async function selectRoot(page: Page): Promise<string | null> {
 
 /** Open the ⋯ menu of the node whose id is `nodeId`, which must be on a sibling row. */
 async function openMenuOf(page: Page, nodeId: string): Promise<string | null> {
-  // force: the trigger is invisible until the row is hovered.
-  await page.getByTestId(`tree-node-menu-${nodeId}`).click({ force: true, timeout: STEP_TIMEOUT_MS });
+  // Not forced: force skips Playwright's stability wait, and a row that was
+  // just selected is still gliding -- the click lands where the trigger was.
+  // (opacity-0 until hover does not need force; Playwright counts it visible.)
+  await page.getByTestId(`tree-node-menu-${nodeId}`).click({ timeout: STEP_TIMEOUT_MS });
   return (await isVisibleWithin(page.locator('[role="menu"]'), STEP_TIMEOUT_MS)) ? nodeId : null;
 }
 

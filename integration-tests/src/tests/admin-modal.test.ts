@@ -167,7 +167,8 @@ async function selectFirstRoom(page: Page): Promise<string | null> {
 
 async function openRoomContextMenu(page: Page, roomId: string): Promise<boolean> {
   try {
-    await page.getByTestId(`tree-node-menu-${roomId}`).click({ force: true, timeout: 5000 });
+    // Not forced: the room was just selected and may still be gliding.
+    await page.getByTestId(`tree-node-menu-${roomId}`).click({ timeout: 5000 });
     return await isVisibleWithin(page.locator('[role="menu"]'), 3000);
   } catch {
     return false;

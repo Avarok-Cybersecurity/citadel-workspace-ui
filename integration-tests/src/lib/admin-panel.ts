@@ -41,9 +41,10 @@ export async function openNodeContextMenu(page: Page): Promise<boolean> {
     }
   }
 
-  // force: the trigger is opacity-0 until the row is hovered, so Playwright's
-  // visibility check would otherwise wait for a hover that never comes.
-  await page.getByTestId(`tree-node-menu-${rootId}`).click({ force: true, timeout: 10_000 });
+  // Not forced: force skips Playwright's stability wait, and a row that was
+  // just selected is still gliding -- the click lands where the trigger was.
+  // (opacity-0 until hover does not need force; Playwright counts it visible.)
+  await page.getByTestId(`tree-node-menu-${rootId}`).click({ timeout: 10_000 });
   return await isVisibleWithin(page.locator('[role="menu"]'), 5000);
 }
 
