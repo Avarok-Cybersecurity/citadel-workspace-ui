@@ -7,7 +7,7 @@ import { forwardRef, useLayoutEffect, useRef, useState, type ForwardedRef, type 
 import { animate, motion, useMotionValue, type MotionValue } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useMotionAllowed } from '@/hooks/use-motion-allowed';
-import { FADE_OUT, GLIDE, PresenceScope } from './tree-motion';
+import { GLIDE, PresenceScope, useFadeOut } from './tree-motion';
 
 /**
  * A box whose height follows its contents smoothly. Everything inside reaches
@@ -54,7 +54,7 @@ function MeasuredHeight({ children }: { children: ReactNode }): JSX.Element {
 export const StackBox: ForwardRefExoticComponent<{ children: ReactNode } & RefAttributes<HTMLLIElement>> = forwardRef<HTMLLIElement, { children: ReactNode }>(
   function StackBox({ children }: { children: ReactNode }, ref: ForwardedRef<HTMLLIElement>): JSX.Element {
     return (
-      <motion.li ref={ref} role="none" data-testid="tree-ancestor-stack" className="relative mb-2 border border-transparent p-1" {...FADE_OUT}>
+      <motion.li ref={ref} role="none" data-testid="tree-ancestor-stack" className="relative mb-2 border border-transparent p-1" style={{ opacity: useFadeOut() }}>
         <motion.div
           aria-hidden="true"
           layout
@@ -89,3 +89,10 @@ export function ScrollWhenTall({ children }: { children: ReactNode }): JSX.Eleme
   }, []);
   return <motion.div ref={box} layoutScroll className={cn('max-h-[60vh]', scrolls && 'overflow-y-auto')}>{children}</motion.div>;
 }
+
+/** A list item that fades out where it stands when the presence it is in removes it. */
+export const FadingItem: ForwardRefExoticComponent<{ children: ReactNode } & RefAttributes<HTMLLIElement>> = forwardRef<HTMLLIElement, { children: ReactNode }>(
+  function FadingItem({ children }: { children: ReactNode }, ref: ForwardedRef<HTMLLIElement>): JSX.Element {
+    return <motion.li ref={ref} role="none" style={{ opacity: useFadeOut() }}>{children}</motion.li>;
+  },
+);

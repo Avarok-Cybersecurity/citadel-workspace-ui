@@ -7,7 +7,8 @@
 import { strict as assert } from 'node:assert';
 import { AxeBuilder } from '@axe-core/playwright';
 import { settled, targetsAreBigEnough } from './checks-controls.mjs';
-import { ROUGH, roughness, sampleTransition } from './motion-probe.mjs';
+import { ROUGH, roughness } from './motion-probe.mjs';
+import { sampleTransition } from './motion-sampler.mjs';
 
 const MOBILE_BELOW = 768;
 const within = (actual, expected) => Math.abs(actual - expected) <= 0.5;
@@ -125,13 +126,18 @@ const LEVEL_CHANGES = [
   ['office -> sibling office', '&sel=eng', 'tree-node-design'],
 ];
 
+/** POLISH_CPU_THROTTLE=4 slows Chromium's CPU the way a CI runner is slow, to reproduce what only CI sees. */
+const THROTTLE = Number(process.env.POLISH_CPU_THROTTLE ?? 1);
+
 async function aLevelChangeIsOneMotion({ page, url, viewport }) {
+  if (THROTTLE > 1 && page.context().browser().browserType().name() !== 'chromium') throw new Error('POLISH_CPU_THROTTLE needs Chromium (CDP)');
   const moving = await page.context().browser().newContext({ viewport, reducedMotion: 'no-preference' });
   const rough = [];
   try {
     for (const [name, query, clicked] of LEVEL_CHANGES) {
       const tab = await moving.newPage();
       try {
+        if (THROTTLE > 1) await (await moving.newCDPSession(tab)).send('Emulation.setCPUThrottlingRate', { rate: THROTTLE });
         await tab.goto(url('focused-sidebar') + query);
         await tab.getByTestId(clicked).waitFor({ state: 'visible' });
         await settled(tab);

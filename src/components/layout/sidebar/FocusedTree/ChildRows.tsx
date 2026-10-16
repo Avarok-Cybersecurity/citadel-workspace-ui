@@ -6,12 +6,12 @@
  */
 import { Plus, Star } from 'lucide-react';
 import { forwardRef, type ForwardedRef, type ForwardRefExoticComponent, type RefAttributes } from 'react';
-import { motion } from 'framer-motion';
+import { motion, type MotionValue } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { getEntityIcon, getEntityTypeString } from '@/lib/entity-type-registry';
 import type { DomainNode } from '../tree-node-types';
 import type { ChildIndex } from '../focused-view';
-import { AnimatePresence, ITEM_CLASS, ROW_ITEM, useLeaving, usePresenceInitial } from './tree-motion';
+import { AnimatePresence, ITEM_CLASS, ROW_ITEM, useFadeOut, useLeaving, usePresenceInitial } from './tree-motion';
 import { TreeRow } from './TreeRow';
 
 interface ChildListProps {
@@ -64,8 +64,9 @@ interface ChildRowProps {
 const ChildRow: ForwardRefExoticComponent<ChildRowProps & RefAttributes<HTMLLIElement>> = forwardRef<HTMLLIElement, ChildRowProps>(function ChildRow({ node, level, parentId, childCount, isMobile, onSelect }: ChildRowProps, ref: ForwardedRef<HTMLLIElement>): JSX.Element {
   const Icon: ReturnType<typeof getEntityIcon> = getEntityIcon(node.entity_type);
   const leaving: boolean = useLeaving();
+  const fade: MotionValue<number> = useFadeOut();
   return (
-    <motion.li ref={ref} {...ROW_ITEM} role="none" className={cn(ITEM_CLASS, leaving && 'pointer-events-none')}>
+    <motion.li ref={ref} {...ROW_ITEM} style={{ opacity: fade }} role="none" className={cn(ITEM_CLASS, leaving && 'pointer-events-none')}>
       <TreeRow
         motionId={node.id}
         info={{ kind: 'child', nodeId: node.id, parentId, selected: false, expandable: childCount > 0, expanded: false }}
@@ -105,8 +106,9 @@ interface AddRowProps {
 /** The dashed "Add <level>" row: arrives, folds and leaves with the rows it follows. */
 const AddRow: ForwardRefExoticComponent<AddRowProps & RefAttributes<HTMLLIElement>> = forwardRef<HTMLLIElement, AddRowProps>(function AddRow({ parent, level, label, isMobile, onAdd }: AddRowProps, ref: ForwardedRef<HTMLLIElement>): JSX.Element {
   const leaving: boolean = useLeaving();
+  const fade: MotionValue<number> = useFadeOut();
   return (
-    <motion.li ref={ref} {...ROW_ITEM} role="none" className={cn(leaving && 'pointer-events-none')}>
+    <motion.li ref={ref} {...ROW_ITEM} style={{ opacity: fade }} role="none" className={cn(leaving && 'pointer-events-none')}>
       {/* A treeitem rather than a bare button: a tree may hold only items, and the keyboard reaches it like one. */}
       <TreeRow
         motionId={`add:${parent.id}`}

@@ -8,6 +8,7 @@
  * search result moves the selection anywhere, not only to a row on screen.
  */
 import { useState } from 'react';
+import { frameData } from 'framer-motion';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { TreeNodesSection } from '@/components/layout/sidebar/TreeNodesSection';
@@ -44,6 +45,8 @@ const ESTATE = [
 
 const NOTHING = () => {};
 const query = () => new URLSearchParams(location.search);
+// framer's frame clock, for motion-sampler to stamp each sample with the time its motion was computed for.
+window.__motionFrame = frameData;
 
 /**
  * The schema and the Animations switch are global, and every scenario shares

@@ -41,7 +41,7 @@
  * drops its testid and role, hides from assistive tech and takes no pointer.
  */
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type Context, type MutableRefObject, type ReactNode, type RefObject } from 'react';
-import { AnimatePresence, LayoutGroup, MotionConfig, motion, useIsPresent, type Transition } from 'framer-motion';
+import { AnimatePresence, LayoutGroup, MotionConfig, animate, motion, useIsPresent, useMotionValue, usePresence, type AnimationPlaybackControls, type MotionValue, type Transition } from 'framer-motion';
 import { MOTION_SECONDS } from '@/lib/motion';
 import { useMotionAllowed } from '@/hooks/use-motion-allowed';
 
@@ -66,11 +66,40 @@ export const ITEM_CLASS: string = 'group/menu-item relative';
  */
 const KEEP_IN_SCRIPT = (): void => {};
 
-/** What fades out where it stands when it goes. */
+/** The search/tree swap's fade; inside the tree, what leaves fades by useFadeOut. */
 export const FADE_OUT: { readonly exit: { readonly opacity: number }; readonly onUpdate: () => void } = { exit: { opacity: 0 }, onUpdate: KEEP_IN_SCRIPT };
 
-/** A row's <li>: carries its line and its unfolded list when it moves within its list, and fades when it goes. */
-export const ROW_ITEM: typeof FADE_OUT & { readonly layout: 'position' } = { layout: 'position', ...FADE_OUT };
+/** A row's <li>: carries its line and its unfolded list when it moves within its list (and fades by useFadeOut). */
+export const ROW_ITEM: { readonly layout: 'position' } = { layout: 'position' };
+
+const LEAVE: Transition = { duration: MOTION_SECONDS.leave, ease: 'circOut' };
+
+/**
+ * The opacity of something that fades out where it stands when it goes, for its `style`. Not an `exit` prop:
+ * framer starts an element's own animation on the first frame it runs, but the glides from the commit -- so
+ * after a long commit (61ms to first paint at 4x CPU throttle, measured) the rows were already a third of the
+ * way along while everything leaving was still fully opaque under them. A free-standing value animated from
+ * the commit starts on the same clock as the glides.
+ */
+export function useFadeOut(): MotionValue<number> {
+  const [present, safeToRemove] = usePresence();
+  const done: MutableRefObject<(() => void) | undefined> = useRef<(() => void) | undefined>(undefined);
+  done.current = safeToRemove ?? undefined;
+  const { allowed }: TreeMotionState = useTreeMotion();
+  const opacity: MotionValue<number> = useMotionValue<number>(1);
+  useLayoutEffect((): (() => void) => {
+    let live: boolean = true;
+    const controls: AnimationPlaybackControls = animate(opacity, present ? 1 : 0, allowed ? LEAVE : { duration: 0 });
+    if (!present) void controls.finished.then((): void => { if (live) done.current?.(); });
+    return (): void => { live = false; controls.stop(); };
+  }, [present, allowed, opacity]);
+  return opacity;
+}
+
+/** Fades its contents out when the presence it sits in leaves. */
+export function FadeOnLeave({ children }: { children: ReactNode }): JSX.Element {
+  return <motion.div style={{ opacity: useFadeOut() }}>{children}</motion.div>;
+}
 
 /** The props a row's line spreads onto its `motion` element. */
 export interface RowLine {
@@ -177,10 +206,12 @@ export function Unfold({ open, id, children }: { open: boolean; id: string; chil
           layout="position"
           initial={{ clipPath: SHUT, opacity: 0 }}
           animate={{ clipPath: OPEN, opacity: 1, transitionEnd: { clipPath: 'none' } }}
-          exit={{ clipPath: [OPEN, SHUT], opacity: 0 }}
+          exit={{ clipPath: [OPEN, SHUT] }}
           onUpdate={KEEP_IN_SCRIPT}
         >
-          <PresenceScope>{children}</PresenceScope>
+          <FadeOnLeave>
+            <PresenceScope>{children}</PresenceScope>
+          </FadeOnLeave>
         </motion.div>
       )}
     </AnimatePresence>

@@ -9,12 +9,11 @@
  * 2,000-node estate costs what a 20-node one does.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
 import { SidebarMenu } from '@/components/ui/sidebar';
 import type { DomainNode } from '../tree-node-types';
 import { childIndex, focusedView, stackRows, type ChildIndex, type FocusedView, type StackRow } from '../focused-view';
-import { AnimatePresence, FADE_OUT, PresenceScope, usePresenceInitial, useRememberOnScreen } from './tree-motion';
-import { ScrollWhenTall, StackBox } from './tree-boxes';
+import { AnimatePresence, PresenceScope, usePresenceInitial, useRememberOnScreen } from './tree-motion';
+import { FadingItem, ScrollWhenTall, StackBox } from './tree-boxes';
 import { AncestorRow, MoreAncestorsRow } from './AncestorRow';
 import { SiblingRow } from './SiblingRow';
 import type { NodeActions } from './NodeActionsMenu';
@@ -100,7 +99,7 @@ export function FocusedTree({ nodes, root, selectedId, isMobile, actions, canAdd
       </AnimatePresence>
       {/* One list per parent: another parent's siblings leave where they stand, not riding the list to its new place. */}
       <AnimatePresence initial={false} mode="popLayout">
-        <motion.li key={`siblings-of:${parent?.id ?? 'none'}`} role="none" {...FADE_OUT}>
+        <FadingItem key={`siblings-of:${parent?.id ?? 'none'}`}>
           <PresenceScope>
             {/* A very wide sibling set (sixty rooms on a floor) scrolls here; the stack above stays put. */}
             <ScrollWhenTall>
@@ -128,7 +127,7 @@ export function FocusedTree({ nodes, root, selectedId, isMobile, actions, canAdd
               </ul>
             </ScrollWhenTall>
           </PresenceScope>
-        </motion.li>
+        </FadingItem>
       </AnimatePresence>
     </SidebarMenu>
   );
