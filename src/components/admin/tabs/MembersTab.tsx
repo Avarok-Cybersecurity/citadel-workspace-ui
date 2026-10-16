@@ -3,7 +3,6 @@ import { isAdminRole } from '@/lib/role-predicate';
 import { describeFailure } from '@/lib/failure-message';
 import { isForDomain } from '@/lib/workspace-events/is-for-domain';
 import { useMemberAdminActions } from './use-member-admin-actions';
-import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +12,8 @@ import { useToast } from '@/hooks/use-toast';
 import { AdminTabProps, MemberData, UserRole, USER_ROLES } from '../types';
 import WorkspaceService from '@/lib/workspace-service';
 import { workspaceEvents, type MembersPayload } from '@/lib/workspace-events';
-import { PermissionManager } from '@/components/permissions/PermissionManager';
+import { MemberPermissionsDialog } from '@/components/permissions/MemberPermissionsDialog';
+import { asPermissionSubject } from './member-data';
 import { Loader2, Shield } from 'lucide-react';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { armLoadingDeadline, cancelLoadingDeadline } from '@/lib/loading-flag-timeout';
@@ -112,38 +112,6 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
     );
   }
 
-  // Show PermissionManager for selected member in advanced mode
-  if (showAdvanced && selectedMember) {
-    return (
-      <div className="space-y-4" data-testid="members-advanced-permissions">
-        {/* Stacks below `sm`, and the name breaks rather than pushing.
-            A generated handle beside a button that will not shrink made this row
-            370px wide inside a 341px dialog — the panel then scrolled sideways
-            and took the permission matrix's label column off the left edge with
-            it. The matrix itself already fits; this header was the overhang. */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <h3 className="text-foreground font-medium min-w-0 break-all sm:truncate">
-            Permissions for {selectedMember.name || selectedMember.username}
-          </h3>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setSelectedMember(null)}
-            className="border-border text-foreground hover:bg-card shrink-0 self-end sm:self-auto"
-          >
-            Back to Members
-          </Button>
-        </div>
-        <PermissionManager
-          userId={selectedMember.userId}
-          domainId={entityId}
-          domainType={entityType}
-          onClose={() => setSelectedMember(null)}
-        />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4" data-testid="members-tab-content">
       <MembersVisibilitySwitch entityType={entityType} entityId={entityId} />
@@ -203,6 +171,17 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
           </Badge>
         ))}
       </div>
+
+      {/* One member's permissions at THIS tab's level -- the view about them, not the role matrix,
+          which answered a question about one person with four role columns. */}
+      {selectedMember && (
+        <MemberPermissionsDialog
+          open
+          onClose={() => setSelectedMember(null)}
+          member={asPermissionSubject(selectedMember)}
+          domainId={entityId}
+        />
+      )}
 
       {/* Remove Member Confirmation */}
       <ConfirmDeleteDialog

@@ -28,7 +28,12 @@ export function childCountLabel(children: readonly DomainNode[]): string {
   return `${children.length} ${(children.length === 1 ? meta.label : meta.pluralLabel).toLowerCase()}`;
 }
 
+/** A node's own level, by the schema's name for it: "Workspace", or whatever an admin renamed "Office" to. */
+export function levelLabel(node: DomainNode): string {
+  return getEntityMetadata(node.entity_type).label;
+}
+
 /** The root's caption: its own level's label, e.g. "Workspace". */
 export function rootLabel(root: DomainNode): string {
-  return getEntityMetadata(root.entity_type).label;
+  return levelLabel(root);
 }

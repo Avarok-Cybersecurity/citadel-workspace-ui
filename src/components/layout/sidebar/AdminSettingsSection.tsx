@@ -106,10 +106,13 @@ export const AdminSettingsSection: () => JSX.Element | null = (): JSX.Element | 
             <SidebarMenuItem>
               <SidebarMenuButton
                 onClick={() => setShowPermissionManager(true)}
+                data-testid="open-role-permissions"
                 className="text-foreground hover:bg-primary-accent/15 hover:text-foreground transition-colors"
               >
                 <Shield className="h-4 w-4 mr-2 text-warning-emphasis" />
-                Manage User Roles
+                {/* What each ROLE can do, workspace-wide. One person's permissions are
+                    on their own row's menu, in a view about them. */}
+                Role permissions
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
@@ -141,16 +144,8 @@ export const AdminSettingsSection: () => JSX.Element | null = (): JSX.Element | 
         <WorkspaceSettingsDialog open onOpenChange={setShowWorkspaceSettings} />
       )}
 
-      {/* Permission Manager Modal - for workspace-level permissions */}
-      {showPermissionManager && state.currentUser && (
-        <PermissionManagerModal
-          isOpen={showPermissionManager}
-          onClose={() => setShowPermissionManager(false)}
-          userId={state.currentUser.id || state.currentUser.username}
-          domainId={WORKSPACE_ROOT_ID}
-          domainType="workspace"
-        />
-      )}
+      {/* The read-only reference of what each role can do. */}
+      <PermissionManagerModal isOpen={showPermissionManager} onClose={() => setShowPermissionManager(false)} />
 
       {billingSlug !== undefined && api !== undefined && (
         <ManageSubscriptionDialog

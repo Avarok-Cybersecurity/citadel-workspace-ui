@@ -1,5 +1,10 @@
 /**
- * The role × permission matrix.
+ * The role × permission matrix: a READ-ONLY reference of what each role can do.
+ *
+ * It used to be a grid of checkboxes with a Save button, but the server has no
+ * per-role storage -- role abilities are fixed in code (`Permission::for_role`)
+ * and the only writable grants are per member -- so no column could ever be
+ * saved. Each cell is now a tick or a dash, with its meaning in words.
  *
  * Split out of PermissionManager when naming its checkboxes pushed that file
  * past the 250-line cap. The accessibility work is the substance here: Radix
@@ -7,28 +12,25 @@
  * dozens of identical "checkbox, not checked" with nothing to tell them apart —
  * on the app's access-control surface, which made it unusable non-visually.
  *
- * Each checkbox is named outright rather than left to table semantics, because
+ * Each cell's mark is named outright rather than left to table semantics, because
  * row and column headers only help a reader that is in table mode, and that is
  * not a bet worth taking here. The headers are correct too (`scope`, and the
  * permission cell as a `th`), so both routes work.
  */
 
 import React from 'react';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Check, Minus } from 'lucide-react';
 
 
 interface PermissionMatrixTableProps {
   allPermissions: [string, { id: string; label: string }[]][];
-  rolePermissions: Record<string, Set<string>>;
-  togglePermission: (role: string, permissionId: string) => void;
-  /** Which role columns to render — see `roleColumnsFor`. */
+  rolePermissions: Readonly<Record<string, ReadonlySet<string>>>;
   roleColumns: { value: string; label: string; color: string; }[];
 }
 
 export function PermissionMatrixTable({
   allPermissions,
   rolePermissions,
-  togglePermission,
   roleColumns,
 }: PermissionMatrixTableProps): JSX.Element {
   return (
@@ -81,7 +83,7 @@ export function PermissionMatrixTable({
                 }`}
               >
                 {/* th, not td: the row header is what a screen reader reads
-                    back to say WHICH permission a checkbox belongs to. As a
+                    back to say WHICH permission a cell belongs to. As a
                     td the matrix announced dozens of identical "checkbox,
                     not checked" with nothing to tell them apart. */}
                 <th
@@ -98,23 +100,25 @@ export function PermissionMatrixTable({
                   <span className="text-sm text-foreground/80">{permission.label}</span>
                 </th>
                 {roleColumns.map(role => {
-                  const isChecked: boolean = rolePermissions[role.value]?.has(permission.id) ?? false;
+                  const granted: boolean = rolePermissions[role.value]?.has(permission.id) ?? false;
                   return (
                     <td key={role.value} className="text-center px-3 py-2">
-                      <div className="flex items-center justify-center">
-                        {/* Named outright rather than left to table
-                            semantics. Radix renders a <button
-                            role="checkbox"> with no text, and row/column
-                            headers alone depend on the reader being in
-                            table mode -- on the app's access-control
-                            surface that is not a bet worth taking. */}
-                        <Checkbox
-                          checked={isChecked}
-                          onCheckedChange={() => togglePermission(role.value, permission.id)}
-                          aria-label={`${permission.label} for ${role.label}`}
-                          className="h-4 w-4 border-surface data-[state=checked]:bg-primary data-[state=checked]:border-primary-accent"
-                        />
-                      </div>
+                      {/* A mark, not a control: nothing here can be changed. Its meaning
+                          is said in words, named outright rather than left to table
+                          semantics, which only help a reader in table mode. `relative`
+                          holds the sr-only text: absolutely positioned, it otherwise
+                          belongs to the dialog, and the cells off to the right of the
+                          table's own scroller made the whole dialog scroll sideways. */}
+                      <span
+                        className="relative inline-flex h-[24px] w-[24px] items-center justify-center align-middle"
+                        data-role-grant={granted ? 'yes' : 'no'}
+                        data-testid={`role-grant-${role.value}-${permission.id}`}
+                      >
+                        {granted
+                          ? <Check className="h-[16px] w-[16px] text-success-emphasis" aria-hidden="true" />
+                          : <Minus className="h-[16px] w-[16px] text-muted-foreground" aria-hidden="true" />}
+                        <span className="sr-only">{`${role.label}: ${granted ? 'can' : 'cannot'} ${permission.label}`}</span>
+                      </span>
                     </td>
                   );
                 })}

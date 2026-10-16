@@ -22,7 +22,13 @@ vi.mock('@/lib/workspace-service', () => ({
 }));
 
 const { eventEmitter } = await import('@/lib/event-emitter');
-const { useLoadedPermissions } = await import('../use-loaded-permissions');
+const { useLoadedPermissionsAt } = await import('../use-loaded-permissions');
+import type { PermissionsLoad } from '../use-loaded-permissions';
+
+const LEVELS: readonly string[] = ['workspace-root'];
+/** The answer for the one level these cases ask about. */
+const useLoadedPermissions = (userId: string, domainId: string): PermissionsLoad =>
+  useLoadedPermissionsAt(userId, LEVELS)[domainId] ?? { status: 'loading' };
 
 const USER: string = 'alice';
 const DOMAIN: string = 'workspace-root';

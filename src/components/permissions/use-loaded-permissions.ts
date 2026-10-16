@@ -10,8 +10,13 @@ export type PermissionsLoad =
   | { status: 'loaded'; permissions: Set<string>; role: string }
   | { status: 'failed'; reason: string };
 
+const LOADING: PermissionsLoad = { status: 'loading' };
+
 /**
- * What the SERVER currently grants this user in this domain.
+ * What the SERVER currently grants this user at each of several levels, keyed
+ * by domain id -- one request per level, each settling on its own. The server
+ * reports what enforcement allows at each level (inheritance included), so a
+ * level's answer is the member's EFFECTIVE permissions there.
  *
  * The permission editor used to call `getUserPermissions` and discard the
  * result — even on success. Nothing ever wrote the response into state, so the
@@ -25,12 +30,19 @@ export type PermissionsLoad =
  * distinguishable — because "still loading" and "failed to load" both used to
  * look exactly like "these are the permissions".
  */
-export function useLoadedPermissions(userId: string, domainId: string): PermissionsLoad {
-  const [load, setLoad] = useState<PermissionsLoad>({ status: 'loading' });
+export function useLoadedPermissionsAt(userId: string, domainIds: readonly string[]): Readonly<Record<string, PermissionsLoad>> {
+  const [loads, setLoads] = useState<Record<string, PermissionsLoad>>({});
+  // By value: a caller's fresh array of the same ids is the same request.
+  const key: string = domainIds.join('\u0000');
 
   useEffect(() => {
-    setLoad({ status: 'loading' });
-    let settled: boolean = false;
+    const ids: string[] = key === '' ? [] : key.split('\u0000');
+    setLoads(Object.fromEntries(ids.map((id: string): [string, PermissionsLoad] => [id, LOADING])));
+    const settled: Set<string> = new Set();
+    const settle = (domainId: string, load: PermissionsLoad): void => {
+      settled.add(domainId);
+      setLoads((prev: Record<string, PermissionsLoad>): Record<string, PermissionsLoad> => ({ ...prev, [domainId]: load }));
+    };
 
     const onLoaded = (payload: {
       userId: string;
@@ -40,45 +52,37 @@ export function useLoadedPermissions(userId: string, domainId: string): Permissi
     }): void => {
       // Both, because one editor can be open while another domain's response
       // arrives — and the response is the only thing that says which is which.
-      if (payload.userId !== userId || payload.domainId !== domainId) return;
-      settled = true;
-      setLoad({
-        status: 'loaded',
-        permissions: new Set(payload.permissions),
-        role: payload.role,
-      });
+      if (payload.userId !== userId || !ids.includes(payload.domainId)) return;
+      settle(payload.domainId, { status: 'loaded', permissions: new Set(payload.permissions), role: payload.role });
     };
 
     const unsubscribe: () => void = eventEmitter.on('user:permissions:loaded', onLoaded);
 
     const timer: NodeJS.Timeout = setTimeout((): void => {
-      if (settled) return;
-      // A silent timeout would leave the matrix showing defaults for ever,
+      // A silent timeout would leave the editor showing defaults for ever,
       // which is exactly the state this hook exists to make impossible.
-      setLoad({
-        status: 'failed',
-        reason: 'The server did not answer. These may not be the current permissions.',
-      });
+      for (const id of ids) {
+        if (!settled.has(id)) settle(id, { status: 'failed', reason: 'The server did not answer. These may not be the current permissions.' });
+      }
     }, TIMEOUT.PERMISSION_FETCH_MS);
 
-    runAsyncSetup(async () => {
-      try {
-        await WorkspaceService.getUserPermissions(userId, domainId);
-      } catch (error) {
-        debugLog('PermissionManager', 'Error loading permissions:', error);
-        settled = true;
-        setLoad({
-          status: 'failed',
-          reason: error instanceof Error ? error.message : 'Could not load permissions.',
-        });
-      }
-    });
+    for (const id of ids) {
+      runAsyncSetup(async () => {
+        try {
+          await WorkspaceService.getUserPermissions(userId, id);
+        } catch (error) {
+          debugLog('PermissionManager', 'Error loading permissions:', error);
+          // An answer already in is the server's word; a late failure to send cannot unsay it.
+          if (!settled.has(id)) settle(id, { status: 'failed', reason: error instanceof Error ? error.message : 'Could not load permissions.' });
+        }
+      });
+    }
 
     return (): void => {
       unsubscribe();
       clearTimeout(timer);
     };
-  }, [userId, domainId]);
+  }, [userId, key]);
 
-  return load;
+  return loads;
 }
