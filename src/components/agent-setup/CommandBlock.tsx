@@ -29,6 +29,8 @@ interface CommandBlockProps {
  */
 export const CommandBlock: React.FC<CommandBlockProps> = ({ command, regionLabel, copyLabel }) => {
   const { copied, copy } = useCopyToClipboard();
+  // The result is not needed here: a refusal is toasted by useCopyToClipboard,
+  // and success shows as the control's `copied` tick.
   const handleCopy = (): void => { void copy(command); };
 
   return (

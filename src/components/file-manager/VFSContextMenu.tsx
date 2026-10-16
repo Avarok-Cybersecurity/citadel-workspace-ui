@@ -1,46 +1,41 @@
+/**
+ * The three right-click menus: a file, a folder, and the empty canvas.
+ *
+ * File: Preview, Download, Share, Rename, Move to, Copy link, Delete.
+ * Folder: Open, Share folder, Rename, Move to, Delete.
+ * Canvas: New folder, Upload, Paste, Refresh.
+ *
+ * A key is shown beside an action only where the keyboard handler answers it
+ * (vfs-shortcuts.ts), and Escape closes the menu (Radix). What a file's state
+ * forbids is left out rather than offered and refused: the state predicates in
+ * lib/revfs/file-states.ts decide, as the handlers do.
+ */
+import type { ReactNode } from 'react';
 import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuShortcut,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
-import { VFS_SHORTCUTS, shortcutLabel, ariaShortcut, isApplePlatform, type VfsShortcut } from "./vfs-shortcuts";
+  ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuShortcut, ContextMenuTrigger,
+} from '@/components/ui/context-menu';
 import {
-  FolderPlus,
-  Trash2,
-  Download,
-  Info,
-  FileUp,
-  FolderOpen,
-  Pencil,
-  Scissors,
-  Copy,
-  ClipboardPaste,
-} from "lucide-react";
-import { RevfsFileState, PROTECTED_DIRS , type RevfsNode } from "@/types/revfs-types";
-import type { ReactNode } from "react";
-import { isDeletableState, isDownloadableState } from "@/lib/revfs/file-states";
+  ClipboardPaste, Download, Eye, FileUp, FolderInput, FolderOpen, FolderPlus, Link2, Pencil, RefreshCw, Share2, Trash2,
+} from 'lucide-react';
+import { RevfsFileState, type RevfsNode } from '@/types/revfs-types';
+import { canDelete, canDownload, canModify } from './item-permissions';
+import { VFS_SHORTCUTS, shortcutLabel, ariaShortcut, isApplePlatform, type VfsShortcut } from './vfs-shortcuts';
+import type { VFSItemActions } from './vfs-item-actions';
 
 interface VFSContextMenuProps {
+  /** The item right-clicked, or null for the canvas. */
   node: RevfsNode | null;
+  /** The open folder: where the canvas menu creates, uploads and pastes. */
+  folder: string;
+  actions: VFSItemActions;
+  hasPasteItems: boolean;
+  /** Rename is done in place, by the list or grid that owns the item. */
+  onStartRename: (node: RevfsNode) => void;
   children: ReactNode;
-  onNewFolder: () => void;
-  onDelete: () => void;
-  onDownload: () => void;
-  onUploadFile: () => void;
-  onInfo: () => void;
-  onRename?: () => void;
-  onCut?: () => void;
-  onCopy?: () => void;
-  onPaste?: () => void;
-  hasPasteItems?: boolean;
 }
 
 const APPLE: boolean = typeof navigator !== 'undefined' && isApplePlatform(navigator);
 
-/** The key beside an action, and the same for assistive tech. */
 function keys(s: VfsShortcut): { 'aria-keyshortcuts': string } {
   return { 'aria-keyshortcuts': ariaShortcut(s, APPLE) };
 }
@@ -48,141 +43,111 @@ function Hint({ s }: { s: VfsShortcut }): JSX.Element {
   return <ContextMenuShortcut>{shortcutLabel(s, APPLE)}</ContextMenuShortcut>;
 }
 
-export function VFSContextMenu({
-  node,
-  children,
-  onNewFolder,
-  onDelete,
-  onDownload,
-  onUploadFile,
-  onInfo,
-  onRename,
-  onCut,
-  onCopy,
-  onPaste,
-  hasPasteItems = false,
-}: VFSContextMenuProps): JSX.Element {
-  const isProtected: boolean = node ? PROTECTED_DIRS.has(node.path) : false;
-  const isDir: boolean = !node || node.type === 'directory';
-  const isRoot: boolean = node?.path === '/';
-  const fileState: RevfsFileState | undefined = node?.fileState;
-  const canModify: boolean | null = node && !isProtected && !isRoot;
+const ITEM: string = 'cursor-pointer';
 
+function DeleteItem({ onSelect }: { onSelect: () => void }): JSX.Element {
+  return (
+    <ContextMenuItem onSelect={onSelect} data-testid="vfs-delete" {...keys(VFS_SHORTCUTS.remove)} className={`${ITEM} text-destructive-emphasis focus:text-destructive-emphasis`}>
+      <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />Delete<Hint s={VFS_SHORTCUTS.remove} />
+    </ContextMenuItem>
+  );
+}
+
+function FileItems({ node, actions, onStartRename }: { node: RevfsNode; actions: VFSItemActions; onStartRename: (n: RevfsNode) => void }): JSX.Element {
+  const modifiable: boolean = canModify(node);
+  return (
+    <>
+      <ContextMenuItem onSelect={() => actions.inspect(node)} {...keys(VFS_SHORTCUTS.preview)} className={ITEM}>
+        <Eye className="mr-2 h-4 w-4" aria-hidden="true" />Preview<Hint s={VFS_SHORTCUTS.preview} />
+      </ContextMenuItem>
+      {canDownload(node) && (
+        <ContextMenuItem onSelect={() => actions.download(node)} {...keys(VFS_SHORTCUTS.download)} className={ITEM}>
+          <Download className="mr-2 h-4 w-4" aria-hidden="true" />
+          {node.fileState === RevfsFileState.Received ? 'Open' : 'Download'}
+          <Hint s={VFS_SHORTCUTS.download} />
+        </ContextMenuItem>
+      )}
+      <ContextMenuItem onSelect={() => actions.share([node])} className={ITEM}>
+        <Share2 className="mr-2 h-4 w-4" aria-hidden="true" />Share…
+      </ContextMenuItem>
+      <ContextMenuSeparator />
+      {modifiable && (
+        <>
+          <ContextMenuItem onSelect={() => onStartRename(node)} {...keys(VFS_SHORTCUTS.rename)} className={ITEM}>
+            <Pencil className="mr-2 h-4 w-4" aria-hidden="true" />Rename<Hint s={VFS_SHORTCUTS.rename} />
+          </ContextMenuItem>
+          <ContextMenuItem onSelect={() => actions.moveTo([node])} className={ITEM}>
+            <FolderInput className="mr-2 h-4 w-4" aria-hidden="true" />Move to…
+          </ContextMenuItem>
+        </>
+      )}
+      <ContextMenuItem onSelect={() => actions.copyLink(node)} className={ITEM}>
+        <Link2 className="mr-2 h-4 w-4" aria-hidden="true" />Copy link
+      </ContextMenuItem>
+      {canDelete(node) && (<><ContextMenuSeparator /><DeleteItem onSelect={() => actions.remove([node])} /></>)}
+    </>
+  );
+}
+
+function FolderItems({ node, actions, onStartRename }: { node: RevfsNode; actions: VFSItemActions; onStartRename: (n: RevfsNode) => void }): JSX.Element {
+  const modifiable: boolean = canModify(node);
+  return (
+    <>
+      <ContextMenuItem onSelect={() => actions.openFolder(node.path)} className={ITEM}>
+        <FolderOpen className="mr-2 h-4 w-4" aria-hidden="true" />Open
+      </ContextMenuItem>
+      <ContextMenuItem onSelect={() => actions.share([node])} className={ITEM}>
+        <Share2 className="mr-2 h-4 w-4" aria-hidden="true" />Share folder
+      </ContextMenuItem>
+      {modifiable && (
+        <>
+          <ContextMenuSeparator />
+          <ContextMenuItem onSelect={() => onStartRename(node)} {...keys(VFS_SHORTCUTS.rename)} className={ITEM}>
+            <Pencil className="mr-2 h-4 w-4" aria-hidden="true" />Rename<Hint s={VFS_SHORTCUTS.rename} />
+          </ContextMenuItem>
+          <ContextMenuItem onSelect={() => actions.moveTo([node])} className={ITEM}>
+            <FolderInput className="mr-2 h-4 w-4" aria-hidden="true" />Move to…
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <DeleteItem onSelect={() => actions.remove([node])} />
+        </>
+      )}
+    </>
+  );
+}
+
+function CanvasItems({ folder, actions, hasPasteItems }: { folder: string; actions: VFSItemActions; hasPasteItems: boolean }): JSX.Element {
+  return (
+    <>
+      <ContextMenuItem onSelect={() => actions.newFolder(folder)} className={ITEM}>
+        <FolderPlus className="mr-2 h-4 w-4" aria-hidden="true" />New folder
+      </ContextMenuItem>
+      <ContextMenuItem onSelect={() => actions.upload(folder)} className={ITEM}>
+        <FileUp className="mr-2 h-4 w-4" aria-hidden="true" />Upload files
+      </ContextMenuItem>
+      {hasPasteItems && (
+        <ContextMenuItem onSelect={() => { void actions.paste(folder); }} {...keys(VFS_SHORTCUTS.paste)} className={ITEM}>
+          <ClipboardPaste className="mr-2 h-4 w-4" aria-hidden="true" />Paste<Hint s={VFS_SHORTCUTS.paste} />
+        </ContextMenuItem>
+      )}
+      <ContextMenuSeparator />
+      <ContextMenuItem onSelect={actions.refresh} className={ITEM}>
+        <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />Refresh
+      </ContextMenuItem>
+    </>
+  );
+}
+
+export function VFSContextMenu({ node, folder, actions, hasPasteItems, onStartRename, children }: VFSContextMenuProps): JSX.Element {
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
-      <ContextMenuContent className="w-48 bg-card text-foreground border-border">
-        {/* Directory actions */}
-        {isDir && (
-          <>
-            <ContextMenuItem onClick={onNewFolder} className="hover:bg-card cursor-pointer">
-              <FolderPlus className="mr-2 h-4 w-4" />
-              New Folder
-            </ContextMenuItem>
-            <ContextMenuItem onClick={onUploadFile} className="hover:bg-card cursor-pointer">
-              <FileUp className="mr-2 h-4 w-4" />
-              Upload File
-            </ContextMenuItem>
-            {hasPasteItems && onPaste && (
-              <ContextMenuItem onClick={onPaste} {...keys(VFS_SHORTCUTS.paste)} className="hover:bg-card cursor-pointer">
-                <ClipboardPaste className="mr-2 h-4 w-4" />
-                Paste
-                <Hint s={VFS_SHORTCUTS.paste} />
-              </ContextMenuItem>
-            )}
-            {canModify && (
-              <>
-                <ContextMenuSeparator className="bg-border" />
-                {onRename && (
-                  <ContextMenuItem onClick={onRename} {...keys(VFS_SHORTCUTS.rename)} className="hover:bg-card cursor-pointer">
-                    <Pencil className="mr-2 h-4 w-4" />
-                    Rename
-                    <Hint s={VFS_SHORTCUTS.rename} />
-                  </ContextMenuItem>
-                )}
-                {onCut && (
-                  <ContextMenuItem onClick={onCut} {...keys(VFS_SHORTCUTS.cut)} className="hover:bg-card cursor-pointer">
-                    <Scissors className="mr-2 h-4 w-4" />
-                    Cut
-                    <Hint s={VFS_SHORTCUTS.cut} />
-                  </ContextMenuItem>
-                )}
-                {onCopy && (
-                  <ContextMenuItem onClick={onCopy} {...keys(VFS_SHORTCUTS.copy)} className="hover:bg-card cursor-pointer">
-                    <Copy className="mr-2 h-4 w-4" />
-                    Copy
-                    <Hint s={VFS_SHORTCUTS.copy} />
-                  </ContextMenuItem>
-                )}
-                <ContextMenuSeparator className="bg-border" />
-                <ContextMenuItem onClick={onDelete} data-testid="vfs-delete" {...keys(VFS_SHORTCUTS.remove)} className="hover:bg-destructive/25 text-destructive cursor-pointer">
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete Folder
-                  <Hint s={VFS_SHORTCUTS.remove} />
-                </ContextMenuItem>
-              </>
-            )}
-          </>
-        )}
-
-        {/* File actions by state */}
-        {!isDir && (
-          <>
-            {/* Hosted too: the peer's file, which they send when asked (request-share.ts). */}
-            {(isDownloadableState(fileState) || fileState === RevfsFileState.Hosted) && fileState !== RevfsFileState.Received && (
-              <ContextMenuItem onClick={onDownload} className="hover:bg-card cursor-pointer">
-                <Download className="mr-2 h-4 w-4" />
-                Download
-              </ContextMenuItem>
-            )}
-            {fileState === RevfsFileState.Received && (
-              <ContextMenuItem onClick={onDownload} className="hover:bg-card cursor-pointer">
-                <FolderOpen className="mr-2 h-4 w-4" />
-                Open
-              </ContextMenuItem>
-            )}
-            <ContextMenuItem onClick={onInfo} className="hover:bg-card cursor-pointer">
-              <Info className="mr-2 h-4 w-4" />
-              Info
-            </ContextMenuItem>
-            {canModify && (
-              <>
-                <ContextMenuSeparator className="bg-border" />
-                {onRename && (
-                  <ContextMenuItem onClick={onRename} {...keys(VFS_SHORTCUTS.rename)} className="hover:bg-card cursor-pointer">
-                    <Pencil className="mr-2 h-4 w-4" />
-                    Rename
-                    <Hint s={VFS_SHORTCUTS.rename} />
-                  </ContextMenuItem>
-                )}
-                {onCut && (
-                  <ContextMenuItem onClick={onCut} {...keys(VFS_SHORTCUTS.cut)} className="hover:bg-card cursor-pointer">
-                    <Scissors className="mr-2 h-4 w-4" />
-                    Cut
-                    <Hint s={VFS_SHORTCUTS.cut} />
-                  </ContextMenuItem>
-                )}
-                {onCopy && (
-                  <ContextMenuItem onClick={onCopy} {...keys(VFS_SHORTCUTS.copy)} className="hover:bg-card cursor-pointer">
-                    <Copy className="mr-2 h-4 w-4" />
-                    Copy
-                    <Hint s={VFS_SHORTCUTS.copy} />
-                  </ContextMenuItem>
-                )}
-              </>
-            )}
-            {isDeletableState(fileState) && (
-              <>
-                <ContextMenuSeparator className="bg-border" />
-                <ContextMenuItem onClick={onDelete} data-testid="vfs-delete" {...keys(VFS_SHORTCUTS.remove)} className="hover:bg-destructive/25 text-destructive cursor-pointer">
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete
-                  <Hint s={VFS_SHORTCUTS.remove} />
-                </ContextMenuItem>
-              </>
-            )}
-          </>
-        )}
+      {/* A right-opening menu cannot shift sideways, and a long-press mid-row on a phone leaves no side
+          wide enough for 224px: it is capped at the room Radix measures, so it never runs off the screen. */}
+      <ContextMenuContent className="w-56 max-w-[var(--radix-context-menu-content-available-width)]" collisionPadding={8}>
+        {node === null && <CanvasItems folder={folder} actions={actions} hasPasteItems={hasPasteItems} />}
+        {node?.type === 'directory' && <FolderItems node={node} actions={actions} onStartRename={onStartRename} />}
+        {node?.type === 'file' && <FileItems node={node} actions={actions} onStartRename={onStartRename} />}
       </ContextMenuContent>
     </ContextMenu>
   );

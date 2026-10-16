@@ -1,30 +1,30 @@
 import { useEffect, useCallback } from "react";
-import { PROTECTED_DIRS , type RevfsNode } from "@/types/revfs-types";
-import { findNodeByPath } from "./vfs-content-helpers";
+import type { RevfsNode } from "@/types/revfs-types";
+import { findNodeByPath } from "@/lib/revfs/tree-operations";
 import { VFS_SHORTCUTS, matchesShortcut, isForeignKeyTarget, type VfsShortcut } from "./vfs-shortcuts";
+import { canDelete, canDownload, canModify } from './item-permissions';
+import type { VFSItemActions } from './vfs-item-actions';
 
 interface KeyboardShortcutsDeps {
   tree: RevfsNode;
-  selectedPaths: Set<string>;
+  selectedPaths: ReadonlySet<string>;
   renamingPath: string | null;
   currentPath: string;
   hasPasteItems: boolean;
+  actions: VFSItemActions;
   setRenamingPath: (path: string | null) => void;
-  onDelete: (node: RevfsNode) => void;
-  onDeleteMultiple?: (nodes: RevfsNode[]) => void;
-  onCopy: (node: RevfsNode) => void;
-  onCopyMultiple?: (nodes: RevfsNode[]) => void;
-  onCut: (node: RevfsNode) => void;
-  onCutMultiple?: (nodes: RevfsNode[]) => void;
-  onPaste: (destPath: string) => Promise<void>;
-  onSelectAll?: () => void;
-  onClearSelection?: () => void;
+  onSelectAll: () => void;
+  onClearSelection: () => void;
 }
 
+/**
+ * The file manager's keys, answering exactly what vfs-shortcuts.ts lists and the
+ * menus advertise. Space is not here: the focused item answers it (it selects,
+ * and the selection is what the inspector shows).
+ */
 export function useVFSKeyboardShortcuts({
   tree, selectedPaths, renamingPath, currentPath, hasPasteItems,
-  setRenamingPath, onDelete, onDeleteMultiple, onCopy, onCopyMultiple,
-  onCut, onCutMultiple, onPaste, onSelectAll, onClearSelection,
+  actions, setRenamingPath, onSelectAll, onClearSelection,
 }: KeyboardShortcutsDeps): void {
   const getSelectedNodes: () => RevfsNode[] = useCallback((): RevfsNode[] => {
     return Array.from(selectedPaths)
@@ -37,7 +37,7 @@ export function useVFSKeyboardShortcuts({
       if (renamingPath || isForeignKeyTarget(e.target)) return;
 
       const selected: RevfsNode[] = getSelectedNodes();
-      const modifiable: RevfsNode[] = selected.filter(n => !PROTECTED_DIRS.has(n.path) && n.path !== '/');
+      const modifiable: RevfsNode[] = selected.filter(canModify);
       const on = (s: VfsShortcut): boolean => matchesShortcut(e, s);
 
       if (on(VFS_SHORTCUTS.rename)) {
@@ -45,39 +45,28 @@ export function useVFSKeyboardShortcuts({
           e.preventDefault();
           setRenamingPath(modifiable[0].path);
         }
+      } else if (on(VFS_SHORTCUTS.download)) {
+        if (selected.length === 1 && canDownload(selected[0])) {
+          e.preventDefault();
+          actions.download(selected[0]);
+        }
       } else if (on(VFS_SHORTCUTS.remove)) {
-        if (selected.length > 0) {
-          e.preventDefault();
-          if (modifiable.length > 1 && onDeleteMultiple) onDeleteMultiple(modifiable);
-          else if (modifiable.length === 1) onDelete(modifiable[0]);
-        }
+        const deletable: RevfsNode[] = selected.filter(canDelete);
+        if (deletable.length > 0) { e.preventDefault(); actions.remove(deletable); }
       } else if (on(VFS_SHORTCUTS.copy)) {
-        if (selected.length > 0) {
-          e.preventDefault();
-          if (modifiable.length > 1 && onCopyMultiple) onCopyMultiple(modifiable);
-          else if (modifiable.length === 1) onCopy(modifiable[0]);
-        }
+        if (modifiable.length > 0) { e.preventDefault(); actions.copy(modifiable); }
       } else if (on(VFS_SHORTCUTS.cut)) {
-        if (selected.length > 0) {
-          e.preventDefault();
-          if (modifiable.length > 1 && onCutMultiple) onCutMultiple(modifiable);
-          else if (modifiable.length === 1) onCut(modifiable[0]);
-        }
+        if (modifiable.length > 0) { e.preventDefault(); actions.cut(modifiable); }
       } else if (on(VFS_SHORTCUTS.paste)) {
-        if (hasPasteItems) { e.preventDefault(); void onPaste(currentPath); }
+        if (hasPasteItems) { e.preventDefault(); void actions.paste(currentPath); }
       } else if (on(VFS_SHORTCUTS.selectAll)) {
-        e.preventDefault(); onSelectAll?.();
+        e.preventDefault(); onSelectAll();
       } else if (on(VFS_SHORTCUTS.clear)) {
-        e.preventDefault(); onClearSelection?.();
+        if (selected.length > 0) { e.preventDefault(); onClearSelection(); }
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return (): void => document.removeEventListener('keydown', handleKeyDown);
-  }, [
-    renamingPath, getSelectedNodes, currentPath, hasPasteItems,
-    onDelete, onDeleteMultiple, onCopy, onCopyMultiple,
-    onCut, onCutMultiple, onPaste, onSelectAll, onClearSelection,
-    setRenamingPath,
-  ]);
+  }, [renamingPath, getSelectedNodes, currentPath, hasPasteItems, actions, onSelectAll, onClearSelection, setRenamingPath]);
 }

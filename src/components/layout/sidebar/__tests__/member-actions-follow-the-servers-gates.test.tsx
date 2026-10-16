@@ -58,7 +58,7 @@ function openMenu(blocks: MemberActionBlocks): void {
     <DropdownMenu open>
       <DropdownMenuTrigger>open</DropdownMenuTrigger>
       <DropdownMenuContent>
-        <MemberActionItems blocks={blocks} onManagePermissions={() => undefined} onEditMember={() => undefined} onRemoveMember={() => undefined} />
+        <MemberActionItems blocks={blocks} onOpenFiles={null} onManagePermissions={() => undefined} onEditMember={() => undefined} onRemoveMember={() => undefined} />
       </DropdownMenuContent>
     </DropdownMenu>,
   );

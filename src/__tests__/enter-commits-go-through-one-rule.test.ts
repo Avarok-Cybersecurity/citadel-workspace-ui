@@ -29,8 +29,8 @@ const SRC: string = join(process.cwd(), 'src');
 const EXEMPT: Record<string, string> = {
   'components/layout/sidebar/FocusedTree/useTreeKeyboard.ts':
     'Enter/Space activates a tree row; the row is not a text field',
-  'components/file-manager/VFSGridItem.tsx':
-    'Enter opens a directory tile; the tile is not a text field',
+  'components/file-manager/useItemActivation.ts':
+    'Enter opens a list row or grid tile; neither is a text field',
   'lib/keyboard-commit.ts': 'the shared rule itself',
 };
 

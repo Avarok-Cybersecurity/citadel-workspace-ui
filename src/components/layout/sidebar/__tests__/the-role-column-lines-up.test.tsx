@@ -25,7 +25,7 @@ function renderRows(members: WorkspaceMember[], currentUsername: string): void {
   render(
     <SidebarProvider>
       <TooltipProvider>
-        <MemberListItems members={members} blocks={{ managePermissions: null, changeRole: null, remove: null }} nameOfLevel={(id: string): string => id} currentUsername={currentUsername} onEditMember={vi.fn()} openChatWith={(): null => null} onRemoveMember={vi.fn()} onManagePermissions={vi.fn()} onShowAllMembers={vi.fn()} />
+        <MemberListItems members={members} blocks={{ managePermissions: null, changeRole: null, remove: null }} nameOfLevel={(id: string): string => id} currentUsername={currentUsername} onEditMember={vi.fn()} openFilesOf={() => null} openChatWith={(): null => null} onRemoveMember={vi.fn()} onManagePermissions={vi.fn()} onShowAllMembers={vi.fn()} />
       </TooltipProvider>
     </SidebarProvider>,
   );

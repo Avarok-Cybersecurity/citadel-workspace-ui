@@ -17,6 +17,7 @@ import { useChatFileSend, type ChatFileSend } from './hooks/use-chat-file-send';
 import { ChatDropTarget } from './ChatDropTarget';
 import { ChatSettingsPanel } from './ChatSettingsPanel';
 import { P2PChatHeader } from './P2PChatHeader';
+import { usePeerFilesOpener } from './hooks/use-peer-files-opener';
 import { CallStage } from '@/components/call/CallStage';
 import { useDirectCall } from './hooks/use-direct-call';
 import { P2PMessageList } from './P2PMessageList';
@@ -131,6 +132,7 @@ export function P2PChat({
   const pause: PeerPauseBinding = usePeerPause(peerCid);
   const paused: boolean = pause.status === 'paused';
   const fileSend: ChatFileSend = useChatFileSend({ peerCid, peerName, viewingDocument: activeTab?.type === 'live_document', paused });
+  const openFiles: (() => void) | null = usePeerFilesOpener(peerCid, isRegistered);
 
   // Mark notifications as read when viewing conversation
   useEffect(() => {
@@ -157,6 +159,7 @@ export function P2PChat({
         connectionRoute={connectionRoute}
         supervisor={supervisor}
         onSettingsClick={() => setShowSettingsModal(true)}
+        onOpenFiles={openFiles}
         call={{
           canCall: isConnected,
           inCall: callBinding.active,

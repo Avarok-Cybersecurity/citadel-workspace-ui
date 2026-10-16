@@ -38,7 +38,7 @@ function inWorkspace(children: ReactElement, member: WorkspaceMember = ADA): Rea
 
 const header: ReactElement = (
   <P2PChatHeader peerName="Ada Lovelace" peerUsername="ada" peerPresence={ONLINE} peerTyping={false} paused={false}
-    isConnected isRegistered connectionRoute={null} supervisor={null} onSettingsClick={vi.fn()} />
+    isConnected isRegistered connectionRoute={null} supervisor={null} onSettingsClick={vi.fn()} onOpenFiles={null} />
 );
 
 describe('the P2P conversation header', () => {

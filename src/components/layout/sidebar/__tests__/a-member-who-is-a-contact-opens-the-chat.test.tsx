@@ -26,7 +26,7 @@ describe('a member row', () => {
     render(
       <SidebarProvider><TooltipProvider>
         <MemberListItems members={[member('thomas'), member('stranger')]} blocks={{ managePermissions: null, changeRole: null, remove: null }}
-          nameOfLevel={(id: string): string => id} openChatWith={openChatWith} currentUsername="me"
+          nameOfLevel={(id: string): string => id} openFilesOf={() => null} openChatWith={openChatWith} currentUsername="me"
           onEditMember={vi.fn()} onRemoveMember={vi.fn()} onManagePermissions={vi.fn()} onShowAllMembers={vi.fn()} />
       </TooltipProvider></SidebarProvider>,
     );

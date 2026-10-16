@@ -51,7 +51,8 @@ interface HandlerDeps {
   setRevfsDisabledModalOpen: (open: boolean) => void;
   setAttemptedFileSize: (size: number) => void;
   setStorageLimitModalOpen: (open: boolean) => void;
-  setPropertiesNode: (node: RevfsNode | null) => void;
+  /** Show an item in the inspector. */
+  inspect: (node: RevfsNode) => void;
   /** Named in the download toasts and the FILES list: whose storage it came from. */
   storageLabel: string;
   downloadHistory: RevfsDownloadHistory;
@@ -65,9 +66,9 @@ export function useFileManagerHandlers({
   myCid, storageUsed, storageQuota, revfsEnabled, storageMode, selectedPeerCid,
   tree, currentPath, filterText, fileInputRef,
   chooseUploadTarget, setRevfsDisabledReason, setRevfsDisabledModalOpen,
-  setAttemptedFileSize, setStorageLimitModalOpen, setPropertiesNode,
+  setAttemptedFileSize, setStorageLimitModalOpen, inspect,
   storageLabel, downloadHistory, showFile,
-}: HandlerDeps): { handleNewFolder: (parentPath: string) => Promise<void>; handleDelete: (node: RevfsNode) => Promise<void>; handleDownload: (node: RevfsNode) => void; handleUploadFile: (dirPath: string) => void; handleInfo: (node: RevfsNode) => void; handleRename: (path: string, newName: string) => Promise<void>; handleCut: (node: RevfsNode) => void; handleCopy: (node: RevfsNode) => void; handlePaste: (destPath: string) => Promise<void>; handleDeleteMultiple: (nodes: RevfsNode[]) => Promise<void>; handleCutMultiple: (nodes: RevfsNode[]) => void; handleCopyMultiple: (nodes: RevfsNode[]) => void; handleSelectAll: () => void; handleDrop: (targetPath: string, files: FileList) => Promise<void>; handleSync: () => Promise<void>; } {
+}: HandlerDeps): { handleNewFolder: (parentPath: string) => Promise<void>; handleDelete: (node: RevfsNode) => Promise<void>; handleDownload: (node: RevfsNode) => void; handleUploadFile: (dirPath: string) => void; handleInfo: (node: RevfsNode) => void; handleRename: (path: string, newName: string) => Promise<void>; handleCut: (node: RevfsNode) => void; handleCopy: (node: RevfsNode) => void; handlePaste: (destPath: string) => Promise<void>; handleDeleteMultiple: (nodes: RevfsNode[]) => Promise<void>; handleCutMultiple: (nodes: RevfsNode[]) => void; handleCopyMultiple: (nodes: RevfsNode[]) => void; handleSelectAll: () => void; handleDrop: (targetPath: string, files: FileList) => Promise<void>; handleSync: () => Promise<void>; handleMove: (nodes: RevfsNode[], destination: string) => Promise<void>; } {
   const prompt: ReturnType<typeof usePrompt> = usePrompt();
 
   const handleNewFolder: (parentPath: string) => Promise<void> = useCallback(async (parentPath: string): Promise<void> => {
@@ -104,9 +105,7 @@ export function useFileManagerHandlers({
     fileInputRef.current?.click();
   }, [chooseUploadTarget, fileInputRef]);
 
-  const handleInfo: (node: RevfsNode) => void = useCallback((node: RevfsNode): void => {
-    setPropertiesNode(node);
-  }, [setPropertiesNode]);
+  const handleInfo: (node: RevfsNode) => void = inspect;
 
   const handleRename: (path: string, newName: string) => Promise<void> = useCallback(async (path: string, newName: string): Promise<void> => {
     try {
@@ -150,6 +149,16 @@ export function useFileManagerHandlers({
     }
   }, [hasPasteItems, currentTreeKey, clipboard, isCut, move, copy, clearClipboard]);
 
+  // "Move to…": every item must land for it to be reported as moved, as Paste.
+  const handleMove: (nodes: RevfsNode[], destination: string) => Promise<void> = useCallback(async (nodes: RevfsNode[], destination: string): Promise<void> => {
+    try {
+      let allAcknowledged: boolean = true;
+      for (const node of nodes) allAcknowledged = (await move(node.path, destination)) && allAcknowledged;
+      reportDelivery(allAcknowledged, `Moved ${nodes.length === 1 ? nodes[0].name : `${nodes.length} items`}`);
+    } catch (err) {
+      toast.error(`Failed to move: ${describeError(err)}`);
+    }
+  }, [move]);
 
   const { handleDelete, handleDeleteMultiple } =
     useFileManagerDeleteHandlers({ rmdir, removeFile, clearSelection });
@@ -206,6 +215,6 @@ export function useFileManagerHandlers({
     handleNewFolder, handleDelete, handleDownload, handleUploadFile, handleInfo,
     handleRename, handleCut, handleCopy, handlePaste,
     handleDeleteMultiple, handleCutMultiple, handleCopyMultiple,
-    handleSelectAll, handleDrop, handleSync,
+    handleSelectAll, handleDrop, handleSync, handleMove,
   };
 }

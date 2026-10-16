@@ -1,10 +1,10 @@
 /**
- * The file manager lists the peers the rest of the app lists.
+ * The file manager opens the storage the address names, and no other.
  *
- * It read the registration service's in-memory cache, which only a
- * registration seen in THIS tab fills, and a CID from the global connection,
- * which a tab that resumed its session lacks for seconds. So with a registered,
- * online peer it showed "Connecting..." and then "No Peers Connected".
+ * It picked `registeredPeers[0]` whenever nothing was chosen, so the sidebar's
+ * File Manager opened on whichever member sorted first ("Alexander Derkatsch
+ * Storage"). Now the address says whose storage it is; the sidebar sends the
+ * server, and a peer link opens that peer -- or says it cannot.
  *
  * Mocked: `useRegisteredPeers` and `getCurrentCid` query the agent, and the two
  * tree hooks open RE-VFS sessions. What is under test is which sources the file
@@ -12,6 +12,8 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import { TreeScope } from '@/types/revfs-types';
 import { fileManagerScreen, type FileManagerScreenInputs } from '../file-manager-screen';
 
@@ -20,13 +22,16 @@ const noTree: Record<string, unknown> = vi.hoisted((): Record<string, unknown> =
   return {
     tree: null, loading: true, error: null, storageUsed: 0, storageQuota: 0, revfsEnabled: true,
     mkdir: ok, rmdir: ok, uploadFile: ok, downloadFile: (): Promise<undefined> => Promise.resolve(undefined),
-    removeFile: ok, rename: ok, move: ok, copy: ok, refresh: (): Promise<void> => Promise.resolve(),
+    removeFile: ok, rename: ok, move: ok, copy: ok, refresh: (): Promise<void> => Promise.resolve(), pendingPaths: new Set<string>(),
   };
 });
 
 vi.mock('@/hooks/use-registered-peers', () => ({
   useRegisteredPeers: (): Record<string, unknown> => ({
-    registeredPeers: [{ cid: '42', username: 'Bob Stone', isOnline: true, isConnected: true, connectionPath: null }],
+    registeredPeers: [
+      { cid: '42', username: 'alexander', displayName: 'Alexander Derkatsch', isOnline: true, isConnected: true, connectionPath: null },
+      { cid: '43', username: 'bob', displayName: 'Bob Stone', isOnline: true, isConnected: false, connectionPath: null },
+    ],
     isLoading: false,
     refreshPeers: (): Promise<void> => Promise.resolve(),
   }),
@@ -39,42 +44,75 @@ vi.mock('@/hooks/useRevfsTree', () => ({
   useServerRevfsTree: (): Record<string, unknown> => noTree,
 }));
 
-import { useFileManagerContent } from '../useFileManagerContent';
+import { useFileManagerContent, type UseFileManagerContentResult } from '../useFileManagerContent';
 import { PromptDialogProvider } from '@/components/shared/prompt-dialog';
 import { ConfirmDialogProvider } from '@/components/shared/confirm-dialog';
-import type { ReactNode } from 'react';
+
+function openAt(route: string): { current: UseFileManagerContentResult } {
+  const { result } = renderHook(() => useFileManagerContent(), {
+    wrapper: ({ children }: { children: ReactNode }): JSX.Element => (
+      <MemoryRouter initialEntries={[route]}>
+        <ConfirmDialogProvider><PromptDialogProvider>{children}</PromptDialogProvider></ConfirmDialogProvider>
+      </MemoryRouter>
+    ),
+  });
+  return result;
+}
 
 describe('the file manager', () => {
-  it('knows its own session and selects the registered peer', async () => {
-    const { result } = renderHook(() => useFileManagerContent(), {
-      wrapper: ({ children }: { children: ReactNode }): JSX.Element => <ConfirmDialogProvider><PromptDialogProvider>{children}</PromptDialogProvider></ConfirmDialogProvider>,
-    });
-
+  it('opens the server, not the first registered peer, when the address names neither', async () => {
+    const result: { current: UseFileManagerContentResult } = openAt('/workspace?section=files');
     await waitFor(() => expect(result.current.myCid).toBe(7n));
-    expect(result.current.registeredPeers).toEqual([{ cid: 42n, username: 'Bob Stone' }]);
-    await waitFor(() => expect(result.current.selectedPeerCid).toBe(42n));
+    expect(result.current.storageMode).toBe(TreeScope.Server);
+    expect(result.current.selectedPeerCid).toBeNull();
+    expect(result.current.currentPath).toBe('/');
+  });
+
+  it('opens the peer and the folder a link names', async () => {
+    const result: { current: UseFileManagerContentResult } = openAt('/workspace?section=files&peer_id=43&path=/Docs');
+    await waitFor(() => expect(result.current.selectedPeerCid).toBe(43n));
+    expect(result.current.storageMode).toBe(TreeScope.Peer);
+    expect(result.current.currentPath).toBe('/Docs');
+    expect(result.current.storageName).toBe('Shared with Bob Stone');
+  });
+
+  it('keeps the connection state of each peer, for the status strip', async () => {
+    const result: { current: UseFileManagerContentResult } = openAt('/workspace?section=files');
+    await waitFor(() => expect(result.current.myCid).toBe(7n));
+    expect(result.current.registeredPeers.map((p) => [p.cid, p.isConnected])).toEqual([[42n, true], [43n, false]]);
+  });
+
+  it('opens no peer for a CID that is not registered', async () => {
+    const result: { current: UseFileManagerContentResult } = openAt('/workspace?section=files&peer_id=99');
+    await waitFor(() => expect(result.current.myCid).toBe(7n));
+    expect(result.current.peerRegistered).toBe(false);
+    expect(result.current.selectedPeerCid).toBeNull();
   });
 });
 
 describe('which screen it shows', () => {
   const base: FileManagerScreenInputs = {
-    myCid: 7n, storageMode: TreeScope.Peer, peersLoading: false, peerCount: 1,
-    selectedPeerCid: 42n, treeLoading: false, hasError: false, hasTree: true,
+    myCid: 7n, storage: { kind: 'peer', cid: 42n }, peersLoading: false, peerRegistered: true,
+    treeLoading: false, hasError: false, hasTree: true,
   };
 
-  it('does not say "no peers" while the list is still loading', () => {
-    expect(fileManagerScreen({ ...base, peerCount: 0, peersLoading: true, selectedPeerCid: null })).toBe('finding-peers');
+  it('does not call a peer unknown while the list is still loading', () => {
+    expect(fileManagerScreen({ ...base, peerRegistered: false, peersLoading: true })).toBe('finding-peers');
   });
 
-  it('does not say "no peers" in the moment before a peer is selected', () => {
-    expect(fileManagerScreen({ ...base, selectedPeerCid: null })).toBe('finding-peers');
+  it('calls a peer unknown once the loaded list does not have them', () => {
+    expect(fileManagerScreen({ ...base, peerRegistered: false })).toBe('unknown-peer');
   });
 
-  it('says "no peers" only when the loaded list is empty', () => {
-    expect(fileManagerScreen({ ...base, peerCount: 0, selectedPeerCid: null })).toBe('no-peers');
+  it('calls an unreadable id unknown, never the server', () => {
+    expect(fileManagerScreen({ ...base, storage: { kind: 'invalid', raw: 'bob' } })).toBe('unknown-peer');
+  });
+
+  it('does not open "your storage with yourself"', () => {
+    expect(fileManagerScreen({ ...base, storage: { kind: 'peer', cid: 7n } })).toBe('unknown-peer');
   });
 
   it('needs no peer for server storage', () => {
-    expect(fileManagerScreen({ ...base, storageMode: TreeScope.Server, peerCount: 0, selectedPeerCid: null })).toBe('browser');
+    expect(fileManagerScreen({ ...base, storage: { kind: 'server' }, peerRegistered: false })).toBe('browser');
   });
 });

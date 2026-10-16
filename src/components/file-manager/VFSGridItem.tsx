@@ -1,215 +1,61 @@
-import { useState } from "react";
-import { Folder, FolderLock, type LucideIcon } from "lucide-react";
-import { PROTECTED_DIRS , type RevfsNode } from "@/types/revfs-types";
-import { isDownloadableState } from "@/lib/revfs/file-states";
-import type { SelectMode } from "@/hooks/useVFSSelection";
-import { VFSContextMenu } from "./VFSContextMenu";
-import { VFSRenameInput } from "./VFSRenameInput";
-import { cn } from "@/lib/utils";
-import { getFileIcon, formatSize, stateConfig, type FileIcon, type FileStateStyle } from "./vfs-content-helpers";
-import { activateOnKey } from '@/lib/a11y';
+/**
+ * One item as a tile: icon, name, size and date, and the E2E lock in peer storage.
+ * Behaviour is useItemActivation's, shared with the list row.
+ */
+import { isDownloadableState } from '@/lib/revfs/file-states';
+import { cn } from '@/lib/utils';
+import { VFSContextMenu } from './VFSContextMenu';
+import { VFSRenameInput } from './VFSRenameInput';
+import { E2ELock, ItemIcon, PendingMark } from './ItemGlyphs';
+import { formatSize } from './item-format';
+import { useItemActivation, type ItemActivation } from './useItemActivation';
+import { folderSummary, openTitle, type VFSItemViewProps } from './vfs-item-view';
 
-export interface GridItemProps {
-  node: RevfsNode;
-  isRenaming: boolean;
-  isCutItem: boolean;
-  /** The peer whose confirmation this item awaits, or null. */
-  pendingPeer: string | null;
-  isSelected: boolean;
-  onNavigate: (path: string) => void;
-  onNewFolder: (parentPath: string) => void;
-  onDelete: (node: RevfsNode) => void;
-  onDownload: (node: RevfsNode) => void;
-  onUploadFile: (dirPath: string) => void;
-  onInfo: (node: RevfsNode) => void;
-  onRename: (node: RevfsNode) => void;
-  onRenameConfirm: (node: RevfsNode, newName: string) => void;
-  onRenameCancel: () => void;
-  onCut: (node: RevfsNode) => void;
-  onCopy: (node: RevfsNode) => void;
-  onPaste: (node: RevfsNode) => void;
-  onDrop: (targetPath: string, files: FileList) => void;
-  onSelect: (path: string, mode: SelectMode) => void;
-  hasPasteItems: boolean;
-}
-
-export function GridItem({
-  node,
-  isRenaming,
-  isCutItem,
-  pendingPeer,
-  isSelected,
-  onNavigate,
-  onNewFolder,
-  onDelete,
-  onDownload,
-  onUploadFile,
-  onInfo,
-  onRename,
-  onRenameConfirm,
-  onRenameCancel,
-  onCut,
-  onCopy,
-  onPaste,
-  onDrop,
-  onSelect,
-  hasPasteItems,
-}: GridItemProps): JSX.Element {
-  const [dragOver, setDragOver] = useState(false);
+export function GridItem(props: VFSItemViewProps): JSX.Element {
+  const { node, actions, folder, isRenaming, isCut, pendingPeer, isSelected, isP2P, modified, hasPasteItems, onSelect, onStartRename, onRenameCancel } = props;
+  const act: ItemActivation = useItemActivation(node, actions, onSelect);
   const isDir: boolean = node.type === 'directory';
-  const isProtected: boolean = PROTECTED_DIRS.has(node.path);
-  const isRoot: boolean = node.path === '/';
-  const canModify: boolean = !isProtected && !isRoot;
-
-  const Icon: FileIcon = isDir
-    ? (isProtected ? FolderLock : Folder)
-    : getFileIcon(node.name);
-
-  // Opening is an explicit act: double-click, Enter, or a tap where there is no
-  // hover. A single click on a file used to START A DOWNLOAD as well as select
-  // it, so selecting a file to cut, copy or inspect pulled it from the peer.
-  const opensOnActivate: boolean = !isDir && isDownloadableState(node.fileState);
-  const handleDoubleClick = (): void => {
-    if (isDir) onNavigate(node.path);
-    else if (opensOnActivate) onDownload(node);
-  };
-
-  /**
-   * Opening a folder was double-click ONLY.
-   *
-   * Keyboard activation ran `handleClick`, which selects — so a keyboard user
-   * could select a folder and never enter it. And a synthesized `dblclick` is
-   * unreliable on iOS, so on touch the grid was effectively navigation-dead;
-   * the tree sidebar was the only way to move around, and it lists directories
-   * alone.
-   *
-   * Enter opens, Space selects — the convention every file manager uses.
-   */
-  const handleKeyDown = (e: React.KeyboardEvent): void => {
-    if ((isDir || opensOnActivate) && e.key === 'Enter') {
-      e.preventDefault();
-      e.stopPropagation();
-      handleDoubleClick();
-      return;
-    }
-    activateOnKey(handleClick)(e);
-  };
-
-  // A single tap opens a folder where there is no hover and no reliable
-  // double-tap. Guarded on the pointer, not on viewport width: a tablet at
-  // desktop width still has no mouse.
-  const isCoarsePointer: boolean =
-    typeof window !== 'undefined' &&
-    typeof window.matchMedia === 'function' &&
-    window.matchMedia('(hover: none)').matches;
-
-  const handleClickOrOpen = (e: React.MouseEvent): void => {
-    if ((isDir || opensOnActivate) && isCoarsePointer) {
-      handleDoubleClick();
-      return;
-    }
-    handleClick(e);
-  };
-
-  // Widened from MouseEvent: this is now also the keyboard activation handler,
-  // and every property it reads (stopPropagation, ctrlKey/metaKey/shiftKey for
-  // the selection mode) exists on both event types.
-  const handleClick = (e: React.MouseEvent | React.KeyboardEvent): void => {
-    e.stopPropagation();
-    let mode: SelectMode = 'replace';
-    if (e.ctrlKey || e.metaKey) {
-      mode = 'toggle';
-    } else if (e.shiftKey) {
-      mode = 'range';
-    }
-    onSelect(node.path, mode);
-  };
-
-  const handleDragOver = (e: React.DragEvent): void => {
-    if (isDir) {
-      e.preventDefault();
-      e.stopPropagation();
-      setDragOver(true);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent): void => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragOver(false);
-    if (isDir && e.dataTransfer.files.length > 0) {
-      onDrop(node.path, e.dataTransfer.files);
-    }
-  };
-
-  const state: FileStateStyle | null = node.fileState ? stateConfig[node.fileState] : null;
-  // Guarded on `state` below rather than on this alias: relying on the alias to
-  // narrow `state` is what kept it unannotatable.
-  const StateIcon: LucideIcon | undefined = state?.icon;
+  const meta: string = isDir ? folderSummary(node) : `${formatSize(node.fileMetadata?.fileSize ?? 0)} · ${modified}`;
 
   return (
-    <VFSContextMenu
-      node={node}
-      onNewFolder={() => onNewFolder(isDir ? node.path : '/')}
-      onDelete={() => onDelete(node)}
-      onDownload={() => onDownload(node)}
-      onUploadFile={() => onUploadFile(isDir ? node.path : '/')}
-      onInfo={() => onInfo(node)}
-      onRename={canModify ? (): void => onRename(node) : undefined}
-      onCut={canModify ? (): void => onCut(node) : undefined}
-      onCopy={canModify ? (): void => onCopy(node) : undefined}
-      onPaste={isDir && hasPasteItems ? (): void => onPaste(node) : undefined}
-      hasPasteItems={hasPasteItems}
-    >
+    <VFSContextMenu node={node} folder={folder} actions={actions} hasPasteItems={hasPasteItems} onStartRename={onStartRename}>
       <div
         className={cn(
-          "relative flex flex-col items-center justify-center p-3 rounded-lg cursor-pointer",
-          "hover:bg-card transition-colors select-none",
-          dragOver && "bg-success/15 ring-1 ring-success",
-          isCutItem && "opacity-50",
-          isSelected && "bg-primary/40 ring-1 ring-ring",
+          'relative flex min-w-0 cursor-pointer select-none flex-col gap-[10px] rounded-[6px] border border-border bg-card p-[14px] transition-colors hover:bg-surface',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          act.dragOver && 'bg-success/15 ring-1 ring-success',
+          isCut && 'opacity-50',
+          isSelected && 'bg-primary/15 text-foreground border-primary-accent hover:bg-primary/20',
         )}
-        onClick={handleClickOrOpen}
-        title={opensOnActivate ? `${node.name} (double-click or Enter to open)` : undefined}
         role="button"
         tabIndex={0}
-        onKeyDown={handleKeyDown}
-        onDoubleClick={handleDoubleClick}
-        onDragOver={handleDragOver}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={handleDrop}
+        aria-pressed={isSelected}
+        data-testid={`vfs-item-${node.name}`}
+        data-vfs-item=""
+        title={openTitle(node, !isDir && isDownloadableState(node.fileState))}
+        onClick={act.onClick}
+        onDoubleClick={act.onDoubleClick}
+        onKeyDown={act.onKeyDown}
+        onDragOver={act.onDragOver}
+        onDragLeave={act.onDragLeave}
+        onDrop={act.onDrop}
       >
-        <Icon className={cn(
-          "h-10 w-10 mb-1.5",
-          isDir ? (isProtected ? "text-muted-foreground" : "text-warning-emphasis") : "text-foreground/80",
-        )} />
-
-        {state && StateIcon && (
-          <span title={state.title} className={cn("absolute top-2 right-2", state.color)}>
-            <StateIcon className="h-3.5 w-3.5" />
-          </span>
-        )}
-
-        {isRenaming ? (
-          <VFSRenameInput
-            currentName={node.name}
-            onConfirm={(newName) => onRenameConfirm(node, newName)}
-            onCancel={onRenameCancel}
-            isDirectory={isDir}
-          />
-        ) : (
-          <span className="text-xs text-foreground text-center truncate w-full">{node.name}</span>
-        )}
-
-        {node.fileMetadata && !isRenaming && (
-          <span className="text-xs text-muted-foreground">{formatSize(node.fileMetadata.fileSize)}</span>
-        )}
-
-        {pendingPeer !== null && (
-          <span className="text-xs text-warning-emphasis" data-testid="vfs-pending" title={`${pendingPeer} has not confirmed this yet; it is retried automatically.`}>
-            Pending confirmation
-          </span>
-        )}
+        {isP2P && <E2ELock className="absolute right-[10px] top-[10px]" />}
+        <div className="flex h-[56px] items-center justify-center"><ItemIcon node={node} size="tile" /></div>
+        <div className="min-w-0">
+          {isRenaming ? (
+            <VFSRenameInput
+              currentName={node.name}
+              onConfirm={(name: string) => { onRenameCancel(); void actions.rename(node.path, name); }}
+              onCancel={onRenameCancel}
+              isDirectory={isDir}
+            />
+          ) : (
+            <span className="block truncate text-sm font-medium text-foreground">{node.name}</span>
+          )}
+          <span className="block truncate text-xs text-muted-foreground">{meta}</span>
+          {pendingPeer !== null && <PendingMark peer={pendingPeer} />}
+        </div>
       </div>
     </VFSContextMenu>
   );

@@ -1,24 +1,26 @@
 /**
  * Which screen the file manager shows, decided in one place.
  *
- * Two defects lived in the inline chain this replaced:
+ * The storage comes from the address (see lib/file-manager-location.ts), not
+ * from "the first registered peer", so the question is no longer whether there
+ * is a peer to pick but whether the one the address names can be opened:
  *
- * - "No Peers Connected" was the answer while the peer list was still being
- *   fetched, and also for the one render between a peer arriving and the
- *   first peer being auto-selected. A registered, online peer read as none.
- * - Everything waited on a CID read from the global connection, which a tab
- *   that resumed its session does not have for seconds. See useFileManagerContent.
+ * - an id that is not a CID, your own CID, or a CID that is not one of your
+ *   registered peers is `unknown-peer`, said as such -- never quietly replaced
+ *   by some other member's storage or the server's;
+ * - while the peer list is still loading, an unlisted CID is `finding-peers`,
+ *   not yet unknown: a registered, online peer used to read as none here.
  */
-import { TreeScope } from '@/types/revfs-types';
+import type { StorageRef } from '@/lib/file-manager-location';
 
-export type FileManagerScreen = 'connecting' | 'finding-peers' | 'no-peers' | 'loading' | 'error' | 'browser';
+export type FileManagerScreen = 'connecting' | 'finding-peers' | 'unknown-peer' | 'loading' | 'error' | 'browser';
 
 export interface FileManagerScreenInputs {
   myCid: bigint | null;
-  storageMode: TreeScope;
+  storage: StorageRef;
   peersLoading: boolean;
-  peerCount: number;
-  selectedPeerCid: bigint | null;
+  /** Whether `storage` is a peer you are registered with. */
+  peerRegistered: boolean;
   treeLoading: boolean;
   hasError: boolean;
   hasTree: boolean;
@@ -26,10 +28,10 @@ export interface FileManagerScreenInputs {
 
 export function fileManagerScreen(i: FileManagerScreenInputs): FileManagerScreen {
   if (!i.myCid) return 'connecting';
-  if (i.storageMode === TreeScope.Peer) {
-    if (i.peerCount === 0) return i.peersLoading ? 'finding-peers' : 'no-peers';
-    // A peer exists; the selection effect picks it on the next render.
-    if (!i.selectedPeerCid) return 'finding-peers';
+  if (i.storage.kind === 'invalid') return 'unknown-peer';
+  if (i.storage.kind === 'peer') {
+    if (i.storage.cid === i.myCid) return 'unknown-peer';
+    if (!i.peerRegistered) return i.peersLoading ? 'finding-peers' : 'unknown-peer';
   }
   if (i.treeLoading) return 'loading';
   if (i.hasError || !i.hasTree) return 'error';

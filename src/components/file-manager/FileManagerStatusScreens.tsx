@@ -1,36 +1,19 @@
-import { Loader2, Users, FolderOpen, Server, RefreshCw } from "lucide-react";
+/**
+ * What the file manager shows in place of a folder while it cannot show one.
+ * The top bar stays above these, so the way to another storage is always there.
+ */
+import { Loader2, FolderOpen, RefreshCw, Server, UserX } from "lucide-react";
+import type { StorageRef } from '@/lib/file-manager-location';
+import { peerDisplayName } from '@/lib/peer-display';
 
-interface ConnectingScreenProps {}
+const SCREEN: string = "flex flex-1 flex-col items-center justify-center gap-4 bg-background p-8 text-center text-muted-foreground";
+const ACTION: string = "flex items-center gap-2 rounded bg-primary px-4 py-2 text-primary-foreground transition-colors hover:bg-primary/90";
 
-export function ConnectingScreen(_props: ConnectingScreenProps): JSX.Element {
+export function ConnectingScreen(): JSX.Element {
   return (
-    <div className="flex flex-col items-center justify-center h-full bg-background text-muted-foreground gap-4 p-8">
-      <Loader2 className="h-8 w-8 animate-spin" />
+    <div className={SCREEN} role="status">
+      <Loader2 className="h-8 w-8 animate-spin" aria-hidden="true" />
       <p>Connecting...</p>
-    </div>
-  );
-}
-
-interface NoPeersScreenProps {
-  onSwitchToServer: () => void;
-}
-
-export function NoPeersScreen({ onSwitchToServer }: NoPeersScreenProps): JSX.Element {
-  return (
-    <div className="flex flex-col items-center justify-center h-full bg-background text-muted-foreground gap-4 p-8">
-      <Users className="h-12 w-12" />
-      <h2 className="text-xl text-foreground">No Peers Connected</h2>
-      <p className="text-sm text-center max-w-md">
-        Register a P2P peer to start using the shared file system,
-        or use Server Storage for private encrypted files.
-      </p>
-      <button
-        onClick={onSwitchToServer}
-        className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
-      >
-        <Server className="h-4 w-4" />
-        Use Server Storage
-      </button>
     </div>
   );
 }
@@ -41,9 +24,38 @@ interface LoadingScreenProps {
 
 export function LoadingScreen({ label }: LoadingScreenProps): JSX.Element {
   return (
-    <div className="flex flex-col items-center justify-center h-full bg-background text-muted-foreground gap-4" role="status">
+    <div className={SCREEN} role="status">
       <Loader2 className="h-8 w-8 animate-spin" aria-hidden="true" />
       <p>{label}</p>
+    </div>
+  );
+}
+
+interface UnknownPeerScreenProps {
+  /** What the address named. */
+  storage: StorageRef;
+  onOpenServer: () => void;
+}
+
+/**
+ * The address names a storage this account cannot open: not a CID, your own,
+ * or someone you are not registered with. Said as such, with the way out --
+ * never by quietly opening some other member's files in its place.
+ */
+export function UnknownPeerScreen({ storage, onOpenServer }: UnknownPeerScreenProps): JSX.Element {
+  const named: string = storage.kind === 'invalid' ? `“${storage.raw}”` : storage.kind === 'peer' ? peerDisplayName({ cid: storage.cid }) : 'the server';
+  return (
+    <div className={SCREEN} data-testid="vfs-unknown-peer">
+      <UserX className="h-12 w-12" aria-hidden="true" />
+      <h2 className="text-xl text-foreground">This storage isn&rsquo;t available</h2>
+      <p className="max-w-md text-sm">
+        The link points to storage shared with {named}, and you are not registered peers with them on this account.
+        Storage is shared between two members once they are registered peers. Choose a peer above, or open your server storage.
+      </p>
+      <button type="button" onClick={onOpenServer} className={ACTION}>
+        <Server className="h-4 w-4" aria-hidden="true" />
+        Open Server Storage
+      </button>
     </div>
   );
 }
@@ -61,14 +73,11 @@ interface ErrorScreenProps {
 
 export function ErrorScreen({ error, onRetry }: ErrorScreenProps): JSX.Element {
   return (
-    <div className="flex flex-col items-center justify-center h-full bg-background text-muted-foreground gap-4 p-8">
-      <FolderOpen className="h-12 w-12" />
+    <div className={SCREEN}>
+      <FolderOpen className="h-12 w-12" aria-hidden="true" />
       <h2 className="text-xl text-foreground">File System Error</h2>
-      <p className="text-sm text-center max-w-md">{error ?? 'Failed to load tree'}</p>
-      <button
-        onClick={onRetry}
-        className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
-      >
+      <p className="max-w-md text-sm">{error ?? 'Failed to load tree'}</p>
+      <button type="button" onClick={onRetry} className={ACTION}>
         <RefreshCw className="h-4 w-4" aria-hidden="true" />
         Try Again
       </button>

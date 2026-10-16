@@ -1,197 +1,131 @@
-import { useState, useCallback } from "react";
+/**
+ * The open folder's contents, as a list (the default) or a grid of tiles.
+ *
+ * The canvas around the items is a drop target and carries the canvas menu (New
+ * folder, Upload, Paste, Refresh). It does not clear the selection on a click:
+ * a clickable div is out of keyboard reach, and every way to make it reachable
+ * nests controls inside a control. Escape, the inspector's close and the bulk
+ * bar's Clear do it. Filter and sort are the view's own, not the address's.
+ */
+import { useCallback, useState, type DragEvent } from 'react';
 import { searchMatcher as searchMatcherFor } from '@/lib/fold-for-search';
-import { FolderOpen } from "lucide-react";
-import type { RevfsNode } from "@/types/revfs-types";
-import type { SelectMode } from "@/hooks/useVFSSelection";
-import { VFSContextMenu } from "./VFSContextMenu";
-import { GridItem } from "./VFSGridItem";
-import { Button } from '@/components/ui/button';
-import { cn } from "@/lib/utils";
-import { findNodeByPath, type SortField, type SortDirection } from "./vfs-content-helpers";
-import { useVFSKeyboardShortcuts } from "./useVFSKeyboardShortcuts";
+import type { RevfsNode } from '@/types/revfs-types';
+import type { SelectMode } from '@/hooks/useVFSSelection';
+import { cn } from '@/lib/utils';
+import { findNodeByPath } from '@/lib/revfs/tree-operations';
+import { VFSContextMenu } from './VFSContextMenu';
+import { GridItem } from './VFSGridItem';
+import { VFSListRow } from './VFSListRow';
+import { VFSEmptyFolder, VFSFolderNotFound, VFSNoMatches } from './VFSEmptyState';
+import { sortItems, type SortField, type SortDirection } from './vfs-content-helpers';
+import { formatModified } from './item-format';
+import { useVFSKeyboardShortcuts } from './useVFSKeyboardShortcuts';
+import { LIST_COLUMNS, type VFSItemViewProps } from './vfs-item-view';
+import type { VFSItemActions } from './vfs-item-actions';
 
 export type { SortField, SortDirection };
+export type ContentView = 'list' | 'grid';
 
-interface VFSContentGridProps {
+export interface VFSContentGridProps {
   tree: RevfsNode;
   currentPath: string;
-  onNavigate: (path: string) => void;
-  onNewFolder: (parentPath: string) => void;
-  onDelete: (node: RevfsNode) => void;
-  onDeleteMultiple?: (nodes: RevfsNode[]) => void;
-  onDownload: (node: RevfsNode) => void;
-  onUploadFile: (dirPath: string) => void;
-  onInfo: (node: RevfsNode) => void;
-  onRename: (path: string, newName: string) => Promise<void>;
-  onCut: (node: RevfsNode) => void;
-  onCutMultiple?: (nodes: RevfsNode[]) => void;
-  onCopy: (node: RevfsNode) => void;
-  onCopyMultiple?: (nodes: RevfsNode[]) => void;
-  onPaste: (destPath: string) => Promise<void>;
-  onDrop: (targetPath: string, files: FileList) => void;
-  cutItemPaths?: Set<string>;
+  view: ContentView;
+  actions: VFSItemActions;
+  isP2P: boolean;
+  /** Named in the not-found state: whose storage has no such folder. */
+  storageName: string;
   /** Changes the peer has not confirmed yet; see useRevfsTree. */
   pendingPaths: ReadonlySet<string>;
   /** Who is being waited on, for the pending mark. */
   peerLabel: string;
-  hasPasteItems?: boolean;
-  selectedPaths?: Set<string>;
-  onSelect?: (path: string, mode: SelectMode) => void;
-  onSelectAll?: () => void;
-  onClearSelection?: () => void;
-  sortField?: SortField;
-  sortDirection?: SortDirection;
-  filterText?: string;
+  cutItemPaths: ReadonlySet<string>;
+  hasPasteItems: boolean;
+  selectedPaths: ReadonlySet<string>;
+  onSelect: (path: string, mode: SelectMode, allPaths: string[]) => void;
+  onSelectAll: () => void;
+  onClearSelection: () => void;
+  sortField: SortField;
+  sortDirection: SortDirection;
+  filterText: string;
+  onClearFilter: () => void;
+  /** Why the open folder takes no upload, or null. */
+  uploadDisabledReason: string | null;
+  /** Who uploaded a file, by name. */
+  nameOf: (cid: bigint) => string;
+  now: number;
 }
 
-export function VFSContentGrid({
-  tree, currentPath, onNavigate, onNewFolder,
-  onDelete, onDeleteMultiple, onDownload, onUploadFile, onInfo, onRename,
-  onCut, onCutMultiple, onCopy, onCopyMultiple, onPaste, onDrop,
-  cutItemPaths = new Set(), pendingPaths, peerLabel, hasPasteItems = false,
-  selectedPaths = new Set(), onSelect, onSelectAll, onClearSelection,
-  sortField = 'name', sortDirection = 'asc', filterText = '',
-}: VFSContentGridProps): JSX.Element {
-  const [rootDragOver, setRootDragOver] = useState(false);
+function ListHeader(): JSX.Element {
+  return (
+    <div className={cn(LIST_COLUMNS, 'border-b border-border px-[14px] py-[8px] text-xs font-semibold uppercase tracking-wide text-muted-foreground')} aria-hidden="true">
+      <span>Name</span><span className="hidden md:block">From</span><span className="text-right">Size</span><span className="hidden md:block">Modified</span><span />
+    </div>
+  );
+}
+
+export function VFSContentGrid(props: VFSContentGridProps): JSX.Element {
+  const {
+    tree, currentPath, view, actions, isP2P, storageName, pendingPaths, peerLabel, cutItemPaths, hasPasteItems,
+    selectedPaths, onSelect, onSelectAll, onClearSelection, sortField, sortDirection, filterText, onClearFilter,
+    uploadDisabledReason, nameOf, now,
+  } = props;
+  const [dragOver, setDragOver] = useState(false);
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
 
   useVFSKeyboardShortcuts({
-    tree, selectedPaths, renamingPath, currentPath, hasPasteItems,
-    setRenamingPath, onDelete, onDeleteMultiple, onCopy, onCopyMultiple,
-    onCut, onCutMultiple, onPaste, onSelectAll, onClearSelection,
+    tree, selectedPaths, renamingPath, currentPath, hasPasteItems, actions, setRenamingPath, onSelectAll, onClearSelection,
   });
 
-  const currentNode: RevfsNode | null = findNodeByPath(tree, currentPath);
-  const allChildren: RevfsNode[] = currentNode?.children ?? [];
+  const startRename: (node: RevfsNode) => void = useCallback((node: RevfsNode): void => setRenamingPath(node.path), []);
+  const stopRename: () => void = useCallback((): void => setRenamingPath(null), []);
+
+  const folder: RevfsNode | null = findNodeByPath(tree, currentPath);
+  if (folder === null) {
+    return <div className="flex flex-1 p-[16px]"><VFSFolderNotFound path={currentPath} storageName={storageName} onTop={() => actions.openFolder('/')} /></div>;
+  }
+
   // Folded ONCE, not per child: `matchesSearch` folds both arguments per call.
   const matches: (haystack: string) => boolean = searchMatcherFor(filterText);
-  const children: RevfsNode[] = filterText
-    ? allChildren.filter((n: RevfsNode): boolean => matches(n.name))
-    : allChildren;
+  const all: RevfsNode[] = folder.children ?? [];
+  const items: RevfsNode[] = sortItems(filterText ? all.filter((n: RevfsNode): boolean => matches(n.name)) : all, sortField, sortDirection);
+  const paths: string[] = items.map((n: RevfsNode): string => n.path);
 
-  const handleBackgroundClick: () => void = useCallback((): void => { onClearSelection?.(); }, [onClearSelection]);
-  const handleRename: (node: RevfsNode) => void = useCallback((node: RevfsNode): void => { setRenamingPath(node.path); }, []);
-  const handleRenameConfirm: (node: RevfsNode, newName: string) => Promise<void> = useCallback(async (node: RevfsNode, newName: string): Promise<void> => {
-    setRenamingPath(null); await onRename(node.path, newName);
-  }, [onRename]);
-  const handleRenameCancel: () => void = useCallback((): void => { setRenamingPath(null); }, []);
-  const handlePasteItem: (node: RevfsNode) => Promise<void> = useCallback(async (node: RevfsNode): Promise<void> => { await onPaste(node.path); }, [onPaste]);
+  const onDragOver = (e: DragEvent): void => { e.preventDefault(); setDragOver(true); };
+  const onDrop = (e: DragEvent): void => {
+    e.preventDefault(); setDragOver(false);
+    if (e.dataTransfer.files.length > 0) actions.drop(currentPath, e.dataTransfer.files);
+  };
 
-  const sorted: RevfsNode[] = [...children].sort((a, b) => {
-    if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
-    let cmp: number = 0;
-    switch (sortField) {
-      case 'name': cmp = a.name.localeCompare(b.name); break;
-      case 'date': cmp = a.updatedAt - b.updatedAt; break;
-      case 'size': cmp = (a.fileMetadata?.fileSize ?? 0) - (b.fileMetadata?.fileSize ?? 0); break;
-      case 'type': {
-        const eA: string = a.type === 'file' ? (a.name.split('.').pop()?.toLowerCase() ?? '') : '';
-        const eB: string = b.type === 'file' ? (b.name.split('.').pop()?.toLowerCase() ?? '') : '';
-        cmp = eA.localeCompare(eB); break;
-      }
-    }
-    return sortDirection === 'asc' ? cmp : -cmp;
+  const itemProps = (node: RevfsNode): VFSItemViewProps => ({
+    node, actions, folder: currentPath, isRenaming: renamingPath === node.path, isCut: cutItemPaths.has(node.path),
+    pendingPeer: pendingPaths.has(node.path) ? peerLabel : null, isSelected: selectedPaths.has(node.path), isP2P,
+    from: node.fileMetadata ? nameOf(node.fileMetadata.uploadedByCid) : null,
+    modified: formatModified(node.updatedAt, now, undefined), hasPasteItems,
+    onSelect: (path: string, mode: SelectMode): void => onSelect(path, mode, paths),
+    onStartRename: startRename, onRenameCancel: stopRename,
   });
 
-  const onRootDragOver = (e: React.DragEvent): void => { e.preventDefault(); setRootDragOver(true); };
-  const onRootDrop = (e: React.DragEvent): void => {
-    e.preventDefault(); setRootDragOver(false);
-    if (e.dataTransfer.files.length > 0) onDrop(currentPath, e.dataTransfer.files);
-  };
-
-  const emptyContextProps: { node: RevfsNode | null; onNewFolder: () => void; onDelete: () => void; onDownload: () => void; onUploadFile: () => void; onInfo: () => void; onPaste: (() => Promise<void>) | undefined; hasPasteItems: boolean; } = {
-    node: null as RevfsNode | null,
-    onNewFolder: (): void => onNewFolder(currentPath),
-    onDelete: (): void => {}, onDownload: (): void => {},
-    onUploadFile: (): void => onUploadFile(currentPath), onInfo: (): void => {},
-    onPaste: hasPasteItems ? async (): Promise<void> => { await onPaste(currentPath); } : undefined,
-    hasPasteItems,
-  };
-
-  // Three answers, not two. The comment below already distinguishes "empty"
-  // from "nothing matched your filter"; this is the third -- the folder is not
-  // in the tree at all, because it was deleted or renamed somewhere else while
-  // it was open. Telling that user "This folder is empty. Drag files here"
-  // invites them to drop into a folder that no longer exists.
-  if (!currentNode) {
-    return (
-      <div
-        className="flex-1 flex flex-col items-center justify-center text-muted-foreground text-sm"
-        data-testid="vfs-folder-gone"
-      >
-        <FolderOpen className="h-12 w-12 mb-3 text-muted-foreground" />
-        <p>This folder is no longer here</p>
-        <p className="text-xs text-muted-foreground mt-1">
-          It may have been renamed or deleted somewhere else.
-        </p>
-        <Button variant="outline" size="sm" className="mt-3" onClick={() => onNavigate('/')}>
-          Go to the top level
-        </Button>
-      </div>
-    );
-  }
-
-  if (sorted.length === 0) {
-    return (
-      <VFSContextMenu {...emptyContextProps}>
-        <div
-          className={cn("flex-1 flex flex-col items-center justify-center text-muted-foreground text-sm", rootDragOver && "bg-success/10")}
-          onDragOver={onRootDragOver} onDragLeave={() => setRootDragOver(false)} onDrop={onRootDrop}
-        >
-          <FolderOpen className="h-12 w-12 mb-3 text-muted-foreground" />
-          {/* "Empty" and "nothing matched your filter" are different facts, and
-              stating the first when the second is true tells the user their
-              files are gone. */}
-          {filterText ? (
-            <>
-              <p>Nothing here matches &ldquo;{filterText}&rdquo;</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Clear the filter to see everything in this folder.
-              </p>
-            </>
-          ) : (
-            <>
-              <p>This folder is empty</p>
-              <p className="text-xs text-muted-foreground mt-1">Drag files here or right-click to create a folder</p>
-            </>
-          )}
-        </div>
-      </VFSContextMenu>
-    );
-  }
-
   return (
-    <VFSContextMenu {...emptyContextProps}>
+    <VFSContextMenu node={null} folder={currentPath} actions={actions} hasPasteItems={hasPasteItems} onStartRename={startRename}>
       <div
-        className={cn("flex-1 overflow-y-auto p-4", rootDragOver && "bg-success/10")}
-        onClick={handleBackgroundClick}
-        // A pointer convenience (click the empty space to clear the selection), not a control: Escape
-        // does the same from the keyboard (vfs-shortcuts 'clear'). As role="button" it held every file
-        // in the grid as a nested interactive child, which assistive tech cannot present.
-        role="presentation"
-        tabIndex={-1}
-        onDragOver={onRootDragOver} onDragLeave={() => setRootDragOver(false)} onDrop={onRootDrop}
+        className={cn('flex min-h-0 flex-1 flex-col overflow-y-auto p-[16px]', dragOver && 'bg-success/10')}
+        data-testid="vfs-canvas"
+        onDragOver={onDragOver} onDragLeave={() => setDragOver(false)} onDrop={onDrop}
       >
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2">
-          {sorted.map(node => (
-            <GridItem
-              key={node.path} node={node}
-              isRenaming={renamingPath === node.path}
-              isCutItem={cutItemPaths.has(node.path)}
-              pendingPeer={pendingPaths.has(node.path) ? peerLabel : null}
-              isSelected={selectedPaths.has(node.path)}
-              onNavigate={onNavigate} onNewFolder={onNewFolder}
-              onDelete={onDelete} onDownload={onDownload}
-              onUploadFile={onUploadFile} onInfo={onInfo}
-              onRename={handleRename} onRenameConfirm={handleRenameConfirm}
-              onRenameCancel={handleRenameCancel}
-              onCut={onCut} onCopy={onCopy} onPaste={handlePasteItem}
-              onDrop={onDrop}
-              onSelect={(path, mode) => onSelect?.(path, mode)}
-              hasPasteItems={hasPasteItems}
-            />
-          ))}
-        </div>
+        {items.length === 0 && (filterText
+          ? <VFSNoMatches filterText={filterText} onClearFilter={onClearFilter} />
+          : <VFSEmptyFolder folder={currentPath} uploadDisabledReason={uploadDisabledReason} onUpload={() => actions.upload(currentPath)} />)}
+        {items.length > 0 && view === 'list' && (
+          <div className="overflow-hidden rounded-[6px] border border-border bg-card" aria-label="Items in this folder" role="group">
+            <ListHeader />
+            {items.map((node: RevfsNode) => <VFSListRow key={node.path} {...itemProps(node)} />)}
+          </div>
+        )}
+        {items.length > 0 && view === 'grid' && (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-[12px]" aria-label="Items in this folder" role="group">
+            {items.map((node: RevfsNode) => <GridItem key={node.path} {...itemProps(node)} />)}
+          </div>
+        )}
       </div>
     </VFSContextMenu>
   );

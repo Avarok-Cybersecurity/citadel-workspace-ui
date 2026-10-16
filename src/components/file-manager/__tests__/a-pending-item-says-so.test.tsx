@@ -5,23 +5,15 @@ import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { RevfsFileState, type RevfsNode } from '@/types/revfs-types';
 import { VFSContentGrid } from '../VFSContentGrid';
+import { gridProps } from './grid-fixture';
 
 const file: RevfsNode = {
   name: 'a.bin', path: '/a.bin', type: 'file', fileState: RevfsFileState.Remote, createdAt: 0, updatedAt: 0,
   fileMetadata: { fileId: 'f', fileName: 'a.bin', fileSize: 1, fileType: '', virtualDirectory: '/a.bin', uploadedByCid: 1n },
 };
 const tree: RevfsNode = { name: '', path: '/', type: 'directory', children: [file], createdAt: 0, updatedAt: 0 };
-const noop = (): void => {};
-const anoop = async (): Promise<void> => {};
-
 function grid(pending: ReadonlySet<string>): void {
-  render(
-    <VFSContentGrid
-      tree={tree} currentPath="/" onNavigate={noop} onNewFolder={noop} onDelete={noop} onDownload={noop}
-      onUploadFile={noop} onInfo={noop} onRename={anoop} onCut={noop} onCopy={noop} onPaste={anoop} onDrop={noop}
-      pendingPaths={pending} peerLabel="Bob Brown"
-    />,
-  );
+  render(<VFSContentGrid {...gridProps(tree, { pendingPaths: pending, peerLabel: 'Bob Brown' })} />);
 }
 
 describe('a pending item', () => {

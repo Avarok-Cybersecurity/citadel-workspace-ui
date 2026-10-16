@@ -13,7 +13,8 @@ const COPIED_FOR_MS: number = 2000;
 
 export interface CopyToClipboard {
   copied: boolean;
-  copy: (text: string) => Promise<void>;
+  /** Resolves whether the text reached the clipboard; a refusal has already been toasted. */
+  copy: (text: string) => Promise<boolean>;
 }
 
 export function useCopyToClipboard(): CopyToClipboard {
@@ -22,17 +23,18 @@ export function useCopyToClipboard(): CopyToClipboard {
   const timer: MutableRefObject<number | undefined> = useRef<number | undefined>(undefined);
   useEffect(() => (): void => window.clearTimeout(timer.current), []);
 
-  const copy: (text: string) => Promise<void> = useCallback(async (text: string): Promise<void> => {
+  const copy: (text: string) => Promise<boolean> = useCallback(async (text: string): Promise<boolean> => {
     try {
       await navigator.clipboard.writeText(text);
     } catch {
       setCopied(false);
       toastError(toast, 'Could not copy', 'Your browser refused clipboard access. Select the text and copy it instead.');
-      return;
+      return false;
     }
     setCopied(true);
     window.clearTimeout(timer.current);
     timer.current = window.setTimeout((): void => setCopied(false), COPIED_FOR_MS);
+    return true;
   }, [toast]);
 
   return { copied, copy };

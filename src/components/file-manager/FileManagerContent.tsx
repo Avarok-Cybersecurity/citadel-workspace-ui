@@ -1,164 +1,91 @@
-import { toast } from "sonner";
-import { TreeScope  } from "@/types/revfs-types";
-import { useFileManagerContent } from "./useFileManagerContent";
-import { ConnectingScreen, NoPeersScreen, LoadingScreen, ErrorScreen } from "./FileManagerStatusScreens";
-import { FileManagerStorageBar } from "./FileManagerStorageBar";
+/**
+ * The file manager: the top bar and address bar, the open folder (or a screen
+ * saying why there is none), the inspector or bulk bar for the selection, the
+ * transfers panel and the status strip.
+ *
+ * Whose storage and which folder come from the address (useFileManagerPlace);
+ * this assembles the parts around them.
+ */
+import { TreeScope } from "@/types/revfs-types";
+import { useFileManagerContent, type UseFileManagerContentResult } from "./useFileManagerContent";
+import { useFileManagerView, refreshLabel, type FileManagerView } from './useFileManagerView';
+import { ConnectingScreen, LoadingScreen, ErrorScreen, UnknownPeerScreen } from "./FileManagerStatusScreens";
 import { fileManagerScreen, type FileManagerScreen } from "./file-manager-screen";
-import { VFSTreeView } from "./VFSTreeView";
-import { VFSContentGrid } from "./VFSContentGrid";
-import { VFSToolbar } from "./VFSToolbar";
 import { uploadRefusal } from "./upload-refusal";
-import { VFSPathBar } from "./VFSPathBar";
-import { StorageLimitModal } from "./StorageLimitModal";
-import { RevfsDisabledModal } from "./RevfsDisabledModal";
-import { VFSPropertiesDialog } from "./VFSPropertiesDialog";
-import { FilePreviewDialog } from "@/components/layout/sidebar/FilePreviewDialog";
+import { FileManagerTopBar } from './FileManagerTopBar';
+import { FileManagerAddressBar } from './FileManagerAddressBar';
+import { FileManagerBrowser } from './FileManagerBrowser';
+import { FileManagerModals } from './FileManagerModals';
+import { TransfersPanel } from './TransfersPanel';
+import { FileManagerStatusStrip } from './FileManagerStatusStrip';
+import { connectedCount } from './storage-peers';
+import { itemCountLabel } from './address-bar-model';
+import { findNodeByPath } from '@/lib/revfs/tree-operations';
+import type { RevfsNode } from '@/types/revfs-types';
+import type { ReactNode } from 'react';
 
-export const FileManagerContent: () => JSX.Element = (): JSX.Element => {
-  const fm: ReturnType<typeof useFileManagerContent> = useFileManagerContent();
-
-  // ── Early returns ──────────────────────────────────────────────────────
-
-  const shown: FileManagerScreen = fileManagerScreen({
-    myCid: fm.myCid, storageMode: fm.storageMode, peersLoading: fm.peersLoading,
-    peerCount: fm.registeredPeers.length, selectedPeerCid: fm.selectedPeerCid,
-    treeLoading: fm.loading, hasError: Boolean(fm.error), hasTree: Boolean(fm.tree),
-  });
+function Body({ fm, v, shown, footer }: { fm: UseFileManagerContentResult; v: FileManagerView; shown: FileManagerScreen; footer: ReactNode }): JSX.Element {
   if (shown === 'connecting') return <ConnectingScreen />;
   if (shown === 'finding-peers') return <LoadingScreen label="Finding your peers..." />;
-  if (shown === 'no-peers') return <NoPeersScreen onSwitchToServer={() => fm.setStorageMode(TreeScope.Server)} />;
+  if (shown === 'unknown-peer') return <UnknownPeerScreen storage={fm.storage} onOpenServer={() => fm.place.openStorage({ kind: 'server' })} />;
   if (shown === 'loading') return <LoadingScreen label="Loading file system..." />;
-  if (shown === 'error' || !fm.tree) {
-    return <ErrorScreen error={fm.error ?? null} onRetry={() => { void fm.refresh(); }} />;
-  }
+  if (shown === 'error' || !fm.tree) return <ErrorScreen error={fm.error ?? null} onRetry={() => { void fm.refresh(); }} />;
+  return <FileManagerBrowser fm={fm} v={v} tree={fm.tree} footer={footer} />;
+}
 
-  // ── Main VFS Browser ──────────────────────────────────────────────────
+export const FileManagerContent: () => JSX.Element = (): JSX.Element => {
+  const fm: UseFileManagerContentResult = useFileManagerContent();
+  const v: FileManagerView = useFileManagerView(fm);
+
+  const shown: FileManagerScreen = fileManagerScreen({
+    myCid: fm.myCid, storage: fm.storage, peersLoading: fm.peersLoading, peerRegistered: fm.peerRegistered,
+    treeLoading: fm.loading, hasError: Boolean(fm.error), hasTree: Boolean(fm.tree),
+  });
+  const browsing: boolean = shown === 'browser' && fm.tree !== null;
+  const folder: RevfsNode | null = browsing && fm.tree ? findNodeByPath(fm.tree, fm.currentPath) : null;
+  const peerName: string | null = fm.storageMode === TreeScope.Peer && fm.peerRegistered ? fm.storageLabel : null;
+
+  // Under the list, beside the inspector; under everything when there is no list.
+  const footer: ReactNode = (
+    <>
+      {v.transfersOpen && (
+        <TransfersPanel rows={v.transfers.rows} active={v.transfers.active} pendingPaths={fm.pendingPaths}
+          peerLabel={fm.storageLabel} onClose={() => v.setTransfersOpen(false)} />
+      )}
+      {browsing && (
+        <FileManagerStatusStrip
+          connectedPeers={connectedCount(fm.registeredPeers)} storageName={fm.storageName}
+          usedBytes={fm.storageUsed} quotaBytes={fm.storageQuota} hostingFor={peerName}
+        />
+      )}
+    </>
+  );
 
   return (
-    <div className="flex flex-col h-full bg-background">
-      <FileManagerStorageBar
-        storageMode={fm.storageMode}
-        setStorageMode={fm.setStorageMode}
-        registeredPeers={fm.registeredPeers}
-        selectedPeerCid={fm.selectedPeerCid}
-        setSelectedPeerCid={fm.setSelectedPeerCid}
+    <div className="flex h-full min-w-0 flex-col bg-background">
+      <FileManagerTopBar
+        storage={fm.storage} peers={fm.registeredPeers} peersLoading={fm.peersLoading} peerName={peerName}
+        onOpenStorage={fm.place.openStorage}
+        folder={folder === null ? null : {
+          filterText: fm.filterText, onFilterChange: fm.setFilterText,
+          onNewFolder: () => v.actions.newFolder(fm.currentPath), onUpload: () => v.actions.upload(fm.currentPath),
+          uploadDisabledReason: uploadRefusal(fm.currentPath),
+        }}
+        transfers={{ active: v.transfers.active, open: v.transfersOpen, onToggle: () => v.setTransfersOpen(!v.transfersOpen) }}
       />
-
-      <VFSPathBar
-        currentPath={fm.currentPath}
-        onNavigate={fm.setCurrentPath}
-        tree={fm.tree}
-      />
-
-      <VFSToolbar
-        currentPath={fm.currentPath}
-        onNavigate={fm.setCurrentPath}
-        onNewFolder={() => fm.handleNewFolder(fm.currentPath)}
-        onUploadFile={() => fm.handleUploadFile(fm.currentPath)}
-        uploadDisabledReason={uploadRefusal(fm.currentPath)}
-        onSync={fm.storageMode === TreeScope.Peer ? fm.handleSync : null}
-        filterText={fm.filterText}
-        onFilterChange={fm.setFilterText}
-        sortField={fm.sortField}
-        sortDirection={fm.sortDirection}
-        onSortChange={fm.handleSortChange}
-        selectionCount={fm.selectedPaths.size}
-      />
-
-      <div className="flex flex-1 overflow-hidden">
-        <VFSTreeView
-          tree={fm.tree}
-          currentPath={fm.currentPath}
-          onNavigate={fm.setCurrentPath}
-          onNewFolder={fm.handleNewFolder}
-          onDelete={fm.handleDelete}
-          onUploadFile={fm.handleUploadFile}
-          onDrop={fm.handleDrop}
-          storageUsed={fm.storageUsed}
-          storageQuota={fm.storageQuota}
-          storageLabel={fm.storageLabel}
+      {browsing && (
+        <FileManagerAddressBar
+          tree={fm.tree} path={fm.currentPath} onOpenFolder={fm.place.openFolder} back={fm.place.back} up={fm.place.up}
+          countLabel={folder ? itemCountLabel(folder.children ?? []) : null}
+          sortField={fm.sortField} sortDirection={fm.sortDirection} onSortChange={fm.handleSortChange}
+          view={v.view} onViewChange={v.setView} onRefresh={v.actions.refresh} refreshLabel={refreshLabel(fm.storageMode)}
         />
-        <VFSContentGrid
-          tree={fm.tree}
-          currentPath={fm.currentPath}
-          onNavigate={fm.setCurrentPath}
-          onNewFolder={fm.handleNewFolder}
-          onDelete={fm.handleDelete}
-          onDeleteMultiple={fm.handleDeleteMultiple}
-          onDownload={fm.handleDownload}
-          onUploadFile={fm.handleUploadFile}
-          onInfo={fm.handleInfo}
-          onRename={fm.handleRename}
-          onCut={fm.handleCut}
-          onCutMultiple={fm.handleCutMultiple}
-          onCopy={fm.handleCopy}
-          onCopyMultiple={fm.handleCopyMultiple}
-          onPaste={fm.handlePaste}
-          onDrop={fm.handleDrop}
-          cutItemPaths={fm.cutItemPaths}
-          pendingPaths={fm.pendingPaths}
-          peerLabel={fm.storageLabel}
-          hasPasteItems={fm.hasPasteItems}
-          selectedPaths={fm.selectedPaths}
-          onSelect={fm.selectItem}
-          onSelectAll={fm.handleSelectAll}
-          onClearSelection={fm.clearSelection}
-          sortField={fm.sortField}
-          sortDirection={fm.sortDirection}
-          filterText={fm.filterText}
-        />
+      )}
+      <div className="flex min-h-0 flex-1 flex-col">
+        <Body fm={fm} v={v} shown={shown} footer={footer} />
       </div>
-
-      {/* Hidden file input for uploads */}
-      <input
-        ref={fm.fileInputRef}
-        type="file"
-        className="hidden"
-        multiple
-        onChange={(e) => {
-          if (e.target.files?.length) {
-            void fm.handleDrop(fm.takeUploadTarget(), e.target.files);
-            e.target.value = '';
-          }
-        }}
-      />
-
-      <StorageLimitModal
-        isOpen={fm.storageLimitModalOpen}
-        onClose={() => fm.setStorageLimitModalOpen(false)}
-        usedBytes={fm.storageUsed}
-        quotaBytes={fm.storageQuota}
-        attemptedFileSize={fm.attemptedFileSize}
-        onManageStorage={() => fm.setCurrentPath('/')}
-      />
-
-      <RevfsDisabledModal
-        isOpen={fm.revfsDisabledModalOpen}
-        onClose={() => fm.setRevfsDisabledModalOpen(false)}
-        reason={fm.revfsDisabledReason}
-        onOpenSettings={() => {
-          // The dedicated P2P chat-settings UI doesn't exist yet, so the
-          // button visibly tells the user what to do via a toast. The
-          // earlier "future-listener" event emit has been removed —
-          // shipping a no-op event with no subscriber misleads readers
-          // into thinking something handles it; the toast alone keeps
-          // the UX coherent and there's nothing to wire into yet.
-          toast.info('Open Chat Settings to configure P2P storage');
-          fm.setRevfsDisabledModalOpen(false);
-        }}
-      />
-
-      <VFSPropertiesDialog
-        node={fm.propertiesNode}
-        isOpen={fm.propertiesNode !== null}
-        onClose={() => fm.setPropertiesNode(null)}
-      />
-
-      <FilePreviewDialog
-        file={fm.shownFile}
-        isOpen={fm.shownFile !== null}
-        onClose={() => fm.setShownFile(null)}
-      />
+      {!browsing && footer}
+      <FileManagerModals fm={fm} v={v} />
     </div>
   );
 };

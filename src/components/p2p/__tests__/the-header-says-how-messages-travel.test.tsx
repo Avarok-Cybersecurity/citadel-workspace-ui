@@ -22,7 +22,7 @@ function renderHeader(route: PeerPathReport | null, opts: { connected?: boolean;
     <P2PChatHeader
       peerName="ada" peerUsername="ada" peerPresence={{ status: MessagingLayerType.Online, lastUpdate: 0 }} peerTyping={false}
       isConnected={opts.connected ?? true} isRegistered paused={opts.paused ?? false}
-      connectionRoute={route} supervisor={null} onSettingsClick={vi.fn()}
+      connectionRoute={route} supervisor={null} onSettingsClick={vi.fn()} onOpenFiles={null}
     />,
   );
 }

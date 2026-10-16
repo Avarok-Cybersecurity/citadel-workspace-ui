@@ -68,6 +68,8 @@ function SavedLocation({ path }: { path: string }): JSX.Element {
     );
   }
 
+  // The result is not needed here: a refusal is toasted by useCopyToClipboard,
+  // and success shows as the control's `copied` tick.
   const copy = (): void => { void copyText(path); };
 
   return (

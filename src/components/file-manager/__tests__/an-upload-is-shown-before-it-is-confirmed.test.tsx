@@ -13,6 +13,8 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import { RevfsOpfsStorage } from '@/lib/revfs/opfs-storage';
 import { startRevfs, forgetRevfsLoad } from '@/lib/revfs/revfs-loader';
 import { revfsService } from '@/lib/revfs';
@@ -63,7 +65,10 @@ async function fileManager(treeEvents: boolean): Promise<{ current: UseFileManag
     autoAccept: false, maxFileSize: 1e9, allowRevfsStorage: true, revfsQuota: 100e6,
   });
   if (!treeEvents) vi.spyOn(revfsService, 'onTreeChanged').mockReturnValue((): void => {});
-  const { result } = renderHook((): UseFileManagerContentResult => useFileManagerContent());
+  // Bob's storage, by address: the file manager no longer picks a peer itself.
+  const { result } = renderHook((): UseFileManagerContentResult => useFileManagerContent(), {
+    wrapper: ({ children }: { children: ReactNode }): JSX.Element => <MemoryRouter initialEntries={['/workspace?section=files&peer_id=200']}>{children}</MemoryRouter>,
+  });
   await waitFor(() => expect(result.current.tree).not.toBeNull(), { timeout: 5000 });
   return result;
 }

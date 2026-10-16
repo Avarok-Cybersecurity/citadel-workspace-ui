@@ -7,6 +7,7 @@ import type { MemberActionBlocks } from './member-actions-gate';
 import { useLevelName } from '@/hooks/use-level-name';
 import type { RegisteredPeer } from '@/hooks/use-registered-peers';
 import { useMemberChatOpener, type MemberChatOpener } from './use-member-chat-opener';
+import { useMemberFilesOpener, type MemberFilesOpener } from './use-member-files-opener';
 import type { User as WorkspaceMember } from '@/types/workspace-entities';
 
 interface MemberListBodyProps {
@@ -58,6 +59,7 @@ export function MemberListBody({
   const blocks: MemberActionBlocks = useMemberActionBlocks(activeDomainId);
   const nameOfLevel: (levelId: string) => string = useLevelName();
   const openChatWith: MemberChatOpener = useMemberChatOpener(currentUsername, contacts);
+  const openFilesOf: MemberFilesOpener = useMemberFilesOpener(currentUsername, contacts);
   if (isLoading) {
     return (
       // Named, so a failure can say WHICH of the three branches was on screen.
@@ -80,6 +82,7 @@ export function MemberListBody({
       blocks={blocks}
       nameOfLevel={nameOfLevel}
       openChatWith={openChatWith}
+      openFilesOf={openFilesOf}
       currentUsername={currentUsername}
       onEditMember={onEditMember}
       onRemoveMember={onRemoveMember}

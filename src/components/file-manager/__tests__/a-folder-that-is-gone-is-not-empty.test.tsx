@@ -15,39 +15,21 @@
  *
  * There were three facts and it distinguished two.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { RevfsNode } from '@/types/revfs-types';
 import { VFSContentGrid } from '../VFSContentGrid';
+import { gridProps, spyActions, type SpiedActions } from './grid-fixture';
 
 function dir(path: string, name: string, children: RevfsNode[] = []): RevfsNode {
-  return { path, name, type: 'directory', children, updatedAt: 0 } as unknown as RevfsNode;
+  return { path, name, type: 'directory', children, createdAt: 0, updatedAt: 0 };
 }
 
 const tree: RevfsNode = dir('/', 'root', [dir('/docs', 'docs', [])]);
 
-const noop = (): void => {};
-const asyncNoop = async (): Promise<void> => {};
-
-function grid(currentPath: string, onNavigate: (p: string) => void = noop): ReturnType<typeof render> {
-  return render(
-    <VFSContentGrid pendingPaths={new Set<string>()} peerLabel="Bob"
-      tree={tree}
-      currentPath={currentPath}
-      onNavigate={onNavigate}
-      onNewFolder={noop}
-      onDelete={noop}
-      onDownload={noop}
-      onUploadFile={noop}
-      onInfo={noop}
-      onRename={asyncNoop}
-      onCut={noop}
-      onCopy={noop}
-      onPaste={asyncNoop}
-      onDrop={noop}
-    />,
-  );
+function grid(currentPath: string, actions: SpiedActions = spyActions()): ReturnType<typeof render> {
+  return render(<VFSContentGrid {...gridProps(tree, { currentPath, actions, storageName: 'Shared with Bob' })} />);
 }
 
 describe('the file grid', () => {
@@ -59,19 +41,19 @@ describe('the file grid', () => {
     expect(screen.queryByTestId('vfs-folder-gone')).toBeNull();
   });
 
-  it('does not call a folder that is not there empty', () => {
+  it('does not call a folder that is not there empty, and names where it looked', () => {
+    // Also what a link to a folder that does not exist opens on.
     grid('/gone');
     expect(screen.queryByText(/this folder is empty/i)).toBeNull();
-    expect(screen.getByTestId('vfs-folder-gone')).toBeTruthy();
-    expect(screen.getByText(/no longer here/i)).toBeTruthy();
+    expect(screen.getByTestId('vfs-folder-gone')).toHaveTextContent(/Folder not found/);
+    expect(screen.getByTestId('vfs-folder-gone')).toHaveTextContent('/gone');
+    expect(screen.getByTestId('vfs-folder-gone')).toHaveTextContent('Shared with Bob');
   });
 
-  it('offers a way out of a folder that is not there', () => {
-    // Otherwise the user is looking at a phantom folder with nothing to do.
-    const onNavigate: ReturnType<typeof vi.fn> = vi.fn();
-    grid('/gone', onNavigate);
-    return userEvent.click(screen.getByRole('button', { name: /top level/i })).then((): void => {
-      expect(onNavigate).toHaveBeenCalledWith('/');
-    });
+  it('offers a way out of a folder that is not there', async () => {
+    const actions: SpiedActions = spyActions();
+    grid('/gone', actions);
+    await userEvent.click(screen.getByRole('button', { name: /top level/i }));
+    expect(actions.openFolder).toHaveBeenCalledWith('/');
   });
 });

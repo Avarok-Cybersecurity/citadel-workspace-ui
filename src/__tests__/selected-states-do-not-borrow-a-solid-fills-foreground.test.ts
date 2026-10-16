@@ -59,17 +59,18 @@ describe('a tinted fill does not wear the solid fill\'s foreground', () => {
   }
 
   // Backdrops: the settings and entity dialogs are DialogContent, which is
-  // `bg-background`; the offline strip is fixed over the page; the VFS tree
-  // panel sets `bg-surface` on itself.
+  // `bg-background`; the offline strip is fixed over the page; the file list
+  // and grid items are `bg-card`.
   const SITES: readonly Site[] = [
     { name: 'Theme picker, selected option', file: 'components/settings/ThemeSelector.tsx',
       pattern: /border-primary bg-([\w-]+)\/(\d+) text-([\w-]+)'/, backdrop: 'background' },
     { name: 'Offline banner', file: 'components/pwa/OfflineBanner.tsx',
       pattern: /'bg-([\w-]+)\/(\d+) text-([\w-]+) border-b/, backdrop: 'background' },
-    { name: 'VFS tree, active node', file: 'components/file-manager/VFSTreeView.tsx',
-      pattern: /isActive && "bg-([\w-]+)\/(\d+) text-([\w-]+)"/, backdrop: 'surface' },
-    { name: 'VFS tree, root entry', file: 'components/file-manager/VFSTreeView.tsx',
-      pattern: /currentPath === '\/' && "bg-([\w-]+)\/(\d+) text-([\w-]+)"/, backdrop: 'surface' },
+    // The file list and grid, which replaced the VFS tree: both sit on `bg-card`.
+    { name: 'File list, selected row', file: 'components/file-manager/VFSListRow.tsx',
+      pattern: /isSelected && 'bg-([\w-]+)\/(\d+) text-([\w-]+)/, backdrop: 'card' },
+    { name: 'File grid, selected tile', file: 'components/file-manager/VFSGridItem.tsx',
+      pattern: /isSelected && 'bg-([\w-]+)\/(\d+) text-([\w-]+)/, backdrop: 'card' },
     // The entity modal submit used to be listed here: it was a 20% tint whose hover had to be
     // checked. It is now the solid primary fill (EntityModalFooter), which carries its own
     // foreground, so there is no tint left to check (owner, 2026-09-27: it looked disabled).

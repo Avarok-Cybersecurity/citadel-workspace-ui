@@ -10,6 +10,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { ComponentProps } from 'react';
 import { render, screen , type RenderResult } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { P2PChatHeader } from '../P2PChatHeader';
 import { MessagingLayerType } from '@/types/messaging-layer';
 import type { PeerPresence } from '@/lib/p2p';
@@ -36,7 +37,7 @@ function renderHeader(): RenderResult {
       isRegistered
       connectionRoute={null}
       supervisor={null}
-      onSettingsClick={vi.fn()}
+      onSettingsClick={vi.fn()} onOpenFiles={null}
       call={callProps}
     />,
   );
@@ -66,5 +67,26 @@ describe('P2PChatHeader layout', () => {
     renderHeader();
 
     expect(screen.getByRole('heading', { name: 'Alice Chen' }).className).toContain('truncate');
+  });
+});
+
+describe('the files button', () => {
+  it('opens the storage you share once you are registered peers', async () => {
+    const onOpenFiles: ReturnType<typeof vi.fn> = vi.fn();
+    render(
+      <P2PChatHeader peerName="Bob" peerUsername="bob" peerPresence={null} peerTyping={false} paused={false}
+        isConnected isRegistered connectionRoute={null} supervisor={null} onSettingsClick={vi.fn()} onOpenFiles={onOpenFiles} />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Files shared with Bob' }));
+    expect(onOpenFiles).toHaveBeenCalledTimes(1);
+  });
+
+  it('says why it is unavailable before then, rather than vanishing', () => {
+    render(
+      <P2PChatHeader peerName="Bob" peerUsername="bob" peerPresence={null} peerTyping={false} paused={false}
+        isConnected={false} isRegistered={false} connectionRoute={null} supervisor={null} onSettingsClick={vi.fn()} onOpenFiles={null} />,
+    );
+    expect(screen.getByTestId('chat-files-button')).toBeDisabled();
+    expect(screen.getByTestId('chat-files-button')).toHaveAccessibleName(/available once you are registered peers/);
   });
 });
