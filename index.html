@@ -50,8 +50,12 @@
       it has downloaded and parsed the stylesheet AND laid out the element that
       references it. That late discovery made it the Largest Contentful Paint.
       Preloading hoists the request to the start of the page load.
+
+      Only "/" shows it. data-route names that route, and the hosted Worker
+      (deploy/tenant-worker/control/ui.mjs) removes the link from every other page;
+      elsewhere it was a wasted download and a "preloaded but not used" warning.
     -->
-    <link rel="preload" as="image" href="/backgrounds/landing-hero.webp" fetchpriority="high" />
+    <link rel="preload" as="image" href="/backgrounds/landing-hero.webp" fetchpriority="high" data-route="/" />
 
     <!-- PWA. The manifest link is injected by vite-plugin-pwa at build time.
          theme-color drives the OS titlebar/status bar of the installed window.
