@@ -9,7 +9,8 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useLevelName } from '@/hooks/use-level-name';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 import { useLoadedPermissionsAt, type PermissionsLoad } from './use-loaded-permissions';
-import { allLoaded, grantSource, permissionPath, type GrantSource, type PermissionLevel } from './member-permission-path';
+import { allLoaded, grantSource, type GrantSource, type PermissionLevel } from './member-permission-path';
+import { domainPath } from '@/lib/domain-path';
 import { applyPermissionChanges, permissionChanges, type PermissionChanges } from './permission-changes';
 
 export interface MemberPermissionEditor {
@@ -36,7 +37,7 @@ export function useMemberPermissionEditor(userId: string, domainId: string): Mem
   // The workspace's own name, by the rule every other level name follows.
   const workspaceName: string = useLevelName()(WORKSPACE_ROOT_ID);
   const path: PermissionLevel[] = useMemo(
-    (): PermissionLevel[] => permissionPath(state.nodes, domainId, workspaceName),
+    (): PermissionLevel[] => domainPath(state.nodes, domainId, workspaceName),
     [state.nodes, domainId, workspaceName],
   );
   const target: PermissionLevel = path[path.length - 1];

@@ -26,7 +26,7 @@ const SRC: string = join(process.cwd(), 'src');
  * every navigate() in the app.
  */
 const LEAVES_THE_EDITOR: string[] = [
-  'components/layout/sidebar/HierarchySidebar.tsx',
+  // The sidebar's node select is use-select-node.ts now, shared with the breadcrumbs: see SELECT_A_NODE.
   // MembersSection no longer navigates itself: its contact and member rows open
   // chats through use-open-conversation.ts, listed below with the guarded ones.
   'components/layout/sidebar/FilesSection.tsx',
@@ -51,6 +51,13 @@ const NAVIGATES_ONLY_THROUGH_THE_GUARD: string[] = [
   'components/layout/sidebar/MembersSectionModals.tsx',
   'components/call/OngoingCallBar.tsx',
   'components/layout/sidebar/use-open-conversation.ts',
+  'hooks/use-select-node.ts',
+];
+
+/** Open a node in the tree, and so must do it the one guarded way (use-select-node.ts). */
+const SELECT_A_NODE: string[] = [
+  'components/layout/sidebar/HierarchySidebar.tsx',
+  'components/office/OfficeBreadcrumbs.tsx',
 ];
 
 describe('a navigation that unmounts the editor', () => {
@@ -78,6 +85,13 @@ describe('a navigation that unmounts the editor', () => {
         'asking, so an unsaved edit is discarded silently. Use ' +
         'useGuardedNavigate() from @/hooks/use-guarded-navigate.',
     ).toEqual([]);
+  });
+
+  it('opens a node only through the shared select, from the sidebar and the breadcrumbs alike', () => {
+    const offenders: string[] = SELECT_A_NODE.filter(
+      (rel) => !/\buseSelectNode\s*\(/.test(stripComments(readFileSync(join(SRC, rel), 'utf-8'))),
+    );
+    expect(offenders, 'open nodes with useSelectNode() from @/hooks/use-select-node, which asks first').toEqual([]);
   });
 
   it('asks only when something is actually dirty', async () => {

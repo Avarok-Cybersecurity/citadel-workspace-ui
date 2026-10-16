@@ -4,7 +4,9 @@
  * The Messages icon and the title's "go up" called `navigate` directly. Both
  * unmount the editor -- `/messages` is another page, and dropping `nodeId`
  * renders the workspace root -- so twenty minutes of writing went with one
- * click on the chrome right above it, while every sidebar control asked.
+ * click on the chrome right above it, while every sidebar control asked. The
+ * title is breadcrumbs now; going up is the workspace crumb, through the
+ * sidebar's own select.
  *
  * Renders the REAL BaseOffice and OfficeLayout. Mocked, as in
  * editor-buffer-guard.test.tsx: MDX compilation (does not run under jsdom), and
@@ -60,7 +62,7 @@ describe('leaving a dirty document from the office header', () => {
 
   it.each([
     ['the Messages icon', (): HTMLElement => screen.getByTitle('Messages')],
-    ['the title', (): HTMLElement => screen.getByRole('button', { name: 'Engineering' })],
+    ['the workspace breadcrumb', (): HTMLElement => screen.getByRole('button', { name: 'Your workspace' })],
   ])('%s asks, and "keep editing" stays put with the buffer intact', async (_name: string, control: () => HTMLElement) => {
     const user: UserEvent = userEvent.setup();
     const textarea: HTMLElement = await editSomething(user);

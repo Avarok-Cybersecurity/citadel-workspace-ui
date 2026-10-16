@@ -12,6 +12,8 @@ import { Toaster } from '@/components/ui/sonner';
 import { GroupMessageItem } from '@/components/chat/GroupMessageItem';
 import { GroupChatHeader } from '@/components/chat/GroupChatHeader';
 import { SettingsModal } from '@/components/SettingsModal';
+import { OfficeLayout } from '@/components/office/OfficeLayout';
+import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 import Landing from '@/pages/Landing';
 import { ADA } from './scenarios-people.jsx';
 
@@ -22,10 +24,10 @@ const STATE = {
   nodes: {}, treeSchema: null, loading: { workspace: false, members: false, nodes: false },
 };
 
-export function Shell({ children, route = '/' }) {
+export function Shell({ children, route = '/', state = STATE }) {
   return (
     <MemoryRouter initialEntries={[route]}>
-      <WorkspaceProvider state={STATE}>
+      <WorkspaceProvider state={state}>
         <PermissionsProvider>
           <ConfirmDialogProvider>
             <TooltipProvider>
@@ -64,7 +66,33 @@ function GroupChat() {
   );
 }
 
+const treeNode = (id, parent, type, name) => ({
+  id, parent_id: parent, entity_type: { Child: type }, depth: 0, name, description: '', owner_id: '', members: [], children: [],
+  mdx_content: '', mdx_content_hash: null, rules: null, chat_enabled: false, chat_channel_id: null, default_permissions: {},
+  metadata: [], allowed_child_types: [], is_default: false, created_at: 0n, updated_at: 0n,
+});
+/** Four levels deep, with names as long as people give them, so the header has to fold and truncate. */
+const DEEP = {
+  ...STATE,
+  workspace: { id: 'w', name: 'LexelNet Research and Development' },
+  nodes: Object.fromEntries([
+    treeNode('hq', WORKSPACE_ROOT_ID, 'Office', 'Headquarters and Engineering Operations'),
+    treeNode('floor', 'hq', 'Floor', 'Third floor, east wing'),
+    treeNode('standup', 'floor', 'Room', 'Daily standup and planning for the platform team'),
+  ].map((n) => [n.id, n])),
+};
+
+function OfficeHeader() {
+  return (
+    <Shell route="/workspace?nodeId=standup" state={DEEP}>
+      <OfficeLayout title={DEEP.nodes.standup.name} nodeId="standup" isEditing={false} onEditToggle={NOTHING} canEdit>
+        <p style={{ padding: 16 }}>The page under the header.</p>
+      </OfficeLayout>
+    </Shell>
+  );
+}
+
 const settingsTab = (tab) => () => <Shell><SettingsModal open onOpenChange={NOTHING} tab={tab} /></Shell>;
 const SignIn = () => <Shell><Landing /></Shell>;
 
-export const SCREEN_SCENARIOS = { 'group-chat': GroupChat, settings: settingsTab('general'), 'settings-connections': settingsTab('connections'), 'settings-appearance': settingsTab('appearance'), 'settings-privacy': settingsTab('privacy'), landing: SignIn };
+export const SCREEN_SCENARIOS = { 'group-chat': GroupChat, settings: settingsTab('general'), 'settings-connections': settingsTab('connections'), 'settings-appearance': settingsTab('appearance'), 'settings-privacy': settingsTab('privacy'), landing: SignIn, 'office-header': OfficeHeader };

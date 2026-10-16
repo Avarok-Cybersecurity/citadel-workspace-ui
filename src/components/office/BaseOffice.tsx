@@ -205,6 +205,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
     return (
       <OfficeLayout
         title={entityData?.name || title}
+        nodeId={nodeId ?? null}
         isEditing={isEditing}
         onEditToggle={() => { void handleEditToggle(); }}
         onSave={handleSave}
@@ -220,6 +221,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
   return (
     <OfficeLayout
       title={entityData?.name || title}
+      nodeId={nodeId ?? null}
       isEditing={isEditing}
       onEditToggle={() => { void handleEditToggle(); }}
       onSave={handleSave}

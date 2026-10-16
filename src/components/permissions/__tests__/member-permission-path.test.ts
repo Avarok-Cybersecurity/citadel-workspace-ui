@@ -7,7 +7,8 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { setTreeSchema } from '@/lib/entity-type-registry';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 import type { DomainNode, TreeSchema } from '@/components/layout/sidebar/tree-node-types';
-import { grantSource, levelPhrase, permissionPath, type PermissionLevel } from '../member-permission-path';
+import { grantSource, levelPhrase, type PermissionLevel } from '../member-permission-path';
+import { domainPath } from '@/lib/domain-path';
 import { changeCount, permissionChanges } from '../permission-changes';
 import type { PermissionsLoad } from '../use-loaded-permissions';
 
@@ -38,23 +39,23 @@ beforeAll(() => {
 
 describe('the path an edit applies along', () => {
   it('runs from the workspace down to the level opened, named by the live schema', () => {
-    const path: PermissionLevel[] = permissionPath(NODES, 'standup', 'Acme');
+    const path: PermissionLevel[] = domainPath(NODES, 'standup', 'Acme');
     expect(path.map((level: PermissionLevel) => level.id)).toEqual([WORKSPACE_ROOT_ID, 'hq', 'standup']);
     expect(path.map(levelPhrase)).toEqual(['Company Acme', 'Studio HQ', 'Booth Standup']);
   });
 
   it('is the workspace alone when the workspace is what was opened', () => {
-    expect(permissionPath(NODES, WORKSPACE_ROOT_ID, 'Acme').map((level: PermissionLevel) => level.id)).toEqual([WORKSPACE_ROOT_ID]);
+    expect(domainPath(NODES, WORKSPACE_ROOT_ID, 'Acme').map((level: PermissionLevel) => level.id)).toEqual([WORKSPACE_ROOT_ID]);
   });
 
   it('keeps an unknown level as the one edited instead of turning it into the workspace', () => {
-    const path: PermissionLevel[] = permissionPath(NODES, 'gone', 'Acme');
+    const path: PermissionLevel[] = domainPath(NODES, 'gone', 'Acme');
     expect(path[path.length - 1].id).toBe('gone');
   });
 });
 
 describe('where a grant comes from', () => {
-  const path: PermissionLevel[] = permissionPath(NODES, 'standup', 'Acme');
+  const path: PermissionLevel[] = domainPath(NODES, 'standup', 'Acme');
 
   it('is the highest level that already grants it', () => {
     const loads: Record<string, PermissionsLoad> = {
