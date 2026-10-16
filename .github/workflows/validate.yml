@@ -81,8 +81,14 @@ jobs:
           if [ -n "${CANDIDATE:-}" ] && gh api "repos/$PARENT/branches/$CANDIDATE" >/dev/null 2>&1; then
             ref="$CANDIDATE"
           fi
-          echo "ref=$ref" >> "$GITHUB_OUTPUT"
-          echo "Parent $PARENT will be checked out at '$ref' (branch under test: '${CANDIDATE:-none}', fallback: '$FALLBACK')."
+          # The branch's COMMIT, resolved once. Every job used to check the branch name out on
+          # its own, so a parent merge mid-run gave different jobs different parents; now that
+          # one job builds the stack and fifty load it, that mismatch fails every load
+          # (ci-stack.sh refuses an image built from another checkout), and so does a rerun.
+          sha="$(gh api "repos/$PARENT/commits/$ref" --jq .sha)"
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::could not resolve $PARENT@$ref to a commit (got '$sha')"; exit 1; }
+          echo "ref=$sha" >> "$GITHUB_OUTPUT"
+          echo "Parent $PARENT will be checked out at '$ref' = $sha (branch under test: '${CANDIDATE:-none}', fallback: '$FALLBACK')."
 
   unit-tests:
     needs: parent-ref
@@ -90,10 +96,16 @@ jobs:
     # Observed the same work as the parent job, 6m there; this bounds a hang, not performance.
     # Without it a stuck job holds a runner for GitHub's 360-minute default.
     timeout-minutes: 25
-    # Hosted, not the self-hosted Mac: that box is shared by two runners and by macOS's own
-    # background work (Spotlight knowledge, media analysis), and under it unrelated tests
-    # hit their 5 s timeouts. These tests need no Mac; a hosted runner is unshared.
-    runs-on: ubuntu-latest
+    # The Mac pool when it is on: this job needs no Docker, apt or Linux path, and it gates every
+    # integration leg, so a prompt start matters more than an unshared box. It was moved off the
+    # Mac once (two slots, Spotlight indexing, orphaned vitest workers: unrelated tests hit their
+    # 5 s timeouts); Spotlight is now off there, a job hook reaps orphaned vitest workers, and the
+    # worker cap below keeps four concurrent jobs within the machine's 12 cores.
+    runs-on: >-
+      ${{ vars.CITADEL_MAC_RUNNER == '1'
+          && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+          && fromJSON('["self-hosted","macOS","ARM64","apple-48gb-metal"]')
+          || 'ubuntu-latest' }}
     defaults:
       run:
         working-directory: parent
@@ -147,10 +159,11 @@ jobs:
         # and the thing it had been compensating for was a nested `npm ci`.
         #
         # The parent enforces this with scripts/check-ci-installs-match-the-lockfile.mjs.
-        # The two self-hosted runners share one 12-core Mac; each vitest defaults to a worker per
-        # core, so two concurrent jobs ran 24 on 12 and unrelated tests hit their 5 s timeouts.
-        # Half the cores each keeps both jobs inside the machine. Hosted runners are unshared.
-        run: npx vitest run ${{ runner.environment == 'self-hosted' && '--maxWorkers=50%' || '' }}
+        # The four self-hosted runner slots share one 12-core Mac (with two more org runners); each
+        # vitest defaults to a worker per core, so concurrent jobs ran several times 12 and
+        # unrelated tests hit their 5 s timeouts. Three workers each keeps four jobs inside the
+        # machine. Hosted runners are unshared.
+        run: npx vitest run ${{ runner.environment == 'self-hosted' && '--maxWorkers=3' || '' }}
         working-directory: parent/citadel-workspaces
 
   chat-polish:
@@ -661,6 +674,112 @@ jobs:
         # repository's workflow at parent/citadel-workspaces/.github/workflows.
         run: node scripts/check-mac-runner-is-fork-safe.mjs && node --test scripts/lib/mac-runner-routing.test.mjs
 
+  # The integration stack, built ONCE per run -- the parent's integration-stack job and its
+  # scripts/ci-stack.sh, in this repo's parent/ layout. Every integration and Playwright leg
+  # used to build the whole stack itself in Start Services: ~22 of each leg's minutes there
+  # (two release Rust compiles and the WASM sync), repeated in 50 legs that also queued for the
+  # org's shared runner pool. Each leg now loads these images and refuses any not built from
+  # its own checkout (source identity, this run, parent revision: `ci-stack.sh load`).
+  #
+  # The server and agent images depend only on the parent and agent commits, which a UI pull
+  # request never changes, so those two are cached by that backend identity: saved by pushes to
+  # master, restored by every run on the same parent commit, and proved before use
+  # (`ci-stack.sh reuse`). The UI and the WASM sync are built every run.
+  #
+  # `needs: parent-ref` only: this is the critical path, so it does not wait for the cheap
+  # gates; the test legs below still wait for all of them (check-expensive-jobs-wait-for-cheap-
+  # ones.mjs exempts this job by name, and only while it runs `ci-stack.sh build` and no test).
+  integration-stack:
+    needs: parent-ref
+    name: Integration stack - ${{ matrix.service }}
+    # The parent's leg: the agent's release compile is 16m43s; this bounds a hang.
+    timeout-minutes: 45
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [sync-wasm-client, server, internal-service, ui]
+    defaults:
+      run:
+        working-directory: parent
+    # The env Start Services had, so compose interpolates the same build args everywhere.
+    env:
+      INTERNAL_SERVICE_PORT: '12345'
+      WORKSPACE_MASTER_PASSWORD: 'ci-test-password'
+    steps:
+      - name: Checkout parent repo (workspace structure)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.PARENT_REPO }}
+          ref: ${{ needs.parent-ref.outputs.ref }}
+          path: parent
+      - name: Checkout submodule code (this PR)
+        uses: actions/checkout@v4
+        with:
+          path: parent/citadel-workspaces
+      - name: Init citadel-internal-service submodule
+        run: git submodule update --init --recursive citadel-internal-service
+      - name: Free Disk Space
+        # The server and agent images are the ~5.6 GB `dev` stage (toolchain plus target/).
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost /usr/local/.ghcup "$AGENT_TOOLSDIRECTORY"
+          sudo apt-get clean || echo 'apt-get clean skipped (lock held)'
+          df -h
+      - name: Backend cache key
+        id: cache-key
+        if: matrix.service == 'server' || matrix.service == 'internal-service'
+        run: |
+          key="$(./scripts/ci-stack.sh cache-key ${{ matrix.service }})"
+          echo "key=$key" >> "$GITHUB_OUTPUT"
+      - name: Restore the image built from these backend commits
+        id: cache
+        if: steps.cache-key.outputs.key != ''
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/ci-stack-cache/${{ matrix.service }}.tar.zst
+          key: ${{ steps.cache-key.outputs.key }}
+      - name: Pull base images (retried)
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: ../scripts/pull-base-images.sh
+        # Step-level working-directory is relative to the workspace root (see the test jobs).
+        working-directory: parent/citadel-workspaces
+      - name: Build the image
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: ./scripts/ci-stack.sh build ${{ matrix.service }} "$RUNNER_TEMP/ci-stack"
+      - name: Reuse the cached image, after proving where it came from
+        if: steps.cache.outputs.cache-hit == 'true'
+        timeout-minutes: 15
+        run: ./scripts/ci-stack.sh reuse ${{ matrix.service }} "$RUNNER_TEMP/ci-stack-cache/${{ matrix.service }}.tar.zst" "$RUNNER_TEMP/ci-stack"
+      # Master only: a pull request's cache is visible to that pull request alone, and two
+      # ~2 GB entries per PR would evict the npm and browser caches every job relies on.
+      - name: Keep the image for later runs on these backend commits
+        if: steps.cache-key.outputs.key != '' && steps.cache.outputs.cache-hit != 'true' && github.event_name == 'push'
+        run: |
+          mkdir -p "$RUNNER_TEMP/ci-stack-cache"
+          ln "$RUNNER_TEMP/ci-stack/${{ matrix.service }}.tar.zst" "$RUNNER_TEMP/ci-stack-cache/${{ matrix.service }}.tar.zst"
+      - name: Save the image to the cache
+        if: steps.cache-key.outputs.key != '' && steps.cache.outputs.cache-hit != 'true' && github.event_name == 'push'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/ci-stack-cache/${{ matrix.service }}.tar.zst
+          key: ${{ steps.cache-key.outputs.key }}
+      - name: Run the WASM sync once, for every job
+        if: matrix.service == 'sync-wasm-client'
+        timeout-minutes: 20
+        run: ./scripts/ci-stack.sh sync-products "$RUNNER_TEMP/ci-stack"
+      - name: Dump the sync's log on failure
+        if: failure() && matrix.service == 'sync-wasm-client'
+        run: docker compose logs sync-wasm-client 2>&1 | tail -200
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ci-stack-${{ matrix.service }}
+          path: ${{ runner.temp }}/ci-stack/
+          if-no-files-found: error
+          # zstd already; zipping it again costs time and saves nothing.
+          compression-level: 0
+          # Long enough to re-run a failed leg; the images are run-scoped and expire on their own.
+          retention-days: 3
+
   playwright-tests:
     # The cheap gates first. Both of these bring up the full Docker stack --
     # a cold `cargo build --release` of the server kernel AND the internal
@@ -672,7 +791,7 @@ jobs:
     # (`needs: [crate-coverage, lint, typecheck, …]`); this one did not, and
     # `check-expensive-jobs-wait-for-cheap-ones` could not say so because it
     # read the parent's workflow file alone.
-    needs: [parent-ref, lint, typecheck, unit-tests]
+    needs: [parent-ref, lint, typecheck, unit-tests, integration-stack]
     # The @playwright/test suite under integration-tests/src/tests-pw, which ran in
     # no job at all — those specs were compiled by the typecheck job and then never
     # executed against a running stack. Sharded rather than one job per spec, so
@@ -778,24 +897,23 @@ jobs:
                  citadel-workspaces/integration-tests/node_modules/playwright
           ln -sf ${{ github.workspace }}/parent/node_modules/@playwright \
                  citadel-workspaces/integration-tests/node_modules/@playwright
-      - name: Pull base images (retried)
-        # A base-image manifest pull is a network fetch that happens before any
-        # RUN, so the retry gate on RUN fetches cannot see it. A run died on a
-        # 502 from registry-1.docker.io resolving `FROM rust:1.92.0` and took
-        # test:tree-permissions with it -- a red job with no test signal, the
-        # same shape as the failure that gate was written for.
-        run: ../scripts/pull-base-images.sh
-        # Step-level working-directory is relative to the WORKSPACE ROOT, not to
-        # the job's `defaults.run.working-directory: parent`. Without the prefix
-        # this named a path that does not exist here and the step died with
-        # "No such file or directory" before running anything -- a red job with
-        # no signal about the thing it was meant to test.
-        working-directory: parent/citadel-workspaces
+      # The stack integration-stack built for this run: no image build here and no WASM sync.
+      # The base-image pulls (and their retries) moved with the builds.
+      - name: Download the stack this run built
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ci-stack-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/ci-stack
+      - name: Load the stack, and prove it was built from this checkout
+        # Loading ~12 GB of layers; minutes, not tens of them. A hang fails the step.
+        timeout-minutes: 15
+        run: ./scripts/ci-stack.sh load "$RUNNER_TEMP/ci-stack"
       - name: Start Services
         env:
           INTERNAL_SERVICE_PORT: '12345'
           WORKSPACE_MASTER_PASSWORD: 'ci-test-password'
-        run: docker compose up -d --build --wait
+        run: docker compose up -d --no-build --wait
       - name: Dump Service Logs on Start Failure
         if: failure()
         run: |
@@ -880,7 +998,7 @@ jobs:
     # (`needs: [crate-coverage, lint, typecheck, …]`); this one did not, and
     # `check-expensive-jobs-wait-for-cheap-ones` could not say so because it
     # read the parent's workflow file alone.
-    needs: [parent-ref, lint, typecheck, unit-tests]
+    needs: [parent-ref, lint, typecheck, unit-tests, integration-stack]
     name: Integration Test - ${{ matrix.test }}
     # Observed the same work as the parent job, 26m there; this bounds a hang, not performance.
     # Without it a stuck job holds a runner for GitHub's 360-minute default.
@@ -1106,24 +1224,23 @@ jobs:
                  citadel-workspaces/integration-tests/node_modules/playwright
           ln -sf ${{ github.workspace }}/parent/node_modules/@playwright \
                  citadel-workspaces/integration-tests/node_modules/@playwright
-      - name: Pull base images (retried)
-        # A base-image manifest pull is a network fetch that happens before any
-        # RUN, so the retry gate on RUN fetches cannot see it. A run died on a
-        # 502 from registry-1.docker.io resolving `FROM rust:1.92.0` and took
-        # test:tree-permissions with it -- a red job with no test signal, the
-        # same shape as the failure that gate was written for.
-        run: ../scripts/pull-base-images.sh
-        # Step-level working-directory is relative to the WORKSPACE ROOT, not to
-        # the job's `defaults.run.working-directory: parent`. Without the prefix
-        # this named a path that does not exist here and the step died with
-        # "No such file or directory" before running anything -- a red job with
-        # no signal about the thing it was meant to test.
-        working-directory: parent/citadel-workspaces
+      # The stack integration-stack built for this run: no image build here and no WASM sync.
+      # The base-image pulls (and their retries) moved with the builds.
+      - name: Download the stack this run built
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ci-stack-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/ci-stack
+      - name: Load the stack, and prove it was built from this checkout
+        # Loading ~12 GB of layers; minutes, not tens of them. A hang fails the step.
+        timeout-minutes: 15
+        run: ./scripts/ci-stack.sh load "$RUNNER_TEMP/ci-stack"
       - name: Start Services
         env:
           INTERNAL_SERVICE_PORT: '12345'
           WORKSPACE_MASTER_PASSWORD: 'ci-test-password'
-        run: docker compose up -d --build --wait
+        run: docker compose up -d --no-build --wait
       - name: Dump Service Logs on Start Failure
         if: failure()
         run: |
