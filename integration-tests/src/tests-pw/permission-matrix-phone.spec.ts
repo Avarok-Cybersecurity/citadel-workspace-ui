@@ -17,6 +17,10 @@
  *
  * This measures geometry rather than photographing it: a screenshot shows the
  * problem to a human, a bounding box fails a build.
+ *
+ * The member row's Permissions button now opens the one-member editor rather
+ * than the matrix, so that is what is measured here; the matrix keeps the same
+ * guard in the polish harness (`roleMatrixFitsThePhone`).
  */
 import { expect } from '@playwright/test';
 import { adminMemberTest } from '../fixtures/multi-user.fixture.js';
@@ -24,7 +28,7 @@ import { adminDialog, openAdminPanel, activateAdminTab } from '../lib/index.js';
 
 const PHONE = { width: 375, height: 667 };
 
-adminMemberTest('the permission matrix stays inside a 375px viewport', async ({ admin }) => {
+adminMemberTest('one member’s permission editor stays inside a 375px viewport', async ({ admin }) => {
     adminMemberTest.setTimeout(300_000);
     const page = admin.page;
 
@@ -93,68 +97,39 @@ adminMemberTest('the permission matrix stays inside a 375px viewport', async ({ 
     });
     await advanced.click({ force: true });
 
-    const openMatrix = dialog.locator('[data-testid^="member-permissions-"]').first();
-    await expect(openMatrix, 'the Permissions button should appear').toBeVisible({ timeout: 30_000 });
-    await openMatrix.click({ force: true });
+    // The row's Permissions button opens the ONE-member editor now, not the role
+    // matrix: the matrix answered a question about one person with four role
+    // columns. The matrix's own 375px containment is measured in the polish
+    // harness (checks-permissions.mjs, roleMatrixFitsThePhone), where it is
+    // reached without a backend; this spec measures what this button opens.
+    const openEditor = dialog.locator('[data-testid^="member-permissions-"]').first();
+    await expect(openEditor, 'the Permissions button should appear').toBeVisible({ timeout: 30_000 });
+    await openEditor.click({ force: true });
 
-    const heading = page.getByText('Permission Manager');
-    await expect(heading, 'the matrix should open').toBeVisible({ timeout: 30_000 });
+    const editor = page.getByTestId('member-permissions-dialog');
+    await expect(editor, 'the member’s permission editor should open').toBeVisible({ timeout: 30_000 });
 
     // Nothing may sit outside the screen. One pixel of tolerance for subpixel
     // rounding on the centring transform.
-    const box = await dialog.boundingBox();
-    expect(box, 'the dialog should have a box to measure').not.toBeNull();
-    expect(
-        box!.x,
-        'the matrix starts off the left edge of the screen, so the permission names are unreachable',
-    ).toBeGreaterThanOrEqual(-1);
-    expect(
-        box!.x + box!.width,
-        'the matrix extends past the right edge of the screen',
-    ).toBeLessThanOrEqual(PHONE.width + 1);
+    const box = await editor.boundingBox();
+    expect(box, 'the editor should have a box to measure').not.toBeNull();
+    expect(box!.x, 'the editor starts off the left edge of the screen').toBeGreaterThanOrEqual(-1);
+    expect(box!.x + box!.width, 'the editor extends past the right edge of the screen').toBeLessThanOrEqual(PHONE.width + 1);
 
-    // The label column is the part that was lost, so assert it specifically
-    // rather than trusting the dialog's box alone.
-    //
-    // HORIZONTAL bounds, not toBeInViewport(). The defect was the label column
-    // sitting off the left edge of the screen; where a given row falls
-    // vertically is ordinary scrolling and none of this test's business. The
-    // first version asserted full viewport intersection and passed locally by a
-    // few pixels — the MDX row was the last one above the fold — then failed in
-    // CI where font metrics put it just below. It was measuring the layout's
-    // vertical luck, not the thing that broke.
-    //
-    // By testid, not by words. The second version looked for the literal string
-    // "Edit MDX Content"; the label became "Can edit MDX documents" and this
-    // found nothing for thirty seconds, every run, while the 375px guard below
-    // never executed at all. The failure read as a broken test rather than as a
-    // guard that had stopped guarding.
-    const permissionLabel = page.getByTestId('permission-row-EditMdx').first();
-    await expect(permissionLabel, 'the permission label should render').toBeAttached({
-        timeout: 30_000,
-    });
-    await permissionLabel.scrollIntoViewIfNeeded();
+    // By testid, not by words (see the history above): a label is copy and changes.
+    // Horizontal bounds only; where a row falls vertically is ordinary scrolling.
+    const permissionRow = page.getByTestId('member-permission-row-EditMdx');
+    await expect(permissionRow, 'the permission row should render once every level answers').toBeAttached({ timeout: 30_000 });
+    await permissionRow.scrollIntoViewIfNeeded();
+    const row = await permissionRow.boundingBox();
+    expect(row, 'the permission row should have a box').not.toBeNull();
+    expect(row!.x, 'the permission row starts off the left edge').toBeGreaterThanOrEqual(-1);
+    expect(row!.x + row!.width, 'the permission row runs past the right edge').toBeLessThanOrEqual(PHONE.width + 1);
 
-    // The invariant, measured on the dialog itself: it must not scroll
-    // horizontally. That is precisely what `[&>*]:min-w-0` establishes — a grid
-    // item may otherwise not shrink below its content, so the table's ~620px
-    // widens the panel and the whole dialog gains a horizontal scrollbar,
-    // taking the label column off the left edge as soon as anything scrolls it.
-    // The inner table container owns the sideways scrolling; the dialog must
-    // not.
-    //
-    // Two earlier versions of this check measured consequences instead, and
-    // both passed with the fix reverted: the label's own box is inside the
-    // screen at scroll position 0 whether or not the dialog can scroll, and
-    // toBeInViewport() additionally depended on which row happened to sit above
-    // the fold.
-    const overflow = await dialog.evaluate((el) => ({
-        scroll: el.scrollWidth,
-        client: el.clientWidth,
-    }));
+    // The invariant, measured on the editor itself: it must not scroll sideways.
+    const overflow = await editor.evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth }));
     expect(
         overflow.scroll,
-        `the dialog scrolls horizontally (${overflow.scroll}px of content in ${overflow.client}px) — ` +
-        'its content cannot shrink to the screen, so the permission label column ends up off the left edge',
+        `the editor scrolls horizontally (${overflow.scroll}px of content in ${overflow.client}px)`,
     ).toBeLessThanOrEqual(overflow.client + 1);
 });

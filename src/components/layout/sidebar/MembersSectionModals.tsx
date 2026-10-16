@@ -4,7 +4,7 @@
  * Renders all modal/dialog components used by MembersSection:
  * - MemberManagementModal (add/edit/remove)
  * - All Members Dialog
- * - PermissionManagerModal
+ * - MemberPermissionsDialog (one member's permissions at the level on screen)
  * - PeerDiscoveryModal
  * - PendingRequestsModal
  * - CreateGroupDialog
@@ -22,7 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { PermissionManagerModal } from "@/components/permissions/PermissionManagerModal";
+import { MemberPermissionsDialog } from "@/components/permissions/MemberPermissionsDialog";
 import { PeerDiscoveryModal } from "@/components/p2p/PeerDiscoveryModal";
 import { PendingRequestsModal } from "@/components/p2p/PendingRequestsModal";
 import { CreateGroupDialog } from "@/components/chat/CreateGroupDialog";
@@ -64,7 +64,7 @@ interface MembersSectionModalsProps {
   showCreateGroupDialog: boolean;
   // Modal data
   selectedMember: WorkspaceMember | null;
-  permissionModalData: { userId: string; domainId: string; domainType: string } | null;
+  permissionModalData: { member: WorkspaceMember; domainId: string } | null;
   // Callbacks
   onSetShowAddModal: (v: boolean) => void;
   onSetShowEditModal: (v: boolean) => void;
@@ -148,7 +148,7 @@ export function MembersSectionModals({
         </DialogContent>
       </Dialog>
 
-      {permissionModalData && <PermissionManagerModal isOpen={showPermissionModal} onClose={() => { onSetShowPermissionModal(false); onClearPermissionModalData(); }} userId={permissionModalData.userId} domainId={permissionModalData.domainId} domainType={permissionModalData.domainType} />}
+      {permissionModalData && <MemberPermissionsDialog open={showPermissionModal} onClose={() => { onSetShowPermissionModal(false); onClearPermissionModalData(); }} member={permissionModalData.member} domainId={permissionModalData.domainId} />}
       <PeerDiscoveryModal isOpen={showPeerDiscovery} onClose={() => onSetShowPeerDiscovery(false)} onOpenDirectory={() => void openDirectory()} />
       <PendingRequestsModal isOpen={showPendingRequests} onClose={() => onSetShowPendingRequests(false)} />
       <CreateGroupDialog open={showCreateGroupDialog} onOpenChange={onSetShowCreateGroupDialog} availablePeers={registeredPeers.map(p => ({ cid: p.cid, username: p.username, isOnline: p.isOnline }))} currentUsername={currentUsername || 'User'} onCreateGroup={createAndOpenGroup} />

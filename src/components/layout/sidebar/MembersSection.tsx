@@ -20,7 +20,7 @@ import {
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useCallback } from "react";
-import { getEntityMetadata, getEntityTypeString } from "@/lib/entity-type-registry";
+import { getEntityMetadata } from "@/lib/entity-type-registry";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { peerRegistrationStore } from "@/lib/peer-registration-store";
 import { GroupConversationRow } from "./GroupConversationRow";
@@ -49,7 +49,7 @@ export const MembersSection: () => JSX.Element = (): JSX.Element => {
   const [showAllMembersDialog, setShowAllMembersDialog] = useState(false);
   const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [permissionModalData, setPermissionModalData] = useState<{
-    userId: string; domainId: string; domainType: string;
+    member: WorkspaceMember; domainId: string;
   } | null>(null);
   const [showPeerDiscovery, setShowPeerDiscovery] = useState(false);
   const [showPendingRequests, setShowPendingRequests] = useState(false);
@@ -84,15 +84,9 @@ export const MembersSection: () => JSX.Element = (): JSX.Element => {
 
   const handleEditMember = (m: WorkspaceMember): void => { setSelectedMember(m); setShowEditModal(true); };
   const handleRemoveMember = (m: WorkspaceMember): void => { setSelectedMember(m); setShowRemoveModal(true); };
+  // The level on screen: this member's permissions THERE are what the editor is about.
   const handleManagePermissions = (member: WorkspaceMember): void => {
-    let domainId: string = WORKSPACE_ROOT_ID;
-    let domainType: string = 'workspace';
-    if (currentNodeId) {
-      domainId = currentNodeId;
-      const node: DomainNode = state.nodes[currentNodeId];
-      domainType = node ? getEntityTypeString(node.entity_type).toLowerCase() : 'workspace';
-    }
-    setPermissionModalData({ userId: member.id, domainId, domainType });
+    setPermissionModalData({ member, domainId: activeDomainId });
     setShowPermissionModal(true);
   };
 
