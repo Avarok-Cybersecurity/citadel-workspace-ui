@@ -43,11 +43,16 @@ export function watchPickerFrames(page: Page): PickerFrames {
   return { agentPicker: (): AgentPicker => picker, pickFileSent: (): number => pickFiles };
 }
 
-/** The native picker's button, by the icon and by the text; a match on either is the button. */
+/**
+ * The native picker's button, by the icon and by the text; a match on either is the button.
+ * Inside the send dialog: the chat header's Files button carries the same folder icon, so
+ * a page-wide icon match counted it as the picker and "absent" could never hold.
+ */
 export function nativePickerButtons(page: Page): { byIcon: Locator; byText: Locator } {
+  const dialog: Locator = page.getByRole('dialog');
   return {
-    byIcon: page.locator('button').filter({ has: page.locator('svg.lucide-folder-open') }),
-    byText: page.locator('button').filter({ hasText: 'Browse Files' }),
+    byIcon: dialog.locator('button').filter({ has: page.locator('svg.lucide-folder-open') }),
+    byText: dialog.locator('button').filter({ hasText: 'Browse Files' }),
   };
 }
 

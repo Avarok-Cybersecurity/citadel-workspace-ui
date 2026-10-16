@@ -24,6 +24,12 @@ import {
   TestHarness,
   runTestMain,
   isHiddenWithin,
+  fmItem,
+  openFileManagerFromSidebar,
+  openPeerStorage,
+  createFolder as createFolderFromNewMenu,
+  deleteItem,
+  refreshFiles,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
 import { isVisibleWithin } from '../lib/index.js';
@@ -55,7 +61,11 @@ const FOLDER_NAME = 'shared-docs';
 // Helpers
 // ============================================================================
 
-async function navigateToFileManager(page: Page, label: string, maxRetries = 2): Promise<boolean> {
+/**
+ * Open the file manager on the storage shared with `peer`. The sidebar lands on
+ * Server Storage; the P2P menu then picks the peer -- nothing picks one for you.
+ */
+async function navigateToFileManager(page: Page, label: string, peer: string, maxRetries = 2): Promise<boolean> {
   for (let retry = 0; retry <= maxRetries; retry++) {
     if (retry > 0) {
       console.log(`\n=== ${label}: Retrying File Manager navigation (attempt ${retry + 1}/${maxRetries + 1}) ===`);
@@ -74,46 +84,14 @@ async function navigateToFileManager(page: Page, label: string, maxRetries = 2):
         return false;
       }
 
-      // Click the File Manager sidebar button (avoids full page reload / session reclaim)
-      const filesBtn = page.locator('[data-testid="file-manager-button"]');
-      if (await filesBtn.isVisible().catch(() => false)) {
-        await filesBtn.click();
-        console.log('  Clicked File Manager sidebar button');
-      } else {
-        // Fallback: navigate via URL
-        const currentUrl = page.url();
-        const baseUrl = currentUrl.split('?')[0];
-        await page.goto(`${baseUrl}?section=files`, { waitUntil: 'commit', timeout: 30000 });
-        console.log('  Navigated via URL (fallback)');
-      }
-      await sleep(2000);
-
-      // Wait for the VFS tree to load. The File Manager polls peers every 2s,
-      // so "No Peers Connected" is transient while the service syncs.
-      const deadline = Date.now() + 30000;
-      let state = 'unknown';
-      while (Date.now() < deadline) {
-        if (await page.getByText('Sent Files', { exact: true }).first().isVisible().catch(() => false)) {
-          state = 'tree';
-          break;
-        }
-        if (await page.locator('text="File System Error"').isVisible().catch(() => false)) {
-          const errText = await page.locator('text=/Error:.*/')
-            .first().textContent().catch(() => 'unknown error');
-          console.log(`  File System Error: ${errText}`);
-          state = 'error';
-          break;
-        }
-        // Check for other states
-        const noPeers = await page.getByText('No Peers Connected').isVisible().catch(() => false);
-        const loading = await page.getByText('Loading file system').isVisible().catch(() => false);
-        const connecting = await page.getByText('Connecting...').isVisible().catch(() => false);
-        if (noPeers || loading || connecting) {
-          console.log(`  Waiting... noPeers=${noPeers} loading=${loading} connecting=${connecting}`);
-        }
-        await sleep(1000);
+      // The sidebar button avoids a full page reload / session reclaim.
+      if (!await openFileManagerFromSidebar(page) || !await openPeerStorage(page, peer)) {
+        console.log(`  Could not open the storage shared with ${peer}`);
+        if (retry < maxRetries) continue;
+        return false;
       }
 
+      const state: string = await isVisibleWithin(fmItem(page, 'Sent Files'), 30000) ? 'tree' : 'no tree';
       console.log(`  File Manager state: ${state}`);
       if (state === 'tree') return true;
       if (retry < maxRetries) continue;
@@ -130,7 +108,7 @@ async function navigateToFileManager(page: Page, label: string, maxRetries = 2):
 async function waitForTreeLoaded(page: Page, label: string, timeoutMs = 30000): Promise<boolean> {
   console.log(`\n=== ${label}: Waiting for VFS tree ===`);
   try {
-    await page.getByText('Sent Files', { exact: true }).first().waitFor({ state: 'visible', timeout: timeoutMs });
+    await fmItem(page, 'Sent Files').waitFor({ state: 'visible', timeout: timeoutMs });
     console.log('  Tree loaded: true');
     return true;
   } catch {
@@ -141,8 +119,8 @@ async function waitForTreeLoaded(page: Page, label: string, timeoutMs = 30000): 
 
 async function verifyDefaultFolders(page: Page, label: string): Promise<boolean> {
   console.log(`\n=== ${label}: Verifying default folders ===`);
-  const sentFiles = page.getByText('Sent Files', { exact: true }).first();
-  const receivedFiles = page.getByText('Received Files', { exact: true }).first();
+  const sentFiles = fmItem(page, 'Sent Files');
+  const receivedFiles = fmItem(page, 'Received Files');
 
   const hasSent = await isVisibleWithin(sentFiles, 5000);
   const hasReceived = await isVisibleWithin(receivedFiles, 5000);
@@ -154,36 +132,9 @@ async function verifyDefaultFolders(page: Page, label: string): Promise<boolean>
 
 async function createFolder(page: Page, label: string, folderName: string): Promise<boolean> {
   console.log(`\n=== ${label}: Creating folder "${folderName}" ===`);
-  try {
-    // The name is asked for by an in-app dialog now, not window.prompt, so
-    // there is no native dialog to accept — type into the field and submit.
-    const newFolderBtn = page.locator('button').filter({ has: page.locator('svg.lucide-folder-plus') });
-    if (await isVisibleWithin(newFolderBtn, 5000)) {
-      await newFolderBtn.click();
-      console.log('  Clicked New Folder button');
-
-      const nameInput = page.locator('#prompt-dialog-input');
-      if (!await isVisibleWithin(nameInput, 5000)) {
-        console.log('  ERROR: the new-folder dialog did not appear');
-        return false;
-      }
-      await nameInput.fill(folderName);
-      await page.getByTestId('prompt-dialog-confirm').click();
-      await sleep(2000);
-
-      // Verify folder appeared
-      const folder = page.getByText(folderName, { exact: true }).first();
-      const exists = await isVisibleWithin(folder, 5000);
-      console.log(`  Folder "${folderName}" visible: ${exists}`);
-      return exists;
-    }
-
-    console.log('  New Folder button not found');
-    return false;
-  } catch (error) {
-    console.error(`  Error creating folder: ${error}`);
-    return false;
-  }
+  const exists: boolean = await createFolderFromNewMenu(page, folderName);
+  console.log(`  Folder "${folderName}" listed: ${exists}`);
+  return exists;
 }
 
 async function syncAndCheckFolder(page: Page, label: string, folderName: string, shouldExist: boolean): Promise<boolean> {
@@ -191,16 +142,13 @@ async function syncAndCheckFolder(page: Page, label: string, folderName: string,
   try {
     // Try multiple sync attempts — P2P ops may take a moment to propagate
     for (let attempt = 0; attempt < 10; attempt++) {
-      const syncBtn = page.locator('button').filter({ has: page.locator('svg.lucide-refresh-cw') });
-      if (await isVisibleWithin(syncBtn, 5000)) {
-        await syncBtn.click();
+      if (await refreshFiles(page)) {
         console.log(`  Clicked Sync button (attempt ${attempt + 1}/10)`);
       }
       // Wait for P2P propagation and UI re-render
       await sleep(4000);
 
-      const folder = page.getByText(folderName, { exact: true }).first();
-      const visible = await folder.isVisible().catch(() => false);
+      const visible = await fmItem(page, folderName).isVisible().catch(() => false);
       const result = shouldExist ? visible : !visible;
       console.log(`  Folder "${folderName}" visible: ${visible}, expected ${shouldExist ? 'visible' : 'hidden'}: ${result ? 'PASS' : 'FAIL'}`);
       if (result) return true;
@@ -208,11 +156,13 @@ async function syncAndCheckFolder(page: Page, label: string, folderName: string,
       // After several failed attempts, try navigating away and back to force re-render
       if (attempt === 4 && shouldExist) {
         console.log('  Trying navigation refresh to force UI re-render...');
+        // Back to the same address: it carries peer_id, so it reopens this
+        // peer's storage rather than the sidebar's Server default.
         const currentUrl = page.url();
         const baseUrl = currentUrl.split('?')[0];
         await page.goto(baseUrl, { waitUntil: 'commit', timeout: 15000 }).catch(() => {});
         await sleep(2000);
-        await page.goto(`${baseUrl}?section=files`, { waitUntil: 'commit', timeout: 15000 }).catch(() => {});
+        await page.goto(currentUrl, { waitUntil: 'commit', timeout: 15000 }).catch(() => {});
         await sleep(3000);
       }
     }
@@ -224,58 +174,15 @@ async function syncAndCheckFolder(page: Page, label: string, folderName: string,
 
 async function deleteFolder(page: Page, label: string, folderName: string): Promise<boolean> {
   console.log(`\n=== ${label}: Deleting folder "${folderName}" ===`);
-  try {
-    // Deletion is confirmed by an in-app AlertDialog now, not window.confirm;
-    // the confirm button is clicked after the menu item below.
-
-    // Right-click on the folder
-    const folder = page.getByText(folderName, { exact: true }).first();
-    if (!await isVisibleWithin(folder, 5000)) {
-      console.log('  Folder not found');
-      return false;
-    }
-
-    await folder.click({ button: 'right' });
-    console.log('  Right-clicked folder');
-    await sleep(500);
-
-    // Click Delete in context menu
-    const deleteItem = page.locator('[role="menuitem"]').filter({ hasText: /delete/i });
-    if (await isVisibleWithin(deleteItem, 3000)) {
-      await deleteItem.click();
-      console.log('  Clicked Delete menu item');
-
-      // Confirm in the app's own dialog.
-      const confirmDelete = page.getByTestId('confirm-dialog-confirm');
-      if (await isVisibleWithin(confirmDelete, 5000)) {
-        await confirmDelete.click();
-        console.log('  Confirmed deletion in the in-app dialog');
-      } else {
-        console.log('  WARNING: in-app confirm dialog did not appear');
-      }
-      await sleep(2000);
-
-      // Verify folder gone.
-      //
-      // isHiddenWithin, not isVisible({ timeout }). That option is declared
-      // ignored, so this sampled once: a tree that had not re-rendered yet
-      // reported the folder absent and deleteFolder returned success whether or
-      // not anything was deleted. This value gates results.folderDeletion, so
-      // the false positive propagated straight into the run's verdict.
-      const gone = await isHiddenWithin(
-        page.getByText(folderName, { exact: true }).first(),
-        5000
-      );
-      console.log(`  Folder still visible: ${!gone}`);
-      return gone;
-    }
-
-    console.log('  Delete menu item not found');
-    return false;
-  } catch (error) {
-    console.error(`  Error deleting folder: ${error}`);
+  if (!await deleteItem(page, folderName)) {
+    console.log('  Delete was not offered or not confirmed');
     return false;
   }
+  // Waited for as a state: a list that had not re-rendered yet must not read as
+  // "folder gone". This value gates results.folderDeletion.
+  const gone: boolean = await isHiddenWithin(fmItem(page, folderName), 5000);
+  console.log(`  Folder still listed: ${!gone}`);
+  return gone;
 }
 
 /**
@@ -416,8 +323,8 @@ async function runTest(): Promise<boolean> {
     await closeAnyModals(pageAlice);
     await closeAnyModals(pageBob);
 
-    results.navigation.alice = await navigateToFileManager(pageAlice, 'Alice');
-    results.navigation.bob = await navigateToFileManager(pageBob, 'Bob');
+    results.navigation.alice = await navigateToFileManager(pageAlice, 'Alice', BOB);
+    results.navigation.bob = await navigateToFileManager(pageBob, 'Bob', ALICE);
 
     await takeScreenshot(pageAlice, '03_alice_file_manager');
     await takeScreenshot(pageBob, '03_bob_file_manager');

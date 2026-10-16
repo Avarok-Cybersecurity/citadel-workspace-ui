@@ -218,3 +218,4 @@ export { adminDialog, openNodeContextMenu, openAdminPanel, activateAdminTab } fr
 export { WORKSPACE_ROOT_SENTINEL } from './tree-helpers.js';
 
 export { settleServerAutoConnect } from './p2p/session.js';
+export * from './file-manager.js';

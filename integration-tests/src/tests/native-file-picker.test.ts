@@ -113,8 +113,9 @@ async function openFileTransferModal(page: Page, username: string): Promise<bool
 async function checkNativePickerButton(page: Page, username: string): Promise<boolean> {
   console.log(`\n=== ${username}: Checking for native file picker button ===`);
   try {
-    // The native picker button has FolderOpen icon and text "Browse Files"
-    const nativeButton = page.locator('button').filter({
+    // The native picker button has FolderOpen icon and text "Browse Files". In the
+    // dialog only: the chat header's Files button carries the same icon.
+    const nativeButton = page.getByRole('dialog').locator('button').filter({
       has: page.locator('svg.lucide-folder-open')
     });
 
@@ -137,7 +138,7 @@ async function checkNativePickerButton(page: Page, username: string): Promise<bo
 async function clickNativePickerButton(page: Page, username: string): Promise<boolean> {
   console.log(`\n=== ${username}: Clicking native file picker button ===`);
   try {
-    const nativeButton = page.locator('button').filter({
+    const nativeButton = page.getByRole('dialog').locator('button').filter({
       has: page.locator('svg.lucide-folder-open')
     }).first();
 
