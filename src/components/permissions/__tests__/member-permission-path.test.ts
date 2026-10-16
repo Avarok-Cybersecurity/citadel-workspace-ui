@@ -31,7 +31,7 @@ const NODES: Record<string, DomainNode> = Object.fromEntries([
   node('standup', 'hq', 'Room', 'Standup'),
 ].map((n: DomainNode) => [n.id, n]));
 
-const loaded = (...permissions: string[]): PermissionsLoad => ({ status: 'loaded', permissions: new Set(permissions), role: 'Member' });
+const loaded = (...permissions: string[]): PermissionsLoad => ({ status: 'loaded', permissions: new Set(permissions), role: 'Member', roleId: 'member' });
 
 beforeAll(() => {
   setTreeSchema({ entity_type_configs: [config('Workspace', 'Company'), config('Office', 'Studio'), config('Room', 'Booth')] } as unknown as TreeSchema);

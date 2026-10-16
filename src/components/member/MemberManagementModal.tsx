@@ -2,10 +2,11 @@ import { useToast } from "@/hooks/use-toast";
 import { toastSuccess } from "@/lib/toast-helpers";
 import WorkspaceService from "@/lib/workspace-service";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
-import { UserRoleTS } from "@/types/workspace-protocol";
 import { describeFailure } from "@/lib/failure-message";
 import { describeRefusal } from "@/lib/workspace-response-handler/describe-error";
-import { useGrantableRoles, type RoleOption } from "./use-grantable-roles";
+import type { RoleDefinition } from "citadel-workspace-client-ts";
+import { useRoleLadder, type RoleLadder } from "@/hooks/use-role-ladder";
+import { assignableRoles } from "@/lib/workspace-roles/role-ladder";
 import {
   EntityManagementModal,
   type FieldConfig,
@@ -17,15 +18,14 @@ interface MemberManagementModalProps {
   onClose: () => void;
   mode: "add" | "edit" | "remove";
   domainId?: string;
-  member?: { id: string; username: string; role: string };
+  /** `roleId` is their role in the table; the picker starts on it. */
+  member?: { id: string; username: string; roleId?: string };
 }
 
-const ROLE_OPTIONS: readonly RoleOption[] = [
-  { value: "Owner", label: "Owner" },
-  { value: "Admin", label: "Admin" },
-  { value: "Member", label: "Member" },
-  { value: "Guest", label: "Guest" },
-];
+interface RoleOption {
+  value: string;
+  label: string;
+}
 
 const BASE_MODES: Record<"add" | "edit" | "remove", ModeConfig> = {
   add: {
@@ -52,7 +52,9 @@ const BASE_MODES: Record<"add" | "edit" | "remove", ModeConfig> = {
 function fieldsFor(roleOptions: RoleOption[]): FieldConfig[] {
   return [
     { id: 'username', label: 'Username', type: 'input', placeholder: 'Enter username', required: true, showInModes: ['add'] },
-    { id: 'role', label: 'Role', type: 'select', options: roleOptions, defaultValue: 'Member', showInModes: ['add', 'edit'] },
+    // No default: which role a person gets is the admin's choice, and the table's roles are the
+    // admin's own, so there is no built-in one to presume.
+    { id: 'role', label: 'Role', type: 'select', options: roleOptions, required: true, showInModes: ['add', 'edit'] },
   ];
 }
 
@@ -69,7 +71,12 @@ export const MemberManagementModal: React.FC<MemberManagementModalProps> = ({
   isOpen, onClose, mode, domainId, member,
 }) => {
   const { toast } = useToast();
-  const roleOptions: RoleOption[] = useGrantableRoles(ROLE_OPTIONS, isOpen && mode !== "remove");
+  // The roles you may hand out, from the live table: the server refuses the others after the
+  // username was typed and Add pressed.
+  const ladder: RoleLadder = useRoleLadder(isOpen && mode !== "remove");
+  const grantable: RoleDefinition[] = ladder.table === null ? [] : assignableRoles(ladder.table, ladder.actor, ladder.occupied);
+  const roleOptions: RoleOption[] = grantable.map((role: RoleDefinition): RoleOption => ({ value: role.id, label: role.name }));
+  const nameOf = (id: string): string => ladder.table?.roles.find((role: RoleDefinition): boolean => role.id === id)?.name ?? id;
   const { state } = useWorkspace();
   // The place by its name. This said "the domain", the protocol's word, to people who
   // see "Engineering" in the sidebar (measured live).
@@ -83,11 +90,11 @@ export const MemberManagementModal: React.FC<MemberManagementModalProps> = ({
 
   const handleSubmit = async (formData: Record<string, string>): Promise<void> => {
     if (mode === "add") {
-      await inPlainWords(WorkspaceService.addMember(formData.username, formData.role as UserRoleTS, domainId));
-      toastSuccess(toast, "Member Added", `${formData.username} has been added to ${place} as ${formData.role}`);
+      await inPlainWords(WorkspaceService.addMember(formData.username, formData.role, domainId));
+      toastSuccess(toast, "Member Added", `${formData.username} has been added to ${place} as ${nameOf(formData.role)}`);
     } else if (mode === "edit" && member) {
       await inPlainWords(WorkspaceService.updateMemberRole(member.id, formData.role));
-      toastSuccess(toast, "Member Updated", `${member.username}'s role has been updated to ${formData.role}`);
+      toastSuccess(toast, "Member Updated", `${member.username}'s role has been updated to ${nameOf(formData.role)}`);
     } else if (mode === "remove" && member) {
       await inPlainWords(WorkspaceService.removeMember(member.id, domainId));
       toastSuccess(toast, "Member Removed", `${member.username} has been removed`);
@@ -107,7 +114,7 @@ export const MemberManagementModal: React.FC<MemberManagementModalProps> = ({
       mode={mode}
       modes={modes}
       fields={fieldsFor(roleOptions)}
-      initialData={member ? { username: member.username, role: member.role } : undefined}
+      initialData={member ? { username: member.username, role: member.roleId ?? '' } : undefined}
       onSubmit={handleSubmit}
       entityName="member"
       customContent={customContent}

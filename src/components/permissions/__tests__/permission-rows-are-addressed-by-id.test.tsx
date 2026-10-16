@@ -21,7 +21,7 @@ import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { PermissionMatrixTable } from '../PermissionMatrixTable';
 import { Permission } from '@/lib/permissions-service/types';
-import { ROLE_HIERARCHY, PERMISSION_CATEGORIES, type PermissionDefinition } from '../permission-constants';
+import { PERMISSION_CATEGORIES, type PermissionDefinition } from '../permission-constants';
 
 describe('the permission matrix', () => {
   it('gives every row a handle that survives a rewording', () => {
@@ -31,8 +31,11 @@ describe('the permission matrix', () => {
     render(
       <PermissionMatrixTable
         allPermissions={allPermissions}
-        rolePermissions={{}}
-        roleColumns={ROLE_HIERARCHY}
+        // No role columns: the rows are what is under test, and they render without any.
+        roles={[]}
+        cell={() => ({ checked: false, editable: false })}
+        lockOf={() => null}
+        onToggle={() => undefined}
       />,
     );
 

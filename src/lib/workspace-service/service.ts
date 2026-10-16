@@ -11,11 +11,10 @@ import type {
   GroupMessageTypeTS,
   PermissionTS,
   UpdateOperationTS,
-  UserRoleTS,
 } from '@/types/workspace-protocol';
 import { failOnSocketLoss } from '../websocket/request-response';
 import { websocketService } from '@/lib/websocket-service';
-import { isVariant , type SignInSettings, type WorkspaceProtocolRequest } from 'citadel-workspace-client-ts';
+import { isVariant , type MemberRole, type SignInSettings, type WorkspaceProtocolRequest } from 'citadel-workspace-client-ts';
 import { eventEmitter } from '@/lib/event-emitter';
 import { debugLog, debugEnabled } from '@/lib/debug-config';
 
@@ -123,9 +122,9 @@ export class WorkspaceService implements ProtocolSender {
   public updateWorkspaceProfile(workspaceId: string, change: WorkspaceProfileChange): Promise<void> { return updateWorkspaceProfile(this, workspaceId, change); }
 
   // Member operations
-  public addMember(userId: string, role: UserRoleTS, domainId?: string, metadata?: Uint8Array): Promise<void> { return members.addMember(this, userId, role, domainId, metadata); }
+  public addMember(userId: string, role: MemberRole, domainId?: string, metadata?: Uint8Array): Promise<void> { return members.addMember(this, userId, role, domainId, metadata); }
   public getMember(userId: string): Promise<void> { return members.getMember(this, userId); }
-  public updateMemberRole(userId: string, role: string, metadata?: Uint8Array): Promise<unknown> { return members.updateMemberRole(this, userId, role, metadata); }
+  public updateMemberRole(userId: string, role: MemberRole, metadata?: Uint8Array): Promise<unknown> { return members.updateMemberRole(this, userId, role, metadata); }
   public updateMemberPermissions(userId: string, domainId: string, perms: PermissionTS[], op: UpdateOperationTS): Promise<void> { return members.updateMemberPermissions(this, userId, domainId, perms, op); }
   public removeMember(userId: string, domainId?: string): Promise<void> { return members.removeMember(this, userId, domainId); }
   public listMembers(domainId?: string): Promise<void> { return members.listMembers(this, domainId); }

@@ -16,7 +16,6 @@ import {
 } from '@/components/ui/accordion';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { usePermissions } from '@/contexts/PermissionsContext';
-import type { UserRole } from '@/lib/permissions-service';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { permissionSections, type PermissionSection } from './permission-sections';
 import { RoleBadge, GroupedPermissionTable } from './PermissionWidgets';
@@ -28,7 +27,6 @@ import { ParentNodePermissionSection } from './PermissionNodeSections';
 export function PermissionsSettingsTab(): JSX.Element {
   const { state } = useWorkspace();
   const {
-    getRole,
     loading,
     error,
     refreshPermissions,
@@ -38,7 +36,6 @@ export function PermissionsSettingsTab(): JSX.Element {
 
   const workspaceId: string | undefined = state.workspace?.id;
   const workspaceName: string = state.workspace?.name || 'Workspace';
-  const workspaceRole: UserRole | null = workspaceId ? getRole(workspaceId) : null;
 
   // Fetch workspace permissions on mount
   useEffect(() => {
@@ -112,7 +109,7 @@ export function PermissionsSettingsTab(): JSX.Element {
             <div className="flex items-center gap-3">
               <Building2 className="h-5 w-5 text-primary-accent" />
               <span className="font-medium">{workspaceName}</span>
-              <RoleBadge role={workspaceRole} />
+              <RoleBadge />
               {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
             </div>
           </AccordionTrigger>

@@ -15,10 +15,22 @@ import { ADMISSION_COPY } from '@/lib/admission/copy';
 import { admissionSettingOver, NO_SUCH_SETTING, type AdmissionSettingPort } from '@/lib/admission/workspace-setting';
 import { TurnstileAdmissionSwitch } from '../TurnstileAdmissionSwitch';
 
+// The permission answer is the I/O boundary (GetUserPermissions through the permissions service);
+// the control and everything it renders are real. `holds` is whether the reader holds the
+// permission asked for, as a settled answer.
+const holds: { current: boolean } = vi.hoisted((): { current: boolean } => ({ current: false }));
+vi.mock('@/hooks/use-permission', () => ({
+  usePermission: (): import('@/hooks/use-permission-result').UsePermissionResult => ({
+    allowed: holds.current, loading: false, unanswered: false, answered: true, reason: null, refresh: async (): Promise<void> => undefined,
+  }),
+}));
+
 type Update = (settings: SignInSettings) => Promise<SignInSettings>;
 
-function renderSwitch(role: string, port: AdmissionSettingPort, workspace: Record<string, unknown> = { id: 'ws-1', name: 'Bench' }): void {
-  const state: Partial<WorkspaceState> = { workspace: workspace as never, currentUser: { role } as never };
+/** `configures`: the reader holds EditWorkspaceConfig, which is what the server asks. */
+function renderSwitch(configures: boolean, port: AdmissionSettingPort, workspace: Record<string, unknown> = { id: 'ws-1', name: 'Bench' }): void {
+  holds.current = configures;
+  const state: Partial<WorkspaceState> = { workspace: workspace as never, currentUser: {} as never };
   render(
     <WorkspaceContext.Provider value={{ state: state as WorkspaceState, dispatch: (): void => {} } as never}>
       <TurnstileAdmissionSwitch port={port} />
@@ -49,7 +61,7 @@ const toggle = (): HTMLElement => screen.getByTestId('turnstile-admission-toggle
 
 describe('the human-check setting', () => {
   it('is off by default, with its label and explanation, once the server has said so', async () => {
-    renderSwitch('admin', server(false).port);
+    renderSwitch(true, server(false).port);
     expect(screen.getByLabelText(ADMISSION_COPY.settingLabel)).toBe(toggle());
     expect(toggle()).toBeDisabled();
     await waitFor(() => expect(toggle()).toBeEnabled());
@@ -58,13 +70,13 @@ describe('the human-check setting', () => {
   });
 
   it('shows on when the server holds it on', async () => {
-    renderSwitch('admin', server(true).port);
+    renderSwitch(true, server(true).port);
     await waitFor(() => expect(toggle()).toHaveAttribute('aria-checked', 'true'));
   });
 
   it('asks before turning it on, and writes only once confirmed', async () => {
     const { port, update } = server(false);
-    renderSwitch('admin', port);
+    renderSwitch(true, port);
     await waitFor(() => expect(toggle()).toBeEnabled());
     fireEvent.click(toggle());
     expect(await screen.findByText(ADMISSION_COPY.confirmBody)).toBeInTheDocument();
@@ -76,7 +88,7 @@ describe('the human-check setting', () => {
 
   it('Cancel leaves it off', async () => {
     const { port, update } = server(false);
-    renderSwitch('admin', port);
+    renderSwitch(true, port);
     await waitFor(() => expect(toggle()).toBeEnabled());
     fireEvent.click(toggle());
     fireEvent.click(await screen.findByTestId('turnstile-admission-cancel'));
@@ -86,7 +98,7 @@ describe('the human-check setting', () => {
 
   it('turns off without asking', async () => {
     const { port, update } = server(true);
-    renderSwitch('admin', port);
+    renderSwitch(true, port);
     await waitFor(() => expect(toggle()).toHaveAttribute('aria-checked', 'true'));
     fireEvent.click(toggle());
     await waitFor(() => expect(update).toHaveBeenCalledExactlyOnceWith(on(false)));
@@ -95,7 +107,7 @@ describe('the human-check setting', () => {
 
   it('a refused change shows the server\'s reason and leaves the switch as the server holds it', async () => {
     const { port } = server(false, 'Permission denied: only an admin can change how people sign in to this workspace');
-    renderSwitch('admin', port);
+    renderSwitch(true, port);
     await waitFor(() => expect(toggle()).toBeEnabled());
     fireEvent.click(toggle());
     fireEvent.click(await screen.findByTestId('turnstile-admission-confirm'));
@@ -108,7 +120,7 @@ describe('the human-check setting', () => {
       getSignInSettings: async (): Promise<SignInSettings> => on(false),
       updateSignInSettings: async (): Promise<SignInSettings> => on(false),
     });
-    renderSwitch('admin', keepsOff);
+    renderSwitch(true, keepsOff);
     await waitFor(() => expect(toggle()).toBeEnabled());
     fireEvent.click(toggle());
     fireEvent.click(await screen.findByTestId('turnstile-admission-confirm'));
@@ -117,14 +129,14 @@ describe('the human-check setting', () => {
   });
 
   it('is disabled, with the reason, for a member who is not an admin', async () => {
-    renderSwitch('member', server(false).port);
+    renderSwitch(false, server(false).port);
     expect(toggle()).toBeDisabled();
     expect(screen.getByTestId('turnstile-admission-reason')).toHaveTextContent(ADMISSION_COPY.adminsOnly);
   });
 
   it('is disabled, with the reason, on a server that has no such setting, or predates it', async () => {
     for (const message of [NO_SUCH_SETTING, 'Failed to deserialize command: unknown variant `GetSignInSettings`, expected one of ...']) {
-      renderSwitch('admin', failing(message));
+      renderSwitch(true, failing(message));
       expect(await screen.findByTestId('turnstile-admission-reason')).toHaveTextContent(ADMISSION_COPY.serverUnsupported);
       expect(toggle()).toBeDisabled();
       document.body.innerHTML = '';
@@ -132,7 +144,7 @@ describe('the human-check setting', () => {
   });
 
   it('any other failure to read is shown, never taken for "off"', async () => {
-    renderSwitch('admin', failing('the sign-in settings are unavailable: the host is down'));
+    renderSwitch(true, failing('the sign-in settings are unavailable: the host is down'));
     expect(await screen.findByRole('alert')).toHaveTextContent('the host is down');
     expect(toggle()).toBeDisabled();
   });

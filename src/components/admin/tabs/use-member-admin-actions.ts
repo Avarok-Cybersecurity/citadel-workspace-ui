@@ -2,10 +2,10 @@ import { useCallback, useState } from 'react';
 import WorkspaceService from '@/lib/workspace-service';
 import { toast } from '@/hooks/use-toast';
 import { debugLog } from '@/lib/debug-config';
-// The tab's own types, not local re-declarations: two structurally similar
-// shapes would compile until one of them gained a field. There are two
-// `UserRole`s in this tree and they are not interchangeable.
-import type { MemberData, UserRole } from '../types';
+import type { RoleDefinition } from 'citadel-workspace-client-ts';
+// The tab's own type, not a local re-declaration: two structurally similar
+// shapes would compile until one of them gained a field.
+import type { MemberData } from '../types';
 
 /**
  * The two writes the admin members tab performs.
@@ -22,23 +22,24 @@ import type { MemberData, UserRole } from '../types';
 export function useMemberAdminActions(
   entityId: string,
   setMembers: React.Dispatch<React.SetStateAction<MemberData[]>>,
-): { updatingRoles: Set<string>; changeRole: (userId: string, newRole: UserRole) => Promise<void>; removeMember: (member: MemberData) => Promise<void>; } {
+): { updatingRoles: Set<string>; changeRole: (userId: string, newRole: RoleDefinition) => Promise<void>; removeMember: (member: MemberData) => Promise<void>; } {
   const [updatingRoles, setUpdatingRoles] = useState<Set<string>>(new Set());
 
   const reason = (error: unknown, fallback: string): string =>
     error instanceof Error && error.message ? error.message : fallback;
 
-  const changeRole: (userId: string, newRole: UserRole) => Promise<void> = useCallback(
-    async (userId: string, newRole: UserRole) => {
+  // A role from the table: its id is what the server assigns, its name what the toast says.
+  const changeRole: (userId: string, newRole: RoleDefinition) => Promise<void> = useCallback(
+    async (userId: string, newRole: RoleDefinition) => {
       setUpdatingRoles((prev) => new Set(prev).add(userId));
       try {
-        await WorkspaceService.updateMemberRole(userId, newRole);
+        await WorkspaceService.updateMemberRole(userId, newRole.id);
         setMembers((prev) =>
-          prev.map((m) => (m.userId === userId ? { ...m, role: newRole } : m)),
+          prev.map((m) => (m.userId === userId ? { ...m, roleId: newRole.id } : m)),
         );
         toast({
           title: 'Role Updated',
-          description: `Member role updated to ${newRole}`,
+          description: `Member role updated to ${newRole.name}`,
           variant: 'success',
         });
       } catch (error) {

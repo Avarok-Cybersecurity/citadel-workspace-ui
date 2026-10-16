@@ -10,7 +10,6 @@ import {
   permissionsService,
   Permission,
   DomainPermissions,
-  UserRole,
   PERMISSION_LABELS,
   PERMISSION_CATEGORIES,
 } from '@/lib/permissions-service';
@@ -31,10 +30,6 @@ interface PermissionsContextType {
   hasAnyPermission: (domainId: string, permissions: Permission[]) => boolean;
   hasAllPermissions: (domainId: string, permissions: Permission[]) => boolean;
 
-  // Role checks
-  getRole: (domainId: string) => UserRole | null;
-  isAdmin: (domainId: string) => boolean;
-  isOwner: (domainId: string) => boolean;
 
   // Actions
   refreshPermissions: (domainId?: string) => Promise<void>;
@@ -125,20 +120,6 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return permissionsService.hasAllPermissions(domainId, perms);
   }, []);
 
-  /**
-   * Role checks
-   */
-  const getRole: (domainId: string) => UserRole | null = useCallback((domainId: string): UserRole | null => {
-    return permissionsService.getRole(domainId);
-  }, []);
-
-  const isAdmin: (domainId: string) => boolean = useCallback((domainId: string): boolean => {
-    return permissionsService.isAdmin(domainId);
-  }, []);
-
-  const isOwner: (domainId: string) => boolean = useCallback((domainId: string): boolean => {
-    return permissionsService.isOwner(domainId);
-  }, []);
 
   /**
    * Utilities
@@ -194,9 +175,6 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     hasPermission,
     hasAnyPermission,
     hasAllPermissions,
-    getRole,
-    isAdmin,
-    isOwner,
     refreshPermissions,
     fetchPermissionsForDomain,
     getPermissionLabel,
@@ -208,9 +186,6 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     hasPermission,
     hasAnyPermission,
     hasAllPermissions,
-    getRole,
-    isAdmin,
-    isOwner,
     refreshPermissions,
     fetchPermissionsForDomain,
     getPermissionLabel,
@@ -237,4 +212,4 @@ export function usePermissions(): PermissionsContextType {
 
 // Re-export types and constants for convenience
 export { Permission, PERMISSION_LABELS, PERMISSION_CATEGORIES };
-export type { DomainPermissions, UserRole };
+export type { DomainPermissions };

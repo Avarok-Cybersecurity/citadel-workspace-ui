@@ -18,7 +18,10 @@ export interface StoredWorkspace {
   isActive: boolean;
   cid?: bigint;
   fullName?: string;
+  /** The role's name, as last seen there. */
   role?: string;
+  /** Known to hold ManageRoles there. */
+  administers: boolean;
 }
 
 
@@ -41,7 +44,8 @@ export function toStoredWorkspaces(
     isActive: session.cid === currentCid,
     cid: session.cid,
     fullName: session.fullName,
-    role: session.role || 'Member',
+    role: session.role,
+    administers: session.administers === true,
   }));
 }
 
@@ -94,6 +98,8 @@ export function switcherWorkspaces(
         serverAddress: host,
         workspaceName: host,
         isActive: session.cid === currentCid,
+        // Never saved, so nothing has recorded their standing there.
+        administers: false,
         cid: session.cid,
         fullName: session.full_name,
       };

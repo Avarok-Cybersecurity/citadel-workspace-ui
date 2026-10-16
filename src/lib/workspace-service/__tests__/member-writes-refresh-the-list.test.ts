@@ -23,7 +23,6 @@ vi.mock('../await-write-response', () => ({
 
 import { addMember, removeMember, updateMemberRole } from '../member-operations';
 import { eventEmitter } from '@/lib/event-emitter';
-import { UserRoleTS } from '@/types/workspace-types';
 
 const sender: never = { sendProtocolRequest: vi.fn((): Promise<void> => Promise.resolve()) } as never;
 
@@ -44,7 +43,7 @@ beforeEach(() => {
 
 describe('member writes', () => {
   it('ask the members surfaces to reload after an add', async () => {
-    expect(await countReloads(() => addMember(sender, 'alice', UserRoleTS.Member))).toBe(1);
+    expect(await countReloads(() => addMember(sender, 'alice', 'member'))).toBe(1);
   });
 
   it('ask after a removal', async () => {
@@ -52,13 +51,13 @@ describe('member writes', () => {
   });
 
   it('ask after a role change', async () => {
-    expect(await countReloads(() => updateMemberRole(sender, 'alice', UserRoleTS.Admin))).toBe(1);
+    expect(await countReloads(() => updateMemberRole(sender, 'alice', 'admin'))).toBe(1);
   });
 
   it('do NOT ask when the server refused', async () => {
     // The reload must follow the confirmation, not the attempt — otherwise the
     // list re-reads and shows the unchanged state as though it were the result.
     h.resolveWrite = false;
-    expect(await countReloads(() => addMember(sender, 'alice', UserRoleTS.Member))).toBe(0);
+    expect(await countReloads(() => addMember(sender, 'alice', 'member'))).toBe(0);
   });
 });

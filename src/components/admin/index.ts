@@ -6,5 +6,4 @@ export type {
   AdminTabProps,
   EntityData,
   MemberData,
-  UserRole,
 } from './types';

@@ -14,33 +14,18 @@ import {
 
 
 import { usePermissions, PERMISSION_CATEGORIES } from '@/contexts/PermissionsContext';
-import type { UserRole } from '@/lib/permissions-service';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { MemberRoleBadge } from '@/components/shared/MemberRoleBadge';
 import { cn } from '@/lib/utils';
 
-/**
- * Role badge component with appropriate styling
- */
-export function RoleBadge({ role }: { role: UserRole | null }): JSX.Element {
-  if (!role) {
+/** Your workspace role, from the role table; "Unknown" until it is known. A role is workspace-wide. */
+export function RoleBadge(): JSX.Element {
+  const { state } = useWorkspace();
+  const holder: { roleId?: string; role?: string } = { roleId: state.currentUser?.roleId, role: state.currentUser?.role };
+  if (holder.roleId === undefined && holder.role === undefined) {
     return <Badge variant="outline" className="text-muted-foreground border-border">Unknown</Badge>;
   }
-
-  const roleString: "Member" | "Admin" | "Owner" | "Guest" | "Banned" | "Custom" = typeof role === 'string' ? role : 'Custom';
-
-  const variants: Record<string, string> = {
-    Admin: 'bg-primary-accent/20 text-primary-accent border-primary-accent/50',
-    Owner: 'bg-warning/20 text-warning-emphasis border-warning/50',
-    Member: 'bg-primary-accent/20 text-primary-accent border-primary-accent/50',
-    Guest: 'bg-muted text-muted-foreground border-border',
-    Banned: 'bg-destructive/20 text-destructive-emphasis border-destructive/50',
-    Custom: 'bg-primary-accent/20 text-primary-accent border-primary-accent/50',
-  };
-
-  return (
-    <Badge variant="outline" className={cn('font-medium', variants[roleString] || variants.Custom)}>
-      {roleString}
-    </Badge>
-  );
+  return <MemberRoleBadge holder={holder} className="font-medium" />;
 }
 
 /**

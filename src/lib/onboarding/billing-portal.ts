@@ -8,7 +8,6 @@
  */
 import { dialledHost } from '@/lib/sessions/same-server';
 import { isTenantHost } from '@/lib/workspace-address';
-import { isPrivilegedRole } from '@/lib/role-predicate';
 import { ControlPlaneError } from './control-plane-client';
 
 /** The new tab the portal opens in, opened before the request so no popup blocker intervenes. */
@@ -24,7 +23,11 @@ export interface PortalRefusal {
 }
 
 export interface PlanAndBillingInputs {
-  readonly role: unknown;
+  /**
+   * The reader is known to hold EditWorkspaceConfig. The plan is the workspace's configuration;
+   * the claim code the portal asks for is what actually decides.
+   */
+  readonly configuresWorkspace: boolean;
   readonly serverAddress: string | undefined;
   readonly controlPlaneBase: string | undefined;
 }
@@ -39,11 +42,11 @@ export function hostedWorkspaceSlug(serverAddress: string | undefined): string |
 
 /**
  * The slug to manage billing for, or undefined when "Plan & billing" is not
- * offered: not an owner or admin, a self-hosted server (it has no plan), or a
+ * offered: not someone who configures the workspace, a self-hosted server (it has no plan), or a
  * page with no control plane to ask.
  */
 export function planAndBillingSlug(inputs: PlanAndBillingInputs): string | undefined {
-  if (!isPrivilegedRole(inputs.role) || inputs.controlPlaneBase === undefined) return undefined;
+  if (!inputs.configuresWorkspace || inputs.controlPlaneBase === undefined) return undefined;
   return hostedWorkspaceSlug(inputs.serverAddress);
 }
 

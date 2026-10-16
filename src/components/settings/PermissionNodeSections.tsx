@@ -27,8 +27,7 @@ export function ChildNodePermissionSection({
   nodeName: string;
   entityType: NodeEntityType;
 }): JSX.Element {
-  const { getRole, fetchPermissionsForDomain, loading } = usePermissions();
-  const role: ReturnType<typeof getRole> = getRole(nodeId);
+  const { fetchPermissionsForDomain, loading } = usePermissions();
   const metadata: EntityTypeMetadata = getEntityMetadata(entityType);
   const Icon: ComponentType<{ className?: string; }> = metadata.icon;
 
@@ -44,7 +43,7 @@ export function ChildNodePermissionSection({
         <div className="flex items-center gap-3">
           <Icon className="h-4 w-4 text-primary-accent" />
           <span>{nodeName}</span>
-          <RoleBadge role={role} />
+          <RoleBadge />
           {loading && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
         </div>
       </AccordionTrigger>
@@ -69,8 +68,7 @@ export function ParentNodePermissionSection({
   entityType: NodeEntityType;
   children: Array<{ id: string; name: string; entityType: NodeEntityType }>;
 }): JSX.Element {
-  const { getRole, fetchPermissionsForDomain, loading } = usePermissions();
-  const role: ReturnType<typeof getRole> = getRole(nodeId);
+  const { fetchPermissionsForDomain, loading } = usePermissions();
   const metadata: EntityTypeMetadata = getEntityMetadata(entityType);
   const Icon: ComponentType<{ className?: string; }> = metadata.icon;
 
@@ -86,7 +84,7 @@ export function ParentNodePermissionSection({
         <div className="flex items-center gap-3">
           <Icon className="h-4 w-4 text-primary-accent" />
           <span>{nodeName}</span>
-          <RoleBadge role={role} />
+          <RoleBadge />
           {loading && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
         </div>
       </AccordionTrigger>

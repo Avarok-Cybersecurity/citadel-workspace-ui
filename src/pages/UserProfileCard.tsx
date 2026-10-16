@@ -2,11 +2,10 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { MessageCircle, Mail, UserPlus, Clock, UserX, User, Search, AlertCircle, CheckCircle } from 'lucide-react';
 import { formatPresence } from '@/lib/date-utils';
 import type { UserData } from '@/components/user/UserSearch';
-import { getRoleBadgeClass } from './MemberListItem';
+import { MemberRoleBadge } from '@/components/shared/MemberRoleBadge';
 
 interface UserProfileCardProps {
   selectedUser: UserData | null;
@@ -69,11 +68,7 @@ export function UserProfileCard({
             <MemberAvatar username={selectedUser.id} name={selectedUser.displayName} className="h-20 w-20 text-xl" online={selectedUser.isOnline === true} />
           </div>
           <CardTitle className="text-xl mb-1">{selectedUser.displayName}</CardTitle>
-          {selectedUser.role && (
-            <Badge className={`mb-2 ${getRoleBadgeClass(selectedUser.role)}`}>
-              {selectedUser.role}
-            </Badge>
-          )}
+          <MemberRoleBadge holder={selectedUser} className="mb-2" />
           {selectedUser.email && (
             <CardDescription className="text-muted-foreground flex items-center justify-center mb-2">
               <Mail className="h-3.5 w-3.5 mr-1.5" />

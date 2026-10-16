@@ -100,8 +100,9 @@ describe('a sidebar member row', () => {
 describe('an admin member row', () => {
   function row(accessViaName?: string): HTMLElement {
     render(
-      <MemberRow member={{ userId: 'thomas', username: 'thomas', role: 'Admin', ...(accessViaName ? { accessViaName } : {}) }}
-        showAdvanced={false} isUpdatingRole={false} isOnlyAdmin={false}
+      <MemberRow member={{ userId: 'thomas', username: 'thomas', roleId: 'admin', ...(accessViaName ? { accessViaName } : {}) }}
+        showAdvanced={false} isUpdatingRole={false}
+        rules={{ roles: [], assignable: new Set(), isOnlyManager: false, actOnBlocked: null }}
         onRoleChange={() => undefined} onAdvancedPermissions={() => undefined} onRemove={() => undefined} />,
     );
     return screen.getByTestId('member-remove-thomas');

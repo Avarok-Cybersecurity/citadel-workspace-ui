@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Palette } from 'lucide-react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { usePermissions, Permission } from '@/contexts/PermissionsContext';
+import { Permission } from '@/contexts/PermissionsContext';
 import { usePermission } from '@/hooks/use-permission';
 import { permits } from '@/hooks/use-permission-result';
 import { useWorkspaceTheme } from '@/lib/theme/workspace-theme-context';
@@ -34,7 +34,6 @@ const WorkspaceAppearanceModal: ReturnType<typeof lazy> = lazy(() =>
  */
 export function WorkspaceAppearanceSection(): JSX.Element {
   const { state } = useWorkspace();
-  const { getRole } = usePermissions();
   const { theme, isDefault } = useWorkspaceTheme();
   const [open, setOpen] = useState(false);
 
@@ -79,8 +78,7 @@ export function WorkspaceAppearanceSection(): JSX.Element {
   debugLog('WorkspaceAppearance', 'edit gate', {
     canEdit,
     workspaceId,
-    rootRole: getRole(WORKSPACE_ROOT_ID),
-    workspaceRole: workspaceId ? getRole(workspaceId) : null,
+    roleId: state.currentUser?.roleId ?? null,
   });
 
   const handleSave: (next: WorkspaceTheme) => Promise<void> = useCallback(async (next: WorkspaceTheme): Promise<void> => {

@@ -1,5 +1,4 @@
 import { Settings, Shield, Users, Key, CreditCard, Building2 } from "lucide-react";
-import { isPrivilegedRole } from '@/lib/role-predicate';
 import { useMemo, useState } from "react";
 import {
   SidebarGroup,
@@ -28,14 +27,14 @@ import { openBrowserPortalTab } from '@/lib/onboarding/browser-portal-tab';
 import { ManageSubscriptionDialog } from './ManageSubscriptionDialog';
 import { useWorkspaceAddress } from '@/hooks/use-workspace-address';
 import { usePermission } from '@/hooks/use-permission';
-import { permits } from '@/hooks/use-permission-result';
+import { confirms, permits } from '@/hooks/use-permission-result';
 import { Permission } from '@/lib/permissions-service/types';
 import { WorkspaceSettingsDialog } from '@/components/admin/workspace-settings/WorkspaceSettingsDialog';
 
 /**
  * Admin Settings Section
  *
- * Only visible to users with Admin role. Provides quick access to:
+ * Only visible to those who manage roles or configure the workspace. Provides quick access to:
  * - Manage workspace permissions
  * - View/edit member roles
  * - Access admin-only settings
@@ -52,27 +51,33 @@ export const AdminSettingsSection: () => JSX.Element | null = (): JSX.Element | 
   const rootPermission: ReturnType<typeof usePermission> = usePermission(WORKSPACE_ROOT_ID, Permission.UpdateWorkspace);
   const ownPermission: ReturnType<typeof usePermission> = usePermission(workspaceId, Permission.UpdateWorkspace);
   const canEditWorkspace: boolean = permits(rootPermission) || permits(ownPermission);
+  // The section CLAIMS administration (its header says Admin), so it waits for a known yes:
+  // `confirms`, not `permits`, or every Guest would see it while their answer is on its way.
+  // Either permission makes someone an administrator here: ManageRoles for people and roles,
+  // EditWorkspaceConfig for the workspace's own settings. Each control inside keeps its own gate.
+  const managesRoles: boolean = confirms(usePermission(WORKSPACE_ROOT_ID, Permission.ManageRoles));
+  const configuresWorkspace: boolean = confirms(usePermission(WORKSPACE_ROOT_ID, Permission.EditWorkspaceConfig));
   const controlPlaneBase: string | undefined = readControlPlaneBase(document);
   const api: ControlPlane | undefined = useMemo((): ControlPlane | undefined => controlPlaneBase === undefined
     ? undefined
     : createControlPlane((input: string, init?: RequestInit): Promise<Response> => fetch(input, init), controlPlaneBase),
   [controlPlaneBase]);
   const serverAddress: string | undefined = useWorkspaceAddress(
-    isPrivilegedRole(state.currentUser?.role) && controlPlaneBase !== undefined,
+    configuresWorkspace && controlPlaneBase !== undefined,
     connectionManager.getConnectionInfo()?.serverAddress,
   );
   // Hosted workspaces only: a self-hosted server has no plan, and a page with no
   // control plane has nobody to ask.
   const billingSlug: string | undefined = planAndBillingSlug({
-    role: state.currentUser?.role,
+    configuresWorkspace,
     serverAddress,
     controlPlaneBase,
   });
 
-  // An Owner counts. This check used to accept Admin only, so an Owner saw the
-  // admin ring in TopBar and the shield in the workspace switcher and then got
-  // nothing here -- an administrator in two places and not in the third.
-  const isAdmin: boolean = isPrivilegedRole(state.currentUser?.role);
+  // A permission, not a role name: the same question TopBar's ring and the switcher's shield ask
+  // (ManageRoles), plus the workspace's own settings, so nobody is an administrator in two
+  // places and not in the third.
+  const isAdmin: boolean = managesRoles || configuresWorkspace;
 
   if (!isAdmin) {
     return null;
@@ -144,7 +149,7 @@ export const AdminSettingsSection: () => JSX.Element | null = (): JSX.Element | 
         <WorkspaceSettingsDialog open onOpenChange={setShowWorkspaceSettings} />
       )}
 
-      {/* The read-only reference of what each role can do. */}
+      {/* The role table: what each role can do, editable with ManageRoles. */}
       <PermissionManagerModal isOpen={showPermissionManager} onClose={() => setShowPermissionManager(false)} />
 
       {billingSlug !== undefined && api !== undefined && (
@@ -185,7 +190,7 @@ export const AdminSettingsSection: () => JSX.Element | null = (): JSX.Element | 
               <Users className="h-4 w-4 text-warning-emphasis mt-0.5" />
               <div>
                 <p className="font-medium">Manage User Roles</p>
-                <p className="text-sm text-muted-foreground">Promote or demote users between Admin, Owner, Member, and Guest roles</p>
+                <p className="text-sm text-muted-foreground">Give people roles, and decide what each role can do</p>
               </div>
             </div>
             <div className="flex items-start gap-3 p-2 bg-warning/10 rounded">

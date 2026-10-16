@@ -7,7 +7,6 @@
 
 import { requestPermissions } from './request-permissions';
 import { currentUserIdSync, resolveCurrentUserId as resolveUserId } from './current-user';
-import { isAdminRole, isOwnerRole, isPrivilegedRole } from '@/lib/role-predicate';
 import { EventListenerManager } from '@/lib/utils/event-listener-manager';
 import { debugLog } from '@/lib/debug-config';
 import { INTERVAL } from '@/lib/timeout-constants';
@@ -18,7 +17,6 @@ import {
   updateCacheEntry,
   hasPermission as cacheHasPermission,
   hasAnswerFor as cacheHasAnswerFor,
-  getRole as cacheGetRole,
   getDeniedReason as cacheGetDeniedReason,
 } from './cache';
 
@@ -189,24 +187,9 @@ export class PermissionsService extends EventListenerManager {
     return new Map(this.cache);
   }
 
-  public getRole(domainId: string): UserRole | null {
-    return cacheGetRole(this.cache, domainId);
-  }
-
-  /** Exactly the Admin role. For gating admin affordances use isPrivileged. */
-  public isAdmin(domainId: string): boolean {
-    return isAdminRole(this.getRole(domainId));
-  }
-
-  /** Exactly the Owner role. This used to answer Owner-or-Admin under this name. */
-  public isOwner(domainId: string): boolean {
-    return isOwnerRole(this.getRole(domainId));
-  }
-
-  /** Admin or Owner: what gates an administrative affordance. */
-  public isPrivileged(domainId: string): boolean {
-    return isPrivilegedRole(this.getRole(domainId));
-  }
+  // `getRole`/`isAdmin`/`isOwner`/`isPrivileged` compared role NAMES and are gone: roles are an
+  // editable table, so a gate asks for the permission it needs (usePermission), and a display
+  // reads the role from the table by `currentUser.roleId`.
 
   public clearCache(): void {
     this.cache.clear();

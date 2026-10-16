@@ -96,15 +96,13 @@ describe('which workspaces are hosted', () => {
     expect(hostedWorkspaceSlug(undefined)).toBeUndefined();
   });
 
-  it('offers Plan & billing only to an owner or admin, on a hosted workspace, where a control plane exists', () => {
+  it('offers Plan & billing only to whoever configures the workspace, on a hosted workspace, where a control plane exists', () => {
     const hosted: string = 'acme.work.avarok.net';
-    expect(planAndBillingSlug({ role: 'Owner', serverAddress: hosted, controlPlaneBase: '/api' })).toBe('acme');
-    expect(planAndBillingSlug({ role: 'Admin', serverAddress: hosted, controlPlaneBase: '/api' })).toBe('acme');
-    expect(planAndBillingSlug({ role: 'Member', serverAddress: hosted, controlPlaneBase: '/api' })).toBeUndefined();
-    expect(planAndBillingSlug({ role: undefined, serverAddress: hosted, controlPlaneBase: '/api' })).toBeUndefined();
-    expect(planAndBillingSlug({ role: 'Owner', serverAddress: 'citadel.example.com', controlPlaneBase: '/api' }))
+    expect(planAndBillingSlug({ configuresWorkspace: true, serverAddress: hosted, controlPlaneBase: '/api' })).toBe('acme');
+    expect(planAndBillingSlug({ configuresWorkspace: false, serverAddress: hosted, controlPlaneBase: '/api' })).toBeUndefined();
+    expect(planAndBillingSlug({ configuresWorkspace: true, serverAddress: 'citadel.example.com', controlPlaneBase: '/api' }))
       .toBeUndefined();
-    expect(planAndBillingSlug({ role: 'Owner', serverAddress: hosted, controlPlaneBase: undefined })).toBeUndefined();
+    expect(planAndBillingSlug({ configuresWorkspace: true, serverAddress: hosted, controlPlaneBase: undefined })).toBeUndefined();
   });
 });
 

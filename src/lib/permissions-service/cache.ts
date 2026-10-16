@@ -6,7 +6,6 @@
  */
 
 import { debugLog } from '@/lib/debug-config';
-import { isPrivilegedRole } from '@/lib/role-predicate';
 import { Permission, PERMISSION_LABELS } from './types';
 import type { UserRole, DomainPermissions } from './types';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
@@ -58,10 +57,13 @@ export function updateCacheEntry(
  * Check if user has a specific permission for a domain.
  *
  * Checks in order:
- * 1. Exact domain cache entry - role-based grant (Admin/Owner -> all)
- * 2. Exact domain cache entry - explicit Permission.All wildcard
- * 3. Exact domain cache entry - specific permission in set
- * 4. Hierarchy fallback - traverse to 'workspace-root' for inherited permissions
+ * 1. Exact domain cache entry - explicit Permission.All wildcard
+ * 2. Exact domain cache entry - specific permission in set
+ * 3. Hierarchy fallback - traverse to 'workspace-root' for inherited permissions
+ *
+ * No role NAME is consulted. The server's answer is what enforcement would allow, its role
+ * included, and a role is whatever its table entry grants: an "Admin" an administrator has
+ * stripped is not all-powerful, and an Owner does not hold ConfigureSystem.
  */
 export function hasPermission(
   cache: Map<string, DomainPermissions>,
@@ -71,7 +73,6 @@ export function hasPermission(
   const cached: DomainPermissions | undefined = cache.get(domainId);
 
   if (cached) {
-    if (isPrivilegedRole(cached.role)) return true;
     if (cached.permissions.has(Permission.All)) return true;
     if (cached.permissions.has(permission)) return true;
   }
@@ -80,7 +81,6 @@ export function hasPermission(
   if (domainId !== WORKSPACE_ROOT_ID) {
     const root: DomainPermissions | undefined = cache.get(WORKSPACE_ROOT_ID);
     if (root) {
-      if (isPrivilegedRole(root.role)) return true;
       if (root.permissions.has(Permission.All)) return true;
       return root.permissions.has(permission);
     }
@@ -122,23 +122,6 @@ export function hasAnswerFor(
   return false;
 }
 
-/**
- * Get user's role for a domain, with hierarchy fallback to workspace-root.
- */
-export function getRole(
-  cache: Map<string, DomainPermissions>,
-  domainId: string,
-): UserRole | null {
-  const cached: DomainPermissions | undefined = cache.get(domainId);
-  if (cached?.role) return cached.role;
-
-  if (domainId !== WORKSPACE_ROOT_ID) {
-    const root: DomainPermissions | undefined = cache.get(WORKSPACE_ROOT_ID);
-    if (root?.role) return root.role;
-  }
-
-  return null;
-}
 
 /**
  * Get reason message for denied permission.
@@ -154,6 +137,5 @@ export function getDeniedReason(
   }
 
   const label: string = PERMISSION_LABELS[permission] || permission;
-  const roleLabel: "Member" | "Admin" | "Owner" | "Guest" | "Banned" | "Custom" = typeof cached.role === 'string' ? cached.role : 'Custom';
-  return `You don't have the "${label}" permission. Your role: ${roleLabel}`;
+  return `You don't have the "${label}" permission here.`;
 }

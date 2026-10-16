@@ -3,7 +3,6 @@ import { useEffect } from 'react';
 import { isMemberOnline } from '@/lib/presence';
 import { reconcileOnlineStatus } from '@/lib/online-status-publication';
 import { workspaceEvents, type ConnectionInfo } from '@/lib/workspace-events';
-import { connectionManager } from '@/lib/connection';
 import WorkspaceService from '@/lib/workspace-service';
 import type { WorkspaceEventState } from '../WorkspaceEventHandler';
 import { setLoading, runAsyncSetup } from './event-setup-utils';
@@ -11,8 +10,7 @@ import { applyOwnMemberRecord } from './merge-current-user';
 import type { MappedMember } from '@/lib/workspace-response-handler/member-mapping';
 import { debugLog } from '@/lib/debug-config';
 import { armLoadingDeadline, cancelLoadingDeadline } from '@/lib/loading-flag-timeout';
-import type { User, UserRole } from '@/types/workspace-entities';
-import type { StoredSession } from '@/types/session-types';
+import type { User } from '@/types/workspace-entities';
 import { isForDomain } from '@/lib/workspace-events/is-for-domain';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 import { coalesce, type Coalesced } from '@/lib/coalesce';
@@ -114,7 +112,8 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
                 id,
                 username: member.username || id,
                 displayName: member.displayName || member.username || id,
-                role: member.role as import('@/types/workspace-entities').UserRole | undefined,
+                role: member.role,
+                roleId: member.roleId,
                 avatarUrl: member.avatarUrl, email: member.email, title: member.title, acceptsRequestsFromStrangers: member.acceptsRequestsFromStrangers,
                 showProfileToStrangers: member.showProfileToStrangers, showsOnlineStatus: member.showsOnlineStatus,
                 // Real presence rather than a constant. A member arriving from
@@ -134,16 +133,8 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
           if (ownRecord) {
             // So other members' clients read the choice this device obeys.
             reconcileOnlineStatus(ownRecord.showsOnlineStatus);
-            // Persist role to stored session for WorkspaceSwitcher (async)
-            const roleToSave: UserRole | undefined = ownRecord.role;
-            if (roleToSave) {
-              runAsyncSetup(async () => {
-                const session: StoredSession | null = await connectionManager.getTabSelectedSession();
-                if (session) {
-                  await connectionManager.updateSessionRole(session.username, session.serverAddress, roleToSave);
-                }
-              });
-            }
+            // The switcher's role and shield are persisted from the table and the ManageRoles
+            // answer (use-persist-own-standing), not from this legacy mirror.
           }
 
           return {
@@ -162,25 +153,19 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
       // `members:reload`, emitted from the write path once the server confirms.
 
       // Member role updated event
-      keep(workspaceEvents.onMemberEvent('member:role-updated', (payload: { userId: string; role: string; connection: ConnectionInfo }) => {
+      keep(workspaceEvents.onMemberEvent('member:role-updated', (payload: { userId: string; role: string; roleId: string | null; connection: ConnectionInfo }) => {
         debugLog('UseMemberEventSetup', 'Member role updated:', payload.userId, payload.role);
         setState(prev => {
           // Update currentUser's role if it matches
-          let updatedCurrentUser: { id: string; username: string; name: string; role?: string; displayName?: string; avatarUrl?: string; } | undefined = prev.currentUser;
+          let updatedCurrentUser: WorkspaceEventState['currentUser'] = prev.currentUser;
           if (prev.currentUser && (prev.currentUser.username === payload.userId || prev.currentUser.id === payload.userId)) {
-            debugLog('UseMemberEventSetup', `Updating current user role to: ${payload.role}`);
+            debugLog('UseMemberEventSetup', `Updating current user role to: ${payload.roleId ?? 'none'}`);
             updatedCurrentUser = {
               ...prev.currentUser,
-              role: payload.role
+              role: payload.role,
+              roleId: payload.roleId ?? undefined,
             };
 
-            // Persist role to stored session for WorkspaceSwitcher (async)
-            runAsyncSetup(async () => {
-              const session: StoredSession | null = await connectionManager.getTabSelectedSession();
-              if (session) {
-                await connectionManager.updateSessionRole(session.username, session.serverAddress, payload.role);
-              }
-            });
           }
           return {
             ...prev,
@@ -190,11 +175,11 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
       }));
 
       // User permissions loaded event - updates currentUser's role
-      keep(workspaceEvents.onMemberEvent('user:permissions:loaded', (payload: { userId: string; role: string; connection?: ConnectionInfo }) => {
+      keep(workspaceEvents.onMemberEvent('user:permissions:loaded', (payload: { userId: string; role: string; roleId: string | null; connection?: ConnectionInfo }) => {
         debugLog('UseMemberEventSetup', 'User permissions loaded:', payload.userId, payload.role);
         setState(prev => {
           // Update currentUser's role if it matches
-          let updatedCurrentUser: { id: string; username: string; name: string; role?: string; displayName?: string; avatarUrl?: string; } | undefined = prev.currentUser;
+          let updatedCurrentUser: WorkspaceEventState['currentUser'] = prev.currentUser;
 
           // This tab's user only. A third clause matched a placeholder name against
           // the FIRST saved account in the browser, so with several accounts saved
@@ -212,16 +197,10 @@ export function useMemberEventSetup({ setState }: UseMemberEventSetupProps): voi
               // Also update username if it was 'Loading...'
               username: isPlaceholderName(prev.currentUser.username) ? payload.userId : prev.currentUser.username,
               id: isPlaceholderName(prev.currentUser.id) ? payload.userId : prev.currentUser.id,
-              role: payload.role
+              role: payload.role,
+              roleId: payload.roleId ?? undefined,
             };
 
-            // Persist role to stored session for WorkspaceSwitcher (async)
-            runAsyncSetup(async () => {
-              const session: StoredSession | null = await connectionManager.getTabSelectedSession();
-              if (session) {
-                await connectionManager.updateSessionRole(session.username, session.serverAddress, payload.role);
-              }
-            });
           }
           return {
             ...prev,

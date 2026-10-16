@@ -18,7 +18,10 @@ export interface WorkspaceState {
     id: string;
     username: string;
     name: string;
+    /** The legacy role mirror; only `Banned` means anything. Authority is `roleId`. */
     role?: string;
+    /** Your role in the workspace's role table (`workspace_roles[root]`); undefined until known. */
+    roleId?: string;
     displayName?: string;
     avatarUrl?: string; // Base64 data URL for avatar image
     /** From the member record's metadata; see lib/profile-metadata.ts. */

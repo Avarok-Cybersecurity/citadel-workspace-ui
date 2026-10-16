@@ -9,8 +9,8 @@ import type {
   WorkspaceProtocolRequestTS,
   PermissionTS,
   UpdateOperationTS,
-  UserRoleTS,
 } from '@/types/workspace-protocol';
+import type { MemberRole } from 'citadel-workspace-client-ts';
 import { workspaceResponseHandler } from '@/lib/workspace-response-handler';
 import type { ProtocolSender } from './workspace-operations';
 import { aboutMember } from './response-matchers';
@@ -43,7 +43,7 @@ async function afterMemberWrite<T>(write: Promise<T>): Promise<T> {
 export async function addMember(
   sender: ProtocolSender,
   userId: string,
-  role: UserRoleTS,
+  role: MemberRole,
   domainId?: string,
   metadata?: Uint8Array
 ): Promise<void> {
@@ -79,7 +79,7 @@ export async function getMember(sender: ProtocolSender, userId: string): Promise
 export async function updateMemberRole(
   sender: ProtocolSender,
   userId: string,
-  role: string,
+  role: MemberRole,
   /**
    * Accepted, transmitted, and DISCARDED by the server.
    *
@@ -100,7 +100,7 @@ export async function updateMemberRole(
       role,
       metadata: metadata ? Array.from(metadata) : undefined
     }
-  } as WorkspaceProtocolRequestTS;
+  };
   // Resolves when the SERVER accepts it. A refusal arrives as a response,
   // which cannot reject a send-only promise — so this used to report success
   // for writes the server was about to refuse.

@@ -1,15 +1,14 @@
 import { useState, useEffect } from 'react';
-import { isAdminRole } from '@/lib/role-predicate';
+import type { RoleDefinition } from 'citadel-workspace-client-ts';
 import { describeFailure } from '@/lib/failure-message';
 import { isForDomain } from '@/lib/workspace-events/is-for-domain';
 import { useMemberAdminActions } from './use-member-admin-actions';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ConfirmDeleteDialog } from '@/components/shared/ConfirmDeleteDialog';
 import { useToast } from '@/hooks/use-toast';
-import { AdminTabProps, MemberData, UserRole, USER_ROLES } from '../types';
+import type { AdminTabProps, MemberData } from '../types';
 import WorkspaceService from '@/lib/workspace-service';
 import { workspaceEvents, type MembersPayload } from '@/lib/workspace-events';
 import { MemberPermissionsDialog } from '@/components/permissions/MemberPermissionsDialog';
@@ -18,7 +17,9 @@ import { Loader2, Shield } from 'lucide-react';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { armLoadingDeadline, cancelLoadingDeadline } from '@/lib/loading-flag-timeout';
 import { debugLog } from '@/lib/debug-config';
-import { MemberRow, ROLE_COLORS } from './MemberRow';
+import { MemberRow } from './MemberRow';
+import { useMemberRowRules, type MemberRules } from './use-member-row-rules';
+import { RoleLegend } from './RoleLegend';
 import { useLevelName } from '@/hooks/use-level-name';
 import { MembersVisibilitySwitch } from './MembersVisibilitySwitch';
 
@@ -56,7 +57,8 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
           username: m.username,
           name: m.displayName,
           avatarUrl: m.avatarUrl,
-          role: (m.role ?? 'Member') as UserRole,
+          role: m.role,
+          roleId: m.roleId,
           accessViaName: payload.inheritedFrom?.[m.id] === undefined ? undefined : nameOfLevel(payload.inheritedFrom[m.id]),
         }))
       );
@@ -89,7 +91,8 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
 
   const { updatingRoles, changeRole, removeMember } = useMemberAdminActions(entityId, setMembers);
 
-  const handleRoleChange: (userId: string, newRole: UserRole) => Promise<void> = changeRole;
+  const handleRoleChange: (userId: string, newRole: RoleDefinition) => Promise<void> = changeRole;
+  const rulesFor: MemberRules = useMemberRowRules();
 
   const handleRemoveMember = async (): Promise<void> => {
     if (!memberToRemove) return;
@@ -144,10 +147,7 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
                 key={member.userId}
                 member={member}
                 showAdvanced={showAdvanced}
-                isOnlyAdmin={
-                  isAdminRole(member.role) &&
-                  members.filter((m) => isAdminRole(m.role)).length === 1
-                }
+                rules={rulesFor(member)}
                 isUpdatingRole={updatingRoles.has(member.userId)}
                 onRoleChange={handleRoleChange}
                 onAdvancedPermissions={handleAdvancedPermissions}
@@ -158,19 +158,7 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
         </div>
       </ScrollArea>
 
-      {/* Role Legend */}
-      <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
-        {USER_ROLES.map((role) => (
-          <Badge
-            key={role}
-            variant="outline"
-            className="border-border text-muted-foreground"
-          >
-            <div className={`w-2 h-2 rounded-full ${ROLE_COLORS[role]} mr-1`} />
-            {role}
-          </Badge>
-        ))}
-      </div>
+      <RoleLegend />
 
       {/* One member's permissions at THIS tab's level -- the view about them, not the role matrix,
           which answered a question about one person with four role columns. */}

@@ -6,7 +6,6 @@ import { GroupCallControls } from '@/components/call/GroupCallControls';
 import type { RoomCallRoster } from '@/lib/call/callable-members';
 import { usePermission } from '@/hooks/use-permission';
 import { permits } from '@/hooks/use-permission-result';
-import { permissionsService } from '@/lib/permissions-service';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 import { debugLog } from '@/lib/debug-config';
 import type { GroupRestriction } from '@/components/chat/group-restriction';
@@ -67,7 +66,6 @@ export function OfficeChatTabs({
       'composer withheld',
       {
         nodeId,
-        role: permissionsService.getRole(nodeId ?? WORKSPACE_ROOT_ID),
         allowed: send.allowed,
         answered: send.answered,
         loading: send.loading,

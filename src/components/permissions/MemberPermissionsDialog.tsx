@@ -14,14 +14,13 @@
 import { useRef, useState, type RefObject } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { useToast } from '@/hooks/use-toast';
 import { toastError, toastSuccess } from '@/lib/toast-helpers';
 import { describeFailure } from '@/lib/failure-message';
-import { roleBadgeClass } from '@/lib/role-badge';
-import { cn } from '@/lib/utils';
+import { MemberRoleBadge } from '@/components/shared/MemberRoleBadge';
+import type { RoleHolder } from '@/components/shared/RoleIcon';
 import type { User as WorkspaceMember } from '@/types/workspace-entities';
 import { changeCount } from './permission-changes';
 import { levelPhrase } from './member-permission-path';
@@ -29,7 +28,7 @@ import { useMemberPermissionEditor, type MemberPermissionEditor } from './use-me
 import { MemberPermissionList, MemberPermissionPathBar } from './MemberPermissionList';
 
 /** Who the editor is about: just what it shows. Each list that opens it has its own member shape. */
-export type PermissionSubject = Pick<WorkspaceMember, 'id' | 'username' | 'displayName'> & { role?: string };
+export type PermissionSubject = Pick<WorkspaceMember, 'id' | 'username' | 'displayName'> & RoleHolder;
 
 interface MemberPermissionsDialogProps {
   open: boolean;
@@ -38,8 +37,6 @@ interface MemberPermissionsDialogProps {
   /** The level the editor was opened at: a node id, or the workspace root. */
   domainId: string;
 }
-
-const capitalised = (role: string): string => role.charAt(0).toUpperCase() + role.slice(1);
 
 function Status({ editor, name }: { editor: MemberPermissionEditor; name: string }): JSX.Element | null {
   if (editor.failure !== null) {
@@ -60,7 +57,9 @@ export function MemberPermissionsDialog({ open, onClose, member, domainId }: Mem
   const content: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
   const name: string = member.displayName || member.username;
   // The role the server reports at this level, once it has; the roster's until then.
-  const role: string | undefined = editor.targetLoad.status === 'loaded' ? editor.targetLoad.role : member.role;
+  const role: RoleHolder = editor.targetLoad.status === 'loaded'
+    ? { roleId: editor.targetLoad.roleId ?? undefined, role: editor.targetLoad.role }
+    : member;
   const where: string = levelPhrase(editor.target);
   const count: number = changeCount(editor.changes);
 
@@ -95,7 +94,7 @@ export function MemberPermissionsDialog({ open, onClose, member, domainId }: Mem
               <DialogTitle className="truncate leading-tight">{name}’s permissions</DialogTitle>
               <p className="mt-1 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
                 <span className="truncate">@{member.username}</span>
-                {role && <Badge className={cn('shrink-0', roleBadgeClass(role))} data-testid="member-permissions-role">{capitalised(role)}</Badge>}
+                <MemberRoleBadge holder={role} data-testid="member-permissions-role" />
               </p>
             </div>
           </div>

@@ -1,9 +1,8 @@
 /**
  * UI presentation for the permission model.
  *
- * The model itself is not defined here. `Permission`, `PERMISSION_LABELS`,
- * `PERMISSION_CATEGORIES` and `ROLE_DEFAULT_PERMISSIONS` live in
- * `lib/permissions-service/types.ts`, which mirrors the Rust enum in
+ * The model itself is not defined here. `Permission`, `PERMISSION_LABELS` and
+ * `PERMISSION_CATEGORIES` live in `lib/permissions-service/types.ts`, which mirrors the Rust enum in
  * citadel-workspace-types. This file adds the one thing that is genuinely
  * UI-only — a sentence of explanatory copy per permission — and reshapes the
  * canonical categories into what the permission matrix renders.
@@ -14,17 +13,19 @@
  * offered Member `EditContent`, which the server refuses. An administrator was
  * shown a role that did not exist. scripts/check-permission-parity.mjs now fails
  * the build if the mirror and the Rust enum disagree.
+ *
+ * What each ROLE grants is not here either, nor anywhere in the UI: roles are an
+ * editable table the server holds, read live (lib/workspace-roles).
  */
 import {
   Permission,
   PERMISSION_LABELS,
   PERMISSION_CATEGORIES as CANONICAL_CATEGORIES,
-  ROLE_DEFAULT_PERMISSIONS,
 } from '@/lib/permissions-service/types';
 
 /** Permission definition for UI display. */
 export interface PermissionDefinition {
-  id: string;
+  id: Permission;
   label: string;
   description: string;
 }
@@ -58,6 +59,7 @@ const PERMISSION_DESCRIPTIONS: Record<Permission, string> = {
   [Permission.AddUsers]: 'Can add new members',
   [Permission.RemoveUsers]: 'Can remove members',
   [Permission.BanUser]: 'Can ban users from the domain',
+  [Permission.ManageRoles]: 'Can define roles and change which role each member holds',
   [Permission.ManageDomains]: 'Full domain management',
   [Permission.ConfigureSystem]: 'Server-level configuration',
 };
@@ -78,20 +80,3 @@ export const PERMISSION_CATEGORIES: Record<string, PermissionDefinition[]> =
       })),
     ]),
   );
-
-/** Visual role hierarchy for the role selector dropdown. */
-export const ROLE_HIERARCHY: { value: string; label: string; color: string; }[] = [
-  { value: 'Admin', label: 'Administrator', color: 'bg-destructive' },
-  { value: 'Owner', label: 'Owner', color: 'bg-warning' },
-  { value: 'Member', label: 'Member', color: 'bg-primary-accent' },
-  { value: 'Guest', label: 'Guest', color: 'bg-muted-foreground' },
-];
-
-/**
- * The permission IDs a role grants: the server's own role abilities
- * (`Permission::for_role`, mirrored in ROLE_DEFAULT_PERMISSIONS), so the
- * "Role permissions" reference shows what a role actually means.
- */
-export function getRoleDefaultPermissions(role: string): string[] {
-  return ROLE_DEFAULT_PERMISSIONS[role] ?? [];
-}

@@ -14,13 +14,18 @@
 import { profileFieldsFromMetadata } from '@/lib/profile-metadata';
 import { avatarUrlFromMetadata } from '@/lib/avatar-url';
 import { publishedAcceptsStrangers, publishedShowsOnlineStatus, showsProfileToStrangers } from '@/lib/profile-privacy';
+import { wireMapEntries } from '@/lib/wire-map';
+import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 
 /** Shape emitted on `members:loaded` / `member:loaded`. */
 export interface MappedMember {
   id?: string;
   username: string;
   displayName: string;
+  /** The legacy mirror; only `Banned` means anything. */
   role?: string;
+  /** Their role in the workspace's table: `workspace_roles[root]`. */
+  roleId?: string;
   /** Visible to other members; see lib/profile-metadata.ts. */
   avatarUrl?: string;
   email?: string;
@@ -38,6 +43,14 @@ export interface MappedMember {
  * expects. Invoked from both the `Members` (plural) and `Member`
  * (singular) WorkspaceProtocolResponse handlers.
  */
+/** `workspace_roles[root]`, read as a wire map: it arrives as a JS Map from WASM, an object from JSON. */
+export function rootRoleIdOf(workspaceRoles: unknown): string | undefined {
+  if (workspaceRoles === undefined || workspaceRoles === null) return undefined;
+  const entry: [string, unknown] | undefined = wireMapEntries<unknown>(workspaceRoles, 'workspace_roles')
+    .find(([key]: [string, unknown]): boolean => key === WORKSPACE_ROOT_ID);
+  return typeof entry?.[1] === 'string' ? entry[1] : undefined;
+}
+
 export function mapWasmMember(raw: Record<string, unknown>): MappedMember {
   const name: string | undefined = typeof raw.name === 'string' ? raw.name : undefined;
   // Accept both string and number ids: the WASM layer historically
@@ -65,6 +78,7 @@ export function mapWasmMember(raw: Record<string, unknown>): MappedMember {
     username: username ?? id ?? name ?? '',
     displayName: displayName ?? name ?? username ?? id ?? '',
     role,
+    roleId: rootRoleIdOf(raw.workspace_roles),
     avatarUrl: avatarUrlFromMetadata(raw.metadata),
     ...profileFieldsFromMetadata(raw.metadata),
     acceptsRequestsFromStrangers: publishedAcceptsStrangers(raw.metadata),

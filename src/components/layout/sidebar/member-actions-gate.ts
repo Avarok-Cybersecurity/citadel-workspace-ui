@@ -8,18 +8,19 @@
  *
  * The server's gates, mirrored here:
  *   - Remove: `check_entity_permission(actor, domain, RemoveUsers)`, per domain.
- *   - Change Role and Manage Permissions: `is_admin_or_owner`, workspace-wide.
+ *   - Change Role and Manage Permissions: `ManageRoles`, workspace-wide. This
+ *     was a role-NAME check (Admin or Owner); roles are an editable table now,
+ *     and the server asks for the permission.
  *
- * Blocked on a KNOWN "no" only, like Add member: an unknown role or an
- * unanswered permission check still offers the action, and the modal shows the
- * server's own refusal if one comes.
+ * Blocked on a KNOWN "no" only, like Add member: an unanswered permission check
+ * still offers the action, and the modal shows the server's own refusal if one
+ * comes.
  */
 import { permits, type UsePermissionResult } from '@/hooks/use-permission-result';
-import { isPrivilegedRole, normalizeRole } from '@/lib/role-predicate';
 import { PERMISSION_SENTENCE } from '@/lib/workspace-response-handler/describe-error';
 
-export const ONLY_ADMINS_CHANGE_ROLES: string = 'Only an admin or the owner can change roles.';
-export const ONLY_ADMINS_MANAGE_PERMISSIONS: string = 'Only an admin or the owner can change permissions.';
+export const ONLY_ADMINS_CHANGE_ROLES: string = 'Only someone who can manage roles can change a role.';
+export const ONLY_ADMINS_MANAGE_PERMISSIONS: string = 'Only someone who can manage roles can change permissions.';
 
 /** For each action, the reason it cannot succeed, or null when it may be chosen. */
 export interface MemberActionBlocks {
@@ -28,11 +29,11 @@ export interface MemberActionBlocks {
   remove: string | null;
 }
 
-export function memberActionBlocks(ownRole: unknown, removeUsers: UsePermissionResult): MemberActionBlocks {
-  const knownUnprivileged: boolean = normalizeRole(ownRole) !== null && !isPrivilegedRole(ownRole);
+export function memberActionBlocks(manageRoles: UsePermissionResult, removeUsers: UsePermissionResult): MemberActionBlocks {
+  const mayManage: boolean = permits(manageRoles);
   return {
-    managePermissions: knownUnprivileged ? ONLY_ADMINS_MANAGE_PERMISSIONS : null,
-    changeRole: knownUnprivileged ? ONLY_ADMINS_CHANGE_ROLES : null,
+    managePermissions: mayManage ? null : ONLY_ADMINS_MANAGE_PERMISSIONS,
+    changeRole: mayManage ? null : ONLY_ADMINS_CHANGE_ROLES,
     remove: permits(removeUsers) ? null : (removeUsers.reason ?? PERMISSION_SENTENCE.RemoveUsers),
   };
 }

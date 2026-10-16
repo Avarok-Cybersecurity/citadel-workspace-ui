@@ -29,21 +29,12 @@ import { PendingRequestsModal } from "@/components/p2p/PendingRequestsModal";
 import { CreateGroupDialog } from "@/components/chat/CreateGroupDialog";
 import type { User as WorkspaceMember } from '@/types/workspace-entities';
 import type { RegisteredPeer } from '@/hooks/use-registered-peers';
-import { roleBadgeClass } from '@/lib/role-badge';
 import { useGuardedNavigate, type GuardedNavigate } from '@/hooks/use-guarded-navigate';
 import { AllMembersRow } from './AllMembersRow';
 import { useMemberActionBlocks } from './use-member-action-blocks';
 import type { MemberActionBlocks } from './member-actions-gate';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 import { useLevelName } from '@/hooks/use-level-name';
-/** Role badge classes. Defined once in lib/role-badge so the sidebar and user
- *  search cannot drift apart again — they already had, and only one was fixed. */
-export function getRoleColor(role: string): string {
-  return roleBadgeClass(role);
-}
-
-
-
 interface MembersSectionModalsProps {
   currentNodeId: string | null;
   currentUsername?: string;
@@ -123,8 +114,8 @@ export function MembersSectionModals({
   return (
     <>
       <MemberManagementModal isOpen={showAddModal} onClose={() => onSetShowAddModal(false)} mode="add" domainId={currentNodeId ?? undefined} />
-      <MemberManagementModal isOpen={showEditModal} onClose={() => { onSetShowEditModal(false); onClearSelectedMember(); }} mode="edit" domainId={currentNodeId ?? undefined} member={selectedMember ? { id: selectedMember.id, username: selectedMember.username, role: selectedMember.role || 'member' } : undefined} />
-      <MemberManagementModal isOpen={showRemoveModal} onClose={() => { onSetShowRemoveModal(false); onClearSelectedMember(); }} mode="remove" domainId={currentNodeId ?? undefined} member={selectedMember ? { id: selectedMember.id, username: selectedMember.username, role: selectedMember.role || 'member' } : undefined} />
+      <MemberManagementModal isOpen={showEditModal} onClose={() => { onSetShowEditModal(false); onClearSelectedMember(); }} mode="edit" domainId={currentNodeId ?? undefined} member={selectedMember ? { id: selectedMember.id, username: selectedMember.username, roleId: selectedMember.roleId } : undefined} />
+      <MemberManagementModal isOpen={showRemoveModal} onClose={() => { onSetShowRemoveModal(false); onClearSelectedMember(); }} mode="remove" domainId={currentNodeId ?? undefined} member={selectedMember ? { id: selectedMember.id, username: selectedMember.username, roleId: selectedMember.roleId } : undefined} />
 
       {/* All Members Dialog */}
       <Dialog open={showAllMembersDialog} onOpenChange={onSetShowAllMembersDialog}>

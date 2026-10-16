@@ -68,6 +68,7 @@ export const UserDirectory: () => JSX.Element = (): JSX.Element => {
     avatarUrl: member.avatarUrl,
     email: member.email,
     role: member.role,
+    roleId: member.roleId,
     // Presence from the one reader of it (lib/presence.ts), which knows every
     // workspace peer the agent lists. This read the REGISTERED peers only, so
     // for anyone without a contact list the Online tab said "Everyone in this

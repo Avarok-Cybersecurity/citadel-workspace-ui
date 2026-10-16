@@ -77,3 +77,21 @@ describe('mapWasmMember', () => {
     expect((out as Record<string, unknown>).online).toBe(true);
   });
 });
+
+/**
+ * A member's role is `workspace_roles[root]`, an id into the role table. It reaches the page as
+ * a JS Map from WASM (serde_wasm_bindgen's default) and as an object from JSON, and both must
+ * read: Object.keys on a Map is empty, which would leave every member roleless.
+ */
+describe('the role id a member holds', () => {
+  it('is read from a Map, as WASM sends it', () => {
+    expect(mapWasmMember({ id: 'ada', workspace_roles: new Map([['hq', 'member'], ['workspace-root', 'role-lead']]) }).roleId).toBe('role-lead');
+  });
+  it('is read from an object, as JSON sends it', () => {
+    expect(mapWasmMember({ id: 'ada', workspace_roles: { 'workspace-root': 'admin' } }).roleId).toBe('admin');
+  });
+  it('is undefined when the root holds none, or the field is absent', () => {
+    expect(mapWasmMember({ id: 'ada', workspace_roles: new Map([['hq', 'member']]) }).roleId).toBeUndefined();
+    expect(mapWasmMember({ id: 'ada' }).roleId).toBeUndefined();
+  });
+});

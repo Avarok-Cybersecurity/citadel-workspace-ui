@@ -7,12 +7,10 @@
  */
 import { useState, type MouseEvent } from 'react';
 import { MoreVertical } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
-import { roleLabel } from '@/components/shared/RoleIcon';
-import { roleBadgeClass } from '@/lib/role-badge';
+import { MemberRoleBadge } from '@/components/shared/MemberRoleBadge';
 import { blocksForMember } from '@/lib/member-access';
 import type { User as WorkspaceMember } from '@/types/workspace-entities';
 import { MemberActionItems } from './MemberActionItems';
@@ -34,7 +32,6 @@ interface AllMembersRowProps {
 }
 
 export function AllMembersRow({ member, currentUsername, blocks, nameOfLevel, onManagePermissions, onEditMember, onRemoveMember, onOpenChat, onOpenFiles }: AllMembersRowProps): JSX.Element {
-  const role: string = member.role || 'member';
   const hasMenu: boolean = currentUsername !== member.username;
   // Right-click opens the same menu as the ⋯ button.
   const [menuOpen, setMenuOpen] = useState(false);
@@ -62,7 +59,7 @@ export function AllMembersRow({ member, currentUsername, blocks, nameOfLevel, on
         {member.email && <p className="text-xs text-muted-foreground" data-testid="member-email">{member.email}</p>}
       </div>
       </button>
-      <Badge variant="secondary" className={`${roleBadgeClass(role)} shrink-0 text-xs`}>{roleLabel(role)}</Badge>
+      <MemberRoleBadge holder={member} className="text-xs" />
       {hasMenu && (
         <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
           <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" aria-label={`Actions for ${member.username}`}><MoreVertical className="h-4 w-4" aria-hidden="true" /></Button></DropdownMenuTrigger>

@@ -19,8 +19,8 @@ import {
   CardHeader,
   CardTitle
 } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { getRoleBadgeClass , type UserData } from './user-search-types';
+import type { UserData } from './user-search-types';
+import { MemberRoleBadge } from '@/components/shared/MemberRoleBadge';
 
 /**
  * Ties the input to the list it controls via aria-controls/aria-expanded.
@@ -116,15 +116,10 @@ export const UserSearchResults: React.FC<UserSearchResultsProps> = ({
                       <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                     )}
                   </div>
-                  {user.role && (
-                    // shrink-0: without it the badge is what gives way when a
-                    // long username fills the row, and the panel's
-                    // overflow-hidden clips the role mid-word. The name beside
-                    // it already truncates, so it is the one that should yield.
-                    <Badge className={`shrink-0 ${getRoleBadgeClass(user.role)}`}>
-                      {user.role}
-                    </Badge>
-                  )}
+                  {/* shrink-0 (in the badge): without it the badge is what gives way when a
+                      long username fills the row, and the panel's overflow-hidden clips
+                      the role mid-word. The name beside it already truncates. */}
+                  <MemberRoleBadge holder={user} />
                 </div>
                 </button>
               </li>

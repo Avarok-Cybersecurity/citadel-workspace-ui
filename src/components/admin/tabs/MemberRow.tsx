@@ -3,11 +3,14 @@
  * Renders a single member row with avatar, role selector, and actions.
  */
 
+import type { RoleDefinition } from 'citadel-workspace-client-ts';
 import { Button } from '@/components/ui/button';
 import { inheritedRemoveReason } from '@/lib/member-access';
-import { isAdminRole } from '@/lib/role-predicate';
+import { grantsPermission } from '@/lib/workspace-roles/role-ladder';
+import { Permission } from '@/lib/permissions-service/types';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { BlockedReason } from '@/components/shared/BlockedReason';
+import { RoleDot } from '@/components/permissions/RoleDot';
 import {
   Select,
   SelectContent,
@@ -16,61 +19,54 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Loader2, UserMinus, Shield } from 'lucide-react';
-import type { MemberData, UserRole } from '../types';
-import { USER_ROLES } from '../types';
+import type { MemberData } from '../types';
 
-/**
- * Dot colours, not badge classes — these tint a small indicator that carries no
- * text, which is why they stay fills rather than going through roleBadgeClass.
- *
- * `bg-black` was a literal that survived the palette migration because black is
- * not a hue name in the lint guard's list; in a light theme it was the only
- * pure-black mark on the screen. `foreground` is the theme's own ink.
- */
-const ROLE_COLORS: Record<UserRole, string> = {
-  Admin: 'bg-destructive',
-  Owner: 'bg-warning',
-  Member: 'bg-primary',
-  Guest: 'bg-muted-foreground',
-  Banned: 'bg-foreground',
-};
+/** What may be done to this member, decided by the tab from the role ladder. */
+export interface MemberRowRules {
+  /** The table's roles, highest first; null until the table has arrived. */
+  roles: RoleDefinition[] | null;
+  /** Ids of the roles you may hand out. */
+  assignable: ReadonlySet<string>;
+  /**
+   * This member is the workspace's last member able to manage roles.
+   *
+   * Demoting or removing them leaves nobody able to manage roles, and there is no way back.
+   * The server refuses both, so this only decides whether the controls look available --
+   * offering an action that will be rejected is worse than not offering it.
+   */
+  isOnlyManager: boolean;
+  /** Why you cannot act on this member at all (their role is not below yours), or null. */
+  actOnBlocked: string | null;
+}
 
 interface MemberRowProps {
   member: MemberData;
   showAdvanced: boolean;
   isUpdatingRole: boolean;
-  /**
-   * This member is the workspace's only administrator.
-   *
-   * Demoting or removing them leaves nobody able to manage the workspace, and
-   * there is no way back: promotion requires an admin. The server refuses both
-   * operations, so this only decides whether the controls look available —
-   * offering an action that will be rejected is worse than not offering it.
-   */
-  isOnlyAdmin: boolean;
-  onRoleChange: (userId: string, newRole: UserRole) => void;
+  rules: MemberRowRules;
+  onRoleChange: (userId: string, newRole: RoleDefinition) => void;
   onAdvancedPermissions: (member: MemberData) => void;
   onRemove: (member: MemberData) => void;
 }
 
-export { ROLE_COLORS };
+export const LAST_MANAGER_REASON: string = 'This is the only member who can manage roles. Give that to someone else first.';
 
 export function MemberRow({
   member,
   showAdvanced,
   isUpdatingRole,
-  isOnlyAdmin,
+  rules,
   onRoleChange,
   onAdvancedPermissions,
   onRemove,
 }: MemberRowProps): JSX.Element {
-  const lastAdminReason: "This is the only administrator. Promote another member to Admin first." =
-    'This is the only administrator. Promote another member to Admin first.';
   // Someone who reaches this node through a level above cannot be removed from it
   // here: the server refuses, since it would not take their access away.
-  const removeBlocked: string | null = isOnlyAdmin
-    ? lastAdminReason
-    : member.accessViaName !== undefined ? inheritedRemoveReason(member.accessViaName) : null;
+  const removeBlocked: string | null = rules.actOnBlocked
+    ?? (rules.isOnlyManager ? LAST_MANAGER_REASON
+      : member.accessViaName !== undefined ? inheritedRemoveReason(member.accessViaName) : null);
+  const offered = (role: RoleDefinition): boolean =>
+    role.id === member.roleId || rules.assignable.has(role.id);
   return (
     <div
       className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0 p-3 bg-card rounded-lg"
@@ -124,40 +120,45 @@ export function MemberRow({
             Permissions
           </Button>
         ) : (
+          <BlockedReason reason={rules.actOnBlocked}>
           <Select
-            value={member.role}
-            onValueChange={(value) => onRoleChange(member.userId, value as UserRole)}
-            disabled={isUpdatingRole}
+            value={member.roleId}
+            onValueChange={(value: string): void => {
+              const chosen: RoleDefinition | undefined = rules.roles?.find((r: RoleDefinition): boolean => r.id === value);
+              if (chosen) onRoleChange(member.userId, chosen);
+            }}
+            disabled={isUpdatingRole || rules.roles === null || rules.actOnBlocked !== null}
           >
             <SelectTrigger
               aria-label={`Role for ${member.username}`}
               className="w-32 bg-card text-foreground"
               data-testid={`member-role-select-${member.userId}`}
             >
-              {isUpdatingRole ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+              {isUpdatingRole || rules.roles === null ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-label="Loading roles" />
               ) : (
                 <SelectValue />
               )}
             </SelectTrigger>
             <SelectContent className="bg-card border-border">
-              {USER_ROLES.map((role) => (
+              {(rules.roles ?? []).filter(offered).map((role: RoleDefinition) => (
                 <SelectItem
-                  key={role}
-                  value={role}
-                  // Every role but Admin is a demotion for the last admin, and
-                  // the server rejects it. Leaving Admin selectable keeps the
-                  // current value visible in the trigger.
-                  disabled={isOnlyAdmin && !isAdminRole(role)}
+                  key={role.id}
+                  value={role.id}
+                  // A role that cannot manage roles demotes the last member who can, and the
+                  // server refuses it. Their current role stays selectable to keep it visible.
+                  disabled={rules.isOnlyManager && !grantsPermission(role, Permission.ManageRoles)}
+                  data-testid={`member-role-option-${role.id}`}
                 >
                   <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${ROLE_COLORS[role]}`} />
-                    {role}
+                    <RoleDot color={role.color} />
+                    {role.name}
                   </div>
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+          </BlockedReason>
         )}
 
         <BlockedReason reason={removeBlocked}>

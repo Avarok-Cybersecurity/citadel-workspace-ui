@@ -22,7 +22,10 @@ export interface StoredSession {
   fullName: string;
   lastConnected: number;
   cid?: bigint; // Store the CID for claiming orphaned sessions
-  role?: string; // User's role in the workspace (Admin, Owner, Member, Guest)
+  /** The role's name in the workspace's table, for the workspace switcher. Display only. */
+  role?: string;
+  /** Known to hold ManageRoles there: the switcher's administrator shield. */
+  administers?: boolean;
   sessionSecuritySettings: SessionSecuritySettings
 }
 

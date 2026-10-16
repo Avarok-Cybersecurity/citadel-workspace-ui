@@ -26,7 +26,10 @@ export interface User extends Entity {
   showProfileToStrangers?: boolean;
   /** True, false, or null when nobody has said. See lib/presence.ts. */
   isOnline: boolean | null;
-  role?: UserRole;
+  /** The legacy role mirror, as the wire sends it ('Admin', 'Banned'...). Display only, as a fallback. */
+  role?: string;
+  /** Their role in the workspace's role table; see lib/workspace-roles. */
+  roleId?: string;
   permissions?: UserPermissions;
   lastActive?: number; // Timestamp of last activity
   /**
@@ -35,14 +38,6 @@ export interface User extends Entity {
    * node itself, and on any other list. See lib/member-access.ts.
    */
   accessVia?: string;
-}
-
-// Role enumeration for users
-export enum UserRole {
-  Owner = 'owner',
-  Admin = 'admin',
-  Member = 'member',
-  Guest = 'guest'
 }
 
 // Permission settings for users
