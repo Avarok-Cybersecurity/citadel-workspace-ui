@@ -36,6 +36,8 @@ interface SecuritySettingsProps {
   onComplete?: (settings: SecuritySettingsValues) => void;
   initialValues?: SecuritySettingsValues;
   isFromLogin?: boolean; // Flag to indicate if this is accessed from login flow
+  /** The highest level the signing-in account can use (account-levels.ts). */
+  maxSecurityLevel?: number;
 }
 
 export const SecuritySettings = ({
@@ -43,7 +45,8 @@ export const SecuritySettings = ({
   onBack,
   onComplete,
   initialValues,
-  isFromLogin = false
+  isFromLogin = false,
+  maxSecurityLevel,
 }: SecuritySettingsProps): JSX.Element => {
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [settings, setSettings] = useState<SecuritySettingsValues>(DEFAULT_SECURITY_SETTINGS);
@@ -116,6 +119,7 @@ export const SecuritySettings = ({
             <SecurityLevelSelect
               value={settings.securityLevel}
               onChange={(value) => handleSettingChange('securityLevel', value as SecurityLevel)}
+              maxLevel={maxSecurityLevel}
             />
 
             <SecurityModeSelect

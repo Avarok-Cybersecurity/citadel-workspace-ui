@@ -22,6 +22,7 @@ import { SIGN_IN_COPY } from "@/lib/sign-in/copy";
 import { AdmissionCheck } from "./admission/AdmissionCheck";
 import { useAdmissionGate, type AdmissionGate } from "./admission/useAdmissionGate";
 import { useAccountServer } from "./admission/useAccountServer";
+import { useSignInLevel } from "./security/useSignInLevel";
 import { ADMISSION_ACTION } from "@/lib/admission/copy";
 import { useSignedOutAccounts } from "./signed-out/use-signed-out-accounts";
 import type { SignedOutAccount } from "@/types/session-types";
@@ -48,6 +49,7 @@ export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.El
   const h: LoginHandler = useLoginHandler({ onNext, initialUsername, admission });
   const hints: SignInHint[] = useSignInHints();
   const knownServer: string | undefined = useAccountServer(h.username, hints);
+  const signInLevel: number | undefined = useSignInLevel(h.username);
   useEffect((): void => { setAccountServer(knownServer); setTyped(h.username.trim()); }, [knownServer, h.username]);
   const {
     username, setUsername, error, invalidField, loading, securitySettings, setSecuritySettings,
@@ -125,6 +127,7 @@ export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.El
             enrolPasskey: securitySettings.enrolPasskey,
           }}
           isFromLogin={true}
+          maxSecurityLevel={signInLevel}
         />
       ) : (
         <Card className="bg-background border-border shadow-2xl shadow-black/40 w-full max-w-md">
