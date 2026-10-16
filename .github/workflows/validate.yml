@@ -96,16 +96,11 @@ jobs:
     # Observed the same work as the parent job, 6m there; this bounds a hang, not performance.
     # Without it a stuck job holds a runner for GitHub's 360-minute default.
     timeout-minutes: 25
-    # The Mac pool when it is on: this job needs no Docker, apt or Linux path, and it gates every
-    # integration leg, so a prompt start matters more than an unshared box. It was moved off the
-    # Mac once (two slots, Spotlight indexing, orphaned vitest workers: unrelated tests hit their
-    # 5 s timeouts); Spotlight is now off there, a job hook reaps orphaned vitest workers, and the
-    # worker cap below keeps four concurrent jobs within the machine's 12 cores.
-    runs-on: >-
-      ${{ vars.CITADEL_MAC_RUNNER == '1'
-          && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
-          && fromJSON('["self-hosted","macOS","ARM64","apple-48gb-metal"]')
-          || 'ubuntu-latest' }}
+    # GitHub-hosted, never the shared Mac: this job's results depend on wall-clock time (test
+    # timeouts, reply budgets), and the Mac is shared with other jobs and other organisations.
+    # A 1.4 s test hit its 5 s timeout there at load 76 (2026-10-16). Owner: "anything perf
+    # sensitive should be on a github runner".
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: parent
@@ -159,11 +154,7 @@ jobs:
         # and the thing it had been compensating for was a nested `npm ci`.
         #
         # The parent enforces this with scripts/check-ci-installs-match-the-lockfile.mjs.
-        # The four self-hosted runner slots share one 12-core Mac (with two more org runners); each
-        # vitest defaults to a worker per core, so concurrent jobs ran several times 12 and
-        # unrelated tests hit their 5 s timeouts. Three workers each keeps four jobs inside the
-        # machine. Hosted runners are unshared.
-        run: npx vitest run ${{ runner.environment == 'self-hosted' && '--maxWorkers=3' || '' }}
+        run: npx vitest run
         working-directory: parent/citadel-workspaces
 
   chat-polish:
