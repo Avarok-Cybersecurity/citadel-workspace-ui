@@ -1,7 +1,8 @@
 import { Check, CheckCheck, Clock, RefreshCw, XCircle } from 'lucide-react';
 import type { P2PMessage } from '@/lib/p2p';
 import { formatTime } from '@/components/chat/shared';
-import { useId, useState } from 'react';
+import { useContext, useId, useState } from 'react';
+import { AwaitingAcceptContext, sendsWhenAcceptedCopy } from './awaiting-accept';
 import { StatusPanel, StatusTick } from '@/components/shared/StatusDetails';
 import { MessageStatusDetails, messageStatusLabel } from './MessageStatusDetails';
 
@@ -35,6 +36,7 @@ export function BubbleFooter({ message, isOwn, onRetry }: BubbleFooterProps): JS
   const statusIcon: JSX.Element | null = getMessageStatusIcon(message);
   const [detailsOpen, setDetailsOpen] = useState<boolean>(false);
   const panelId: string = useId();
+  const awaitingAcceptFrom: string | null = useContext(AwaitingAcceptContext);
 
   return (
     <>
@@ -76,6 +78,9 @@ export function BubbleFooter({ message, isOwn, onRetry }: BubbleFooterProps): JS
         <StatusPanel id={panelId}>
           <MessageStatusDetails message={message} />
         </StatusPanel>
+      )}
+      {isOwn && message.status === 'pending' && awaitingAcceptFrom !== null && (
+        <p className="text-xs mt-1" data-testid="message-held-note">{sendsWhenAcceptedCopy(awaitingAcceptFrom)}</p>
       )}
       {/* Error message for failed sends */}
       {isOwn && isFailed && message.error && (

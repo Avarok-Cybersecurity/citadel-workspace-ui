@@ -142,6 +142,7 @@ export function P2PChat({
   }, [peerCid, activeTabId]);
 
   if (!peerCid) return <NoConversation />;
+  const awaitingAcceptFrom: string | null = isRegistered || isGroupMode ? null : peerName; // held until then
 
   const isViewingDocument: boolean = activeTab?.type === 'live_document';
 
@@ -207,7 +208,7 @@ export function P2PChat({
             <div className="relative flex min-h-0 flex-1 flex-col">
             <P2PMessageList
               ref={scrollRef} messages={messages} currentUserCid={currentUserCid}
-              currentUserName={currentUserName} peerName={peerName} peerUsername={peerUsername ?? peerName} peerCid={peerCid}
+              currentUserName={currentUserName} peerName={peerName} peerUsername={peerUsername ?? peerName} peerCid={peerCid} awaitingAcceptFrom={awaitingAcceptFrom}
               isLoadingMore={isLoadingMore} isLoadingHistory={isLoadingHistory} hasMorePages={hasMorePages}
               displaySenderName={displaySenderName} displaySenderAvatar={displaySenderAvatar}
               onScroll={handleScroll} onRetryMessage={handleRetryMessage}
@@ -231,7 +232,7 @@ export function P2PChat({
             />
             <P2PMessageInput
               ref={inputRef} inputMessage={inputMessage} messageType={messageType}
-              showMarkdownPreview={showMarkdownPreview} paused={paused} isSending={isSending} notConnectedWith={isRegistered || isGroupMode ? null : peerName}
+              showMarkdownPreview={showMarkdownPreview} paused={paused} isSending={isSending} awaitingAcceptFrom={awaitingAcceptFrom}
               onInputChange={setInputMessage} onInputFocus={handleInputFocus}
               onInputBlur={handleInputBlur} onSubmit={handleSendMessage}
               onFileClick={fileSend.openDialog} onFormat={applyFormat}
