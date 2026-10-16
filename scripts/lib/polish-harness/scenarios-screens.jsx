@@ -11,9 +11,6 @@ import { ConfirmDialogProvider } from '@/components/shared/confirm-dialog';
 import { Toaster } from '@/components/ui/sonner';
 import { GroupMessageItem } from '@/components/chat/GroupMessageItem';
 import { GroupChatHeader } from '@/components/chat/GroupChatHeader';
-import { VFSToolbar } from '@/components/file-manager/VFSToolbar';
-import { VFSPathBar } from '@/components/file-manager/VFSPathBar';
-import { VFSContentGrid } from '@/components/file-manager/VFSContentGrid';
 import { SettingsModal } from '@/components/SettingsModal';
 import Landing from '@/pages/Landing';
 import { ADA } from './scenarios-people.jsx';
@@ -25,7 +22,7 @@ const STATE = {
   nodes: {}, treeSchema: null, loading: { workspace: false, members: false, nodes: false },
 };
 
-function Shell({ children, route = '/' }) {
+export function Shell({ children, route = '/' }) {
   return (
     <MemoryRouter initialEntries={[route]}>
       <WorkspaceProvider state={STATE}>
@@ -67,35 +64,7 @@ function GroupChat() {
   );
 }
 
-const TREE = {
-  name: '', type: 'directory', path: '/', createdAt: 1, updatedAt: 1,
-  children: [
-    { name: 'Designs', type: 'directory', path: '/Designs', createdAt: 1, updatedAt: 1, children: [] },
-    { name: 'Notes', type: 'directory', path: '/Notes', createdAt: 1, updatedAt: 1, children: [] },
-    { name: 'analytical-engine-notes-final-v3.pdf', type: 'file', path: '/analytical-engine-notes-final-v3.pdf', createdAt: 1, updatedAt: 2, fileState: 'Received', fileMetadata: { fileSize: 2_400_000, fileType: 'application/pdf', fileName: 'notes.pdf' } },
-    { name: 'budget.xlsx', type: 'file', path: '/budget.xlsx', createdAt: 1, updatedAt: 2, fileState: 'Sent', fileMetadata: { fileSize: 48_000, fileType: 'application/xlsx', fileName: 'budget.xlsx' } },
-  ],
-};
-
-function FileManager() {
-  return (
-    <Shell>
-      <div style={{ height: '100vh', width: '100%', display: 'flex', flexDirection: 'column' }} className="bg-background">
-        <VFSToolbar currentPath="/" onNavigate={NOTHING} onNewFolder={NOTHING} onUploadFile={NOTHING} uploadDisabledReason={null} onSync={NOTHING} />
-        <VFSPathBar currentPath="/" onNavigate={NOTHING} tree={TREE} />
-        <div style={{ flex: 1, minHeight: 0 }}>
-          <VFSContentGrid
-            tree={TREE} currentPath="/" onNavigate={NOTHING} onNewFolder={NOTHING} onDelete={NOTHING} onDownload={NOTHING}
-            onUploadFile={NOTHING} onInfo={NOTHING} onRename={async () => {}} onCut={NOTHING} onCopy={NOTHING} onPaste={async () => {}}
-            onDrop={NOTHING} pendingPaths={new Set()} peerLabel="Ada"
-          />
-        </div>
-      </div>
-    </Shell>
-  );
-}
-
 const settingsTab = (tab) => () => <Shell><SettingsModal open onOpenChange={NOTHING} tab={tab} /></Shell>;
 const SignIn = () => <Shell><Landing /></Shell>;
 
-export const SCREEN_SCENARIOS = { 'group-chat': GroupChat, 'file-manager': FileManager, settings: settingsTab('general'), 'settings-connections': settingsTab('connections'), 'settings-appearance': settingsTab('appearance'), 'settings-privacy': settingsTab('privacy'), landing: SignIn };
+export const SCREEN_SCENARIOS = { 'group-chat': GroupChat, settings: settingsTab('general'), 'settings-connections': settingsTab('connections'), 'settings-appearance': settingsTab('appearance'), 'settings-privacy': settingsTab('privacy'), landing: SignIn };
