@@ -54,11 +54,11 @@ function sentDescriptions(): string[] {
     .map((arg: { description?: string }): string => arg.description ?? '');
 }
 
-async function sendTo(peer: Peer): Promise<string[]> {
+async function sendTo(peer: Peer, announce: boolean = true): Promise<string[]> {
   discovered = [peer];
   const { result } = renderHook(() => usePeerDiscovery(true));
   await waitFor((): void => { expect(result.current.peers).toEqual([peer]); });
-  await act(async (): Promise<void> => { await result.current.registerWithPeer(peer.cid, peer.username); });
+  await act(async (): Promise<void> => { await result.current.registerWithPeer(peer.cid, peer.username, announce); });
   return sentDescriptions();
 }
 
@@ -73,6 +73,11 @@ describe('the connection-request confirmation', () => {
   it('keeps the note for a peer who is offline', async () => {
     const sent: string[] = await sendTo({ cid: '3', username: 'carol', is_online: false });
     expect(sent).toEqual(['Connection request sent to carol. They will receive it when online.']);
+  });
+
+  it('says nothing for the request a trusted chat sends on open', async () => {
+    const sent: string[] = await sendTo({ cid: '4', username: 'erin', is_online: true }, false);
+    expect(sent).toEqual([]);
   });
 });
 

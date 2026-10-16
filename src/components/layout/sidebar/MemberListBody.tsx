@@ -5,8 +5,8 @@ import { MemberListItems } from './MemberListItems';
 import { useMemberActionBlocks } from './use-member-action-blocks';
 import type { MemberActionBlocks } from './member-actions-gate';
 import { useLevelName } from '@/hooks/use-level-name';
-import { useOpenConversation } from './use-open-conversation';
 import type { RegisteredPeer } from '@/hooks/use-registered-peers';
+import { useMemberChatOpener, type MemberChatOpener } from './use-member-chat-opener';
 import type { User as WorkspaceMember } from '@/types/workspace-entities';
 
 interface MemberListBodyProps {
@@ -57,13 +57,7 @@ export function MemberListBody({
 }: MemberListBodyProps): JSX.Element | null {
   const blocks: MemberActionBlocks = useMemberActionBlocks(activeDomainId);
   const nameOfLevel: (levelId: string) => string = useLevelName();
-  const openConversation: (cid: string, username: string) => Promise<void> = useOpenConversation();
-  // A member row did nothing when clicked -- beside a contact row for the same
-  // person that opened the chat (live, 2026-09-29). Now both open it.
-  const openChatWith = (member: WorkspaceMember): (() => void) | null => {
-    const peer: RegisteredPeer | undefined = contacts.find((p: RegisteredPeer): boolean => p.username === member.username);
-    return peer ? (): void => { void openConversation(peer.cid, peer.username); } : null;
-  };
+  const openChatWith: MemberChatOpener = useMemberChatOpener(currentUsername, contacts);
   if (isLoading) {
     return (
       // Named, so a failure can say WHICH of the three branches was on screen.

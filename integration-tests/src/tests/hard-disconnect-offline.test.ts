@@ -207,7 +207,7 @@ async function runTest(): Promise<boolean> {
     console.log('─'.repeat(50));
 
     await sleep(3000);
-    results.p2pAccept = await acceptP2PRequest(page2, USER2, uxTracker);
+    results.p2pAccept = await acceptP2PRequest(page2, USER2, uxTracker, USER1);
 
     // Wait for P2P connection to establish (same approach as passing offline-messaging test)
     // Use waitForP2PConnection which checks isPeerConnected + UI fallback,

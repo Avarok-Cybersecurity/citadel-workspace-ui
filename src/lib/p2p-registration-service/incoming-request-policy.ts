@@ -14,6 +14,11 @@
 export type IncomingRequestAction = 'auto-accept' | 'ask' | 'decline';
 
 export interface IncomingRequestFacts {
+  /**
+   * The server says the requester is within our effective trusted scope (the workspace's
+   * messaging trust policy, narrowed by ours). Such a peer is a colleague, not a stranger.
+   */
+  trustedByWorkspace: boolean;
   acceptsRequestsFromStrangers: boolean;
   /** Already mutually registered with us. */
   isContact: boolean;
@@ -23,6 +28,7 @@ export interface IncomingRequestFacts {
 }
 
 export function decideIncomingRequest(facts: IncomingRequestFacts): IncomingRequestAction {
+  if (facts.trustedByWorkspace) return 'auto-accept';
   const isStranger: boolean = !facts.isContact && !facts.weAskedThemFirst;
   // Before auto-accept: auto-accept means "don't ask me", not "let strangers in".
   if (isStranger && !facts.acceptsRequestsFromStrangers) return 'decline';
@@ -37,6 +43,8 @@ export interface IncomingRegistration {
 }
 
 export interface IncomingRegistrationDeps {
+  /** The server's answer; anything but a clear yes is false (lib/messaging-trust/peer-trust.ts). */
+  trustedByWorkspace: (request: IncomingRegistration) => Promise<boolean>;
   acceptsRequestsFromStrangers: () => boolean;
   isContact: (peerCid: bigint) => boolean;
   weAskedThemFirst: (peerCid: bigint, recipientCid: bigint) => boolean;
@@ -51,6 +59,8 @@ export async function handleIncomingRegistration(
   deps: IncomingRegistrationDeps,
 ): Promise<IncomingRequestAction> {
   const action: IncomingRequestAction = decideIncomingRequest({
+    // Fails closed: a check that throws leaves the person to decide.
+    trustedByWorkspace: await deps.trustedByWorkspace(request).catch((): boolean => false),
     acceptsRequestsFromStrangers: deps.acceptsRequestsFromStrangers(),
     isContact: deps.isContact(request.peerCid),
     weAskedThemFirst: deps.weAskedThemFirst(request.peerCid, request.recipientCid),

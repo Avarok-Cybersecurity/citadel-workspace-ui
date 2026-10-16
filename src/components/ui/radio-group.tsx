@@ -27,7 +27,9 @@ const RadioGroupItem: React.ForwardRefExoticComponent<React.ComponentPropsWithou
     <RadioGroupPrimitive.Item
       ref={ref}
       className={cn(
-        "aspect-square h-4 w-4 rounded-full border border-primary text-primary-accent ring-offset-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+        // 24 CSS px target (WCAG 2.2 floor) around the 16px ring, in px: the root font is 14px: the ring is drawn by
+        // ::before, so the button itself is the size a finger has to hit.
+        "relative inline-flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-full text-primary-accent ring-offset-background before:absolute before:inset-[4px] before:rounded-full before:border before:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}
       {...props}

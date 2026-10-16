@@ -286,7 +286,7 @@ async function runTest(): Promise<boolean> {
     console.log('─'.repeat(50));
 
     await sleep(3000);
-    results.p2pAccept = await acceptP2PRequest(page2, USER2);
+    results.p2pAccept = await acceptP2PRequest(page2, USER2, null, USER1);
     if (!results.p2pAccept) {
       console.log('\n  P2P request may not have been accepted - continuing anyway');
     }

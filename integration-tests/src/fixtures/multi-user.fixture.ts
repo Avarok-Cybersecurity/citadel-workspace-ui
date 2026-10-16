@@ -202,7 +202,7 @@ export const p2pConnectedTest = multiUserTest.extend<P2PConnectedFixture>({
         await p2pRegister(userA.page, userA.username, userB.username);
 
         // User B accepts the request
-        await acceptP2PRequest(userB.page, userB.username);
+        await acceptP2PRequest(userB.page, userB.username, null, userA.username);
 
         // Wait for P2P channel to be fully ready
         await waitForP2PChannelReady(userA.page, userA.username, userB.username);

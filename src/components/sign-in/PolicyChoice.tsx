@@ -22,7 +22,7 @@ export function PolicyChoice<P extends SignInPolicy>({ id, value, options, onCha
     >
       {options.map((policy: P) => (
         <div key={policy} className="flex items-start gap-2">
-          <RadioGroupItem value={policy} id={`${id}-${policy}`} className="mt-0.5" data-testid={`${id}-policy-${policy}`} />
+          <RadioGroupItem value={policy} id={`${id}-${policy}`} className="-mt-0.5" data-testid={`${id}-policy-${policy}`} />
           <Label htmlFor={`${id}-${policy}`} className="text-sm font-normal leading-snug">
             <span className="font-medium">{POLICY_COPY[policy].label}</span>
             <span className="block text-xs text-muted-foreground">{POLICY_COPY[policy].detail}</span>

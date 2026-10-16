@@ -843,7 +843,7 @@ async function runTest(): Promise<boolean> {
     console.log('─'.repeat(50));
 
     await sleep(3000);
-    results.p2pSetup.accepted = await acceptP2PRequest(page2, BOB, uxTracker);
+    results.p2pSetup.accepted = await acceptP2PRequest(page2, BOB, uxTracker, ALICE);
     await takeScreenshot(page2, '04_p2p_accepted');
 
     // CRITICAL: Close any modals that might be blocking (Pending Requests modal)

@@ -122,7 +122,7 @@ test.describe.serial('P2P Messaging', () => {
 
         // User B accepts the request
         expect(
-            await acceptP2PRequest(sessionB.page, sessionB.username),
+            await acceptP2PRequest(sessionB.page, sessionB.username, null, sessionA.username),
             `${sessionB.username} should be able to accept the request`
         ).toBe(true);
 

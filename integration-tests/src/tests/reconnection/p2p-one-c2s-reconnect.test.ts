@@ -185,7 +185,7 @@ async function runTest(): Promise<boolean> {
     if (!p2pRequested) return false;
     await sleep(3000);
 
-    const p2pAccepted = await acceptP2PRequest(page2, USER2_NAME, uxTracker);
+    const p2pAccepted = await acceptP2PRequest(page2, USER2_NAME, uxTracker, USER1_NAME);
     results.push({
       step: 'Phase 2b: P2P Accept',
       status: p2pAccepted ? 'PASS' : 'FAIL',
@@ -405,7 +405,7 @@ async function runTest(): Promise<boolean> {
 
         if (p2pReRequested) {
           await sleep(3000);
-          const p2pReAccepted = await acceptP2PRequest(page2, USER2_NAME, uxTracker);
+          const p2pReAccepted = await acceptP2PRequest(page2, USER2_NAME, uxTracker, USER1_NAME);
           results.push({
             step: 'Phase 8b: P2P Re-accept',
             status: p2pReAccepted ? 'PASS' : 'FAIL',

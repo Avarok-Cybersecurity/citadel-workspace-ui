@@ -19,7 +19,7 @@ const member = (username: string): WorkspaceMember =>
   ({ id: username, username, displayName: username, isOnline: null, role: 'member' }) as WorkspaceMember;
 
 describe('a member row', () => {
-  it('opens the chat for a contact, and does nothing for someone who is not one', () => {
+  it('runs the opener it is given, and is inert where it is given none', () => {
     const opened: string[] = [];
     const openChatWith = (m: WorkspaceMember): (() => void) | null =>
       m.username === 'thomas' ? (): void => { opened.push(m.username); } : null;

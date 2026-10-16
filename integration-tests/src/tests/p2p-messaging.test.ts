@@ -227,7 +227,7 @@ async function runTest(): Promise<boolean> {
     console.log('─'.repeat(50));
 
     await sleep(3000);
-    results.p2pAccept = await acceptP2PRequest(page2, USER2, uxTracker);
+    results.p2pAccept = await acceptP2PRequest(page2, USER2, uxTracker, USER1);
 
     // ========== STEP 3.5: Verify "Connected" Badge in Alice's Modal ==========
     // After Bob accepts, Alice's still-open modal should show "Connected" badge

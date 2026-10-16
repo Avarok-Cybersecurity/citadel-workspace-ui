@@ -36,7 +36,7 @@ interface MemberListItemsProps {
   blocks: MemberActionBlocks;
   /** Names a member's `accessVia` level; see hooks/use-level-name. */
   nameOfLevel: (levelId: string) => string;
-  /** Opens the chat with this member when they are a contact; null when they are not. */
+  /** Opens the chat with this member, connected or not; null on your own row. */
   openChatWith: (member: WorkspaceMember) => (() => void) | null;
   currentUsername?: string;
   onEditMember: (member: WorkspaceMember) => void;
@@ -129,7 +129,7 @@ export function MemberListItems({
       })}
       {members.length > MEMBERS_TO_SHOW && (
         <SidebarMenuItem>
-          <SidebarMenuButton onClick={onShowAllMembers} className="text-primary-accent hover:bg-primary-accent/15 hover:text-foreground transition-colors">
+          <SidebarMenuButton onClick={onShowAllMembers} data-testid="members-view-all" className="text-primary-accent hover:bg-primary-accent/15 hover:text-foreground transition-colors">
             <Users className="h-4 w-4 mr-2" />View all {members.length} members
           </SidebarMenuButton>
         </SidebarMenuItem>

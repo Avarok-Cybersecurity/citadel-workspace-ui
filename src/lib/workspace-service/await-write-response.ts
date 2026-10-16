@@ -40,6 +40,8 @@ export const SUCCESS_RESPONSES: Record<string, readonly string[]> = {
   // The sign-in settings, read and written; both answered with what the server holds.
   // Every telemetry request is answered with a Telemetry response; telemetry-operations picks the kind.
   Telemetry: ['Telemetry'],
+  // Likewise MessagingTrust; messaging-trust-operations picks the kind and the peer.
+  MessagingTrust: ['MessagingTrust'],
   GetSignInSettings: ['SignInSettings'],
   UpdateSignInSettings: ['SignInSettings'],
   DeleteNode: ['NodeDeleted'],

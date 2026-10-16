@@ -28,7 +28,8 @@ import { WORKSPACE_ROOT_ID } from '../workspace-constants';
 
 const SRC: string = join(process.cwd(), 'src');
 const HOME: string = 'lib/workspace-constants.ts';
-const KERNEL: string = resolve(process.cwd(), '..', 'citadel-workspace-server-kernel', 'src', 'lib.rs');
+// Moved from the kernel's lib.rs, which re-exports it, when the messaging trust policy needed it in the types.
+const KERNEL: string = resolve(process.cwd(), '..', 'citadel-workspace-types', 'src', 'lib.rs');
 
 describe('the workspace root sentinel', () => {
   it('matches the Rust constant it mirrors', () => {
@@ -39,7 +40,7 @@ describe('the workspace root sentinel', () => {
 
     expect(
       declared,
-      'citadel-workspace-server-kernel/src/lib.rs no longer declares WORKSPACE_ROOT_ID ' +
+      'citadel-workspace-types/src/lib.rs no longer declares WORKSPACE_ROOT_ID ' +
         'the way this check reads it — find where it moved rather than deleting this.',
     ).not.toBeNull();
     expect(declared?.[1]).toBe(WORKSPACE_ROOT_ID);

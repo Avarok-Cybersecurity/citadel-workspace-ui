@@ -22,6 +22,8 @@ interface Recorded { calls: IncomingRequestAction[]; deps: IncomingRegistrationD
 function recorder(overrides: Partial<Omit<IncomingRegistrationDeps, 'accept' | 'ask' | 'decline'>>): Recorded {
   const calls: IncomingRequestAction[] = [];
   const deps: IncomingRegistrationDeps = {
+    // Not trusted by the workspace: these are about the stranger rule that applies outside it.
+    trustedByWorkspace: async (): Promise<boolean> => false,
     acceptsRequestsFromStrangers: (): boolean => true,
     isContact: (): boolean => false,
     weAskedThemFirst: (): boolean => false,
@@ -101,7 +103,7 @@ describe('decideIncomingRequest', () => {
     ];
     for (const [acceptsRequestsFromStrangers, isContact, weAskedThemFirst, autoAccept, want] of table) {
       expect(
-        decideIncomingRequest({ acceptsRequestsFromStrangers, isContact, weAskedThemFirst, autoAccept }),
+        decideIncomingRequest({ trustedByWorkspace: false, acceptsRequestsFromStrangers, isContact, weAskedThemFirst, autoAccept }),
         JSON.stringify({ acceptsRequestsFromStrangers, isContact, weAskedThemFirst, autoAccept }),
       ).toBe(want);
     }

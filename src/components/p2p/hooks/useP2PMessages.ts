@@ -36,7 +36,9 @@ export function useP2PMessages({
   const [peerTyping, setPeerTyping] = useState(false);
   const [peerPresence, setPeerPresence] = useState<PeerPresence | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [isRegistered, setIsRegistered] = useState(false);
+  // Read now, not after the first effect: a contact's chat otherwise opens as unregistered and
+  // flashes the connect banner (and its automatic request) at someone you are already connected to.
+  const [isRegistered, setIsRegistered] = useState<boolean>((): boolean => p2pRegistrationService.isPeerRegistered(peerCid));
   const [currentPage, setCurrentPage] = useState<number | null>(null);
   const [hasMorePages, setHasMorePages] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);

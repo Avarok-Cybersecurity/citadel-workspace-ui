@@ -6,10 +6,9 @@
  */
 
 import { debugLog, debugEnabled, errorLog } from '@/lib/debug-config';
-import { bytesToString } from '@/lib/utils/encoding-utils';
 import { narrowWebSocketMessage } from '@/lib/ws-message-boundary';
 import type { WebSocketMessage } from '@/types/ws-message-types';
-import type { WorkspaceProtocolResponse } from 'citadel-workspace-client-ts';
+import { decodeWorkspacePayload, isVariant, type WorkspaceProtocolPayload, type WorkspaceProtocolResponse } from 'citadel-workspace-client-ts';
 import { formatForDebug } from '@/lib/debug-formatter';
 
 // The envelope logs below go through formatForDebug, which prints a payload's
@@ -105,12 +104,12 @@ function decodeByteArrayPayload(
   }
 
   try {
-    const contentBytes: Uint8Array<ArrayBuffer> = new Uint8Array(field as number[]);
-    const contentStr: string = bytesToString(contentBytes);
-    const workspacePayload: ReturnType<typeof JSON.parse> = JSON.parse(contentStr);
+    // The u64-exact codec, not JSON.parse: a bare parse turned every u64 into a lossy number where
+    // the types promise bigint, and the admin Telemetry section crashed dividing one by a bigint.
+    const workspacePayload: WorkspaceProtocolPayload = decodeWorkspacePayload(new Uint8Array(field as number[]));
 
-    if (workspacePayload.Response) {
-      return workspacePayload.Response as WorkspaceProtocolResponse;
+    if (isVariant(workspacePayload, 'Response')) {
+      return workspacePayload.Response;
     }
 
     debugLog('WorkspaceResponseHandler', 'No Response field in payload', workspacePayload);

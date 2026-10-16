@@ -1,5 +1,6 @@
 /**
- * Workspace settings: the workspace's name, description and icon, and its appearance.
+ * Workspace settings: the workspace's name, description and icon, sign-in and messaging trust,
+ * and its appearance.
  *
  * Live (owner, 2026-09-27): "I can't find where to edit the workspace settings (name of org,
  * icon, etc)". Nothing opened a settings screen for the workspace itself, and the only rename
@@ -20,6 +21,7 @@ import { WORKSPACE_ICON } from '@/components/settings/image-upload-kinds';
 import { WorkspaceAppearanceSection } from '@/components/settings/WorkspaceAppearanceSection';
 import { kernelAdmissionSetting } from '@/lib/admission/workspace-setting';
 import { TurnstileAdmissionSwitch } from './TurnstileAdmissionSwitch';
+import { MessagingTrustSection } from './MessagingTrustSection';
 import { TelemetrySection } from './telemetry/TelemetrySection';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
@@ -120,6 +122,10 @@ export function WorkspaceSettingsDialog({ open, onOpenChange }: WorkspaceSetting
 
         <div className="border-t border-border pt-4">
           <TurnstileAdmissionSwitch port={kernelAdmissionSetting} />
+        </div>
+
+        <div className="border-t border-border pt-4">
+          <MessagingTrustSection />
         </div>
 
         <div className="border-t border-border pt-4">

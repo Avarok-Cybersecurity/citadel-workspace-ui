@@ -33,6 +33,8 @@ interface P2PMessageInputProps {
   paused: boolean;
   /** A message is between submit and appearing in the transcript. */
   isSending: boolean;
+  /** The peer's name while you are not registered with them: nothing can be sent until you are. */
+  notConnectedWith: string | null;
   onInputChange: (value: string) => void;
   onInputFocus: () => void;
   onInputBlur: () => void;
@@ -51,6 +53,7 @@ export const P2PMessageInput: React.ForwardRefExoticComponent<P2PMessageInputPro
       showMarkdownPreview,
       paused,
       isSending,
+      notConnectedWith,
       onInputChange,
       onInputFocus,
       onInputBlur,
@@ -67,10 +70,11 @@ export const P2PMessageInput: React.ForwardRefExoticComponent<P2PMessageInputPro
 
     const handleSubmit = (e: React.FormEvent): void => {
       e.preventDefault();
-      onSubmit();
+      if (notConnectedWith === null) onSubmit();
     };
 
     const getPlaceholder: () => string = (): string => {
+      if (notConnectedWith !== null) return `Connect with ${notConnectedWith} to send messages`;
       if (paused) return PAUSE_COPY.composerPlaceholder;
       if (isMarkdownMode) return 'Type markdown message...';
       if (isLiveDocMode) return 'Document content (optional)...';
@@ -102,7 +106,7 @@ export const P2PMessageInput: React.ForwardRefExoticComponent<P2PMessageInputPro
               size="icon"
               variant="ghost"
               onClick={onFileClick}
-              disabled={paused}
+              disabled={paused || notConnectedWith !== null}
               className="text-muted-foreground hover:text-foreground hover:bg-foreground/10"
               aria-label="Send file"
               title={paused ? PAUSE_COPY.fileReason : 'Send file'}
@@ -148,7 +152,7 @@ export const P2PMessageInput: React.ForwardRefExoticComponent<P2PMessageInputPro
               // isSending is the guard against a second Enter during the
               // send window -- peer registration and CheckState can take tens
               // of seconds, and the text is still in the field for all of it.
-              disabled={isSending || (!inputMessage.trim() && !isLiveDocMode)}
+              disabled={isSending || notConnectedWith !== null || (!inputMessage.trim() && !isLiveDocMode)}
               aria-busy={isSending}
               className="bg-primary text-primary-foreground"
             >

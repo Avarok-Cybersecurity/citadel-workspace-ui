@@ -274,7 +274,7 @@ async function runChatSettingsTest(): Promise<boolean> {
     console.log('STEP 3: Accept P2P Request');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
-    results.p2pAccept = await acceptP2PRequest(page2, USER2, uxIssues);
+    results.p2pAccept = await acceptP2PRequest(page2, USER2, uxIssues, USER1);
     await takeScreenshot(page2, '04_p2p_accepted');
 
     if (!results.p2pAccept) {

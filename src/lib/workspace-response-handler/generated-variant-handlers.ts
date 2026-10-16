@@ -11,6 +11,7 @@ import { debugLog } from '@/lib/debug-config';
 import { isVariant , type SignInSettings, type WorkspaceProtocolResponse } from 'citadel-workspace-client-ts';
 import type { ConnectionInfo } from './workspace-handlers';
 import { mapWasmMember } from './member-mapping';
+import { membershipChanged } from './membership-change';
 import { recordMemberNames } from '@/lib/member-names';
 import { recordPresenceChoices } from '@/lib/published-presence';
 import type { MappedMember } from '@/lib/workspace-response-handler/member-mapping';
@@ -41,6 +42,10 @@ export function handleGeneratedVariants(
       },
       connection: connectionInfo,
     });
+    // Someone joined or left: the rosters on screen re-read (membership-change.ts).
+    if (membershipChanged(response.Workspace.id, response.Workspace.members)) {
+      eventEmitter.emit('members:reload', undefined);
+    }
     // Also raw, so a caller awaiting confirmation can see it.
     //
     // `Success` and `Error` emit this; the handled variants did not — they
@@ -196,6 +201,14 @@ export function handleGeneratedVariants(
     // Not logged here: its records are other people's diagnostic lines. The requests in
     // telemetry-operations.ts wait on the raw event.
     eventEmitter.emit('workspace:telemetry', { answer: response.Telemetry, connection: connectionInfo });
+    eventEmitter.emit('workspace:raw-response', response);
+    return true;
+  }
+
+  if (isVariant(response, 'MessagingTrust')) {
+    // The settings screens follow it (messaging-trust/settings-feed.ts); the requests in
+    // messaging-trust-operations.ts wait on the raw event for their own answer.
+    eventEmitter.emit('workspace:messaging-trust', { answer: response.MessagingTrust, connection: connectionInfo });
     eventEmitter.emit('workspace:raw-response', response);
     return true;
   }
