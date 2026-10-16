@@ -11,7 +11,7 @@ import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { getEntityIcon } from '@/lib/entity-type-registry';
 import type { DomainNode } from '../tree-node-types';
-import { ITEM_CLASS, ROW_MOTION, useLeaving } from './tree-motion';
+import { ITEM_CLASS, ROW_ITEM, useLeaving } from './tree-motion';
 import { rootLabel } from './level-labels';
 import { TreeRow } from './TreeRow';
 
@@ -32,8 +32,9 @@ export const AncestorRow: ForwardRefExoticComponent<AncestorRowProps & RefAttrib
   const isRoot: boolean = level === 1;
   const leaving: boolean = useLeaving();
   return (
-    <motion.li ref={ref} layoutId={node.id} {...ROW_MOTION} role="none" className={cn(ITEM_CLASS, leaving && 'pointer-events-none')}>
+    <motion.li ref={ref} {...ROW_ITEM} role="none" className={cn(ITEM_CLASS, leaving && 'pointer-events-none')}>
       <TreeRow
+        motionId={node.id}
         info={{ kind: 'ancestor', nodeId: node.id, parentId, selected: false, expandable: true, expanded: true }}
         level={level}
         leaving={leaving}
@@ -79,8 +80,9 @@ interface MoreAncestorsRowProps {
 export const MoreAncestorsRow: ForwardRefExoticComponent<MoreAncestorsRowProps & RefAttributes<HTMLLIElement>> = forwardRef<HTMLLIElement, MoreAncestorsRowProps>(function MoreAncestorsRow({ hidden, level, isMobile, onExpand }: MoreAncestorsRowProps, ref: ForwardedRef<HTMLLIElement>): JSX.Element {
   const leaving: boolean = useLeaving();
   return (
-    <motion.li ref={ref} layoutId="tree-more-ancestors" {...ROW_MOTION} role="none" className={cn(ITEM_CLASS, leaving && 'pointer-events-none')}>
+    <motion.li ref={ref} {...ROW_ITEM} role="none" className={cn(ITEM_CLASS, leaving && 'pointer-events-none')}>
       <TreeRow
+        motionId="tree-more-ancestors"
         // Activating it reveals this row's first hidden ancestor, and the keyboard lands there.
         info={{ kind: 'ancestor', nodeId: hidden[0].id, parentId: null, selected: false, expandable: false, expanded: false }}
         level={level}

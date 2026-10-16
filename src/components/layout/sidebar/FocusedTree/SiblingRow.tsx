@@ -15,7 +15,7 @@ import { getEntityIcon, getEntityTypeString } from '@/lib/entity-type-registry';
 import { rowClass } from '../selected-row';
 import type { DomainNode } from '../tree-node-types';
 import type { ChildIndex } from '../focused-view';
-import { ITEM_CLASS, PresenceScope, ROW_MOTION, Unfold, useLeaving } from './tree-motion';
+import { ITEM_CLASS, PresenceScope, ROW_ITEM, Unfold, useLeaving } from './tree-motion';
 import { NodeActionsMenu, type NodeActions } from './NodeActionsMenu';
 import { ChildList } from './ChildRows';
 import { childCountLabel, rootLabel } from './level-labels';
@@ -51,8 +51,9 @@ export const SiblingRow: ForwardRefExoticComponent<SiblingRowProps & RefAttribut
   const leaving: boolean = useLeaving();
 
   return (
-    <motion.li ref={ref} layoutId={node.id} {...ROW_MOTION} role="none" className={cn(ITEM_CLASS, leaving && 'pointer-events-none')}>
+    <motion.li ref={ref} {...ROW_ITEM} role="none" className={cn(ITEM_CLASS, leaving && 'pointer-events-none')}>
       <TreeRow
+        motionId={node.id}
         info={{ kind: 'sibling', nodeId: node.id, parentId, selected: isSelected, expandable: hasChildren, expanded: unfolded && hasChildren }}
         level={level}
         leaving={leaving}

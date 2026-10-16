@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 import { getEntityIcon, getEntityTypeString } from '@/lib/entity-type-registry';
 import type { DomainNode } from '../tree-node-types';
 import type { ChildIndex } from '../focused-view';
-import { AnimatePresence, ITEM_CLASS, ROW_MOTION, useLeaving } from './tree-motion';
+import { AnimatePresence, ITEM_CLASS, ROW_ITEM, useLeaving, usePresenceInitial } from './tree-motion';
 import { TreeRow } from './TreeRow';
 
 interface ChildListProps {
@@ -28,13 +28,13 @@ interface ChildListProps {
 }
 
 export function ChildList({ parent, items, index, level, isPeek, isMobile, addLabel, onSelect, onAdd }: ChildListProps): JSX.Element {
-  const leaving: boolean = useLeaving();
+  const initial: boolean = usePresenceInitial();
   return (
     <ul
       role="group"
       className={cn('relative ml-[14px] flex flex-col gap-px border-l pl-2', isPeek ? 'border-primary-accent/40' : 'border-primary-accent')}
     >
-      <AnimatePresence initial={false} mode="popLayout">
+      <AnimatePresence initial={initial} mode="popLayout">
         {items.map((child: DomainNode) => (
           <ChildRow
             key={child.id}
@@ -46,24 +46,8 @@ export function ChildList({ parent, items, index, level, isPeek, isMobile, addLa
             onSelect={onSelect}
           />
         ))}
+        {addLabel !== null && <AddRow key={`add:${parent.id}`} parent={parent} level={level} label={addLabel} isMobile={isMobile} onAdd={onAdd} />}
       </AnimatePresence>
-      {addLabel !== null && !leaving && (
-        <li role="none">
-          {/* A treeitem rather than a bare button: a tree may hold only items, and the keyboard reaches it like one. */}
-          <TreeRow
-            info={{ kind: 'child', nodeId: `add:${parent.id}`, parentId: parent.id, selected: false, expandable: false, expanded: false }}
-            level={level}
-            leaving={false}
-            testId={`add-child-row-${parent.id}`}
-            title={`${addLabel} to ${parent.name}`}
-            onActivate={() => onAdd(parent.id)}
-            className={cn('gap-2 px-1.5 text-xs text-muted-foreground hover:bg-primary-accent/15 hover:text-foreground [&>svg]:size-3', isMobile ? 'h-[44px]' : 'h-[26px]')}
-          >
-            <Plus className="h-3 w-3 shrink-0" aria-hidden="true" />
-            <span className="truncate">{addLabel}</span>
-          </TreeRow>
-        </li>
-      )}
     </ul>
   );
 }
@@ -81,8 +65,9 @@ const ChildRow: ForwardRefExoticComponent<ChildRowProps & RefAttributes<HTMLLIEl
   const Icon: ReturnType<typeof getEntityIcon> = getEntityIcon(node.entity_type);
   const leaving: boolean = useLeaving();
   return (
-    <motion.li ref={ref} layoutId={node.id} {...ROW_MOTION} role="none" className={cn(ITEM_CLASS, leaving && 'pointer-events-none')}>
+    <motion.li ref={ref} {...ROW_ITEM} role="none" className={cn(ITEM_CLASS, leaving && 'pointer-events-none')}>
       <TreeRow
+        motionId={node.id}
         info={{ kind: 'child', nodeId: node.id, parentId, selected: false, expandable: childCount > 0, expanded: false }}
         level={level}
         leaving={leaving}
@@ -103,6 +88,38 @@ const ChildRow: ForwardRefExoticComponent<ChildRowProps & RefAttributes<HTMLLIEl
           )}
         </span>
         {childCount > 0 && <span className="shrink-0 text-xs text-muted-foreground">{childCount}</span>}
+      </TreeRow>
+    </motion.li>
+  );
+});
+
+interface AddRowProps {
+  parent: DomainNode;
+  level: number;
+  /** "Add Room". */
+  label: string;
+  isMobile: boolean;
+  onAdd: (parentId: string) => void;
+}
+
+/** The dashed "Add <level>" row: arrives, folds and leaves with the rows it follows. */
+const AddRow: ForwardRefExoticComponent<AddRowProps & RefAttributes<HTMLLIElement>> = forwardRef<HTMLLIElement, AddRowProps>(function AddRow({ parent, level, label, isMobile, onAdd }: AddRowProps, ref: ForwardedRef<HTMLLIElement>): JSX.Element {
+  const leaving: boolean = useLeaving();
+  return (
+    <motion.li ref={ref} {...ROW_ITEM} role="none" className={cn(leaving && 'pointer-events-none')}>
+      {/* A treeitem rather than a bare button: a tree may hold only items, and the keyboard reaches it like one. */}
+      <TreeRow
+        motionId={`add:${parent.id}`}
+        info={{ kind: 'child', nodeId: `add:${parent.id}`, parentId: parent.id, selected: false, expandable: false, expanded: false }}
+        level={level}
+        leaving={leaving}
+        testId={`add-child-row-${parent.id}`}
+        title={`${label} to ${parent.name}`}
+        onActivate={() => onAdd(parent.id)}
+        className={cn('gap-2 px-1.5 text-xs text-muted-foreground hover:bg-primary-accent/15 hover:text-foreground [&>svg]:size-3', isMobile ? 'h-[44px]' : 'h-[26px]')}
+      >
+        <Plus className="h-3 w-3 shrink-0" aria-hidden="true" />
+        <span className="truncate">{label}</span>
       </TreeRow>
     </motion.li>
   );

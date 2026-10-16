@@ -16,7 +16,8 @@ import { workspaceRoot } from "./tree-node-utils";
 import { searchResults, type SearchResult } from "./focused-search";
 import { FocusedTree } from "./FocusedTree/FocusedTree";
 import { SearchResults } from "./FocusedTree/SearchResults";
-import { AnimatePresence, AutoHeight, PresenceScope, TreeMotion } from "./FocusedTree/tree-motion";
+import { AnimatePresence, FADE_OUT, PresenceScope, TreeMotion } from "./FocusedTree/tree-motion";
+import { AutoHeight } from "./FocusedTree/tree-boxes";
 import { addChildLabel } from "./FocusedTree/level-labels";
 
 // Re-export all types for backward compatibility
@@ -205,7 +206,7 @@ export function TreeNodesSection({
             <TreeMotion>
               <AutoHeight>
                 <AnimatePresence initial={false} mode="popLayout">
-                  <motion.div key={searching ? 'results' : 'tree'} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                  <motion.div key={searching ? 'results' : 'tree'} initial={{ opacity: 0 }} animate={{ opacity: 1 }} {...FADE_OUT}>
                     <PresenceScope>
                       {searching ? (
                         <SearchResults results={results} isMobile={isMobile} onSelect={selectResult} />
