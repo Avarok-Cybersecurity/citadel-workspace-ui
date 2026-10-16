@@ -15,7 +15,8 @@ describe('a workspace response received from the server', () => {
   it('carries u64 limits as bigint, so the Telemetry section can compute with them', () => {
     const json: string = '{"Response":{"Telemetry":{"Settings":{"policy":{"retention_days":30,"per_user_bytes":20971520},"max_per_user_bytes":52428800}}}}';
     const response: unknown = extractWorkspaceResponse(notificationCarrying(json));
-    const settings = (response as { Telemetry: { Settings: { policy: { per_user_bytes: unknown }; max_per_user_bytes: unknown } } }).Telemetry.Settings;
+    type ReceivedSettings = { policy: { per_user_bytes: unknown }; max_per_user_bytes: unknown };
+    const settings: ReceivedSettings = (response as { Telemetry: { Settings: ReceivedSettings } }).Telemetry.Settings;
     expect(settings.policy.per_user_bytes).toBe(20971520n);
     expect(settings.max_per_user_bytes).toBe(52428800n);
   });
