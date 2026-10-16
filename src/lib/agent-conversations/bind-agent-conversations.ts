@@ -4,7 +4,7 @@
  * (agent-actions.ts). Bound once, by the messenger, to its own state.
  */
 import type { ConversationEvent } from 'citadel-internal-service-wasm-client';
-import { errorLog } from '@/lib/debug-config';
+import { debugLog, errorLog } from '@/lib/debug-config';
 import { createConversationEventApplier, conversationEventOf, type ConversationEventDeps } from './conversation-events';
 import type { AgentActionDeps } from './agent-actions';
 import { chatAdvancedSettings } from '../p2p/chat-advanced-settings';
@@ -14,6 +14,7 @@ import { onPrivacySettingsSaved } from '../privacy-settings';
 import { createFocusReporter, windowInFront, type FocusReporter } from './report-focus';
 import { SESSION_CLAIMED, type ClaimedEvent } from '../multi-instance/claim-relay';
 import { sendToAgent } from './sender';
+import { createPreferencesTeller, type PreferencesTeller } from './tell-preferences';
 
 type Listen = (event: string, handler: (data: unknown) => void) => void;
 
@@ -48,11 +49,14 @@ export function bindAgentConversations(listen: Listen, parts: AgentConversationP
   });
 
   // The agent acts on these with no window open, so it hears every change.
-  const tell = async (): Promise<void> => {
-    const own: bigint | null = await parts.ownCid();
-    if (own !== null && (await agentHostsConversations())) await pushAccountPreferences(own, parts.peers);
-  };
-  const told = (): void => { tell().catch((error: unknown): void => errorLog('AgentConversations', 'could not tell the agent this account\'s settings', error)); };
+  const teller: PreferencesTeller = createPreferencesTeller({
+    hosts: agentHostsConversations,
+    ownCid: parts.ownCid,
+    push: (own: bigint): Promise<void> => pushAccountPreferences(own, parts.peers),
+    deferred: (own: bigint): void => debugLog('AgentConversations', `settings for ${own.toString().slice(0, 8)}... wait for this connection to claim the session`),
+  });
+  const untold = (error: unknown): void => errorLog('AgentConversations', 'could not tell the agent this account\'s settings', error);
+  const told = (): void => { teller.changed().catch(untold); };
   listen('p2p:messages-loaded', told);
   onPrivacySettingsSaved(told);
 
@@ -63,7 +67,11 @@ export function bindAgentConversations(listen: Listen, parts: AgentConversationP
   const failed = (error: unknown): void => errorLog('AgentConversations', 'could not tell the agent what is in front', error);
   const focusChanged = (): void => { reporter.changed().catch(failed); };
   // Said again on every connection that claims this session: see report-focus.ts.
-  listen(SESSION_CLAIMED, (event: unknown): void => { reporter.claimed((event as ClaimedEvent).cid).catch(failed); });
+  listen(SESSION_CLAIMED, (event: unknown): void => {
+    const { cid }: ClaimedEvent = event as ClaimedEvent;
+    reporter.claimed(cid).catch(failed);
+    teller.claimed(cid).catch(untold);
+  });
   window.addEventListener('focus', focusChanged);
   window.addEventListener('blur', focusChanged);
   document.addEventListener('visibilitychange', focusChanged);
