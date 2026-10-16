@@ -14,14 +14,20 @@
  * here, where it would otherwise also select the row.
  *
  * A leaving row (see useLeaving) is inert: no role, no testid, no tab stop.
+ *
+ * The line is what glides between lists and cross-fades with its old copy (see tree-motion), keyed by
+ * `motionId`: the node's id, or the Add row's or the folded-stack row's own.
  */
 import type { CSSProperties, KeyboardEvent, MouseEvent, ReactNode } from 'react';
+import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { SidebarMenuButton } from '@/components/ui/sidebar';
 import { treeItemAttributes, treeKeyAction, type TreeItemInfo } from './useTreeKeyboard';
+import { useRowLine, type RowLine } from './tree-motion';
 
 interface TreeRowProps {
   info: TreeItemInfo;
+  motionId: string;
   /** True depth, 1 for the root. */
   level: number;
   leaving: boolean;
@@ -36,7 +42,8 @@ interface TreeRowProps {
   children: ReactNode;
 }
 
-export function TreeRow({ info, level, leaving, testId, title, expanded, isActive, className, style, onActivate, children }: TreeRowProps): JSX.Element {
+export function TreeRow({ info, motionId, level, leaving, testId, title, expanded, isActive, className, style, onActivate, children }: TreeRowProps): JSX.Element {
+  const line: RowLine = useRowLine(motionId);
   const onClick = (event: MouseEvent<HTMLDivElement>): void => {
     if (!event.currentTarget.contains(event.target as Node)) return;
     if ((event.target as HTMLElement).closest('button') !== null) return;
@@ -53,7 +60,9 @@ export function TreeRow({ info, level, leaving, testId, title, expanded, isActiv
     // (tailwind-merge); put on the div, Slot would only concatenate, and its
     // `h-8` and `[&>svg]:size-4` would win or lose by stylesheet order.
     <SidebarMenuButton asChild isActive={isActive} className={cn('relative cursor-pointer select-none', className)}>
-      <div
+      <motion.div
+        {...line}
+        data-motion-id={motionId}
         role={leaving ? undefined : 'treeitem'}
         aria-hidden={leaving || undefined}
         tabIndex={leaving ? -1 : 0}
@@ -69,7 +78,7 @@ export function TreeRow({ info, level, leaving, testId, title, expanded, isActiv
         style={style}
       >
         {children}
-      </div>
+      </motion.div>
     </SidebarMenuButton>
   );
 }

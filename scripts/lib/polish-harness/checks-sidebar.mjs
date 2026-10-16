@@ -7,6 +7,8 @@
 import { strict as assert } from 'node:assert';
 import { AxeBuilder } from '@axe-core/playwright';
 import { settled, targetsAreBigEnough } from './checks-controls.mjs';
+import { ROUGH, roughness } from './motion-probe.mjs';
+import { sampleTransition } from './motion-sampler.mjs';
 
 const MOBILE_BELOW = 768;
 const within = (actual, expected) => Math.abs(actual - expected) <= 0.5;
@@ -106,9 +108,56 @@ async function aSelectionGlides({ page, url, viewport }) {
   assert.equal(reduced, 0, `under prefers-reduced-motion the row still moved through ${reduced} position(s)`);
 }
 
+/**
+ * Selection changes that move rows between lists, sampled every frame for 800ms and scored by motion-probe:
+ * nothing reverses, jumps, overlaps or snaps. The owner's report was a jump of more than one level, so those
+ * lead (ascending by the stack's own rows, descending through `to=`, the way a link or search result selects);
+ * one-level moves are the control that must stay smooth too.
+ */
+const LEVEL_CHANGES = [
+  ['room -> workspace (5 levels up)', '&sel=flex', 'tree-node-workspace-root'],
+  ['room -> building (3 levels up)', '&sel=flex', 'tree-node-alex'],
+  ['floor -> city (2 levels up)', '&sel=floor3', 'tree-node-berlin'],
+  ['workspace -> room (5 levels down)', '&sel=workspace-root&to=flex', 'harness-select'],
+  ['city -> floor (2 levels down)', '&sel=berlin&to=floor3', 'harness-select'],
+  ['office -> its room (1 down)', '&sel=eng', 'tree-node-flex'],
+  ['room -> its office (1 up)', '&sel=flex', 'tree-node-eng'],
+  ['room -> sibling room', '&sel=flex', 'tree-node-standup'],
+  ['office -> sibling office', '&sel=eng', 'tree-node-design'],
+];
+
+/** POLISH_CPU_THROTTLE=4 slows Chromium's CPU the way a CI runner is slow, to reproduce what only CI sees. */
+const THROTTLE = Number(process.env.POLISH_CPU_THROTTLE ?? 1);
+
+async function aLevelChangeIsOneMotion({ page, url, viewport }) {
+  if (THROTTLE > 1 && page.context().browser().browserType().name() !== 'chromium') throw new Error('POLISH_CPU_THROTTLE needs Chromium (CDP)');
+  const moving = await page.context().browser().newContext({ viewport, reducedMotion: 'no-preference' });
+  const rough = [];
+  try {
+    for (const [name, query, clicked] of LEVEL_CHANGES) {
+      const tab = await moving.newPage();
+      try {
+        if (THROTTLE > 1) await (await moving.newCDPSession(tab)).send('Emulation.setCPUThrottlingRate', { rate: THROTTLE });
+        await tab.goto(url('focused-sidebar') + query);
+        await tab.getByTestId(clicked).waitFor({ state: 'visible' });
+        await settled(tab);
+        const found = roughness(await sampleTransition(tab, clicked, 800));
+        const problems = ROUGH.flatMap((k) => found[k].map((f) => `${k}: ${f.slice(0, 160)}`));
+        if (problems.length > 0) rough.push(`${name}: ${problems.length} -- ${problems.slice(0, 3).join(' | ')}`);
+      } finally {
+        await tab.close();
+      }
+    }
+  } finally {
+    await moving.close();
+  }
+  assert.equal(rough.length, 0, rough.join('\n        '));
+}
+
 export const SIDEBAR_CHECKS = {
   focusedRowsHaveTheirHeights,
   focusedTreeIsATree,
   aSelectionGlides,
+  aLevelChangeIsOneMotion,
   targetsInTheFocusedSidebar: targetsAreBigEnough('focused-sidebar&sel=eng', '[role="tree"]'),
 };

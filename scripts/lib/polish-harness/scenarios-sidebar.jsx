@@ -3,9 +3,12 @@
  * six-level estate, at the sidebar's own width. The selection lives in local state here instead of the
  * URL -- the input, not the component, is what a scenario fakes.
  *
- * `?sel=<id>` picks the starting selection; `?anim=off` is the user's Animations switch turned off.
+ * `?sel=<id>` picks the starting selection; `?anim=off` is the user's Animations switch turned off;
+ * `?to=<id>` adds a control, out of the flow, that selects that node in one step -- the way a link or a
+ * search result moves the selection anywhere, not only to a row on screen.
  */
 import { useState } from 'react';
+import { frameData } from 'framer-motion';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { TreeNodesSection } from '@/components/layout/sidebar/TreeNodesSection';
@@ -41,6 +44,9 @@ const ESTATE = [
 ];
 
 const NOTHING = () => {};
+const query = () => new URLSearchParams(location.search);
+// framer's frame clock, for motion-sampler to stamp each sample with the time its motion was computed for.
+window.__motionFrame = frameData;
 
 /**
  * The schema and the Animations switch are global, and every scenario shares
@@ -49,14 +55,14 @@ const NOTHING = () => {};
  * before this scenario's first render.
  */
 function prepare() {
-  const params = new URLSearchParams(location.search);
   setTreeSchema(SCHEMA);
-  applyAppearanceSettings({ ...defaultAppearanceSettings, animationsEnabled: params.get('anim') !== 'off' });
-  return params.get('sel') ?? undefined;
+  applyAppearanceSettings({ ...defaultAppearanceSettings, animationsEnabled: query().get('anim') !== 'off' });
+  return query().get('sel') ?? undefined;
 }
 
 function FocusedSidebar() {
   const [selected, setSelected] = useState(prepare);
+  const to = query().get('to');
   return (
     <SidebarProvider>
       <TooltipProvider delayDuration={0}>
@@ -74,6 +80,9 @@ function FocusedSidebar() {
             onMoveNode={NOTHING}
             createBlockedReason={null}
           />
+          {/* What the sidebar puts under the hierarchy: whether it is carried or jumps is part of the motion. */}
+          <div data-testid="below-tree" className="mx-3 h-10 rounded bg-surface" />
+          {to && <button type="button" data-testid="harness-select" className="fixed bottom-2 right-2" onClick={() => setSelected(to)}>Go to {to}</button>}
         </div>
       </TooltipProvider>
     </SidebarProvider>
