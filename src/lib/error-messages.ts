@@ -1,4 +1,5 @@
 import { describeError } from './describe-error';
+import { readableSdkError } from './sdk-error-text';
 import { SERVER_HOLDS_A_SESSION } from './server-session-copy';
 import { credentialErrorMessage } from './credential-error-messages';
 import { workspaceMasterPasswordError, isWrongMasterPassword, WRONG_MASTER_PASSWORD_TITLE } from './workspace-master-password-error';
@@ -22,7 +23,7 @@ import { workspaceMasterPasswordError, isWrongMasterPassword, WRONG_MASTER_PASSW
  * once, rather than asking each to remember.
  */
 export function getUserFriendlyErrorMessage(error: unknown): string {
-  const errorMessage: string = describeError(error);
+  const errorMessage: string = readableSdkError(describeError(error));
   
   // Connection-related errors
   if (errorMessage.includes('WebSocket connection failed') || 
@@ -97,7 +98,7 @@ export function getUserFriendlyErrorMessage(error: unknown): string {
   if (masterPassword !== null) return masterPassword;
   
   // Network errors
-  if (errorMessage.includes('NetworkError') || 
+  if (errorMessage.includes('NetworkError when attempting to fetch') || 
       errorMessage.includes('ERR_NETWORK')) {
     return 'Network error. Please check your internet connection.';
   }
@@ -199,7 +200,7 @@ export function getUserFriendlyErrorMessage(error: unknown): string {
  * Gets a user-friendly title for an error
  */
 export function getErrorTitle(error: unknown): string {
-  const errorMessage: string = describeError(error);
+  const errorMessage: string = readableSdkError(describeError(error));
 
   // First, because two later branches would each claim it: the string holds
   // "password" (Authentication Error) and "workspace" (Workspace Error), and
