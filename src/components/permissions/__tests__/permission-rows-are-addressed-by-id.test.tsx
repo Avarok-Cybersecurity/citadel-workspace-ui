@@ -17,7 +17,7 @@
  * ATTRIBUTE and not the words: an assertion on the label would reintroduce
  * exactly what went wrong.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { PermissionMatrixTable } from '../PermissionMatrixTable';
 import { Permission } from '@/lib/permissions-service/types';
@@ -32,7 +32,6 @@ describe('the permission matrix', () => {
       <PermissionMatrixTable
         allPermissions={allPermissions}
         rolePermissions={{}}
-        togglePermission={vi.fn()}
         roleColumns={ROLE_HIERARCHY}
       />,
     );

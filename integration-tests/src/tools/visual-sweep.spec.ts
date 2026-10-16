@@ -465,12 +465,12 @@ test('admin surfaces', async ({ browser }) => {
           }
         }
 
-        // The permission matrix: 27 permissions against every role, the widest
-        // table in the product and the one most likely to overflow a phone.
+        // One member's permission editor: every permission, with where each
+        // grant comes from -- the longest list in the admin panel.
         //
         // Two clicks, not one. The advanced toggle only swaps the row's controls
-        // for a "Permissions" button; the matrix is behind that button. Stopping
-        // at the toggle captured the member list and filed it as the matrix.
+        // for a "Permissions" button; the editor is behind that button. Stopping
+        // at the toggle captured the member list and filed it as the editor.
         if (await activateAdminTab(adminPage, 'members')) {
           const toggle = adminDialog(adminPage).getByTestId('members-advanced-toggle');
           if (await toggle.isVisible().catch(() => false)) {
