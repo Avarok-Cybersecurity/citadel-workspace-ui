@@ -17,6 +17,7 @@ import { usePermission } from '@/hooks/use-permission';
 import { Permission } from '@/contexts/PermissionsContext';
 import { createBlockedReason } from './AddNodeButton';
 import { childTypeChoice, type ChildTypeChoice } from './child-type-choice';
+import { useNewDocument, type NewDocumentFlow } from './use-new-document';
 import type { NavigateFunction } from 'react-router';
 
 /**
@@ -47,6 +48,11 @@ export function HierarchySidebar(): JSX.Element {
 
   // The breadcrumbs open nodes the same way; see use-select-node.
   const handleNodeSelect: SelectNode = useSelectNode();
+  // Reveal what was just made by selecting the parent it went into: the
+  // focused tree unfolds exactly the selected node's children, so the new
+  // node is on screen without opening it -- which nobody asked for.
+  const revealUnder: (parentId: string) => void = useCallback((parentId: string): void => { void handleNodeSelect(parentId); }, [handleNodeSelect]);
+  const newDocument: NewDocumentFlow = useNewDocument(revealUnder);
 
   const handleNodeEdit: (node: DomainNode) => void = useCallback((node: DomainNode): void => {
     setEditNode(node);
@@ -183,6 +189,7 @@ export function HierarchySidebar(): JSX.Element {
         onNodeEdit={handleNodeEdit}
         onNodeDelete={handleNodeDelete}
         onNodeCreate={handleNodeCreate}
+        onNewDocument={newDocument.open}
         onAdminSettings={handleAdminSettings}
         onSetDefault={handleSetDefault}
         onMoveNode={setMoveNode}
@@ -209,10 +216,8 @@ export function HierarchySidebar(): JSX.Element {
         }}
         onCloseTypePick={() => setTypePick(null)}
         onCloseCreate={() => setCreateModal(null)}
-        // Reveal what was just made by selecting the parent it went into: the
-        // focused tree unfolds exactly the selected node's children, so the new
-        // node is on screen without opening it -- which nobody asked for.
-        onCreated={(parentId: string): void => { void handleNodeSelect(parentId); }}
+        onCreated={revealUnder}
+        newDocument={newDocument}
         onCloseEdit={() => setEditNode(null)}
         onCloseAdmin={() => setAdminNode(null)}
       />

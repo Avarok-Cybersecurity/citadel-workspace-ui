@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { getEntityIcon } from '@/lib/entity-type-registry';
+import { nodeIcon } from '@/lib/citadel-apps/node-icon';
 import { SEARCH_RESULT_CAP, type SearchResult } from '../focused-search';
 import { AnimatePresence } from './tree-motion';
 
@@ -27,7 +27,7 @@ export function SearchResults({ results, isMobile, onSelect }: SearchResultsProp
       <ul aria-label="Matching spaces" className="flex flex-col gap-0.5" data-testid="tree-search-results">
         <AnimatePresence initial={false}>
           {shown.map(({ node, path }: SearchResult) => {
-            const Icon: ReturnType<typeof getEntityIcon> = getEntityIcon(node.entity_type);
+            const Icon: ReturnType<typeof nodeIcon> = nodeIcon(node);
             return (
               <motion.li key={node.id} layout="position" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 <button

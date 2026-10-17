@@ -4,14 +4,14 @@
  * Pre-defined MDX content templates for office types.
  */
 
-import { TemplateCategory, OfficeType , type MdxTemplate } from './types';
+import { TemplateCategory, TemplateTheme, type MdxTemplate } from './types';
 
 export const generalOfficeTemplate: MdxTemplate = {
   id: 'office-general',
   name: 'General Office',
   description: 'A standard office space for general team collaboration',
-  category: TemplateCategory.OFFICE,
-  type: OfficeType.GENERAL,
+  category: TemplateCategory.TOP_LEVEL,
+  type: TemplateTheme.GENERAL,
   content: `# Welcome to the General Office
 
 <Card title="About this space" description="Replace this with a one-line summary of what this office is for">
@@ -56,8 +56,8 @@ export const engineeringOfficeTemplate: MdxTemplate = {
   id: 'office-engineering',
   name: 'Engineering Office',
   description: 'A workspace tailored for engineering teams with technical resources',
-  category: TemplateCategory.OFFICE,
-  type: OfficeType.ENGINEERING,
+  category: TemplateCategory.TOP_LEVEL,
+  type: TemplateTheme.ENGINEERING,
   content: `# Welcome to the Engineering Office
 
 <Card title="Team overview" description="What this team owns and how it works">
@@ -118,8 +118,8 @@ export const designOfficeTemplate: MdxTemplate = {
   id: 'office-design',
   name: 'Design Office',
   description: 'A creative space for design teams with visual resources',
-  category: TemplateCategory.OFFICE,
-  type: OfficeType.DESIGN,
+  category: TemplateCategory.TOP_LEVEL,
+  type: TemplateTheme.DESIGN,
   content: `# Welcome to the Design Studio
 
 <Card title="About the design team" description="What we design and how to work with us">
@@ -176,8 +176,8 @@ export const securityOfficeTemplate: MdxTemplate = {
   id: 'office-security',
   name: 'Security Office',
   description: 'A workspace for cybersecurity professionals',
-  category: TemplateCategory.OFFICE,
-  type: OfficeType.SECURITY,
+  category: TemplateCategory.TOP_LEVEL,
+  type: TemplateTheme.SECURITY,
   content: `# Security Office
 
 <Card title="About the security team" description="What we protect and how to reach us">

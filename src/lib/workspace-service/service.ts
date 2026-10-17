@@ -24,6 +24,7 @@ import * as ws from './workspace-operations';
 import * as members from './member-operations';
 import * as messaging from './messaging-operations';
 import * as nodes from './node-operations';
+import { createDocument, type NewDocument } from './document-operations';
 import * as signIn from './sign-in-settings';
 import { updateWorkspaceProfile, type WorkspaceProfileChange } from './workspace-profile';
 
@@ -142,6 +143,7 @@ export class WorkspaceService implements ProtocolSender {
   // Node operations
   public createNode(parentId: string | null, entityType: { Child: string } | 'Workspace', name: string, desc: string, opts?: { mdxContent?: string; metadata?: Uint8Array; isDefault?: boolean }): Promise<void> { return nodes.createNode(this, parentId, entityType, name, desc, opts); }
   public updateNode(nodeId: string, updates: { name?: string; description?: string; mdxContent?: string; rules?: string; chatEnabled?: boolean; isDefault?: boolean }): Promise<void> { return nodes.updateNode(this, nodeId, updates); }
+  public createDocument(document: NewDocument): Promise<void> { return createDocument(this, document); }
   public setMembersVisible(nodeId: string, visible: boolean): Promise<void> { return nodes.setMembersVisible(this, nodeId, visible); }
   public deleteNode(nodeId: string, cascade?: boolean): Promise<void> { return nodes.deleteNode(this, nodeId, cascade); }
   public moveNode(nodeId: string, newParentId: string | null): Promise<void> { return nodes.moveNode(this, nodeId, newParentId); }
