@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/sidebar";
 import { FilePreviewDialog } from "./FilePreviewDialog";
 import { useNavigate, useLocation } from "react-router-dom";
-import { buildWorkspacePath } from "@/lib/workspace-navigation";
+import { fileManagerHref } from "@/lib/file-manager-location";
 import { fileTransferService, FILE_TRANSFER_EVENTS, type FileTransfer } from "@/lib/file-transfer";
 import { useEventListeners } from "@/hooks";
 import { transferDetails, revfsDownloadDetails, newestFirst, type FileDetails } from './file-details';
@@ -127,13 +127,9 @@ export const FilesSection: () => JSX.Element = (): JSX.Element => {
     // Deletes nodeId from the URL, which unmounts the editor.
     if (!(await mayLeaveEditor(confirm))) return;
 
-    const newParams: URLSearchParams = new URLSearchParams(location.search);
-    newParams.set('section', 'files');
-    newParams.delete('nodeId');
-    newParams.delete('showP2P');
-    newParams.delete('channel');
-    newParams.delete('p2pUser');
-    navigate(buildWorkspacePath(newParams));
+    // The server, at the top level: the button names no member, so it opens
+    // nobody's storage but your own. It used to open the first registered peer's.
+    navigate(fileManagerHref(location.search, { storage: { kind: 'server' }, path: '/', item: null, via: null }));
   };
 
   return (

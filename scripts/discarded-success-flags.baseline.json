@@ -1,5 +1,8 @@
 {
+  "src/components/agent-setup/CommandBlock.tsx::copy": 1,
   "src/components/call/CallProvider.tsx::adoptPeerCodecs": 1,
+  "src/components/layout/sidebar/FilePreviewDialog.tsx::copyText": 1,
+  "src/components/p2p/bubbles/MessageStatusDetails.tsx::copy": 1,
   "src/lib/connection/lifecycle.ts::selectUserWithoutBlocking": 1,
   "src/lib/connection/session-management.ts::selectUserWithoutBlocking": 1,
   "src/lib/file-transfer/service.ts::noteMessageOffer": 1,

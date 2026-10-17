@@ -3,7 +3,8 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { WorkspaceProvider } from '@/contexts/WorkspaceContext';
 import { AllMembersRow } from '@/components/layout/sidebar/AllMembersRow';
 import { GroupFileShareCard } from '@/components/chat/GroupFileShareCard';
-import { VFSPropertiesDialog } from '@/components/file-manager/VFSPropertiesDialog';
+import { VFSInspectorSheet } from '@/components/file-manager/VFSInspector';
+import { NO_ACTIONS } from './scenarios-file-manager.jsx';
 
 const NOTHING = () => {};
 const BLOCKS = { managePermissions: null, changeRole: null, remove: null };
@@ -20,7 +21,7 @@ function AllMembers() {
       <TooltipProvider>
         <div style={{ width: 320, padding: 8 }}>
           {[member('ada', { displayName: 'Ada Lovelace' }), member(LONG, { email: `${LONG}@example-company-with-a-long-name.example.org`, title: 'Principal Engineer, Platform Reliability' })].map((m) => (
-            <AllMembersRow key={m.id} member={m} currentUsername="me" blocks={BLOCKS} nameOfLevel={(id) => id} onManagePermissions={NOTHING} onEditMember={NOTHING} onRemoveMember={NOTHING} />
+            <AllMembersRow key={m.id} member={m} currentUsername="me" blocks={BLOCKS} nameOfLevel={(id) => id} onManagePermissions={NOTHING} onEditMember={NOTHING} onRemoveMember={NOTHING} onOpenChat={NOTHING} onOpenFiles={NOTHING} />
           ))}
         </div>
       </TooltipProvider>
@@ -41,8 +42,9 @@ const NODE = {
   fileMetadata: { fileSize: 2048, fileType: 'application/json' }, fileState: 'Received',
 };
 
+/** An item's details as a phone shows them: the inspector's sheet, with the longest name and path. */
 function Properties() {
-  return <VFSPropertiesDialog node={NODE} isOpen onClose={NOTHING} />;
+  return <VFSInspectorSheet node={NODE} actions={NO_ACTIONS} peerName={LONG} storageName={`Shared with ${LONG}`} from={LONG} modified="Oct 9, 2026" onClose={NOTHING} />;
 }
 
 export const SPACING_SCENARIOS = { 'all-members': AllMembers, 'file-share': FileShare, 'file-properties': Properties };

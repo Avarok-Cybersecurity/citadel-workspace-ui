@@ -5,6 +5,7 @@
  * role icons, and dropdown menus for member management.
  */
 
+import { useState, type MouseEvent } from "react";
 import { MoreVertical, Users } from "lucide-react";
 import {
   SidebarMenuItem,
@@ -38,6 +39,8 @@ interface MemberListItemsProps {
   nameOfLevel: (levelId: string) => string;
   /** Opens the chat with this member, connected or not; null on your own row. */
   openChatWith: (member: WorkspaceMember) => (() => void) | null;
+  /** Opens the storage you share with this member; null on your own row. */
+  openFilesOf: (member: WorkspaceMember) => (() => void) | null;
   currentUsername?: string;
   onEditMember: (member: WorkspaceMember) => void;
   onRemoveMember: (member: WorkspaceMember) => void;
@@ -50,24 +53,31 @@ export function MemberListItems({
   blocks,
   nameOfLevel,
   openChatWith,
+  openFilesOf,
   currentUsername,
   onEditMember,
   onRemoveMember,
   onManagePermissions,
   onShowAllMembers,
 }: MemberListItemsProps): JSX.Element {
+  // Right-click on a row opens the same menu as its ⋯ button: one menu, two ways in.
+  const [menuFor, setMenuFor] = useState<string | null>(null);
   return (
     <>
       {members.slice(0, MEMBERS_TO_SHOW).map((member) => {
         const via: string | null = member.accessVia === undefined ? null : nameOfLevel(member.accessVia);
         const openChat: (() => void) | null = openChatWith(member);
+        const hasMenu: boolean = currentUsername !== member.username;
         return (
         // animate-fade-in moves onto the items: the wrapper that carried it was
         // a <div> rendered directly inside <SidebarMenu>, which is a <ul>. That
         // put a non-<li> in the list and left every <li> below it without a list
         // parent.
         <SidebarMenuItem key={member.id} className="animate-fade-in">
-          <div className="flex items-center w-full min-w-0 group">
+          <div
+            className="flex items-center w-full min-w-0 group"
+            onContextMenu={hasMenu ? (e: MouseEvent): void => { e.preventDefault(); setMenuFor(member.id); } : undefined}
+          >
             <Tooltip>
               <TooltipTrigger asChild>
                 <SidebarMenuButton
@@ -98,10 +108,10 @@ export function MemberListItems({
             </Tooltip>
             {/* The slot is kept on your own row too: without it every OTHER row's
                 role icon sat 24px further left, so the column read as ragged. */}
-            {currentUsername === member.username ? (
+            {!hasMenu ? (
               <span className="tap-target h-6 w-6 shrink-0" aria-hidden="true" data-testid="member-actions-slot" />
             ) : (
-              <DropdownMenu>
+              <DropdownMenu open={menuFor === member.id} onOpenChange={(open: boolean) => setMenuFor(open ? member.id : null)}>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
@@ -116,6 +126,7 @@ export function MemberListItems({
                 <DropdownMenuContent align="end">
                   <MemberActionItems
                     blocks={blocksForMember(blocks, via)}
+                    onOpenFiles={openFilesOf(member)}
                     onManagePermissions={() => onManagePermissions(member)}
                     onEditMember={() => onEditMember(member)}
                     onRemoveMember={() => onRemoveMember(member)}

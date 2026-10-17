@@ -1,6 +1,7 @@
 /**
  * What each gate looks at. A scenario supplies INPUT to a real component; it never replaces one.
  */
+import { MemoryRouter } from 'react-router-dom';
 import { SidebarProvider, SidebarMenu } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { MemberListItems } from '@/components/layout/sidebar/MemberListItems';
@@ -16,6 +17,7 @@ import { SPACING_SCENARIOS } from './scenarios-spacing.jsx';
 import { SCREEN_SCENARIOS } from './scenarios-screens.jsx';
 import { SIDEBAR_SCENARIOS } from './scenarios-sidebar.jsx';
 import { PERMISSION_SCENARIOS } from './scenarios-permissions.jsx';
+import { FILE_MANAGER_SCENARIOS } from './scenarios-file-manager.jsx';
 
 const person = (username, role, title) => ({
   id: username, username, displayName: username[0].toUpperCase() + username.slice(1), role, title, isOnline: true,
@@ -37,6 +39,7 @@ function SidebarMembers() {
               nameOfLevel={(id) => id}
               currentUsername="dave"
               openChatWith={OPEN_NOTHING}
+              openFilesOf={OPEN_NOTHING}
               onEditMember={NOOP}
               onRemoveMember={NOOP}
               onManagePermissions={NOOP}
@@ -92,15 +95,20 @@ const WORKSPACE_WITH_ADA = {
   nodes: {}, treeSchema: null, loading: { workspace: false, members: false, nodes: false },
 };
 
-/** The whole conversation, unmodified; there is no agent behind it, so the link reads as down. */
+/**
+ * The whole conversation, unmodified; there is no agent behind it, so the link reads as down.
+ * Inside a router, as in the app: the header's files button navigates to the file manager.
+ */
 function WholeChat() {
   return (
     <div style={{ height: '100vh' }}>
-      <WorkspaceProvider state={WORKSPACE_WITH_ADA}>
-        <ConfirmDialogProvider><TooltipProvider>
-          <P2PChat peerCid={PEER} peerName="Ada Lovelace" peerUsername="ada" currentUserCid={ME} currentUserName="Me" />
-        </TooltipProvider></ConfirmDialogProvider>
-      </WorkspaceProvider>
+      <MemoryRouter initialEntries={['/workspace']}>
+        <WorkspaceProvider state={WORKSPACE_WITH_ADA}>
+          <ConfirmDialogProvider><TooltipProvider>
+            <P2PChat peerCid={PEER} peerName="Ada Lovelace" peerUsername="ada" currentUserCid={ME} currentUserName="Me" />
+          </TooltipProvider></ConfirmDialogProvider>
+        </WorkspaceProvider>
+      </MemoryRouter>
     </div>
   );
 }
@@ -116,4 +124,4 @@ function DropUnavailable({ state }) {
   );
 }
 
-export const SCENARIOS = { 'document-open': () => <DropUnavailable state={{ viewingDocument: true, paused: false }} />, 'paused-drag': () => <DropUnavailable state={{ viewingDocument: false, paused: true }} />, 'p2p-chat': WholeChat, 'sidebar-members': SidebarMembers, 'p2p-conversation': P2PConversation, ...PEOPLE_SCENARIOS, ...OVERLAY_SCENARIOS, ...SPACING_SCENARIOS, ...SCREEN_SCENARIOS, ...SIDEBAR_SCENARIOS, ...PERMISSION_SCENARIOS };
+export const SCENARIOS = { 'document-open': () => <DropUnavailable state={{ viewingDocument: true, paused: false }} />, 'paused-drag': () => <DropUnavailable state={{ viewingDocument: false, paused: true }} />, 'p2p-chat': WholeChat, 'sidebar-members': SidebarMembers, 'p2p-conversation': P2PConversation, ...PEOPLE_SCENARIOS, ...OVERLAY_SCENARIOS, ...SPACING_SCENARIOS, ...SCREEN_SCENARIOS, ...SIDEBAR_SCENARIOS, ...PERMISSION_SCENARIOS, ...FILE_MANAGER_SCENARIOS };

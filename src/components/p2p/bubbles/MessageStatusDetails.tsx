@@ -50,6 +50,8 @@ interface RowProps {
 
 function Row({ label, value, valueClassName = 'text-foreground', copyable, fullValue }: RowProps): JSX.Element {
   const { copied, copy } = useCopyToClipboard();
+  // The result is not needed here: a refusal is toasted by useCopyToClipboard,
+  // and success shows as the control's `copied` tick.
   const handleCopy = (): void => { void copy(fullValue || value); };
 
   return (

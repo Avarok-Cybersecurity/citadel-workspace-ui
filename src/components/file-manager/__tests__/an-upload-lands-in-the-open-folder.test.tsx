@@ -7,10 +7,13 @@
  * of its own, so any selection that did not follow the exact click-then-set
  * sequence went to Root.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { renderHook, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { TreeScope } from '@/types/revfs-types';
 import { useUploadTarget, type UploadTarget } from '../useUploadTarget';
-import { VFSToolbar } from '../VFSToolbar';
+import { FileManagerTopBar } from '../FileManagerTopBar';
+import { refreshLabel } from '../useFileManagerView';
 import { uploadRefusal } from '../upload-refusal';
 
 function target(initial: string): { result: { current: UploadTarget }; rerender: (path: string) => void } {
@@ -45,36 +48,40 @@ describe('the upload target', () => {
   });
 });
 
-const noop = (): void => {};
-
-function toolbar(path: string): void {
+function topBar(path: string): void {
   render(
-    <VFSToolbar
-      currentPath={path} onNavigate={noop} onNewFolder={noop} onUploadFile={noop}
-      uploadDisabledReason={uploadRefusal(path)} onSync={noop}
+    <FileManagerTopBar
+      storage={{ kind: 'server' }} peers={[]} peersLoading={false} peerName={null} onOpenStorage={vi.fn()}
+      folder={{ filterText: '', onFilterChange: vi.fn(), onNewFolder: vi.fn(), onUpload: vi.fn(), uploadDisabledReason: uploadRefusal(path) }}
+      transfers={{ active: 0, open: false, onToggle: vi.fn() }}
     />,
   );
 }
 
-describe('the toolbar upload button', () => {
-  it('is disabled with the reason in Sent Files, before a file is picked', () => {
-    toolbar('/Sent Files');
-    const button: HTMLElement = screen.getByRole('button', { name: 'Upload file' });
-    expect(button).toBeDisabled();
-    expect(button.parentElement?.getAttribute('title')).toMatch(/P2P Chat/);
+async function openNew(): Promise<void> {
+  await userEvent.click(screen.getByRole('button', { name: 'New' }));
+}
+
+describe('the New menu', () => {
+  it('disables Upload with the reason in Sent Files, before a file is picked', async () => {
+    topBar('/Sent Files');
+    await openNew();
+    expect(screen.getByRole('menuitem', { name: /Upload files/ })).toHaveAttribute('data-disabled');
+    expect(screen.getByText(/P2P Chat/)).toBeInTheDocument();
   });
 
-  it('is live in an ordinary folder', () => {
-    toolbar('/Docs');
-    expect(screen.getByRole('button', { name: 'Upload file' })).toBeEnabled();
+  it('offers Upload in an ordinary folder, beside New folder', async () => {
+    topBar('/Docs');
+    await openNew();
+    expect(screen.getByRole('menuitem', { name: /Upload files/ })).not.toHaveAttribute('data-disabled');
+    expect(screen.getByRole('menuitem', { name: /New folder/ })).toBeInTheDocument();
   });
 });
 
-describe('the toolbar sync button', () => {
+describe('the refresh button', () => {
   // Measured live: "Sync with peer" sat in the Server Storage toolbar, where there is no peer.
-  it('is absent when there is no peer to sync with', () => {
-    const noop = (): void => {};
-    render(<VFSToolbar currentPath="/" onNavigate={noop} onNewFolder={noop} onUploadFile={noop} uploadDisabledReason={null} onSync={null} />);
-    expect(screen.queryByRole('button', { name: 'Sync with peer' })).toBeNull();
+  it('says sync only where there is a peer to sync with', () => {
+    expect(refreshLabel(TreeScope.Server)).toBe('Refresh');
+    expect(refreshLabel(TreeScope.Peer)).toBe('Sync with peer');
   });
 });

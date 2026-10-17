@@ -6,7 +6,8 @@
  *
  * It used to stamp `?id=<activeWorkspaceId>` into every path it built. That
  * parameter was read by nobody — the only params anything in the app reads are
- * `nodeId`, `section`, `showP2P`, `channel`, `p2pUser` and `join` — and its
+ * `nodeId`, `section`, `showP2P`, `channel`, `p2pUser`, `join` and the file
+ * manager's own (FILE_MANAGER_KEYS below) — and its
  * value was always the literal string `'root'`, because `setActiveWorkspaceId`
  * had no callers either. Both ends of the feature were absent; only the URL
  * pollution was real.
@@ -69,6 +70,33 @@ export function getWorkspacePath(additionalParams?: Record<string, string>): str
 
 export function buildWorkspacePath(existingParams?: URLSearchParams): string {
   return workspaceNavigation.buildWorkspacePath(existingParams);
+}
+
+/** The `section` value that shows the file manager in place of the workspace view. */
+export const FILE_MANAGER_SECTION = 'files' as const;
+
+/**
+ * The query keys the file manager owns: whose storage (`peer_id`), which folder
+ * (`path`), which item a link points at (`item`), and who copied a peer link
+ * (`via`; see file-manager-location.ts). Spelled once, here, so that every way
+ * out of the section can drop all of them -- a key one exit forgot would ride
+ * along into the next view and come back the next time the file manager opened.
+ */
+export const FILE_MANAGER_KEYS = ['peer_id', 'path', 'item', 'via'] as const;
+
+/** The keys the workspace view reads, which a section replaces. */
+const WORKSPACE_VIEW_KEYS = ['nodeId', 'showP2P', 'channel', 'p2pUser'] as const;
+
+/** Leave whatever `section` is showing, and everything the file manager wrote. */
+export function leaveSection(params: URLSearchParams): void {
+  params.delete('section');
+  for (const key of FILE_MANAGER_KEYS) params.delete(key);
+}
+
+/** Show a section instead of the workspace view: the node and any conversation go. */
+export function enterSection(params: URLSearchParams, section: typeof FILE_MANAGER_SECTION): void {
+  for (const key of WORKSPACE_VIEW_KEYS) params.delete(key);
+  params.set('section', section);
 }
 
 /**

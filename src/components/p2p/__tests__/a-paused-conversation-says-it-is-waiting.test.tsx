@@ -84,7 +84,7 @@ describe('the chat header while paused', () => {
     render(
       <P2PChatHeader
         peerName="bob" peerUsername="bob" peerPresence={{ status: MessagingLayerType.Online, lastUpdate: 0 }} peerTyping={false}
-        isConnected={false} isRegistered={true} paused={true} connectionRoute={null} supervisor={null} onSettingsClick={vi.fn()}
+        isConnected={false} isRegistered={true} paused={true} connectionRoute={null} supervisor={null} onSettingsClick={vi.fn()} onOpenFiles={null}
       />,
     );
     expect(screen.getByText('Paused')).toBeTruthy();

@@ -15,10 +15,14 @@ export interface VfsShortcut {
 }
 
 export const VFS_SHORTCUTS: {
+  readonly preview: VfsShortcut; readonly download: VfsShortcut;
   readonly rename: VfsShortcut; readonly remove: VfsShortcut; readonly cut: VfsShortcut;
   readonly copy: VfsShortcut; readonly paste: VfsShortcut; readonly selectAll: VfsShortcut;
   readonly clear: VfsShortcut;
 } = {
+  /** Answered by the item itself: Space selects it, and a selected item is in the inspector. */
+  preview: { keys: [' '], mod: false },
+  download: { keys: ['d'], mod: true },
   rename: { keys: ['F2'], mod: false },
   remove: { keys: ['Delete', 'Backspace'], mod: false },
   cut: { keys: ['x'], mod: true },
@@ -37,16 +41,22 @@ export function isApplePlatform(nav: Pick<Navigator, 'platform' | 'userAgent'>):
   return /Mac|iPhone|iPad|iPod/.test(nav.platform || nav.userAgent);
 }
 
-/** What a menu shows beside the action: "Ctrl+X", "⌘X", "F2", "Del". */
+/** What a menu shows beside the action: "Ctrl+X", "⌘X", "F2", "Del", "Space". */
+function keyName(key: string): string {
+  if (key === 'Delete') return 'Del';
+  return key === ' ' ? 'Space' : key.toUpperCase();
+}
+
 export function shortcutLabel(s: VfsShortcut, apple: boolean): string {
-  const key: string = s.keys[0] === 'Delete' ? 'Del' : s.keys[0].toUpperCase();
+  const key: string = keyName(s.keys[0]);
   if (!s.mod) return key;
   return apple ? `⌘${key}` : `Ctrl+${key}`;
 }
 
 /** The same, in `aria-keyshortcuts` syntax, so assistive tech can announce it. */
 export function ariaShortcut(s: VfsShortcut, apple: boolean): string {
-  return s.mod ? `${apple ? 'Meta' : 'Control'}+${s.keys[0].toUpperCase()}` : s.keys[0];
+  const key: string = s.keys[0] === ' ' ? 'Space' : s.keys[0];
+  return s.mod ? `${apple ? 'Meta' : 'Control'}+${key.toUpperCase()}` : key;
 }
 
 /**

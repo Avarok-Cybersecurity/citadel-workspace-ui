@@ -638,10 +638,10 @@ test.describe.serial('Responsive workspace at 375px', () => {
       window.history.pushState({}, '', '/workspace?section=files');
       window.dispatchEvent(new PopStateEvent('popstate'));
     });
-    // Settled on the shell rather than on a file row: an empty workspace has no
-    // files, and asserting on one would make this pass only by timing out into
-    // a scan of whatever was on screen.
-    await expect(page.getByTestId('sidebar-toggle')).toBeVisible({ timeout: 30_000 });
+    // `section=files` alone opens Server Storage, whose tree is always seeded
+    // with the protected Sent Files folder: settled on that row, the scan sees
+    // the file browser itself rather than whatever the shell showed first.
+    await expect(page.getByTestId('vfs-item-Sent Files')).toBeVisible({ timeout: 30_000 });
 
     await expectNoHorizontalOverflow(page, 'files');
     await expectNoSmallTapTargets(page, 'files');

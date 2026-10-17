@@ -4,7 +4,7 @@
  * Tests the RE-VFS server storage functionality (client-to-server):
  * 1. Create a single user account
  * 2. Navigate to File Manager
- * 3. Switch to Server Storage mode
+ * 3. Confirm it opened on Server Storage (the sidebar's destination)
  * 4. Verify default tree (Received Files, Sent Files)
  * 5. Create folder in server storage
  * 6. Verify folder exists
@@ -29,6 +29,11 @@ import {
   TestHarness,
   runTestMain,
   isHiddenWithin,
+  fmItem,
+  openFileManagerFromSidebar,
+  createFolder,
+  deleteItem,
+  refreshFiles,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
 import { isVisibleWithin } from '../lib/index.js';
@@ -65,218 +70,70 @@ const FOLDER_NAME = 'server-docs';
 
 async function navigateToFileManager(page: Page): Promise<boolean> {
   console.log('\n=== Navigating to File Manager ===');
-  try {
-    const loaded = await waitForWorkspaceLoaded(page, 30000);
-    if (!loaded) {
-      console.log('  Workspace not fully loaded');
-      return false;
-    }
-
-    // Click the File Manager sidebar button
-    const filesBtn = page.locator('[data-testid="file-manager-button"]');
-    if (await filesBtn.isVisible().catch(() => false)) {
-      await filesBtn.click();
-      console.log('  Clicked File Manager sidebar button');
-    } else {
-      // Fallback: navigate via URL
-      const currentUrl = page.url();
-      const baseUrl = currentUrl.split('?')[0];
-      await page.goto(`${baseUrl}?section=files`, { waitUntil: 'commit', timeout: 30000 });
-      console.log('  Navigated via URL (fallback)');
-    }
-    await sleep(2000);
-    console.log('  Navigation complete');
-    return true;
-  } catch (error) {
-    console.error(`  Error navigating: ${error}`);
+  if (!await waitForWorkspaceLoaded(page, 30000)) {
+    console.log('  Workspace not fully loaded');
     return false;
   }
+  const opened: boolean = await openFileManagerFromSidebar(page);
+  console.log(`  File manager opened: ${opened}`);
+  return opened;
 }
 
-async function switchToServerStorageMode(page: Page): Promise<boolean> {
-  console.log('\n=== Switching to Server Storage Mode ===');
-  try {
-    // Look for "Server Storage" button in the storage mode selector
-    const serverStorageBtn = page.getByRole('button', { name: /server storage/i });
-
-    // First check if already in server mode (button should be highlighted)
-    const isAlreadyServer = await serverStorageBtn.evaluate(el => {
-      return el.classList.contains('bg-purple-700');
-    }).catch(() => false);
-
-    if (isAlreadyServer) {
-      console.log('  Already in Server Storage mode');
-      return true;
-    }
-
-    // Click the Server Storage button
-    if (await isVisibleWithin(serverStorageBtn, 5000)) {
-      await serverStorageBtn.click();
-      console.log('  Clicked Server Storage button');
-      await sleep(1000);
-
-      // Verify the mode changed (button should now be highlighted)
-      const isNowServer = await serverStorageBtn.evaluate(el => {
-        return el.classList.contains('bg-purple-700');
-      }).catch(() => false);
-
-      console.log(`  Server Storage mode active: ${isNowServer}`);
-      return isNowServer;
-    }
-
-    // Alternative: try clicking by text if role selector doesn't work
-    const altBtn = page.locator('button').filter({ hasText: 'Server Storage' });
-    if (await isVisibleWithin(altBtn, 3000)) {
-      await altBtn.click();
-      console.log('  Clicked Server Storage button (alt selector)');
-      await sleep(1000);
-      return true;
-    }
-
-    console.log('  Server Storage button not found');
-    return false;
-  } catch (error) {
-    console.error(`  Error switching mode: ${error}`);
-    return false;
-  }
+/** The storage switch says Server is the one open: its segment is pressed. */
+async function serverStorageIsOpen(page: Page): Promise<boolean> {
+  console.log('\n=== Checking Server Storage is open ===');
+  const open: boolean = await isVisibleWithin(page.locator('[data-testid="storage-server"][aria-pressed="true"]'), 5000);
+  console.log(`  Server Storage open: ${open}`);
+  return open;
 }
 
 async function waitForTreeLoaded(page: Page, timeoutMs = 30000): Promise<boolean> {
   console.log('\n=== Waiting for VFS tree ===');
-  try {
-    await page.getByText('Sent Files', { exact: true }).first().waitFor({ state: 'visible', timeout: timeoutMs });
-    console.log('  Tree loaded: true');
-    return true;
-  } catch {
-    console.log('  Tree not loaded');
-    return false;
-  }
+  const loaded: boolean = await isVisibleWithin(fmItem(page, 'Sent Files'), timeoutMs);
+  console.log(`  Tree loaded: ${loaded}`);
+  return loaded;
 }
 
 async function verifyDefaultFolders(page: Page): Promise<boolean> {
   console.log('\n=== Verifying default folders ===');
-  const sentFiles = page.getByText('Sent Files', { exact: true }).first();
-  const receivedFiles = page.getByText('Received Files', { exact: true }).first();
-
-  const hasSent = await isVisibleWithin(sentFiles, 5000);
-  const hasReceived = await isVisibleWithin(receivedFiles, 5000);
-
+  const hasSent = await isVisibleWithin(fmItem(page, 'Sent Files'), 5000);
+  const hasReceived = await isVisibleWithin(fmItem(page, 'Received Files'), 5000);
   console.log(`  Sent Files visible: ${hasSent}`);
   console.log(`  Received Files visible: ${hasReceived}`);
   return hasSent && hasReceived;
 }
 
-async function createFolder(page: Page, folderName: string): Promise<boolean> {
+async function createServerFolder(page: Page, folderName: string): Promise<boolean> {
   console.log(`\n=== Creating folder "${folderName}" ===`);
-  try {
-    // The name is asked for by an in-app dialog now, not window.prompt, so
-    // there is no native dialog to accept — type into the field and submit.
-    const newFolderBtn = page.locator('button').filter({ has: page.locator('svg.lucide-folder-plus') });
-    if (await isVisibleWithin(newFolderBtn, 5000)) {
-      await newFolderBtn.click();
-      console.log('  Clicked New Folder button');
-
-      const nameInput = page.locator('#prompt-dialog-input');
-      if (!await isVisibleWithin(nameInput, 5000)) {
-        console.log('  ERROR: the new-folder dialog did not appear');
-        return false;
-      }
-      await nameInput.fill(folderName);
-      await page.getByTestId('prompt-dialog-confirm').click();
-      await sleep(2000);
-
-      // Verify folder appeared
-      const folder = page.getByText(folderName, { exact: true }).first();
-      const exists = await isVisibleWithin(folder, 5000);
-      console.log(`  Folder "${folderName}" visible: ${exists}`);
-      return exists;
-    }
-
-    console.log('  New Folder button not found');
-    return false;
-  } catch (error) {
-    console.error(`  Error creating folder: ${error}`);
-    return false;
-  }
+  const exists: boolean = await createFolder(page, folderName);
+  console.log(`  Folder "${folderName}" listed: ${exists}`);
+  return exists;
 }
 
 async function deleteFolder(page: Page, folderName: string): Promise<boolean> {
   console.log(`\n=== Deleting folder "${folderName}" ===`);
-  try {
-    // Deletion is confirmed by an in-app AlertDialog now, not window.confirm;
-    // the confirm button is clicked after the menu item below.
-
-    // Right-click on the folder
-    const folder = page.getByText(folderName, { exact: true }).first();
-    if (!await isVisibleWithin(folder, 5000)) {
-      console.log('  Folder not found');
-      return false;
-    }
-
-    await folder.click({ button: 'right' });
-    console.log('  Right-clicked folder');
-    await sleep(500);
-
-    // Click Delete in context menu
-    const deleteItem = page.locator('[role="menuitem"]').filter({ hasText: /delete/i });
-    if (await isVisibleWithin(deleteItem, 3000)) {
-      await deleteItem.click();
-      console.log('  Clicked Delete menu item');
-
-      // Confirm in the app's own dialog.
-      const confirmDelete = page.getByTestId('confirm-dialog-confirm');
-      if (await isVisibleWithin(confirmDelete, 5000)) {
-        await confirmDelete.click();
-        console.log('  Confirmed deletion in the in-app dialog');
-      } else {
-        console.log('  WARNING: in-app confirm dialog did not appear');
-      }
-      await sleep(2000);
-
-      // Verify folder gone.
-      //
-      // isHiddenWithin, not isVisible({ timeout }). That option is declared
-      // ignored, so this sampled once: a tree that had not re-rendered yet
-      // reported the folder absent and deleteFolder returned success whether or
-      // not anything was deleted. This value gates results.folderDeletion, so
-      // the false positive propagated straight into the run's verdict.
-      const gone = await isHiddenWithin(
-        page.getByText(folderName, { exact: true }).first(),
-        5000
-      );
-      console.log(`  Folder still visible: ${!gone}`);
-      return gone;
-    }
-
-    console.log('  Delete menu item not found');
-    return false;
-  } catch (error) {
-    console.error(`  Error deleting folder: ${error}`);
+  if (!await deleteItem(page, folderName)) {
+    console.log('  Delete was not offered or not confirmed');
     return false;
   }
+  // Waited for as a state: a list that had not re-rendered yet must not read as
+  // "folder gone". This value gates results.folderDeletion.
+  const gone: boolean = await isHiddenWithin(fmItem(page, folderName), 5000);
+  console.log(`  Folder still listed: ${!gone}`);
+  return gone;
 }
 
+/** The status strip names the open storage. */
 async function verifyServerStorageIndicator(page: Page): Promise<boolean> {
   console.log('\n=== Verifying Server Storage indicator ===');
-  try {
-    // Look for the server storage indicator text
-    const indicator = page.getByText('Private encrypted storage on Citadel server');
-    const visible = await isVisibleWithin(indicator, 5000);
-    console.log(`  Server storage indicator visible: ${visible}`);
-    return visible;
-  } catch {
-    return false;
-  }
+  const visible: boolean = await isVisibleWithin(page.getByTestId('vfs-status-strip').getByText(/Server Storage/), 5000);
+  console.log(`  Server storage indicator visible: ${visible}`);
+  return visible;
 }
 
 async function refreshTree(page: Page): Promise<void> {
   console.log('\n=== Refreshing tree ===');
-  const syncBtn = page.locator('button').filter({ has: page.locator('svg.lucide-refresh-cw') });
-  if (await isVisibleWithin(syncBtn, 3000)) {
-    await syncBtn.click();
-    console.log('  Clicked refresh button');
-    await sleep(2000);
-  }
+  console.log(`  Clicked refresh button: ${await refreshFiles(page)}`);
 }
 
 // ============================================================================
@@ -350,24 +207,8 @@ async function runTest(): Promise<boolean> {
     console.log('STEP 3: Switch to Server Storage Mode');
     console.log('─'.repeat(50));
 
-    // At this point, we might see "No Peers Connected" - that's expected
-    // Click the "Use Server Storage" button or switch via tab
-    const noPeersVisible = await page.getByText('No Peers Connected').isVisible().catch(() => false);
-    if (noPeersVisible) {
-      console.log('  Detected "No Peers Connected" state');
-      // Click the "Use Server Storage" button
-      const useServerBtn = page.getByRole('button', { name: /use server storage/i });
-      if (await isVisibleWithin(useServerBtn, 3000)) {
-        await useServerBtn.click();
-        console.log('  Clicked "Use Server Storage" button');
-        await sleep(2000);
-        results.switchToServerMode = true;
-      } else {
-        results.switchToServerMode = await switchToServerStorageMode(page);
-      }
-    } else {
-      results.switchToServerMode = await switchToServerStorageMode(page);
-    }
+    // The sidebar opens Server Storage: nothing to switch, only to confirm.
+    results.switchToServerMode = await serverStorageIsOpen(page);
 
     await takeScreenshot(page, '03_server_mode');
 
@@ -393,12 +234,12 @@ async function runTest(): Promise<boolean> {
     console.log('─'.repeat(50));
 
     if (treeLoaded) {
-      results.folderCreation = await createFolder(page, FOLDER_NAME);
+      results.folderCreation = await createServerFolder(page, FOLDER_NAME);
       await takeScreenshot(page, '05_folder_created');
 
       // Refresh to verify persistence
       await refreshTree(page);
-      const stillThere = await page.getByText(FOLDER_NAME, { exact: true }).first().isVisible().catch(() => false);
+      const stillThere = await isVisibleWithin(fmItem(page, FOLDER_NAME), 5000);
       console.log(`  Folder persisted after refresh: ${stillThere}`);
     }
 
@@ -423,7 +264,7 @@ async function runTest(): Promise<boolean> {
       // persisted: false" could print while the test passed, which is the same
       // as not checking that deletion survives a refresh at all.
       results.deletionPersisted = await isHiddenWithin(
-        page.getByText(FOLDER_NAME, { exact: true }).first(),
+        fmItem(page, FOLDER_NAME),
         5000
       );
       console.log(`  Folder deletion persisted: ${results.deletionPersisted}`);

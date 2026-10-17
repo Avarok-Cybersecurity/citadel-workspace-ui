@@ -7,7 +7,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
 import { toastSuccess, toastError } from '@/lib/toast-helpers';
 import WorkspaceService from '@/lib/workspace-service';
-import { buildWorkspacePath, getWorkspacePath } from '@/lib/workspace-navigation';
+import { buildWorkspacePath, leaveSection, getWorkspacePath } from '@/lib/workspace-navigation';
 import { getEntityTypeString } from '@/lib/entity-type-registry';
 import { MoveNodeDialog } from './MoveNodeDialog';
 import { TreeNodesSection, type DomainNode } from './TreeNodesSection';
@@ -54,7 +54,7 @@ export function HierarchySidebar(): JSX.Element {
 
     const newParams: URLSearchParams = new URLSearchParams(location.search);
     newParams.set('nodeId', nodeId);
-    newParams.delete('section');
+    leaveSection(newParams);
     // Clear P2P chat overlay when navigating to a different node
     newParams.delete('showP2P');
     newParams.delete('channel');

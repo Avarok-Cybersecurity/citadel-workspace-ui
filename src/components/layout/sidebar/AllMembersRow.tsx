@@ -5,6 +5,7 @@
  * menu keep their size (`shrink-0`); with neither, a long email or username pushed the role badge and
  * the actions menu into each other or off the row.
  */
+import { useState, type MouseEvent } from 'react';
 import { MoreVertical } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -28,12 +29,20 @@ interface AllMembersRowProps {
   onRemoveMember: () => void;
   /** Opens the chat with this member; null for yourself. */
   onOpenChat: (() => void) | null;
+  /** Opens the storage you share with this member; null for yourself. */
+  onOpenFiles: (() => void) | null;
 }
 
-export function AllMembersRow({ member, currentUsername, blocks, nameOfLevel, onManagePermissions, onEditMember, onRemoveMember, onOpenChat }: AllMembersRowProps): JSX.Element {
+export function AllMembersRow({ member, currentUsername, blocks, nameOfLevel, onManagePermissions, onEditMember, onRemoveMember, onOpenChat, onOpenFiles }: AllMembersRowProps): JSX.Element {
   const role: string = member.role || 'member';
+  const hasMenu: boolean = currentUsername !== member.username;
+  // Right-click opens the same menu as the ⋯ button.
+  const [menuOpen, setMenuOpen] = useState(false);
   return (
-    <div className="flex items-center gap-2 p-3 rounded-lg hover:bg-card transition-colors" data-testid={`all-members-row-${member.username}`}>
+    <div
+      className="flex items-center gap-2 p-3 rounded-lg hover:bg-card transition-colors" data-testid={`all-members-row-${member.username}`}
+      onContextMenu={hasMenu ? (e: MouseEvent): void => { e.preventDefault(); setMenuOpen(true); } : undefined}
+    >
       {/* A real button beside the menu, not around it: a member opens their chat here as in the
           sidebar list, and the menu's own button is never nested inside another. */}
       <button
@@ -54,12 +63,13 @@ export function AllMembersRow({ member, currentUsername, blocks, nameOfLevel, on
       </div>
       </button>
       <Badge variant="secondary" className={`${roleBadgeClass(role)} shrink-0 text-xs`}>{roleLabel(role)}</Badge>
-      {currentUsername !== member.username && (
-        <DropdownMenu>
+      {hasMenu && (
+        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
           <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" aria-label={`Actions for ${member.username}`}><MoreVertical className="h-4 w-4" aria-hidden="true" /></Button></DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <MemberActionItems
               blocks={blocksForMember(blocks, member.accessVia === undefined ? null : nameOfLevel(member.accessVia))}
+              onOpenFiles={onOpenFiles}
               onManagePermissions={onManagePermissions}
               onEditMember={onEditMember}
               onRemoveMember={onRemoveMember}

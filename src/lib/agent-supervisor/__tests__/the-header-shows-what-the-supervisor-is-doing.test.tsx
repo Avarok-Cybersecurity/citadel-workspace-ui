@@ -36,7 +36,7 @@ function Harness({ connected }: { connected: boolean }): JSX.Element {
       peerName="ada" peerUsername="ada" peerPresence={{ status: MessagingLayerType.Online, lastUpdate: 0 }} peerTyping={false}
       isConnected={connected} isRegistered paused={false}
       connectionRoute={useConnectionRoute(OURS, PEER)} supervisor={useSupervisorState(OURS, PEER)}
-      onSettingsClick={vi.fn()}
+      onSettingsClick={vi.fn()} onOpenFiles={null}
     />
   );
 }

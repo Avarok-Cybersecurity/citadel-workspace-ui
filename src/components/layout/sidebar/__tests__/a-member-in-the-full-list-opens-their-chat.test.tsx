@@ -18,7 +18,7 @@ const noop = (): void => {};
 function renderRow(onOpenChat: (() => void) | null, currentUsername: string): void {
   render(
     <AllMembersRow member={member} currentUsername={currentUsername} blocks={NO_BLOCKS} nameOfLevel={(id: string): string => id}
-      onManagePermissions={noop} onEditMember={noop} onRemoveMember={noop} onOpenChat={onOpenChat} />,
+      onManagePermissions={noop} onEditMember={noop} onRemoveMember={noop} onOpenFiles={null} onOpenChat={onOpenChat} />,
   );
 }
 

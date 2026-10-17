@@ -5,12 +5,16 @@ import { useVFSSelection  } from "@/hooks/useVFSSelection";
 import { getCurrentCid } from "@/lib/p2p/current-cid";
 import { useRegisteredPeers } from "@/hooks/use-registered-peers";
 import { storagePeersFrom, type StoragePeer } from "./storage-peers";
+import { useFileManagerPlace, type FileManagerPlace } from './useFileManagerPlace';
+import type { StorageRef } from '@/lib/file-manager-location';
 import { peerTreeKey, serverTreeKey } from "@/lib/revfs/tree-operations";
 import type { RevfsNode, TreeKey } from "@/types/revfs-types";
 import { TreeScope } from "@/types/revfs-types";
 import { INTERVAL } from "@/lib/timeout-constants";
 import { useFileManagerHandlers } from "./useFileManagerHandlers";
 import { useUploadTarget, type UploadTarget } from './useUploadTarget';
+import type { SortField, SortDirection } from './vfs-content-helpers';
+import { useLinkedItem } from './useLinkedItem';
 import { revfsDownloadHistory } from '@/lib/revfs/download-history';
 import type { FileDetails } from '@/components/layout/sidebar/file-details';
 import type { UseRevfsTreeResult, UseServerRevfsTreeResult } from '@/hooks/useRevfsTree-types';
@@ -26,10 +30,15 @@ export type UseFileManagerContentResult = ReturnType<typeof useFileManagerHandle
   myCid: bigint | null;
   registeredPeers: StoragePeer[];
   peersLoading: boolean;
+  /** The address: whose storage, which folder, and how to move between them. */
+  place: FileManagerPlace;
+  /** The storage the address names, resolved for this viewer. */
+  storage: StorageRef;
+  /** Whether that storage is a peer you are registered with. */
+  peerRegistered: boolean;
+  /** The peer whose storage is open; null for the server or a peer that cannot be opened. */
   selectedPeerCid: bigint | null;
-  setSelectedPeerCid: Dispatch<SetStateAction<bigint | null>>;
   storageMode: TreeScope;
-  setStorageMode: Dispatch<SetStateAction<TreeScope>>;
   tree: UseServerRevfsTreeResult['tree'];
   loading: UseServerRevfsTreeResult['loading'];
   error: UseServerRevfsTreeResult['error'];
@@ -39,8 +48,11 @@ export type UseFileManagerContentResult = ReturnType<typeof useFileManagerHandle
   revfsEnabled: UseServerRevfsTreeResult['revfsEnabled'];
   pendingPaths: UseServerRevfsTreeResult['pendingPaths'];
   storageLabel: string;
+  /** What the storage is called on screen: "Server Storage", "Shared with Bob". */
+  storageName: string;
   currentPath: string;
-  setCurrentPath: Dispatch<SetStateAction<string>>;
+  /** An item a link pointed at that is not in the folder. */
+  missingItem: string | null;
   fileInputRef: RefObject<HTMLInputElement>;
   /** The folder a picked file lands in; see useUploadTarget. */
   takeUploadTarget: UploadTarget['take'];
@@ -50,27 +62,24 @@ export type UseFileManagerContentResult = ReturnType<typeof useFileManagerHandle
   revfsDisabledModalOpen: boolean;
   setRevfsDisabledModalOpen: Dispatch<SetStateAction<boolean>>;
   revfsDisabledReason: 'peer_disabled' | 'server_disabled';
-  propertiesNode: RevfsNode | null;
   /** The file a "Show" asked for, in the FILES list's own dialog. */
   shownFile: FileDetails | null;
   setShownFile: Dispatch<SetStateAction<FileDetails | null>>;
-  setPropertiesNode: Dispatch<SetStateAction<RevfsNode | null>>;
-  sortField: 'name' | 'date' | 'size' | 'type';
-  sortDirection: 'asc' | 'desc';
+  sortField: SortField;
+  sortDirection: SortDirection;
   filterText: string;
   setFilterText: Dispatch<SetStateAction<string>>;
-  handleSortChange: (field: 'name' | 'date' | 'size' | 'type', direction: 'asc' | 'desc') => void;
+  handleSortChange: (field: SortField, direction: SortDirection) => void;
   cutItemPaths: Set<string>;
   hasPasteItems: ReturnType<typeof useVFSClipboard>['hasItems'];
   selectedPaths: ReturnType<typeof useVFSSelection>['selectedPaths'];
   selectItem: ReturnType<typeof useVFSSelection>['select'];
   clearSelection: ReturnType<typeof useVFSSelection>['clearSelection'];
+  selectPaths: ReturnType<typeof useVFSSelection>['selectAll'];
 };
 
 export function useFileManagerContent(): UseFileManagerContentResult {
   const [myCid, setMyCid] = useState<bigint | null>(null);
-  const [selectedPeerCid, setSelectedPeerCid] = useState<bigint | null>(null);
-  const [storageMode, setStorageMode] = useState<TreeScope>(TreeScope.Peer);
   // The list the sidebar shows, fetched from the agent. This read the
   // registration service's cache, which only a registration seen in THIS tab
   // fills, so a registered, online peer read as "No Peers Connected".
@@ -92,12 +101,17 @@ export function useFileManagerContent(): UseFileManagerContentResult {
     return (): void => { live = false; clearInterval(interval); };
   }, []);
 
-  useEffect(() => {
-    if (storageMode === TreeScope.Peer && !selectedPeerCid && registeredPeers.length > 0) {
-      const firstPeer: StoragePeer = registeredPeers[0];
-      if (firstPeer?.cid) setSelectedPeerCid(firstPeer.cid);
-    }
-  }, [storageMode, selectedPeerCid, registeredPeers]);
+  // Whose storage is the address's to say. An effect used to fill an empty
+  // choice with `registeredPeers[0]`, which is how the sidebar's File Manager
+  // opened on whichever member sorted first.
+  const place: FileManagerPlace = useFileManagerPlace(myCid);
+  const { storage } = place;
+  const openPeer: StoragePeer | undefined = storage.kind === 'peer'
+    ? registeredPeers.find((p: StoragePeer): boolean => p.cid === storage.cid)
+    : undefined;
+  const peerRegistered: boolean = openPeer !== undefined && openPeer.cid !== myCid;
+  const selectedPeerCid: bigint | null = peerRegistered && openPeer ? openPeer.cid : null;
+  const storageMode: TreeScope = storage.kind === 'server' ? TreeScope.Server : TreeScope.Peer;
 
   const peerTree: UseRevfsTreeResult = useRevfsTree(
     storageMode === TreeScope.Peer ? myCid : null,
@@ -121,11 +135,12 @@ export function useFileManagerContent(): UseFileManagerContentResult {
     return new Set(clipboard.items.map(item => item.path));
   }, [isCut, currentTreeKey, clipboard.sourceTreeKey, clipboard.items]);
 
-  const storageLabel: string = storageMode === TreeScope.Server
-    ? 'Server'
-    : listed.find(p => p.cid === selectedPeerCid?.toString())?.displayName ?? 'Peer';
+  // The name the rest of the app shows for them (useRegisteredPeers resolves it against the roster).
+  const peerName: string | null = openPeer ? openPeer.displayName : null;
+  const storageLabel: string = storageMode === TreeScope.Server ? 'Server' : peerName ?? 'Peer';
+  const storageName: string = storageMode === TreeScope.Server ? 'Server Storage' : `Shared with ${peerName ?? 'this peer'}`;
 
-  const [currentPath, setCurrentPath] = useState('/');
+  const currentPath: string = place.path;
   const fileInputRef: RefObject<HTMLInputElement> = useRef<HTMLInputElement>(null);
   const uploadTarget: UploadTarget = useUploadTarget(currentPath);
 
@@ -133,11 +148,10 @@ export function useFileManagerContent(): UseFileManagerContentResult {
   const [attemptedFileSize, setAttemptedFileSize] = useState(0);
   const [revfsDisabledModalOpen, setRevfsDisabledModalOpen] = useState(false);
   const [revfsDisabledReason, setRevfsDisabledReason] = useState<'peer_disabled' | 'server_disabled'>('peer_disabled');
-  const [propertiesNode, setPropertiesNode] = useState<RevfsNode | null>(null);
   const [shownFile, setShownFile] = useState<FileDetails | null>(null);
 
-  const [sortField, setSortField] = useState<'name' | 'date' | 'size' | 'type'>('name');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [sortField, setSortField] = useState<SortField>('name');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [filterText, setFilterText] = useState('');
 
   // Drop the selection whenever the view changes underneath it.
@@ -156,6 +170,10 @@ export function useFileManagerContent(): UseFileManagerContentResult {
     clearSelection();
   }, [currentPath, filterText, storageMode, selectedPeerCid, clearSelection]);
 
+  // A link to an item selects it, which opens the inspector -- once per link, so
+  // clearing the selection afterwards is not undone by the next tree update.
+  const missingItem: string | null = useLinkedItem(tree, currentPath, place.location.item, currentTreeKey, selectAll);
+
   // And clear the FILTER itself on those same context changes — everything the
   // comment above says about a stale selection is true of a stale filter, minus
   // the "N selected" readout that made the selection visible.
@@ -173,10 +191,13 @@ export function useFileManagerContent(): UseFileManagerContentResult {
     setFilterText('');
   }, [currentPath, storageMode, selectedPeerCid]);
 
-  const handleSortChange: (field: "name" | "date" | "size" | "type", direction: "asc" | "desc") => void = useCallback((field: 'name' | 'date' | 'size' | 'type', direction: 'asc' | 'desc'): void => {
+  const handleSortChange: (field: SortField, direction: SortDirection) => void = useCallback((field: SortField, direction: SortDirection): void => {
     setSortField(field);
     setSortDirection(direction);
   }, []);
+
+  // "Info" and "Preview" are the inspector, which follows the selection.
+  const inspect: (node: RevfsNode) => void = useCallback((node: RevfsNode): void => selectAll([node.path]), [selectAll]);
 
   const handlers: ReturnType<typeof useFileManagerHandlers> = useFileManagerHandlers({
     mkdir, rmdir, removeFile, downloadFile, uploadFile, rename, move, copy, refresh,
@@ -185,26 +206,26 @@ export function useFileManagerContent(): UseFileManagerContentResult {
     myCid, storageUsed, storageQuota, revfsEnabled, storageMode, selectedPeerCid,
     tree, currentPath, filterText, fileInputRef,
     chooseUploadTarget: uploadTarget.choose, setRevfsDisabledReason, setRevfsDisabledModalOpen,
-    setAttemptedFileSize, setStorageLimitModalOpen, setPropertiesNode,
+    setAttemptedFileSize, setStorageLimitModalOpen, inspect,
     storageLabel, downloadHistory: revfsDownloadHistory, showFile: setShownFile,
   });
 
   return {
-    myCid, registeredPeers, peersLoading, selectedPeerCid, setSelectedPeerCid,
-    storageMode, setStorageMode,
+    myCid, registeredPeers, peersLoading, place, storage, peerRegistered, selectedPeerCid,
+    storageMode,
     tree, loading, error,
     // Exposed so the error screen can offer a way out. It was already threaded
     // into the handlers; the screen that needs it had no route to it.
     refresh,
-    storageUsed, storageQuota, storageLabel,
-    currentPath, setCurrentPath,
+    storageUsed, storageQuota, storageLabel, storageName,
+    currentPath, missingItem,
     fileInputRef, takeUploadTarget: uploadTarget.take,
     storageLimitModalOpen, setStorageLimitModalOpen, attemptedFileSize,
     revfsDisabledModalOpen, setRevfsDisabledModalOpen, revfsDisabledReason,
-    propertiesNode, setPropertiesNode, shownFile, setShownFile,
+    shownFile, setShownFile,
     sortField, sortDirection, filterText, setFilterText,
     handleSortChange,
-    cutItemPaths, hasPasteItems, selectedPaths, selectItem, clearSelection,
+    cutItemPaths, hasPasteItems, selectedPaths, selectItem, clearSelection, selectPaths: selectAll,
     revfsEnabled, pendingPaths,
     ...handlers,
   };

@@ -1,14 +1,14 @@
 import { strict as assert } from 'node:assert';
 
 /** The least air between two siblings in a row that still reads as two things, in CSS px. */
-const MIN_SIBLING_GAP = 4;
+export const MIN_SIBLING_GAP = 4;
 
 /**
  * Walks every flex or grid container on the page and reports (a) a child that sticks out of its
  * container, which no document-width check can see because the page never scrolls, and (b) two
  * neighbouring children in a row that overlap or touch. Both are reported with a selector path.
  */
-function collisions({ minGap }) {
+export function collisions({ minGap }) {
   const visible = (el) => {
     const r = el.getBoundingClientRect();
     const s = getComputedStyle(el);
@@ -48,7 +48,7 @@ function collisions({ minGap }) {
 
 const settled = (page) => page.waitForFunction(() => document.getAnimations().every((a) => a.playState === 'finished' || a.playState === 'idle'), undefined, { timeout: 5000 });
 
-const checkScenario = (scenario, ready) => async ({ page, url }) => {
+export const checkScenario = (scenario, ready) => async ({ page, url }) => {
   await page.goto(url(scenario));
   await page.locator(ready).first().waitFor({ state: 'visible' });
   await settled(page);
@@ -67,7 +67,6 @@ export const SPACING_CHECKS = {
   noCollisionsInTheSidebarMembers: checkScenario('sidebar-members', '[data-testid^="member-row-"]'),
   noCollisionsAmongPeople: checkScenario('people', '[data-avatar]'),
   noCollisionsInGroupChat: checkScenario('group-chat', '[data-testid="message-item"]'),
-  noCollisionsInTheFileManager: checkScenario('file-manager', 'button'),
   noCollisionsInSettings: checkScenario('settings', '[role="dialog"]'),
   noCollisionsInConnectionSettings: checkScenario('settings-connections', '[role="dialog"]'),
   noCollisionsInAppearanceSettings: checkScenario('settings-appearance', '[role="dialog"]'),

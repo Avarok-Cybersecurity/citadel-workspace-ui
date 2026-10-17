@@ -2,18 +2,12 @@
  * File Manager Extended Integration Test (P8)
  *
  * Tests file manager edge cases and additional UI elements:
- * 1. Sort controls
- * 2. VFSPropertiesDialog ("Info" in the item context menu)
- * 3. StorageLimitModal / RevfsDisabledModal (component rendering)
+ * 1. Sort controls (the address bar's Name / Modified menu)
+ * 2. The inspector: selecting an item opens its details beside the list
  *
- * Two things this file used to claim to test are gone, because the app has
- * no such UI (both verified against citadel-workspaces/src):
- *   - a grid/list view toggle. FileManagerContent renders VFSTreeView plus
- *     VFSContentGrid unconditionally; VFSToolbar has breadcrumbs, filter,
- *     sort, new-folder, upload and sync, and nothing else.
- *   - FileUploadProgress / fileUploadService. Neither the component nor
- *     src/lib/file-upload-service.ts exists, so the dynamic import the test
- *     performed could only ever throw.
+ * FileUploadProgress / fileUploadService are not tested: neither the component
+ * nor src/lib/file-upload-service.ts exists, so the dynamic import the test
+ * once performed could only ever throw.
  */
 
 import { Page } from 'playwright';
@@ -31,6 +25,8 @@ import {
   closeAnyModals,
   TestHarness,
   runTestMain,
+  fmItem,
+  openFileManagerFromSidebar,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
 import { isVisibleWithin } from '../lib/index.js';
@@ -48,9 +44,8 @@ interface TestResults {
   sortControlVisible: boolean;
   sortChangeWorks: boolean;
 
-  // Properties dialog
-  /** Needs a completed file transfer; this spec makes none. */
-  propertiesDialogOpens?: boolean;
+  // Inspector
+  inspectorOpens: boolean;
 
   // Error state modals (P8 extended)
 }
@@ -64,58 +59,22 @@ const USER1 = `files_ext_a_${timestamp}`;
 const USER2 = `files_ext_b_${timestamp}`;
 const PASSWORD = config.DEFAULT_PASSWORD;
 
-// The content grid's scroll container. Its "Sent Files" entry also exists in
-// the tree sidebar to its left, and the two behave differently (VFSTreeView
-// passes a no-op onInfo), so item lookups have to be scoped to the grid.
-
 // ============================================================================
 // Helper Functions
 // ============================================================================
 
 async function navigateToFileManager(page: Page): Promise<boolean> {
   console.log('\n=== Navigating to File Manager ===');
-
-  // FilesSection ships data-testid="file-manager-button". The old selector
-  // union matched the FILES group label and any button containing "files",
-  // and its URL fallback went to BASE_URL + '/?section=files' — that is the
-  // Landing route, which never renders the file manager (Office is /workspace).
-  const filesBtn = page.locator('[data-testid="file-manager-button"]');
-  if (await isVisibleWithin(filesBtn, 10000)) {
-    await filesBtn.click();
-  } else {
+  // The sidebar opens Server Storage, which needs only the C2S session: the rest
+  // of this spec stays off the P2P handshake's critical path.
+  if (!(await openFileManagerFromSidebar(page))) {
     const baseUrl = page.url().split('?')[0];
     await page.goto(`${baseUrl}?section=files`, { waitUntil: 'commit', timeout: 30000 });
     await waitForAppReady(page, 30000);
   }
-
-  // The file manager opens in P2P storage mode and shows NoPeersScreen when no
-  // peer tree is available. Server storage needs only the C2S session, so take
-  // that door whenever it is offered: it keeps the rest of this spec off the
-  // P2P handshake's critical path.
-  const useServerBtn = page.getByRole('button', { name: 'Use Server Storage' });
-  if (await isVisibleWithin(useServerBtn, 5000)) {
-    console.log('  No peers connected - switching to Server Storage');
-    // Bounded, and tolerant of the button vanishing between the check above and
-    // this click. NoPeersScreen is replaced by the peer tree the instant a peer
-    // connects, taking this button with it — so on a slow runner where the
-    // handshake lands in that gap, `click()` waited its full default 30s for a
-    // button that was deliberately gone, and failed the spec. Observed in CI run
-    // 32857173644; the local run wins the race and never sees it.
-    //
-    // Losing the race is fine: the screen is gone because peers arrived, which
-    // is the state the rest of the spec can use anyway.
-    await useServerBtn.click({ timeout: 5000 }).catch(() => {
-      console.log('  NoPeersScreen was replaced before the click - peers connected');
-    });
-  }
-
-  // Every freshly seeded RE-VFS tree contains the protected "Sent Files" and
-  // "Received Files" directories, so this is proof the VFS browser itself
-  // rendered. The old check — getByText(/File Manager|Files|Sent Files|.../) —
-  // also matched the sidebar's own "File Manager" button and the "FILES" group
-  // label, so it reported loaded even when the pane showed an error screen.
-  const sentFiles = page.getByText('Sent Files', { exact: true }).first();
-  const loaded = await isVisibleWithin(sentFiles, 30000);
+  // Every seeded RE-VFS tree holds the protected "Sent Files" folder, so its row
+  // is proof the browser itself rendered -- not the sidebar's own "Files" label.
+  const loaded = await isVisibleWithin(fmItem(page, 'Sent Files'), 30000);
   console.log(`  File manager loaded: ${loaded}`);
   return loaded;
 }
@@ -125,59 +84,41 @@ async function testSortControls(page: Page): Promise<{
   changeWorks: boolean;
 }> {
   console.log('\n=== Testing Sort Controls ===');
-
   const results = { visible: false, changeWorks: false };
 
-  // VFSToolbar's sort control is a Radix dropdown trigger whose label is the
-  // current sort field ("Name" by default). There is no "Sort" text, no
-  // aria-label and no <select>, which is why every branch of the old lookup
-  // failed. aria-haspopup="menu" is what Radix puts on the trigger.
-  //
-  // The label is matched with an anchored regex, not a bare string: hasText
-  // with a string is a case-insensitive *substring* match, so 'Name' would also
-  // match any other menu trigger whose text contains "username".
-  const sortTrigger = (label: RegExp) =>
-    page.locator('button[aria-haspopup="menu"]').filter({ hasText: label }).first();
+  // The trigger's accessible name states the order in force ("Sort by Name,
+  // ascending"), so waiting for the new name is the app confirming the sort
+  // changed -- not merely that a menu item appeared.
+  const sortTrigger = (field: string) => page.getByRole('button', { name: new RegExp(`^Sort by ${field},`) });
 
-  results.visible = await isVisibleWithin(sortTrigger(/^Name$/), 10000);
+  results.visible = await isVisibleWithin(sortTrigger('Name'), 10000);
   console.log(`  Sort control visible: ${results.visible}`);
   if (!results.visible) return results;
 
-  await sortTrigger(/^Name$/).click();
-
-  const dateItem = page.getByRole('menuitem', { name: 'Date Modified' });
-  if (!(await isVisibleWithin(dateItem, 5000))) {
+  await sortTrigger('Name').click();
+  const modifiedItem = page.getByRole('menuitem', { name: 'Modified' });
+  if (!(await isVisibleWithin(modifiedItem, 5000))) {
     console.log('  Sort menu did not open');
     return results;
   }
-  await dateItem.click();
-
-  // The old assertion stopped at "a menu item appeared", which says nothing
-  // about sorting. Choosing a field re-labels the trigger, so waiting for the
-  // new label is the app confirming the sort state actually changed.
-  results.changeWorks = await isVisibleWithin(sortTrigger(/^Date Modified$/), 5000);
+  await modifiedItem.click();
+  results.changeWorks = await isVisibleWithin(sortTrigger('Modified'), 5000);
   console.log(`  Sort change works: ${results.changeWorks}`);
-
   return results;
 }
 
 /**
- * The Info dialog needs a FILE, and this spec never creates one.
- *
- * VFSContextMenu renders its Info entry inside `{!isDir && ...}`, so directories
- * — including the seeded, protected "Sent Files" — never offer it. The spec
- * right-clicked that directory and reported a failure when no Info item
- * appeared, which is the menu behaving exactly as written.
- *
- * Reaching it for real needs a completed file transfer, the same precondition
- * File Preview is skipped for. Left as a stated skip rather than made to pass
- * against a directory that will never show the entry.
+ * One click selects an item and opens the inspector beside the list. A folder
+ * will do: the seeded "Sent Files" is always there.
  */
-async function testPropertiesDialog(): Promise<undefined> {
-  console.log('\n=== Properties Dialog: SKIP ===');
-  console.log('  The Info entry renders only for files (VFSContextMenu, !isDir),');
-  console.log('  and this spec transfers none.');
-  return undefined;
+async function testInspector(page: Page): Promise<boolean> {
+  console.log('\n=== Testing the Inspector ===');
+  await fmItem(page, 'Sent Files').click();
+  const inspector = page.getByTestId('vfs-inspector');
+  const opens: boolean = await isVisibleWithin(inspector, 5000)
+    && await isVisibleWithin(inspector.getByText('Sent Files', { exact: true }).first(), 2000);
+  console.log(`  Inspector opens on the selected item: ${opens}`);
+  return opens;
 }
 
 // ============================================================================
@@ -202,6 +143,7 @@ async function runTest(): Promise<boolean> {
     fileManagerLoaded: false,
     sortControlVisible: false,
     sortChangeWorks: false,
+    inspectorOpens: false,
   };
 
   try {
@@ -228,9 +170,8 @@ async function runTest(): Promise<boolean> {
 
     if (!results.accountCreation.user1) throw new Error('User1 creation failed');
 
-    // P2P registration lets the file manager open in peer-storage mode. It is
-    // best-effort: navigateToFileManager falls back to server storage, so the
-    // rest of the spec does not depend on the handshake landing.
+    // P2P registration is best-effort: the file manager opens on server storage,
+    // so the rest of the spec does not depend on the handshake landing.
     results.p2pRegistered = await p2pRegister(page1, USER1, USER2);
     await sleep(3000);
     await acceptP2PRequest(page2, USER2, null, USER1);
@@ -259,14 +200,14 @@ async function runTest(): Promise<boolean> {
       await takeScreenshot(page1, '03_sort_controls');
     }
 
-    // ========== STEP 4: Test Properties Dialog ==========
+    // ========== STEP 4: Test the Inspector ==========
     console.log('\n' + '─'.repeat(50));
-    console.log('STEP 4: Test Properties Dialog');
+    console.log('STEP 4: Test the Inspector');
     console.log('─'.repeat(50));
 
     if (results.fileManagerLoaded) {
-      results.propertiesDialogOpens = await testPropertiesDialog();
-      await takeScreenshot(page1, '04_properties');
+      results.inspectorOpens = await testInspector(page1);
+      await takeScreenshot(page1, '04_inspector');
     }
 
     // ========== STEP 5: File Preview (skipped) ==========
@@ -296,14 +237,15 @@ async function runTest(): Promise<boolean> {
 
     // Everything gated here is single-user and deterministic: account creation,
     // in-app navigation, and client-side rendering. p2pRegistered is the one
-    // exception — it is a two-party handshake, and the file manager falls back
-    // to server storage without it, so it is reported but not gated.
+    // exception — it is a two-party handshake, and the file manager opens on
+    // server storage without it, so it is reported but not gated.
     const corePassed =
       results.accountCreation.user1 &&
       results.accountCreation.user2 &&
       results.fileManagerLoaded &&
       results.sortControlVisible &&
-      results.sortChangeWorks;
+      results.sortChangeWorks &&
+      results.inspectorOpens;
 
     console.log(`\n  User1 Created:             ${results.accountCreation.user1 ? 'PASS' : 'FAIL'}`);
     console.log(`  User2 Created:             ${results.accountCreation.user2 ? 'PASS' : 'FAIL'}`);
@@ -311,7 +253,7 @@ async function runTest(): Promise<boolean> {
     console.log(`  File Manager Loaded:       ${results.fileManagerLoaded ? 'PASS' : 'FAIL'}`);
     console.log(`  Sort Control:              ${results.sortControlVisible ? 'PASS' : 'FAIL'}`);
     console.log(`  Sort Change:               ${results.sortChangeWorks ? 'PASS' : 'FAIL'}`);
-    console.log(`  Properties Dialog:         ${results.propertiesDialogOpens === undefined ? 'SKIP (Info renders only for files; this spec transfers none)' : results.propertiesDialogOpens ? 'PASS' : 'FAIL'}`);
+    console.log(`  Inspector:                 ${results.inspectorOpens ? 'PASS' : 'FAIL'}`);
     console.log('  File Preview:              SKIP (needs a completed incoming transfer; this spec sends no files)');
 
     harness.finalize(corePassed, results);
