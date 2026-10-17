@@ -3,7 +3,9 @@ import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   TIERS,
+  LINK_PACK_ADDON,
   STORAGE_ADDON,
+  addonOfferedOn,
   formatUsd,
   type BillingInterval,
   type Tier,
@@ -25,9 +27,11 @@ function features(tier: Tier): string[] {
     tier.workspaces === 1 ? '1 workspace' : `${tier.workspaces} workspaces`,
     `Up to ${tier.maxMembers.toLocaleString('en-US')} members`,
     storage,
+    `${tier.secureLinksPerMember} secure links per member`,
     'Post-quantum end-to-end encryption',
   ];
   if (tier.unitAmount) list.push(`Extra storage in ${STORAGE_ADDON.gbPerBlock} GB blocks`);
+  if (addonOfferedOn(LINK_PACK_ADDON, tier.id)) list.push(`Extra secure links in ${LINK_PACK_ADDON.linksPerPack}-link packs`);
   if (tier.prioritySupport) list.push('Priority support');
   return list;
 }

@@ -13,19 +13,22 @@
 import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { STORAGE_ADDON, TIERS, type Tier } from '../tiers';
+import { LINK_PACK_ADDON, STORAGE_ADDON, TIERS, type Tier } from '../tiers';
 
 const CATALOGUE: string = resolve(__dirname, '../../../../../billing/tiers.json');
 
 interface CatalogueTier {
   id: string;
-  limits: { workspaces: number; members: number; storage_gb_total?: number; storage_gb_per_seat?: number; priority_support?: boolean };
+  limits: {
+    workspaces: number; members: number; storage_gb_total?: number; storage_gb_per_seat?: number; priority_support?: boolean;
+    secure_links_per_member: number;
+  };
   prices: Array<{ interval: string; unit_amount: number }>;
 }
 interface Catalogue {
   currency: string;
   tiers: CatalogueTier[];
-  addons: Array<{ id: string; available_on: string[]; grants: { storage_gb: number }; prices: Array<{ interval: string; unit_amount: number }> }>;
+  addons: Array<{ id: string; available_on: string[]; grants: Record<string, number>; prices: Array<{ interval: string; unit_amount: number }> }>;
 }
 
 describe.skipIf(!existsSync(CATALOGUE))(`the tier table matches ${CATALOGUE}`, () => {
@@ -46,6 +49,7 @@ describe.skipIf(!existsSync(CATALOGUE))(`the tier table matches ${CATALOGUE}`, (
     expect(tier.workspaces).toBe(source.limits.workspaces);
     expect(tier.maxMembers).toBe(source.limits.members);
     expect(tier.prioritySupport).toBe(source.limits.priority_support === true);
+    expect(tier.secureLinksPerMember).toBe(source.limits.secure_links_per_member);
     if (tier.storage.kind === 'total') expect(tier.storage.gb).toBe(source.limits.storage_gb_total);
     else expect(tier.storage.gb).toBe(source.limits.storage_gb_per_seat);
 
@@ -60,5 +64,18 @@ describe.skipIf(!existsSync(CATALOGUE))(`the tier table matches ${CATALOGUE}`, (
     expect(STORAGE_ADDON.gbPerBlock).toBe(addon.grants.storage_gb);
     expect([...STORAGE_ADDON.availableOn]).toEqual(addon.available_on);
     expect(STORAGE_ADDON.unitAmount).toEqual(Object.fromEntries(addon.prices.map((p) => [p.interval, p.unit_amount])));
+  });
+
+  it('prices the secure-link packs as the catalogue does', () => {
+    const addon: Catalogue['addons'][number] | undefined = catalogue.addons.find((a) => a.id === 'secure_links');
+    expect(addon).toBeDefined();
+    if (!addon) return;
+    expect(LINK_PACK_ADDON.linksPerPack).toBe(addon.grants.secure_links_pool);
+    expect([...LINK_PACK_ADDON.availableOn]).toEqual(addon.available_on);
+    expect(LINK_PACK_ADDON.unitAmount).toEqual(Object.fromEntries(addon.prices.map((p) => [p.interval, p.unit_amount])));
+  });
+
+  it('mirrors every add-on the catalogue sells', () => {
+    expect(catalogue.addons.map((a) => a.id)).toEqual(['storage', 'secure_links']);
   });
 });

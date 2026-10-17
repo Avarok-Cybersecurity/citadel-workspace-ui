@@ -72,6 +72,7 @@ function isDraft(value: unknown): value is FlowDraft {
     INTERVALS.includes(p.interval as BillingInterval) &&
     typeof p.seats === 'number' &&
     typeof p.storageBlocks === 'number' &&
+    typeof p.linkPacks === 'number' &&
     (draft.reservationToken === undefined || typeof draft.reservationToken === 'string')
   );
 }
@@ -105,4 +106,4 @@ export function clearDraft(): void {
  * A fresh plan: Free, so nothing is charged unless the visitor chooses to be.
  * The seat count is what a paid tier starts at when they switch to one.
  */
-export const INITIAL_PLAN: PlanSelection = { tier: 'free', interval: 'month', seats: 3, storageBlocks: 0 };
+export const INITIAL_PLAN: PlanSelection = { tier: 'free', interval: 'month', seats: 3, storageBlocks: 0, linkPacks: 0 };
