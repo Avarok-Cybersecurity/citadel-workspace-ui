@@ -9,6 +9,7 @@ import { AxeBuilder } from '@axe-core/playwright';
 import { settled, targetsAreBigEnough } from './checks-controls.mjs';
 import { ROUGH, roughness } from './motion-probe.mjs';
 import { sampleTransition } from './motion-sampler.mjs';
+import { cpuThrottle, newParityContext } from '../ci-parity.mjs';
 
 const MOBILE_BELOW = 768;
 const within = (actual, expected) => Math.abs(actual - expected) <= 0.5;
@@ -94,7 +95,7 @@ async function glide(context, url, query) {
 /** A row that changes list glides there; with reduced motion, or Animations off, it is simply there. */
 async function aSelectionGlides({ page, url, viewport }) {
   const browser = page.context().browser();
-  const moving = await browser.newContext({ viewport, reducedMotion: 'no-preference' });
+  const moving = await newParityContext(browser, { viewport, reducedMotion: 'no-preference' });
   try {
     const frames = await glide(moving, url, '&sel=eng');
     assert.ok(frames >= 3, `the row jumped: ${frames} intermediate position(s) between where it was and where it landed`);
@@ -126,13 +127,13 @@ const LEVEL_CHANGES = [
   ['office -> sibling office', '&sel=eng', 'tree-node-design'],
 ];
 
-/** POLISH_CPU_THROTTLE=4 slows Chromium's CPU the way a CI runner is slow, to reproduce what only CI sees. */
-const THROTTLE = Number(process.env.POLISH_CPU_THROTTLE ?? 1);
+/** POLISH_CPU_THROTTLE=4 (or CI_PARITY=1) slows Chromium's CPU the way a CI runner is slow, to reproduce what only CI sees. */
+const THROTTLE = cpuThrottle();
 
 /** Every level change, sampled; `judge` turns one transition's findings into problems. */
 async function eachLevelChange({ page, url, viewport }, { throttle, query: extra, judge }) {
   if (throttle > 1 && page.context().browser().browserType().name() !== 'chromium') throw new Error('CPU throttling needs Chromium (CDP)');
-  const moving = await page.context().browser().newContext({ viewport, reducedMotion: 'no-preference' });
+  const moving = await newParityContext(page.context().browser(), { viewport, reducedMotion: 'no-preference' });
   const rough = [];
   try {
     for (const [name, query, clicked] of LEVEL_CHANGES) {

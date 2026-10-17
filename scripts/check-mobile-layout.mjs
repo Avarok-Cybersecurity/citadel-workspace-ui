@@ -16,6 +16,7 @@
  */
 import { spawn } from 'node:child_process';
 import { spawnPreview, dismissConnectionFailure } from './lib/preview-world.mjs';
+import { assertParity, newParityContext } from './lib/ci-parity.mjs';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
@@ -87,6 +88,7 @@ async function main() {
     process.exit(1);
   }
 
+  assertParity();
   const browser = await chromium.launch();
   // A throw part-way used to lose every result gathered before it: the run died
   // with a Playwright stack trace and printed no table, so a genuine failure
@@ -101,7 +103,7 @@ async function main() {
     // repair -- but a layout that fits at 375 and breaks at 360 breaks for more
     // people than one that breaks at 375.
     for (const width of WIDTHS) {
-    const context = await browser.newContext({
+    const context = await newParityContext(browser, {
       viewport: { width, height: 667 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2,
     });
     const page = await context.newPage();

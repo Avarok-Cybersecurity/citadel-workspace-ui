@@ -4,6 +4,7 @@
  */
 import { chromium, webkit } from 'playwright';
 import { serveHarness } from './serve.mjs';
+import { assertParity, newParityContext } from '../ci-parity.mjs';
 
 const AVAILABLE = { chromium, webkit };
 // CI installs Chromium only; a machine with WebKit sets POLISH_ENGINES=chromium,webkit (the default).
@@ -17,6 +18,7 @@ const VIEWPORTS = [{ width: 1280, height: 800 }, { width: 390, height: 844 }];
 const THEMES = ['light', 'dark'];
 
 export async function runChecks(CHECKS, port) {
+  assertParity();
   const harness = await serveHarness(port);
   let failures = 0;
   try {
@@ -24,7 +26,7 @@ export async function runChecks(CHECKS, port) {
       const browser = await engine.launch();
       for (const viewport of VIEWPORTS) {
         for (const theme of THEMES) {
-          const context = await browser.newContext({ viewport, reducedMotion: 'reduce' });
+          const context = await newParityContext(browser, { viewport, reducedMotion: 'reduce' });
           const origin = (scenario) => `${harness.origin}/?s=${scenario}&theme=${theme}`;
           const open = async () => {
             const page = await context.newPage();
