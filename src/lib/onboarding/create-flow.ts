@@ -47,6 +47,8 @@ export interface FlowDraft {
   readonly displayName: string;
   readonly slug: string;
   readonly plan: PlanSelection;
+  /** The workspace icon chosen on the first step, as a data URL; absent for none. */
+  readonly logo?: string;
   /**
    * Proof that a pending reservation of `slug` is this visitor's, returned with the
    * Checkout URL. Sent back on a retry after a cancelled Checkout so the control
@@ -72,7 +74,8 @@ function isDraft(value: unknown): value is FlowDraft {
     INTERVALS.includes(p.interval as BillingInterval) &&
     typeof p.seats === 'number' &&
     typeof p.storageBlocks === 'number' &&
-    (draft.reservationToken === undefined || typeof draft.reservationToken === 'string')
+    (draft.reservationToken === undefined || typeof draft.reservationToken === 'string') &&
+    (draft.logo === undefined || typeof draft.logo === 'string')
   );
 }
 

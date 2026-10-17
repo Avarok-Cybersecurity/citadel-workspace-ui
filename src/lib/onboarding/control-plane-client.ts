@@ -24,6 +24,8 @@ export type SlugAvailability =
 export interface CreateTenantRequest {
   readonly slug: string;
   readonly display_name: string;
+  /** The workspace icon, a WebP/PNG/JPEG data URL of at most 32 KB decoded; see control/logo.mjs. */
+  readonly logo?: string;
   readonly tier: TierId;
   readonly interval?: BillingInterval;
   readonly seats?: number;

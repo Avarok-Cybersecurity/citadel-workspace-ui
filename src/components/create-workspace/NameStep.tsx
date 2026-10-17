@@ -7,11 +7,14 @@ import { cn } from '@/lib/utils';
 import { SLUG_MAX, TENANT_DOMAIN } from '@/lib/onboarding/slug';
 import { canContinueWith, type Availability } from '@/lib/onboarding/slug-availability';
 import { StepHeading } from './StepHeading';
+import { WorkspaceIconField } from './WorkspaceIconField';
 
 export interface NameStepProps {
   readonly displayName: string;
   readonly slug: string;
   readonly availability: Availability;
+  readonly logo: string | null;
+  readonly onLogoChange: (logo: string | null) => void;
   readonly onDisplayNameChange: (value: string) => void;
   readonly onSlugChange: (value: string) => void;
   readonly onContinue: () => void;
@@ -89,7 +92,7 @@ export function NameStep(props: NameStepProps): JSX.Element {
           <div
             className={cn(
               'flex h-11 min-w-0 items-center overflow-hidden rounded-md border bg-background focus-within:ring-2 focus-within:ring-ring',
-              availability.state === 'available' ? 'border-success' : 'border-input',
+              availability.state === 'available' ? 'border-success' : 'border-control-border',
             )}
           >
             <input
@@ -114,6 +117,8 @@ export function NameStep(props: NameStepProps): JSX.Element {
             <AvailabilityLine availability={availability} />
           </p>
         </div>
+
+        <WorkspaceIconField logo={props.logo} onLogoChange={props.onLogoChange} />
 
         {slug.length > 0 && (
           <div className="rounded-lg border border-border bg-background px-4 py-3">

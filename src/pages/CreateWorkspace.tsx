@@ -44,6 +44,7 @@ function requestFor(draft: FlowDraft, turnstileToken: string): CreateTenantReque
   const base: CreateTenantRequest = {
     slug: draft.slug,
     display_name: draft.displayName.trim(),
+    ...(draft.logo ? { logo: draft.logo } : {}),
     tier: draft.plan.tier,
     turnstile_token: turnstileToken,
     ...(draft.reservationToken ? { reservation_token: draft.reservationToken } : {}),
@@ -75,6 +76,7 @@ export function CreateWorkspaceFlow({ api, redirect }: CreateWorkspaceFlowProps)
   });
   const [flow, setFlow] = useState<FlowStep>(initial.step);
   const [displayName, setDisplayName] = useState<string>(initial.draft?.displayName ?? '');
+  const [logo, setLogo] = useState<string | null>(initial.draft?.logo ?? null);
   const [slug, setSlug] = useState<string>(initial.draft?.slug ?? '');
   const [slugEdited, setSlugEdited] = useState<boolean>(initial.draft !== undefined);
   const [plan, setPlan] = useState<PlanSelection>(initial.draft?.plan ?? INITIAL_PLAN);
@@ -92,6 +94,7 @@ export function CreateWorkspaceFlow({ api, redirect }: CreateWorkspaceFlowProps)
     forgetIssuedClaim();
     setSearchParams({}, { replace: true });
     setDisplayName('');
+    setLogo(null);
     setSlug('');
     setSlugEdited(false);
     setPlan(INITIAL_PLAN);
@@ -99,7 +102,7 @@ export function CreateWorkspaceFlow({ api, redirect }: CreateWorkspaceFlowProps)
   };
 
   const submit = async (turnstileToken: string): Promise<string | undefined> => {
-    const draft: FlowDraft = { displayName, slug, plan, reservationToken: initial.draft?.reservationToken };
+    const draft: FlowDraft = { displayName, slug, plan, reservationToken: initial.draft?.reservationToken, ...(logo ? { logo } : {}) };
     try {
       const result: CreateTenantResult = await api.createTenant(requestFor(draft, turnstileToken));
       if (result.kind === 'created') {
@@ -121,6 +124,8 @@ export function CreateWorkspaceFlow({ api, redirect }: CreateWorkspaceFlowProps)
         return (
           <NameStep
             displayName={displayName}
+            logo={logo}
+            onLogoChange={setLogo}
             slug={slug}
             availability={availability}
             onDisplayNameChange={(value: string) => {
