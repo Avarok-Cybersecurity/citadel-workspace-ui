@@ -11,6 +11,7 @@ import { eventEmitter } from "@/lib/event-emitter";
 import { postAuthSetup } from '@/lib/post-auth-setup';
 import { setSelectedUser } from "@/lib/tab-context";
 import { getWorkspacePath } from "@/lib/workspace-navigation";
+import { resolvePendingRedirect } from '@/lib/share/resolve-here';
 import { debugLog } from '@/lib/debug-config';
 import type { ToastOptions } from '@/hooks/use-toast';
 import type { StoredSessions } from '@/types/session-types';
@@ -80,7 +81,7 @@ export async function redirectToExistingSession(
     });
     debugLog('Login', 'Emitted session:activated for redirect to existing session');
 
-    navigate(getWorkspacePath());
+    await resolvePendingRedirect(navigate, getWorkspacePath());
 
     toast(notices.connected);
 
