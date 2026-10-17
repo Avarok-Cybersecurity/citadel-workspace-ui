@@ -7,7 +7,7 @@ import type { ReactNode } from 'react';
 import type { RevfsNode } from '@/types/revfs-types';
 import { TreeScope } from '@/types/revfs-types';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useMotionAllowed } from '@/hooks/use-motion-allowed';
+import { useMotionTier } from '@/hooks/use-motion-tier';
 import { cn } from '@/lib/utils';
 import { uploadRefusal } from './upload-refusal';
 import { VFSContentGrid } from './VFSContentGrid';
@@ -27,7 +27,8 @@ interface FileManagerBrowserProps {
 
 export function FileManagerBrowser({ fm, v, tree, footer }: FileManagerBrowserProps): JSX.Element {
   const phone: boolean = useIsMobile();
-  const motion: boolean = useMotionAllowed();
+  // A fade, which Lite keeps; only Off drops it.
+  const motion: boolean = useMotionTier() !== 'off';
   const now: number = Date.now();
   const isP2P: boolean = fm.storageMode === TreeScope.Peer;
   const { panel } = v;

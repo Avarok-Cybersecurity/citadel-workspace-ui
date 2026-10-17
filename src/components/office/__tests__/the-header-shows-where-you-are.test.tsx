@@ -95,6 +95,12 @@ describe('the header breadcrumbs', () => {
     expect(expected).not.toMatch(/showP2P|section/);
   });
 
+  it("leave the file manager's own keys behind with its section", () => {
+    const path: string = selectNodePath('?section=files&peer_id=server&path=%2FDesigns&item=a.pdf&via=7', 'hq');
+    expect(path).toMatch(/nodeId=hq/);
+    expect(path).not.toMatch(/section|peer_id|path=|item=|via=/);
+  });
+
   it('ask before leaving a document with unsaved edits, and stay put when told to', async () => {
     const user: UserEvent = userEvent.setup();
     show('standup', 'Standup');
