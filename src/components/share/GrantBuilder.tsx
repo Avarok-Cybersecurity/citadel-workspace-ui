@@ -28,7 +28,7 @@ function Chip({ label, onRemove, disabled }: { label: string; onRemove: () => vo
     <li className="flex min-h-8 max-w-full items-center gap-1 rounded-full border border-border bg-surface/60 py-0.5 pl-3 pr-1 text-xs" data-testid="share-grant-chip">
       <span className="min-w-0 truncate">{label}</span>
       <Button type="button" variant="ghost" size="icon" className="tap-target h-6 w-6 shrink-0 rounded-full" disabled={disabled}
-        onClick={onRemove} aria-label={`Remove ${label}`}>
+        onClick={onRemove} aria-label={`Remove ${label}`} data-testid="share-grant-remove">
         <X className="h-3.5 w-3.5" aria-hidden="true" />
       </Button>
     </li>
@@ -65,7 +65,7 @@ export function GrantBuilder({ draft, onChange, members, roles, target, disabled
           <SelectTrigger aria-label="Add a person" className="h-8 w-auto min-w-[8.5rem] text-xs" data-testid="share-add-member">
             <SelectValue placeholder={addableMembers.length === 0 ? 'No one else to add' : 'Add a person'} />
           </SelectTrigger>
-          <SelectContent>{addableMembers.map((m: string) => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+          <SelectContent>{addableMembers.map((m: string) => <SelectItem key={m} value={m} data-testid={`share-member-option-${m}`}>{m}</SelectItem>)}</SelectContent>
         </Select>
         {roles.length > 0 && (
           <Select value="" onValueChange={(r: string) => onChange(withRole(draft, r))} disabled={disabled || addableRoles.length === 0}>
