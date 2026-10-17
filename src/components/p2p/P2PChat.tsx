@@ -18,7 +18,7 @@ import { ChatDropTarget } from './ChatDropTarget';
 import { ChatSettingsPanel } from './ChatSettingsPanel';
 import { P2PChatHeader } from './P2PChatHeader';
 import { usePeerFilesOpener } from './hooks/use-peer-files-opener';
-import { CallStage } from '@/components/call/CallStage';
+import { DockedCall } from './DockedCall';
 import { useDirectCall } from './hooks/use-direct-call';
 import { P2PMessageList } from './P2PMessageList';
 import { P2PMessageInput } from './P2PMessageInput';
@@ -172,26 +172,7 @@ export function P2PChat({
       {paused && <PausedBanner busy={pause.busy} onResume={pause.resume} />}
       {!isGroupMode && <ConnectRequestBanner peerCid={peerCid} peerName={peerName} peerUsername={peerUsername} registered={isRegistered} />}
 
-      {/* Docked above the messages, so the conversation stays usable during a
-          call — which is the entire reason to put calling inside a messenger. */}
-      {callBinding.call && (
-        <CallStage
-          call={callBinding.call}
-          selfUsername="You"
-          localStream={callBinding.localStream}
-          remoteStreams={callBinding.remoteStreams}
-          remoteScreenStreams={callBinding.remoteScreenStreams}
-          screenStream={callBinding.screenStream}
-          qualities={callBinding.qualities}
-          onToggleMic={callBinding.toggleMic}
-          onToggleCamera={callBinding.toggleCamera}
-          onToggleScreenShare={callBinding.toggleScreenShare}
-          onAnnotate={callBinding.annotate}
-          videoQuality={callBinding.videoQuality}
-          onVideoQualityChange={callBinding.setVideoQuality}
-          onLeave={callBinding.leave}
-        />
-      )}
+      <DockedCall binding={callBinding} />
       <ChatTabBar tabs={tabsWithUnread} activeTabId={activeTabId} onTabSelect={handleTabSelect} onTabClose={handleCloseTab} onTabRename={handleRenameDocument} />
 
       {rules && (
