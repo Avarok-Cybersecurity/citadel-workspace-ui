@@ -33,7 +33,7 @@ import {
 import { deriveSlug, sanitizeSlugInput } from '@/lib/onboarding/slug';
 import { useSlugAvailability, type Availability } from '@/lib/onboarding/slug-availability';
 import { SHOWN_CUSTOMER_TERMS_VERSION } from '@/lib/terms/customer-terms';
-import { clampSeats, clampStorageBlocks, isPaid, type PlanSelection } from '@/lib/onboarding/tiers';
+import { clampLinkPacks, clampSeats, clampStorageBlocks, isPaid, type PlanSelection } from '@/lib/onboarding/tiers';
 
 export interface CreateWorkspaceFlowProps {
   readonly api: ControlPlane;
@@ -56,6 +56,7 @@ function requestFor(draft: FlowDraft, turnstileToken: string): CreateTenantReque
     interval: draft.plan.interval,
     seats: clampSeats(draft.plan.tier, draft.plan.seats),
     storage_blocks: clampStorageBlocks(draft.plan.tier, draft.plan.storageBlocks),
+    link_packs: clampLinkPacks(draft.plan.tier, draft.plan.linkPacks),
   };
 }
 
