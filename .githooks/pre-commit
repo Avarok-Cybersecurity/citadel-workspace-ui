@@ -1,0 +1,17 @@
+#!/bin/sh
+#
+# This repo's gates live in the parent (citadel-workspace): its scripts/ holds the 250-line
+# cap, the static gates and preflight, and UI CI checks the parent out to run them. So the hook
+# hands the staged paths to the parent's preflight, which reads THIS repo's workflow too.
+#
+# A standalone clone has no parent to run them from; it fails rather than passing over nothing.
+# Installed by this package's `prepare` (standalone) and by the parent's root `prepare`.
+# To skip it for one commit, deliberately: git commit --no-verify
+parent=$(git rev-parse --show-superproject-working-tree)
+if [ -z "$parent" ]; then
+  echo "pre-commit: this clone is not inside the parent repo, so its gates cannot run." >&2
+  echo "  Clone Avarok-Cybersecurity/citadel-workspace --recurse-submodules and work there," >&2
+  echo "  or skip this one commit deliberately with --no-verify." >&2
+  exit 1
+fi
+exec node "$parent/scripts/preflight.mjs" --tier pre-commit --repo ui

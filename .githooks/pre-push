@@ -1,0 +1,20 @@
+#!/bin/sh
+#
+# The pushed commits' tier, run by the parent's preflight (see pre-commit for why the parent).
+#
+# It also refuses a push UI CI would validate against the wrong parent: UI CI builds against a
+# parent branch of the SAME NAME when the parent remote has one, else master. A UI branch pushed
+# before its parent counterpart was typechecked against master and failed on types the change
+# was never written for. So the pushed UI commit is typechecked against the parent ref CI WILL
+# resolve, and a same-name local parent branch ahead of its remote stops the push: push the
+# parent first.
+#
+# To skip it for one push, deliberately: git push --no-verify
+parent=$(git rev-parse --show-superproject-working-tree)
+if [ -z "$parent" ]; then
+  echo "pre-push: this clone is not inside the parent repo, so its gates cannot run." >&2
+  echo "  Clone Avarok-Cybersecurity/citadel-workspace --recurse-submodules and work there," >&2
+  echo "  or skip this one push deliberately with --no-verify." >&2
+  exit 1
+fi
+exec node "$parent/scripts/preflight.mjs" --tier pre-push --repo ui --remote "$1"
