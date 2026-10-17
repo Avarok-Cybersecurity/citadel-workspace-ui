@@ -60,7 +60,7 @@ const ROLE_TABLE = { roles: [
   { id: 'member', name: 'Member', permissions: ['ViewContent', 'ViewMembers', 'SendMessages', 'ReadMessages', 'DownloadFiles'], position: 200, color: null },
   { id: 'role-reviewers', name: 'Reviewers', permissions: ['ViewContent', 'EditMdx'], position: 150, color: '#10B981' },
   { id: 'guest', name: 'Guest', permissions: ['ViewContent', 'ViewMembers'], position: 100, color: null },
-] };
+], default_role_id: 'member' };
 /** The reader is an Admin: Owner and Admin read-only, every role below editable. */
 const AS_ADMIN = { ...TREE, currentUser: { id: 'me', username: 'me', name: 'Me', roleId: 'admin' } };
 

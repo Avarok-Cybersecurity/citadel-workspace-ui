@@ -10,7 +10,9 @@
 
 import WorkspaceService from '@/lib/workspace-service';
 import { instanceManager } from '@/lib/multi-instance';
-import { debugLog } from '@/lib/debug-config';
+import { debugLog, errorLog } from '@/lib/debug-config';
+import { reloadRoles } from '@/lib/workspace-roles/roles-store';
+import { rolesApi } from '@/lib/workspace-roles/roles-api';
 
 /**
  * Performs the complete post-authentication workspace setup sequence.
@@ -70,6 +72,15 @@ export async function postAuthSetup(
   // panel was opened, so an administrator who never opened that panel was shown
   // a member's app.
   await WorkspaceService.listMembers();
+
+  // Step 6: The role table, read again. The store asks for it once per session, so after a
+  // reconnect or a claim of the same session it kept the table it had, and an edit made while
+  // this tab was not listening (its RoleChanged went nowhere) showed only after a session change.
+  // Never thrown: an account that holds no role yet (awaiting initialisation) is refused the list,
+  // and that must not fail its sign-in.
+  await reloadRoles(rolesApi.list, (reason: string): void => {
+    errorLog('PostAuthSetup', 'The role table could not be read again; showing the one from before:', reason);
+  });
 
   debugLog('PostAuthSetup', 'Workspace setup complete for CID:', cid.toString());
 }

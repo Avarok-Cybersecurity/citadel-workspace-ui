@@ -16,6 +16,8 @@ import { RoleDot } from './RoleDot';
 
 interface RoleRowProps {
   role: RoleDefinition;
+  /** The role new members get. */
+  isDefault: boolean;
   draft: RoleDraft;
   /** Why this role is read-only for the reader, or null when they may edit it. */
   lock: string | null;
@@ -30,7 +32,7 @@ interface RoleRowProps {
 
 const ICON_BUTTON: string = 'h-[32px] w-[32px] shrink-0';
 
-export function RoleRow({ role, draft, lock, upTo, downTo, busy, onDraft, onMove, onDelete }: RoleRowProps): JSX.Element {
+export function RoleRow({ role, isDefault, draft, lock, upTo, downTo, busy, onDraft, onMove, onDelete }: RoleRowProps): JSX.Element {
   const [colouring, setColouring] = useState<boolean>(false);
   const editable: boolean = lock === null;
   return (
@@ -50,6 +52,7 @@ export function RoleRow({ role, draft, lock, upTo, downTo, busy, onDraft, onMove
           ) : (
             <span className="block truncate text-sm font-medium text-foreground">{role.name}</span>
           )}
+          {isDefault && <p className="mt-1 inline-block rounded border border-border px-[6px] text-xs font-medium text-foreground" data-testid={`role-default-${role.id}`}>New members get this role</p>}
           {lock !== null && <p className="mt-1 text-xs text-muted-foreground" data-testid={`role-lock-${role.id}`}>{lock}</p>}
         </div>
         {editable && (

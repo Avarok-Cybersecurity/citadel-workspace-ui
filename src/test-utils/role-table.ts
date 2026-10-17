@@ -17,14 +17,22 @@ export const MEMBER: RoleDefinition = {
 };
 export const GUEST: RoleDefinition = { id: 'guest', name: 'Guest', permissions: ['ViewContent', 'ViewMembers'], position: 100, color: null };
 
-export const SEED: WorkspaceRoles = { roles: [OWNER, ADMIN, MEMBER, GUEST] };
+export const SEED: WorkspaceRoles = { roles: [OWNER, ADMIN, MEMBER, GUEST], default_role_id: 'member' };
 
 /** A created role. */
 export function role(id: string, position: number, permissions: Permission[], name: string = id): RoleDefinition {
   return { id, name, permissions, position, color: null };
 }
 
-/** `roles`, ordered highest first as the server orders them. */
+/**
+ * `roles`, ordered highest first as the server orders them. New members get Member, as in a
+ * seeded workspace; a test about the default names it with `withDefault`.
+ */
 export function tableOf(...roles: RoleDefinition[]): WorkspaceRoles {
-  return { roles: [...roles].sort((a: RoleDefinition, b: RoleDefinition): number => b.position - a.position) };
+  return { roles: [...roles].sort((a: RoleDefinition, b: RoleDefinition): number => b.position - a.position), default_role_id: 'member' };
+}
+
+/** `table`, with new members given `roleId`. */
+export function withDefault(table: WorkspaceRoles, roleId: string): WorkspaceRoles {
+  return { ...table, default_role_id: roleId };
 }

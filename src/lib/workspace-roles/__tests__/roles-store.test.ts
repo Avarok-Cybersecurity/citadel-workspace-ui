@@ -6,7 +6,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { RolesResponse, WorkspaceRoles } from 'citadel-workspace-client-ts';
 import { eventEmitter } from '@/lib/event-emitter';
-import { getRolesState, requestRoles, resetRoles, subscribeRoles, type RolesState } from '../roles-store';
+import { getRolesState, reloadRoles, requestRoles, resetRoles, subscribeRoles, type RolesState } from '../roles-store';
 import { GUEST, MEMBER, SEED, tableOf, OWNER, ADMIN } from '@/test-utils/role-table';
 
 interface Deferred { promise: Promise<WorkspaceRoles>; resolve: (table: WorkspaceRoles) => void; reject: (error: Error) => void }
@@ -74,6 +74,43 @@ describe('the role table store', () => {
     eventEmitter.emit('instance:cid-changed', { cid: 2n });
     answer.resolve(SEED);
     await settle();
+    expect(getRolesState()).toEqual({ status: 'unknown' });
+  });
+});
+
+describe('reading the table again', () => {
+  const unheard = (reason: string): void => { throw new Error(`reported stale: ${reason}`); };
+
+  it('replaces a table already held, without passing back through loading', async () => {
+    requestRoles(() => Promise.resolve(SEED));
+    await settle();
+    const seen: RolesState[] = [];
+    const off: () => void = subscribeRoles((): void => { seen.push(getRolesState()); });
+    await reloadRoles(() => Promise.resolve(RENAMED), unheard);
+    off();
+    expect(seen).toEqual([{ status: 'loaded', table: RENAMED }]);
+  });
+
+  it('keeps the table it had when the read is refused, and reports the refusal', async () => {
+    requestRoles(() => Promise.resolve(SEED));
+    await settle();
+    const reported: string[] = [];
+    await reloadRoles(() => Promise.reject(new Error('Rate limit exceeded')), (reason: string): void => { reported.push(reason); });
+    expect(getRolesState()).toEqual({ status: 'loaded', table: SEED });
+    expect(reported).toEqual(['Rate limit exceeded']);
+  });
+
+  it('keeps a refusal as one when there was no table to show', async () => {
+    await reloadRoles(() => Promise.reject(new Error('Permission denied: ViewContent required')), unheard);
+    expect(getRolesState()).toEqual({ status: 'failed', reason: 'Permission denied: ViewContent required' });
+  });
+
+  it('drops the previous session\'s answer', async () => {
+    const answer: Deferred = deferred();
+    const reloading: Promise<void> = reloadRoles(() => answer.promise, unheard);
+    eventEmitter.emit('instance:cid-changed', { cid: 3n });
+    answer.resolve(SEED);
+    await reloading;
     expect(getRolesState()).toEqual({ status: 'unknown' });
   });
 });

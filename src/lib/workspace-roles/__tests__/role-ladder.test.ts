@@ -104,13 +104,13 @@ describe('mayAssign', () => {
 
 describe('mayReassignTo', () => {
   it('allows a role you may assign, other than the one going', () => {
-    expect(mayReassignTo(ADMIN, MEMBER, GUEST)).toBe(true);
-    expect(mayReassignTo(OWNER, ADMIN, OWNER)).toBe(true);
+    expect(mayReassignTo(SEED, ADMIN, MEMBER, GUEST)).toBe(true);
+    expect(mayReassignTo(SEED, OWNER, ADMIN, OWNER)).toBe(true);
   });
   it('refuses the role being deleted, and one that is not below you or carries what you lack', () => {
-    expect(mayReassignTo(ADMIN, MEMBER, MEMBER)).toBe(false);
-    expect(mayReassignTo(LEAD, MEMBER, ADMIN)).toBe(false);
-    expect(mayReassignTo(LEAD, GUEST, MEMBER)).toBe(false);
+    expect(mayReassignTo(SEED, ADMIN, MEMBER, MEMBER)).toBe(false);
+    expect(mayReassignTo(WITH_LEAD, LEAD, MEMBER, ADMIN)).toBe(false);
+    expect(mayReassignTo(WITH_LEAD, LEAD, GUEST, MEMBER)).toBe(false);
   });
 });
 

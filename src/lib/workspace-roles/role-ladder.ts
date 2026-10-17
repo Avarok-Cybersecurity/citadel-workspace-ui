@@ -11,6 +11,8 @@
  *   - assign: below you and carrying nothing you lack (the Owner assigns anything), or the
  *     vacant Owner seat for someone holding everything the Owner does.
  *   - act on a member: their role is below yours, or you are the Owner, or it is you.
+ *   - the role new members get: one you may edit and could assign; never the Owner, so
+ *     deleting it cannot move its holders onto the Owner.
  */
 import type { Permission as WirePermission, RoleDefinition, WorkspaceRoles } from 'citadel-workspace-client-ts';
 
@@ -66,10 +68,24 @@ export function mayAssign(actor: RoleDefinition, role: RoleDefinition, occupied:
   return isOwnerRole(role) && coversAll(actor, role.permissions) && occupied !== null && !occupied.has(OWNER_ROLE_ID);
 }
 
-/** Whether a deleted role's holders may be moved to `target`: `role_edits::delete`. */
-export function mayReassignTo(actor: RoleDefinition, deleting: RoleDefinition, target: RoleDefinition): boolean {
+/**
+ * Whether a deleted role's holders may be moved to `target`: `role_edits::delete`. Deleting the
+ * role new members get makes `target` the default, so then it cannot be the Owner.
+ */
+export function mayReassignTo(table: WorkspaceRoles, actor: RoleDefinition, deleting: RoleDefinition, target: RoleDefinition): boolean {
   if (target.id === deleting.id || !outranks(actor, target.position)) return false;
+  if (deleting.id === table.default_role_id && isOwnerRole(target)) return false;
   return isOwnerRole(actor) || coversAll(actor, target.permissions);
+}
+
+/** The role new members get; null only for a table that breaks the server's invariant. */
+export function defaultRole(table: WorkspaceRoles): RoleDefinition | null {
+  return roleById(table, table.default_role_id);
+}
+
+/** Whether `actor` may make `role` the one new members get: `RoleChange::MakeDefault`. */
+export function mayMakeDefault(actor: RoleDefinition, role: RoleDefinition): boolean {
+  return mayEdit(actor, role) && (isOwnerRole(actor) || coversAll(actor, role.permissions));
 }
 
 /**

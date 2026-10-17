@@ -49,6 +49,11 @@ export function tableOf(answer: RolesResponse): WorkspaceRoles {
   return 'Roles' in answer ? answer.Roles : answer.RoleChanged.roles;
 }
 
+/** A refused list in the server's words. */
+function reasonOf(error: unknown): string {
+  return error instanceof Error && error.message ? error.message : 'The role table could not be read.';
+}
+
 /** Ask for the table. A no-op while a request is out or once it has arrived. */
 export function requestRoles(list: () => Promise<WorkspaceRoles>): void {
   if (state.status === 'loading' || state.status === 'loaded') return;
@@ -59,9 +64,32 @@ export function requestRoles(list: () => Promise<WorkspaceRoles>): void {
     (error: unknown): void => {
       // An answer that arrived another way (a broadcast) is not undone by this request failing.
       if (asked !== generation || state.status !== 'loading') return;
-      set({ status: 'failed', reason: error instanceof Error && error.message ? error.message : 'The role table could not be read.' });
+      set({ status: 'failed', reason: reasonOf(error) });
     },
   );
+}
+
+/**
+ * Ask for the table again, whatever this tab holds: after a reconnect or a session claim, when
+ * edits made while this tab was not listening never reached it as a RoleChanged.
+ *
+ * A table already shown stays shown until the answer replaces it, rather than every badge going
+ * back to "loading" for a table that is most likely unchanged. A refusal is kept as one, in the
+ * server's words, when there is no table to show; with one shown it is reported to `stale`, so
+ * a failed refresh is never mistaken for a fresh table nor wipes out a good one.
+ */
+export async function reloadRoles(list: () => Promise<WorkspaceRoles>, stale: (reason: string) => void): Promise<void> {
+  const asked: number = generation;
+  if (state.status !== 'loaded') set({ status: 'loading' });
+  try {
+    const table: WorkspaceRoles = await list();
+    if (asked === generation) set({ status: 'loaded', table });
+  } catch (error: unknown) {
+    if (asked !== generation) return;
+    const reason: string = reasonOf(error);
+    if (state.status === 'loading') set({ status: 'failed', reason });
+    else stale(reason);
+  }
 }
 
 /** Forget the table: another session's is not this one's. */

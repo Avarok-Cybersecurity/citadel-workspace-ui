@@ -3,7 +3,8 @@
  *
  * Deleting asks where the role's holders go and will not proceed until that is chosen: the
  * server requires it and picks none itself, so there is no default to fall back on. Only roles
- * the reader may hand out are offered, and never the one being deleted.
+ * the reader may hand out are offered, and never the one being deleted. Deleting the role new
+ * members get says so, and which role takes its place.
  */
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
@@ -19,7 +20,9 @@ import { movedPosition } from '@/lib/workspace-roles/role-positions';
 import { Permission } from '@/lib/permissions-service/types';
 import type { NewRole } from '@/lib/workspace-service/roles-operations';
 import type { RoleDraft } from '@/lib/workspace-roles/role-diff';
+import { deletingDefaultNotice } from '@/lib/workspace-roles/default-role-notice';
 import { CreateRoleForm } from './CreateRoleForm';
+import { DefaultRolePicker } from './DefaultRolePicker';
 import { RoleRow } from './RoleRow';
 import type { RoleEditor } from './use-role-editor';
 
@@ -35,10 +38,15 @@ export function RoleListPanel({ table, actor, editor }: RoleListPanelProps): JSX
   const [reassignTo, setReassignTo] = useState<string>('');
   const targets: RoleDefinition[] = deleting === null || actor === null
     ? []
-    : table.roles.filter((role: RoleDefinition): boolean => mayReassignTo(actor, deleting, role));
+    : table.roles.filter((role: RoleDefinition): boolean => mayReassignTo(table, actor, deleting, role));
   const mayCreate: boolean = actor !== null && grantsPermission(actor, Permission.ManageRoles);
 
+  const defaultNotice: string | null = deleting === null ? null : deletingDefaultNotice(table, deleting, reassignTo);
+
   const create = (role: NewRole): Promise<boolean> => editor.run('create the role', () => rolesApi.create(role));
+  const makeDefault = (id: string): void => {
+    const _: Promise<boolean> = editor.run('change the role new members get', () => rolesApi.update(id, ['MakeDefault']));
+  };
   const closeDelete = (): void => { setDeleting(null); setReassignTo(''); };
   const confirmDelete = (): void => {
     if (deleting === null || reassignTo === '') return;
@@ -49,11 +57,13 @@ export function RoleListPanel({ table, actor, editor }: RoleListPanelProps): JSX
 
   return (
     <div className="space-y-3 px-3 py-3 sm:px-6" data-testid="role-list-panel">
+      <DefaultRolePicker table={table} actor={actor} busy={editor.busy} onChoose={makeDefault} />
       <ul className="space-y-2">
         {table.roles.map((role: RoleDefinition) => (
           <RoleRow
             key={role.id}
             role={role}
+            isDefault={role.id === table.default_role_id}
             draft={editor.draftFor(role)}
             lock={columnLock(actor, role)}
             upTo={actor === null ? null : movedPosition(table, actor, role, -1)}
@@ -88,6 +98,7 @@ export function RoleListPanel({ table, actor, editor }: RoleListPanelProps): JSX
             </SelectContent>
           </Select>
           {targets.length === 0 && <p className="text-xs text-muted-foreground">There is no role you may move them to.</p>}
+          {defaultNotice !== null && <p className="text-sm text-foreground" data-testid="delete-default-notice">{defaultNotice}</p>}
         </div>
       </DeleteRoleDialog>
     </div>
