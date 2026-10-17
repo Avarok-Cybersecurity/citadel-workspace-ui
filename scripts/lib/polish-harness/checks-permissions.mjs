@@ -6,7 +6,7 @@ const TOLERANCE = 0.5;
 
 /** A ticked checkbox: the bubble a check is drawn in. */
 const TICKED_BOX = '[role="checkbox"][data-state="checked"]';
-/** A cell's mark in the read-only role reference: a tick or a dash in its 24px frame. */
+/** A cell's mark in a read-only column of the role editor (the Owner's always): a tick or a dash in its 24px frame. */
 const ROLE_MARK = '[data-role-grant]';
 
 /**
@@ -118,6 +118,8 @@ export const PERMISSION_CHECKS = {
   aLiteDialogOpensInPlace,
   roleMatrixFitsThePhone,
   checksCentredInTheMatrix: checksAreCentred('role-permissions', ROLE_MARK),
+  // The editable columns are checkboxes, and their ticks must sit centred too.
+  checksCentredInTheRoleEditor: checksAreCentred('role-permissions'),
   checksCentredInTheBareBox: checksAreCentred('bare-checkbox'),
   checksCentredForOneMember: checksAreCentred('member-permissions'),
   targetsInTheMatrix: targetsAreBigEnough('role-permissions', ROLE_MARK),

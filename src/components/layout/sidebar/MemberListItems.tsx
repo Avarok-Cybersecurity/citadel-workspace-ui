@@ -22,7 +22,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { RoleIcon, roleLabel } from '@/components/shared/RoleIcon';
+import { RoleIcon, RoleName } from '@/components/shared/RoleIcon';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { MemberActionItems } from './MemberActionItems';
 import type { MemberActionBlocks } from './member-actions-gate';
@@ -92,7 +92,7 @@ export function MemberListItems({
                       <span className="min-w-0 truncate">{member.displayName || member.username}</span>
                       {via !== null && <span className="min-w-0 truncate text-xs text-muted-foreground" data-testid="member-access-via">via {via}</span>}
                     </span>
-                    <RoleIcon role={member.role || 'member'} />
+                    <RoleIcon holder={member} />
                   </div>
                 </SidebarMenuButton>
               </TooltipTrigger>
@@ -100,7 +100,7 @@ export function MemberListItems({
                   above it, and the pointer then cannot reach them (see
                   check-chat-polish-geometry). */}
               <TooltipContent side="right" align="center" sideOffset={8}>
-                <p>{member.displayName || member.username} · {roleLabel(member.role || 'member')}</p>
+                <p>{member.displayName || member.username} · <RoleName holder={member} /></p>
                 {member.username && <p className="text-xs text-muted-foreground">@{member.username}</p>}
                 {member.title && <p className="text-xs">{member.title}</p>}
                 {member.email && <p className="text-xs text-muted-foreground">{member.email}</p>}

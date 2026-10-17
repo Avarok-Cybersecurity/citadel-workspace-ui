@@ -198,15 +198,17 @@ export async function handleLogout(
   }
 }
 
-/** Update the role for a stored session. */
+/** Record a stored session's role name and whether it administers, for the switcher. */
 export async function updateSessionRole(
-  username: string, serverAddress: string, role: string,
+  username: string, serverAddress: string, role: string, administers: boolean,
   state: ConnectionState, io: ConnectionIO,
   storeSessionFn: (session: StoredSession) => Promise<void>,
 ): Promise<void> {
   const session: StoredSession | undefined = state.findSession(username, serverAddress);
-  if (session) {
+  // Unchanged is not rewritten: this runs whenever the table or the answer re-renders.
+  if (session && (session.role !== role || session.administers !== administers)) {
     session.role = role;
+    session.administers = administers;
     await storeSessionFn(session);
   }
 }

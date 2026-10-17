@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import type { UserData, UserSearchProps } from './user-search-types';
 import { UserSearchResults, RESULTS_LIST_ID } from './UserSearchResults';
-import type { User, UserRole } from '@/types/workspace-entities';
+import type { User } from '@/types/workspace-entities';
 
 // Re-export types for backward compatibility
 export type { UserData } from './user-search-types';
@@ -104,7 +104,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
         const matches: (haystack: string) => boolean = searchMatcher(searchTerm);
         const excluded: Set<string> = new Set(exclude);
 
-        const filteredMembers: { id: string; displayName: string; avatarUrl: string | undefined; email: string | undefined; role: UserRole | undefined; isOnline: boolean | null; lastActive: undefined; }[] = members
+        const filteredMembers: { id: string; displayName: string; avatarUrl: string | undefined; email: string | undefined; role: string | undefined; roleId: string | undefined; isOnline: boolean | null; lastActive: undefined; }[] = members
           .filter(member =>
             !excluded.has(member.id) &&
             (matches(member.displayName) || (member.email ? matches(member.email) : false))
@@ -115,6 +115,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
             avatarUrl: member.avatarUrl,
             email: member.email,
             role: member.role,
+            roleId: member.roleId,
             // Real presence, from the polled peer registry -- the same set the
             // sidebar's peer list uses. This was `Math.random() > 0.5`, then
             // `connectionService.canMessageUser`, which reads a map written

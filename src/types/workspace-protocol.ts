@@ -6,7 +6,7 @@
  * communication between the TypeScript frontend and Rust backend.
  */
 
-import type { MessagingTrustRequest, SignInSettings, TelemetryRequest, WorkspaceLogoChange } from 'citadel-workspace-client-ts';
+import type { MemberRole, MessagingTrustRequest, RolesRequest, SignInSettings, TelemetryRequest, WorkspaceLogoChange } from 'citadel-workspace-client-ts';
 
 /**
  * The main protocol payload that wraps either a request or response
@@ -63,7 +63,7 @@ export interface WorkspaceProtocolRequestTS {
   AddMember?: {
     user_id: string;
     domain_id?: string;
-    role: UserRoleTS;
+    role: MemberRole; // A role id from the table, or the legacy 'Banned'.
     metadata?: number[];
   };
   GetMember?: {
@@ -71,7 +71,7 @@ export interface WorkspaceProtocolRequestTS {
   };
   UpdateMemberRole?: {
     user_id: string;
-    role: UserRoleTS;
+    role: MemberRole; // A role id from the table, or the legacy 'Banned'.
     metadata?: number[];
   };
   UpdateMemberPermissions?: {
@@ -162,6 +162,7 @@ export interface WorkspaceProtocolRequestTS {
   // The sign-in settings (lib/workspace-service/sign-in-settings.ts).
   Telemetry?: TelemetryRequest; // Terms, consent and the diagnostic-log service.
   MessagingTrust?: MessagingTrustRequest; // Who connects without asking (messaging-trust-operations.ts).
+  Roles?: RolesRequest; // The workspace role table (roles-operations.ts).
   GetSignInSettings?: null;
   UpdateSignInSettings?: { settings: SignInSettings };
   DeleteNode?: { node_id: string; cascade: boolean };
@@ -215,13 +216,6 @@ export interface UserTS {
   display_name: string;
   name?: string;
   metadata?: Record<string, unknown>; // For avatar and other user metadata
-}
-
-export enum UserRoleTS {
-  Owner = 'owner',
-  Admin = 'admin',
-  Member = 'member',
-  Guest = 'guest'
 }
 
 export enum PermissionTS {

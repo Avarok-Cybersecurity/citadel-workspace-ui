@@ -3,15 +3,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { MessageCircle, UserPlus } from 'lucide-react';
 import { formatPresence } from '@/lib/date-utils';
-import { UserRole } from '@/types/workspace-entities';
-import { roleBadgeClass } from '@/lib/role-badge';
+import { MemberRoleBadge } from '@/components/shared/MemberRoleBadge';
 
 export interface MemberDisplay {
   id: string;
   displayName: string;
   avatarUrl?: string;
   email?: string;
-  role?: UserRole;
+  /** The legacy role mirror, shown only when `roleId` is unknown. */
+  role?: string;
+  roleId?: string;
   /** Null: nobody has said. See lib/presence.ts. */
   isOnline: boolean | null;
   lastActive?: number;
@@ -20,13 +21,6 @@ export interface MemberDisplay {
   /** Already a registered peer: a connection request would be for a contact you have. */
   isContact: boolean;
 }
-
-/** Re-exported for existing importers; the decision lives in lib/role-badge. */
-function getRoleBadgeClass(role?: UserRole): string {
-  return roleBadgeClass(role);
-}
-
-export { getRoleBadgeClass };
 
 interface MemberListItemProps {
   member: MemberDisplay;
@@ -71,11 +65,7 @@ export function MemberListItem({ member, variant, onSendMessage, onInvite, onSel
             {member.isSelf && <Badge variant="outline" className="ml-2 text-xs">You</Badge>}
           </h3>
           <div className="flex items-center space-x-2">
-            {member.role && (
-              <Badge className={`text-xs ${getRoleBadgeClass(member.role)}`}>
-                {member.role}
-              </Badge>
-            )}
+            <MemberRoleBadge holder={member} className="text-xs" />
             <span className={`text-xs ${variant === 'online' ? 'text-success-emphasis' : 'text-muted-foreground'}`}>
               {variant === 'online'
                 ? 'Online now'

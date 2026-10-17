@@ -42,6 +42,8 @@ export const SUCCESS_RESPONSES: Record<string, readonly string[]> = {
   Telemetry: ['Telemetry'],
   // Likewise MessagingTrust; messaging-trust-operations picks the kind and the peer.
   MessagingTrust: ['MessagingTrust'],
+  // And Roles: a List is answered with the table, an edit with RoleChanged; roles-operations matches which.
+  Roles: ['Roles'],
   GetSignInSettings: ['SignInSettings'],
   UpdateSignInSettings: ['SignInSettings'],
   DeleteNode: ['NodeDeleted'],
@@ -129,6 +131,9 @@ export async function awaitWriteResponse(
     return;
   }
 
+  // Held out here so a send that fails can stand the wait down. It used to leave the timer and
+  // the listener behind, and the timer then rejected a promise nobody held, 15s later.
+  let standDown: () => void = (): void => {};
   const settled: Promise<void> = new Promise<void>((resolve, reject) => {
     const timeoutId: NodeJS.Timeout = setTimeout((): void => {
       eventEmitter.off('workspace:raw-response', handler);
@@ -161,6 +166,10 @@ export async function awaitWriteResponse(
     };
 
     eventEmitter.on('workspace:raw-response', handler);
+    standDown = (): void => {
+      clearTimeout(timeoutId);
+      eventEmitter.off('workspace:raw-response', handler);
+    };
   });
 
   // Subscribe BEFORE sending. The response can arrive within the same tick on a
@@ -170,6 +179,7 @@ export async function awaitWriteResponse(
     await send();
   } catch (sendError) {
     debugLog('WorkspaceService', `${requestType} failed to send`, sendError);
+    standDown();
     throw sendError;
   }
 

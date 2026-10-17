@@ -4,8 +4,9 @@
  * Found live (2026-09-29): a Member saw an Admin's Manage Permissions, Change
  * Role and Remove Member all enabled; each could only end in a refusal.
  *
- * Real: the gate and the menu items. The permission answer is a plain value --
- * the shape `usePermission` returns -- not a mocked hook.
+ * Real: the gate and the menu items. The permission answers (ManageRoles at the
+ * workspace, RemoveUsers here) are plain values -- the shape `usePermission`
+ * returns -- not a mocked hook.
  */
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
@@ -26,29 +27,27 @@ const DENIED: UsePermissionResult = answer({});
 const GRANTED: UsePermissionResult = answer({ allowed: true });
 
 describe('memberActionBlocks', () => {
-  it('blocks all three for a Member with no RemoveUsers, each with its reason', () => {
-    expect(memberActionBlocks('Member', DENIED)).toEqual({
+  it('blocks all three for someone without ManageRoles or RemoveUsers, each with its reason', () => {
+    expect(memberActionBlocks(DENIED, DENIED)).toEqual({
       managePermissions: ONLY_ADMINS_MANAGE_PERMISSIONS,
       changeRole: ONLY_ADMINS_CHANGE_ROLES,
       remove: PERMISSION_SENTENCE.RemoveUsers,
     });
   });
 
-  it('blocks nothing for an Admin or an Owner, in either casing or the object form', () => {
-    for (const role of ['Admin', 'owner', { Owner: null }]) {
-      expect(memberActionBlocks(role, GRANTED)).toEqual({ managePermissions: null, changeRole: null, remove: null });
-    }
+  it('blocks nothing for someone holding both, whatever their role is called', () => {
+    expect(memberActionBlocks(GRANTED, GRANTED)).toEqual({ managePermissions: null, changeRole: null, remove: null });
   });
 
-  it('follows RemoveUsers separately: a Member granted it may remove, not re-role', () => {
-    const blocks: MemberActionBlocks = memberActionBlocks('Member', GRANTED);
+  it('follows RemoveUsers separately: granted it without ManageRoles, they may remove, not re-role', () => {
+    const blocks: MemberActionBlocks = memberActionBlocks(DENIED, GRANTED);
     expect(blocks.remove).toBeNull();
     expect(blocks.changeRole).toBe(ONLY_ADMINS_CHANGE_ROLES);
   });
 
-  it('offers everything while the role and the permission are still unknown', () => {
+  it('offers everything while both answers are still unknown', () => {
     for (const pending of [answer({ loading: true }), answer({ answered: false }), answer({ unanswered: true })]) {
-      expect(memberActionBlocks(undefined, pending)).toEqual({ managePermissions: null, changeRole: null, remove: null });
+      expect(memberActionBlocks(pending, pending)).toEqual({ managePermissions: null, changeRole: null, remove: null });
     }
   });
 });
@@ -66,7 +65,7 @@ function openMenu(blocks: MemberActionBlocks): void {
 
 describe('the member actions menu', () => {
   it('disables what is blocked and shows the reasons once each', () => {
-    openMenu(memberActionBlocks('Member', DENIED));
+    openMenu(memberActionBlocks(DENIED, DENIED));
     for (const name of [/manage permissions/i, /change role/i, /remove member/i]) {
       expect(screen.getByRole('menuitem', { name })).toHaveAttribute('data-disabled');
     }

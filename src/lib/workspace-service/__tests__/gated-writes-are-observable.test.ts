@@ -35,6 +35,7 @@ const PAYLOADS: Record<string, unknown> = {
   SignInSettings: { require_turnstile_sign_in: true },
   Telemetry: { Deleted: { segments: 0 } },
   MessagingTrust: { Settings: { workspace: 'AllTrusted', mine: null, effective_root: 'workspace-root' } },
+  Roles: { RoleChanged: { role_id: 'guest', roles: { roles: [], default_role_id: 'member' } } },
 };
 
 /**

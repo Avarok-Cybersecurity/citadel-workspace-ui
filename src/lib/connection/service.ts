@@ -242,8 +242,8 @@ export class ConnectionManager {
     }
   }
 
-  public async updateSessionRole(username: string, serverAddress: string, role: string): Promise<void> {
-    await updateSessionRole(username, serverAddress, role, this.state, this.io, (s) => this.storeSession(s));
+  public async updateSessionRole(username: string, serverAddress: string, role: string, administers: boolean): Promise<void> {
+    await updateSessionRole(username, serverAddress, role, administers, this.state, this.io, (s) => this.storeSession(s));
   }
 }
 

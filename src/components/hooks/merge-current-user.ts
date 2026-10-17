@@ -24,6 +24,8 @@ export interface CurrentUser {
   readonly username: string;
   readonly name: string;
   readonly role?: string;
+  /** The role-table id; see WorkspaceContext. */
+  readonly roleId?: string;
   readonly displayName?: string;
   readonly avatarUrl?: string;
 }
@@ -56,6 +58,7 @@ export function mergeCurrentUser(
 /** The fields the signed-in user's own member record supplies. */
 export interface OwnMemberFields {
   readonly role?: string;
+  readonly roleId?: string;
   readonly displayName?: string;
   readonly avatarUrl?: string;
   readonly email?: string;
@@ -79,6 +82,7 @@ export function applyOwnMemberRecord<T extends CurrentUser & OwnMemberFields>(us
   return {
     ...user,
     role: member.role ?? user.role,
+    roleId: member.roleId ?? user.roleId,
     displayName: member.displayName || user.name,
     avatarUrl: member.avatarUrl ?? user.avatarUrl,
     email: member.email,

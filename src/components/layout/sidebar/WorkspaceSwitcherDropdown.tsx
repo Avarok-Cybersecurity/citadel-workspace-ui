@@ -1,5 +1,4 @@
 import { Plus, Server, Settings, Shield } from "lucide-react";
-import { isPrivilegedRole } from '@/lib/role-predicate';
 import {
   DropdownMenuContent,
   DropdownMenuItem,
@@ -64,8 +63,10 @@ export function WorkspaceSwitcherDropdown({
                   {workspace.fullName || workspace.username}
                 </span>
                 <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  @{workspace.username} · {workspace.role || 'Member'}
-                  {isPrivilegedRole(workspace.role) && (
+                  @{workspace.username}{workspace.role ? ` · ${workspace.role}` : ''}
+                  {/* Persisted from the ManageRoles answer (use-persist-own-standing): another
+                      account's permissions cannot be asked from here. */}
+                  {workspace.administers && (
                     <span title="Administrator"><Shield className="w-3 h-3 text-warning-emphasis" /></span>
                   )}
                 </span>

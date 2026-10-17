@@ -1,7 +1,7 @@
 /**
  * Permissions Service - Types & Constants
  *
- * Permission enum, UserRole type, DomainPermissions interface,
+ * Permission enum, DomainPermissions interface,
  * and human-readable label / category constants.
  */
 
@@ -42,6 +42,8 @@ export enum Permission {
   AddUsers = 'AddUsers',
   RemoveUsers = 'RemoveUsers',
   BanUser = 'BanUser',
+  /** Edit the workspace's role table, and change other members' roles and grants. */
+  ManageRoles = 'ManageRoles',
   // Messaging
   SendMessages = 'SendMessages',
   ReadMessages = 'ReadMessages',
@@ -53,16 +55,16 @@ export enum Permission {
   ConfigureSystem = 'ConfigureSystem',
 }
 
-/**
- * User role matching Rust UserRole type
- */
-export type UserRole = 'Admin' | 'Owner' | 'Member' | 'Guest' | 'Banned' | { Custom: [string, number] };
+/** The legacy role enum, as generated. Only `Banned` still means anything; a role is a table id. */
+export type { UserRole } from 'citadel-workspace-client-ts';
+import type { UserRole } from 'citadel-workspace-client-ts';
 
 /**
  * Permission set for a specific domain
  */
 export interface DomainPermissions {
   domainId: string;
+  /** The legacy mirror. Never read for authority; the role is `currentUser.roleId`. */
   role: UserRole;
   permissions: Set<Permission>;
   lastUpdated: number;
@@ -101,6 +103,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   [Permission.AddUsers]: 'Add Users',
   [Permission.RemoveUsers]: 'Remove Users',
   [Permission.BanUser]: 'Ban User',
+  [Permission.ManageRoles]: 'Manage roles',
   [Permission.SendMessages]: 'Send Messages',
   [Permission.ReadMessages]: 'Read Messages',
   [Permission.UploadFiles]: 'Upload Files',
@@ -111,33 +114,6 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
 
 /** Every permission, in declaration order. Mirrors `Permission::ALL_VARIANTS`. */
 export const ALL_PERMISSIONS: Permission[] = Object.values(Permission);
-
-/**
- * What each role is granted by default, mirroring `Permission::for_role` in
- * citadel-workspace-types. The server is authoritative — this exists so the
- * admin UI can show what a role means before it is applied, and
- * scripts/check-permission-parity.mjs fails the build if the two disagree.
- *
- * Admin is listed as the full set rather than the bare `All` wildcard the server
- * stores: the two grant identical access, and the permission matrix would
- * otherwise render an administrator with every box unticked but one.
- */
-export const ROLE_DEFAULT_PERMISSIONS: Record<string, Permission[]> = {
-  Admin: ALL_PERMISSIONS,
-  Owner: ALL_PERMISSIONS.filter(
-    (p) => p !== Permission.All && p !== Permission.ConfigureSystem,
-  ),
-  Member: [
-    Permission.ViewContent,
-    Permission.ViewMembers,
-    Permission.SendMessages,
-    Permission.ReadMessages,
-    Permission.UploadFiles,
-    Permission.DownloadFiles,
-  ],
-  Guest: [Permission.ViewContent, Permission.ViewMembers],
-  Banned: [],
-};
 
 /**
  * Permission categories for UI grouping
@@ -182,7 +158,7 @@ export const PERMISSION_CATEGORIES = {
   },
   users: {
     label: 'User Management',
-    permissions: [Permission.ViewMembers, Permission.AddUsers, Permission.RemoveUsers, Permission.BanUser],
+    permissions: [Permission.ViewMembers, Permission.AddUsers, Permission.RemoveUsers, Permission.BanUser, Permission.ManageRoles],
   },
   admin: {
     label: 'Administration',

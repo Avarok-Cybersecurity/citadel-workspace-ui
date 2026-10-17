@@ -65,6 +65,18 @@ export function permits(result: UsePermissionResult): boolean {
   return result.allowed || result.loading || result.unanswered || !result.answered;
 }
 
+/**
+ * Whether the answer is a KNOWN yes: for a display that claims the permission, never for a gate.
+ *
+ * A badge or ring saying "workspace administrator" asserts something about the reader, and
+ * `permits` would assert it for everyone while their answer is still on its way, or for good
+ * if it never comes. What such a display shows is the answer, so it waits for one. A control
+ * a person may use asks `permits`.
+ */
+export function confirms(result: UsePermissionResult): boolean {
+  return result.allowed;
+}
+
 /** An action's enabled state and, when it is off, the reason to show. */
 export interface ActionGate {
   enabled: boolean;

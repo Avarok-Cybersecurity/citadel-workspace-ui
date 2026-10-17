@@ -136,19 +136,20 @@ export function handleGeneratedVariants(
   }
 
   if (isVariant(response, 'UserPermissions')) {
-    const { user_id, role, permissions, domain_id } = response.UserPermissions;
-    debugLog('WorkspaceResponseHandler', 'UserPermissions received', { user_id, role, domain_id });
+    const { user_id, role, role_id, permissions, domain_id } = response.UserPermissions;
+    debugLog('WorkspaceResponseHandler', 'UserPermissions received', { user_id, role_id, domain_id });
+    // `?? null`: an absent Option arrives from WASM as undefined, not null.
     eventEmitter.emit('user:permissions:loaded', {
-      userId: user_id, role, permissions, domainId: domain_id, connection: connectionInfo,
+      userId: user_id, role, roleId: role_id ?? null, permissions, domainId: domain_id, connection: connectionInfo,
     });
     return true;
   }
 
   if (isVariant(response, 'MemberRoleUpdated')) {
-    const { user_id, new_role } = response.MemberRoleUpdated;
-    debugLog('WorkspaceResponseHandler', 'MemberRoleUpdated received', { user_id, new_role });
+    const { user_id, new_role, role_id } = response.MemberRoleUpdated;
+    debugLog('WorkspaceResponseHandler', 'MemberRoleUpdated received', { user_id, role_id });
     eventEmitter.emit('member:role-updated', {
-      userId: user_id, role: new_role, connection: connectionInfo,
+      userId: user_id, role: new_role, roleId: role_id ?? null, connection: connectionInfo,
     });
     // Also raw, so a caller awaiting confirmation can see it.
     //
@@ -209,6 +210,14 @@ export function handleGeneratedVariants(
     // The settings screens follow it (messaging-trust/settings-feed.ts); the requests in
     // messaging-trust-operations.ts wait on the raw event for their own answer.
     eventEmitter.emit('workspace:messaging-trust', { answer: response.MessagingTrust, connection: connectionInfo });
+    eventEmitter.emit('workspace:raw-response', response);
+    return true;
+  }
+
+  if (isVariant(response, 'Roles')) {
+    // The table, listed or changed: the store replaces its copy (workspace-roles/roles-store.ts),
+    // and the requests in roles-operations.ts wait on the raw event for their own answer.
+    eventEmitter.emit('workspace:roles', { answer: response.Roles, connection: connectionInfo });
     eventEmitter.emit('workspace:raw-response', response);
     return true;
   }

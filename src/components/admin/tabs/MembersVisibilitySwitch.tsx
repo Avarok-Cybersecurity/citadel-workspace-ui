@@ -4,7 +4,10 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { isAdminRole } from '@/lib/role-predicate';
+import { usePermission } from '@/hooks/use-permission';
+import { permits } from '@/hooks/use-permission-result';
+import { Permission } from '@/lib/permissions-service/types';
+import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 import { describeFailure } from '@/lib/failure-message';
 import WorkspaceService from '@/lib/workspace-service';
 import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
@@ -18,15 +21,17 @@ import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
  * of this node and of everything inside it see a notice instead of the list;
  * admins and owners still see it.
  *
- * Shown to admins only, the one role the server lets set it. The workspace
- * itself has no switch: it is not a node.
+ * Shown to whoever holds EditWorkspaceConfig, which is what the server asks of
+ * SetMembersVisible (it was "Admin" by name, so an Owner never saw it). The
+ * workspace itself has no switch: it is not a node.
  */
 export function MembersVisibilitySwitch({ entityType, entityId }: { entityType: string; entityId: string }): JSX.Element | null {
   const { state } = useWorkspace();
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
+  const configures: boolean = permits(usePermission(WORKSPACE_ROOT_ID, Permission.EditWorkspaceConfig));
   const node: DomainNode | undefined = state.nodes[entityId];
-  if (entityType === 'workspace' || !node || !isAdminRole(state.currentUser?.role)) return null;
+  if (entityType === 'workspace' || !node || !configures) return null;
 
   const change = async (visible: boolean): Promise<void> => {
     setSaving(true);

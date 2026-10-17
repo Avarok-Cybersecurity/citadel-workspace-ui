@@ -1,5 +1,5 @@
 import { Menu, LogOut, ArrowLeft, Download } from "lucide-react";
-import { isPrivilegedRole } from '@/lib/role-predicate';
+import { useOwnStanding } from './use-persist-own-standing';
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -70,8 +70,9 @@ export const TopBar = ({ currentWorkspace }: TopBarProps): JSX.Element => {
   const avatarUrl: string | undefined = state.currentUser?.avatarUrl;
 
 
-  const userRole: string | undefined = state.currentUser?.role;
-  const isAdmin: boolean = isPrivilegedRole(userRole);
+  // ManageRoles: an administrator is someone who manages people's roles. A known yes only,
+  // since the ring claims it (see confirms).
+  const isAdmin: boolean = useOwnStanding();
 
 
   return (

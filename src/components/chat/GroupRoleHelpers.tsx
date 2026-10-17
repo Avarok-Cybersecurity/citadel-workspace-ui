@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,12 +32,18 @@ export function formatPermissions(role: GroupRole): string {
 }
 
 interface DeleteRoleDialogProps {
-  roleToDelete: GroupRole | null;
+  /** Any role with a name: a group's, or the workspace table's (RoleListPanel). */
+  roleToDelete: { name: string } | null;
   onOpenChange: () => void;
   onConfirm: () => void;
+  /** What happens to its holders; the group's sentence when not given. */
+  description?: string;
+  /** Inputs the confirmation needs, such as the workspace's required reassign-to picker. */
+  children?: ReactNode;
+  /** Holds Delete back until those inputs are complete. */
+  confirmDisabled?: boolean;
 }
 
-/** Confirmation dialog for deleting a group role. */
 /** Checks whether the current user can manage a specific role. */
 export function canManageSpecificRole(
   myRoleId: string | undefined,
@@ -51,7 +58,9 @@ export function canManageSpecificRole(
 }
 
 /** Confirmation dialog for deleting a group role. */
-export function DeleteRoleDialog({ roleToDelete, onOpenChange, onConfirm }: DeleteRoleDialogProps): JSX.Element {
+export function DeleteRoleDialog({
+  roleToDelete, onOpenChange, onConfirm, description, children, confirmDisabled,
+}: DeleteRoleDialogProps): JSX.Element {
   return (
     <AlertDialog open={!!roleToDelete} onOpenChange={onOpenChange}>
       <AlertDialogContent className="bg-background border-border">
@@ -60,16 +69,17 @@ export function DeleteRoleDialog({ roleToDelete, onOpenChange, onConfirm }: Dele
             Delete Role &ldquo;{roleToDelete?.name}&rdquo;?
           </AlertDialogTitle>
           <AlertDialogDescription className="text-muted-foreground">
-            This action cannot be undone. Members with this role will need to
-            be reassigned to another role.
+            {description ?? 'This action cannot be undone. Members with this role will need to be reassigned to another role.'}
           </AlertDialogDescription>
         </AlertDialogHeader>
+        {children}
         <AlertDialogFooter>
           <AlertDialogCancel className="bg-transparent border-border text-foreground hover:bg-surface">
             Cancel
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
+            disabled={confirmDisabled}
             className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
           >
             Delete

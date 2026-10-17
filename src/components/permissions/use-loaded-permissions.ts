@@ -7,7 +7,7 @@ import { TIMEOUT } from '@/lib/timeout-constants';
 
 export type PermissionsLoad =
   | { status: 'loading' }
-  | { status: 'loaded'; permissions: Set<string>; role: string }
+  | { status: 'loaded'; permissions: Set<string>; role: string; roleId: string | null }
   | { status: 'failed'; reason: string };
 
 const LOADING: PermissionsLoad = { status: 'loading' };
@@ -48,12 +48,14 @@ export function useLoadedPermissionsAt(userId: string, domainIds: readonly strin
       userId: string;
       domainId: string;
       role: string;
+      /** Absent from a payload that predates the role table. */
+      roleId?: string | null;
       permissions: string[];
     }): void => {
       // Both, because one editor can be open while another domain's response
       // arrives — and the response is the only thing that says which is which.
       if (payload.userId !== userId || !ids.includes(payload.domainId)) return;
-      settle(payload.domainId, { status: 'loaded', permissions: new Set(payload.permissions), role: payload.role });
+      settle(payload.domainId, { status: 'loaded', permissions: new Set(payload.permissions), role: payload.role, roleId: payload.roleId ?? null });
     };
 
     const unsubscribe: () => void = eventEmitter.on('user:permissions:loaded', onLoaded);

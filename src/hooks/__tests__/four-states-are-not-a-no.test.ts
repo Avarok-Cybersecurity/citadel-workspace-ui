@@ -15,7 +15,7 @@
  * permissions had not loaded.
  */
 import { describe, it, expect } from 'vitest';
-import { permits } from '../use-permission-result';
+import { confirms, permits } from '../use-permission-result';
 import type { UsePermissionResult } from '../use-permission-result';
 
 function answer(over: Partial<UsePermissionResult>): UsePermissionResult {
@@ -42,5 +42,14 @@ describe('what permits a control', () => {
     // The positive control. Without it, `() => true` satisfies everything above
     // and every permission in the app becomes unenforceable.
     expect(permits(answer({ allowed: false, answered: true }))).toBe(false);
+  });
+});
+
+describe('what a display claiming the permission may assert', () => {
+  it('asserts only a known yes: none of the other three states is one', () => {
+    expect(confirms(answer({ allowed: true }))).toBe(true);
+    expect(confirms(answer({ loading: true }))).toBe(false);
+    expect(confirms(answer({ unanswered: true }))).toBe(false);
+    expect(confirms(answer({ answered: false }))).toBe(false);
   });
 });

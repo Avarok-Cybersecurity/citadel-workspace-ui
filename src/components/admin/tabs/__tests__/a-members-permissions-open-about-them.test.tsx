@@ -20,6 +20,7 @@ vi.mock('@/lib/workspace-service', () => ({
 const { eventEmitter } = await import('@/lib/event-emitter');
 const { WORKSPACE_ROOT_ID } = await import('@/lib/workspace-constants');
 const { WorkspaceProvider } = await import('@/contexts/WorkspaceContext');
+const { PermissionsProvider } = await import('@/contexts/PermissionsContext');
 const { MembersTab } = await import('../MembersTab');
 import type { WorkspaceState } from '@/contexts/WorkspaceContext';
 import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
@@ -37,7 +38,7 @@ const STATE: WorkspaceState = {
 
 describe('Permissions on one member in the admin panel', () => {
   it('opens the editor about that member, at the level the tab is for -- not the role matrix', async () => {
-    render(<WorkspaceProvider state={STATE}><MembersTab entityType="office" entityId="hq" onClose={() => {}} /></WorkspaceProvider>);
+    render(<PermissionsProvider><WorkspaceProvider state={STATE}><MembersTab entityType="office" entityId="hq" onClose={() => {}} /></WorkspaceProvider></PermissionsProvider>);
     act(() => {
       eventEmitter.emit('members:loaded', { domainId: 'hq', members: [{ id: 'ada', username: 'ada', displayName: 'Ada Lovelace', role: 'Member' }] });
     });

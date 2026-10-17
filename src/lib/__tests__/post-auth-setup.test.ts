@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { WorkspaceRoles } from 'citadel-workspace-client-ts';
 
 /**
  * Tests for `postAuthSetup` — the single source of truth for the
@@ -54,6 +55,16 @@ vi.mock('@/lib/workspace-service', () => ({
   },
 }));
 
+// The role table's read, the same boundary: a server round trip over the live session.
+vi.mock('@/lib/workspace-roles/roles-api', () => ({
+  rolesApi: {
+    list: async (): Promise<WorkspaceRoles> => {
+      spies.calls.push({ name: 'listRoles', args: [] });
+      return { roles: [], default_role_id: 'member' };
+    },
+  },
+}));
+
 import { postAuthSetup } from '../post-auth-setup';
 
 describe('postAuthSetup', () => {
@@ -81,6 +92,8 @@ describe('postAuthSetup', () => {
       // Nothing asked for the list at boot, so an administrator who never opened
       // the members panel was shown a member's app.
       'listMembers',
+      // The role table, read again: after a reconnect or claim it was kept from before.
+      'listRoles',
     ]);
     expect(spies.setConnectionIdSpy).toHaveBeenCalledWith(cid);
   });
@@ -94,6 +107,7 @@ describe('postAuthSetup', () => {
       // Skipping the tree schema does not skip the role: a caller that does not
       // need entity types still needs to know whether it is an administrator.
       'listMembers',
+      'listRoles',
     ]);
     expect(spies.getTreeSchemaSpy).not.toHaveBeenCalled();
   });
