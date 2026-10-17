@@ -12,13 +12,16 @@
 import { isResponseType, type InternalServiceResponse } from 'citadel-workspace-client-ts';
 import { eventEmitter } from '@/lib/event-emitter';
 import { extensionFor } from '@/lib/sign-in/challenge-watch';
-import type { AdmissionReason } from '@/lib/admission/refusal';
+import { admissionChallengeOf, type AdmissionChallenge, type AdmissionReason } from '@/lib/admission/refusal';
 
 export type ConnectOutcome =
   | { kind: 'connected'; cid: bigint }
   | { kind: 'already-active'; cid: bigint; username: string; message: string }
-  /** reasonCode: the server's admission refusal (a human check was required or failed), if that is why. */
-  | { kind: 'failed'; cid: bigint; message: string; reasonCode: AdmissionReason | null };
+  /**
+   * reasonCode: the server's admission refusal (a human check was required or failed), if that
+   * is why; challenge: the check it published to show (refusal.ts admissionChallengeOf).
+   */
+  | { kind: 'failed'; cid: bigint; message: string; reasonCode: AdmissionReason | null; challenge: AdmissionChallenge | null };
 
 /**
  * A sign-in that asks for a security key answers only after the touch, so a
@@ -54,6 +57,7 @@ export function awaitConnectOutcome(requestId: string, timeoutMs: number): Promi
         settle({
           kind: 'failed', cid: response.ConnectFailure.cid, message: response.ConnectFailure.message || 'Connection failed',
           reasonCode: response.ConnectFailure.reason_code ?? null,
+          challenge: admissionChallengeOf(response.ConnectFailure as unknown as Record<string, unknown>),
         });
       }
     };
