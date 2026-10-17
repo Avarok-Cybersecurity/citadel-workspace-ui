@@ -15,7 +15,8 @@ import { getEntityIcon, getEntityTypeString } from '@/lib/entity-type-registry';
 import { rowClass } from '../selected-row';
 import type { DomainNode } from '../tree-node-types';
 import type { ChildIndex } from '../focused-view';
-import { ITEM_CLASS, PresenceScope, ROW_ITEM, useFadeOut, Unfold, useLeaving } from './tree-motion';
+import { ITEM_CLASS, PresenceScope, useRowItem, useFadeOut, useLeaving } from './tree-motion';
+import { Unfold } from './tree-boxes';
 import { NodeActionsMenu, type NodeActions } from './NodeActionsMenu';
 import { ChildList } from './ChildRows';
 import { childCountLabel, rootLabel } from './level-labels';
@@ -52,7 +53,7 @@ export const SiblingRow: ForwardRefExoticComponent<SiblingRowProps & RefAttribut
   const fade: MotionValue<number> = useFadeOut();
 
   return (
-    <motion.li ref={ref} {...ROW_ITEM} style={{ opacity: fade }} role="none" className={cn(ITEM_CLASS, leaving && 'pointer-events-none')}>
+    <motion.li ref={ref} {...useRowItem()} style={{ opacity: fade }} role="none" className={cn(ITEM_CLASS, leaving && 'pointer-events-none')}>
       <TreeRow
         motionId={node.id}
         info={{ kind: 'sibling', nodeId: node.id, parentId, selected: isSelected, expandable: hasChildren, expanded: unfolded && hasChildren }}

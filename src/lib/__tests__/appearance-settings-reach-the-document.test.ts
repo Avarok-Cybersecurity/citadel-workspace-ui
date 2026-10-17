@@ -64,12 +64,25 @@ describe('appearance settings', () => {
     expect(root().dataset.avatars).toBe('on');
   });
 
-  it('sets the motion class only when animations are turned off', () => {
-    applyAppearanceSettings({ ...defaultAppearanceSettings, animationsEnabled: false });
-    expect(root().classList.contains('reduce-motion')).toBe(true);
+  it('marks the document off only for Off, and lite only for Lite', () => {
+    const marks = (): [boolean, boolean] => [root().classList.contains('reduce-motion'), root().classList.contains('lite-motion')];
+    applyAppearanceSettings({ ...defaultAppearanceSettings, animations: 'off' });
+    expect(marks()).toEqual([true, false]);
+    applyAppearanceSettings({ ...defaultAppearanceSettings, animations: 'lite' });
+    expect(marks()).toEqual([false, true]);
+    applyAppearanceSettings({ ...defaultAppearanceSettings, animations: 'full' });
+    expect(marks()).toEqual([false, false]);
+  });
 
-    applyAppearanceSettings({ ...defaultAppearanceSettings, animationsEnabled: true });
-    expect(root().classList.contains('reduce-motion')).toBe(false);
+  it('reads the old Animations switch as the choice it was: off stays off, on becomes Auto', () => {
+    localStorage.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify({ animationsEnabled: false }));
+    expect(loadAppearanceSettings().animations).toBe('off');
+    localStorage.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify({ animationsEnabled: true }));
+    expect(loadAppearanceSettings().animations).toBe('auto');
+    localStorage.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify({ animations: 'lite', animationsEnabled: false }));
+    expect(loadAppearanceSettings().animations).toBe('lite');
+    localStorage.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify({ animations: 'turbo' }));
+    expect(loadAppearanceSettings().animations).toBe('auto');
   });
 
   it('saving applies as well as persists', () => {

@@ -3,7 +3,7 @@
  * six-level estate, at the sidebar's own width. The selection lives in local state here instead of the
  * URL -- the input, not the component, is what a scenario fakes.
  *
- * `?sel=<id>` picks the starting selection; `?anim=off` is the user's Animations switch turned off;
+ * `?sel=<id>` picks the starting selection; `?anim=off` / `?anim=lite` is the user's Animations setting (else Full);
  * `?to=<id>` adds a control, out of the flow, that selects that node in one step -- the way a link or a
  * search result moves the selection anywhere, not only to a row on screen.
  */
@@ -56,7 +56,9 @@ window.__motionFrame = frameData;
  */
 function prepare() {
   setTreeSchema(SCHEMA);
-  applyAppearanceSettings({ ...defaultAppearanceSettings, animationsEnabled: query().get('anim') !== 'off' });
+  // Pinned, never Auto: Auto reads the machine (a 4-core CI runner is lite), and each check says which tier it measures.
+  const anim = query().get('anim');
+  applyAppearanceSettings({ ...defaultAppearanceSettings, animations: anim === 'off' || anim === 'lite' ? anim : 'full' });
   return query().get('sel') ?? undefined;
 }
 

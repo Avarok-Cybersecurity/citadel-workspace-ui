@@ -21,7 +21,8 @@ const SRC: string = join(process.cwd(), 'src');
 const CONSUMED_BY: Record<string, string> = {
   sidebarWidth: '--appearance-sidebar-width',
   showAvatars: 'data-avatars',
-  animationsEnabled: '.reduce-motion',
+  // Off is `.reduce-motion`, as the switch was; Lite is the class only a tiered choice can set.
+  animations: '.lite-motion',
 };
 
 /**

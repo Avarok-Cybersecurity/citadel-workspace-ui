@@ -1,37 +1,38 @@
 /**
- * Script-driven motion stops when the user switches Animations off.
+ * Script-driven motion follows the Animations setting while mounted.
  *
- * index.css stops CSS motion under `.reduce-motion`; framer's motion is
- * script-driven, so the focused sidebar's FLIP reads the switch itself (see
- * use-motion-allowed) and must follow it while mounted.
+ * index.css stops CSS motion under `.reduce-motion` and lightens it under
+ * `.lite-motion`; framer's motion is script-driven, so the focused sidebar
+ * reads the same document state itself (see use-motion-tier) and must follow
+ * it -- including a downgrade that lands after the tree has mounted.
  */
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
-import { applyAppearanceSettings, defaultAppearanceSettings } from '@/lib/appearance-settings';
-import { useMotionAllowed } from '../use-motion-allowed';
+import { applyAppearanceSettings, defaultAppearanceSettings, type AppearanceSettings } from '@/lib/appearance-settings';
+import { useMotionTier } from '../use-motion-tier';
 
 function Probe(): JSX.Element {
-  return <output data-testid="motion">{String(useMotionAllowed())}</output>;
+  return <output data-testid="motion">{useMotionTier()}</output>;
 }
 
-afterEach(() => applyAppearanceSettings(defaultAppearanceSettings));
+const choose = (animations: AppearanceSettings['animations']): void => applyAppearanceSettings({ ...defaultAppearanceSettings, animations });
 
-describe('useMotionAllowed', () => {
-  it('is on by default and follows the switch both ways', async () => {
-    applyAppearanceSettings(defaultAppearanceSettings);
+afterEach(() => choose('full'));
+
+describe('useMotionTier', () => {
+  it('follows the setting every way while mounted', async () => {
+    choose('full');
     render(<Probe />);
-    expect(screen.getByTestId('motion')).toHaveTextContent('true');
-
-    await act(async () => { applyAppearanceSettings({ ...defaultAppearanceSettings, animationsEnabled: false }); });
-    expect(screen.getByTestId('motion')).toHaveTextContent('false');
-
-    await act(async () => { applyAppearanceSettings(defaultAppearanceSettings); });
-    expect(screen.getByTestId('motion')).toHaveTextContent('true');
+    expect(screen.getByTestId('motion')).toHaveTextContent('full');
+    for (const tier of ['lite', 'off', 'full'] as const) {
+      await act(async () => { choose(tier); });
+      expect(screen.getByTestId('motion')).toHaveTextContent(tier);
+    }
   });
 
-  it('starts off when the switch was already off', () => {
-    applyAppearanceSettings({ ...defaultAppearanceSettings, animationsEnabled: false });
+  it('starts off when the setting was already off', () => {
+    choose('off');
     render(<Probe />);
-    expect(screen.getByTestId('motion')).toHaveTextContent('false');
+    expect(screen.getByTestId('motion')).toHaveTextContent('off');
   });
 });

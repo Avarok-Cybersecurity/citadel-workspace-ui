@@ -11,7 +11,7 @@ import { motion, type MotionValue } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { getEntityIcon } from '@/lib/entity-type-registry';
 import type { DomainNode } from '../tree-node-types';
-import { ITEM_CLASS, ROW_ITEM, useFadeOut, useLeaving } from './tree-motion';
+import { ITEM_CLASS, useRowItem, useFadeOut, useLeaving } from './tree-motion';
 import { rootLabel } from './level-labels';
 import { TreeRow } from './TreeRow';
 
@@ -33,7 +33,7 @@ export const AncestorRow: ForwardRefExoticComponent<AncestorRowProps & RefAttrib
   const leaving: boolean = useLeaving();
   const fade: MotionValue<number> = useFadeOut();
   return (
-    <motion.li ref={ref} {...ROW_ITEM} style={{ opacity: fade }} role="none" className={cn(ITEM_CLASS, leaving && 'pointer-events-none')}>
+    <motion.li ref={ref} {...useRowItem()} style={{ opacity: fade }} role="none" className={cn(ITEM_CLASS, leaving && 'pointer-events-none')}>
       <TreeRow
         motionId={node.id}
         info={{ kind: 'ancestor', nodeId: node.id, parentId, selected: false, expandable: true, expanded: true }}
@@ -82,7 +82,7 @@ export const MoreAncestorsRow: ForwardRefExoticComponent<MoreAncestorsRowProps &
   const leaving: boolean = useLeaving();
   const fade: MotionValue<number> = useFadeOut();
   return (
-    <motion.li ref={ref} {...ROW_ITEM} style={{ opacity: fade }} role="none" className={cn(ITEM_CLASS, leaving && 'pointer-events-none')}>
+    <motion.li ref={ref} {...useRowItem()} style={{ opacity: fade }} role="none" className={cn(ITEM_CLASS, leaving && 'pointer-events-none')}>
       <TreeRow
         motionId="tree-more-ancestors"
         // Activating it reveals this row's first hidden ancestor, and the keyboard lands there.
