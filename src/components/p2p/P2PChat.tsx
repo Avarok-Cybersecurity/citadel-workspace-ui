@@ -17,6 +17,7 @@ import { useChatFileSend, type ChatFileSend } from './hooks/use-chat-file-send';
 import { ChatDropTarget } from './ChatDropTarget';
 import { ChatSettingsPanel } from './ChatSettingsPanel';
 import { P2PChatHeader } from './P2PChatHeader';
+import { useShareLauncher, type ShareLauncher } from '@/components/share/use-share-launcher';
 import { usePeerFilesOpener } from './hooks/use-peer-files-opener';
 import { DockedCall } from './DockedCall';
 import { useDirectCall } from './hooks/use-direct-call';
@@ -141,6 +142,7 @@ export function P2PChat({
     }
   }, [peerCid, activeTabId]);
 
+  const share: ShareLauncher = useShareLauncher();
   if (!peerCid) return <NoConversation />;
   const awaitingAcceptFrom: string | null = isRegistered || isGroupMode ? null : peerName; // held until then
 
@@ -161,6 +163,7 @@ export function P2PChat({
         supervisor={supervisor}
         onSettingsClick={() => setShowSettingsModal(true)}
         onOpenFiles={openFiles}
+        onShare={isGroupMode || !peerUsername ? undefined : (): void => share.open({ kind: 'peer-chat', peerUsername, peerName })}
         call={{
           canCall: isConnected,
           inCall: callBinding.active,
@@ -169,6 +172,7 @@ export function P2PChat({
           onLeave: callBinding.leave,
         }}
       />
+      {share.dialog}
       {paused && <PausedBanner busy={pause.busy} onResume={pause.resume} />}
       {!isGroupMode && <ConnectRequestBanner peerCid={peerCid} peerName={peerName} peerUsername={peerUsername} registered={isRegistered} />}
 

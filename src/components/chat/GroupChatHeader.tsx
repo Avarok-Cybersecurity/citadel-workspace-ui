@@ -6,7 +6,7 @@
  */
 
 import { useState, type ReactNode } from 'react';
-import { Settings, LogOut, Users, ChevronDown } from 'lucide-react';
+import { Settings, LogOut, Users, ChevronDown, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -29,6 +29,7 @@ import type { GroupConversation } from '@/types/group';
 import { useGroupPermissions } from '@/hooks/use-group-permissions';
 import { GroupMemberAvatars } from './GroupMemberAvatars';
 import type { GroupSettingsTab } from './group-settings-types';
+import { useShareLauncher, type ShareLauncher } from '@/components/share/use-share-launcher';
 
 // ============================================================================
 // Types
@@ -57,6 +58,7 @@ export function GroupChatHeader({
   const { isOwner, can } = useGroupPermissions(group);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
+  const share: ShareLauncher = useShareLauncher();
 
   // Handle leave confirmation
   const handleLeaveConfirm = async (): Promise<void> => {
@@ -139,6 +141,15 @@ export function GroupChatHeader({
               <Users className="h-4 w-4 mr-2" />
               View Members
             </DropdownMenuItem>
+            {/* A secure link may name the members as of now, so only someone who can see them offers it. */}
+            <DropdownMenuItem
+              onClick={() => share.open({ kind: 'group-chat', groupId: group.id, name: group.name, members: canSeeMembers ? group.members.map((m) => m.username) : [] })}
+              className="text-foreground hover:bg-surface cursor-pointer"
+              data-testid="group-share"
+            >
+              <Share2 className="h-4 w-4 mr-2" />
+              Share…
+            </DropdownMenuItem>
             {!isOwner && (
               <>
                 <DropdownMenuSeparator className="bg-border" />
@@ -155,6 +166,7 @@ export function GroupChatHeader({
         </DropdownMenu>
       </div>
 
+      {share.dialog}
       {/* Leave Confirmation Dialog */}
       <AlertDialog open={showLeaveConfirm} onOpenChange={setShowLeaveConfirm}>
         <AlertDialogContent className="bg-background border-border">

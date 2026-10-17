@@ -170,12 +170,12 @@ async function main() {
       // Extending one gate's screen list and not the other's is the same
       // never-propagated fix this campaign keeps recording, applied to my own
       // work two rounds later.
-      // Three tabs, not five. Connect and Perms are disabled without a session
+      // Four tabs of six (Security joined them: it opens without a session and says so). Connect and Perms are disabled without a session
       // ("Connect to a workspace first"), and the forced click used to go
       // straight through that -- so two of these five surfaces measured
       // whichever tab was already open, under someone else's name. The same
       // two, in the same way, in the accessibility gate; see round 231.
-      ...['General', 'Theme', 'Privacy'].map((tab) => [
+      ...['General', 'Theme', 'Privacy', 'Security'].map((tab) => [
         `settings/${tab}`,
         async () => {
           // Fresh load, then wait for the tab rather than sleeping. The
