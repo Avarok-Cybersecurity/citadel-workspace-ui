@@ -8,7 +8,8 @@ import { Plus, Star } from 'lucide-react';
 import { forwardRef, type ForwardedRef, type ForwardRefExoticComponent, type RefAttributes } from 'react';
 import { motion, type MotionValue } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { getEntityIcon, getEntityTypeString } from '@/lib/entity-type-registry';
+import { getEntityTypeString } from '@/lib/entity-type-registry';
+import { nodeIcon } from '@/lib/citadel-apps/node-icon';
 import type { DomainNode } from '../tree-node-types';
 import type { ChildIndex } from '../focused-view';
 import { AnimatePresence, ITEM_CLASS, useRowItem, useFadeOut, useLeaving, usePresenceInitial } from './tree-motion';
@@ -62,7 +63,7 @@ interface ChildRowProps {
 }
 
 const ChildRow: ForwardRefExoticComponent<ChildRowProps & RefAttributes<HTMLLIElement>> = forwardRef<HTMLLIElement, ChildRowProps>(function ChildRow({ node, level, parentId, childCount, isMobile, onSelect }: ChildRowProps, ref: ForwardedRef<HTMLLIElement>): JSX.Element {
-  const Icon: ReturnType<typeof getEntityIcon> = getEntityIcon(node.entity_type);
+  const Icon: ReturnType<typeof nodeIcon> = nodeIcon(node);
   const leaving: boolean = useLeaving();
   const fade: MotionValue<number> = useFadeOut();
   return (

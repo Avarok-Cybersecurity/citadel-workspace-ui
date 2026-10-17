@@ -77,9 +77,13 @@ export function FocusedTree({ nodes, root, selectedId, isMobile, actions, canAdd
   const parent: DomainNode | undefined = view.ancestors[view.ancestors.length - 1];
   const isStoredRoot: boolean = Boolean(nodes[root.id]);
   const actionsFor = (node: DomainNode): NodeActions => {
-    const withAdd: NodeActions = { ...actions, onNodeCreate: canAdd ? actions.onNodeCreate : undefined };
+    const withAdd: NodeActions = {
+      ...actions,
+      onNodeCreate: canAdd ? actions.onNodeCreate : undefined,
+      onNewDocument: canAdd ? actions.onNewDocument : undefined,
+    };
     if (node.id !== root.id || isStoredRoot) return withAdd;
-    return { onAdminSettings: withAdd.onAdminSettings, onNodeCreate: withAdd.onNodeCreate };
+    return { onAdminSettings: withAdd.onAdminSettings, onNodeCreate: withAdd.onNodeCreate, onNewDocument: withAdd.onNewDocument };
   };
 
   return (

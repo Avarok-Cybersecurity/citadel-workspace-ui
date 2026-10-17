@@ -12,7 +12,9 @@ import {
   Settings,
   Star,
   FolderInput,
+  FileText,
 } from 'lucide-react';
+import { documentPlacement, type DocumentPlacement } from '@/components/documents/document-placement';
 import { getEntityTypeString } from '@/lib/entity-type-registry';
 import { Button } from '@/components/ui/button';
 import {
@@ -31,6 +33,8 @@ export interface NodeActions {
   onAdminSettings?: (node: DomainNode) => void;
   onSetDefault?: (node: DomainNode) => void;
   onMoveNode?: (node: DomainNode) => void;
+  /** Open "New document" under this node. */
+  onNewDocument?: (parentId: string) => void;
 }
 
 interface NodeActionsMenuProps extends NodeActions {
@@ -45,8 +49,10 @@ export function NodeActionsMenu({
   onAdminSettings,
   onSetDefault,
   onMoveNode,
+  onNewDocument,
 }: NodeActionsMenuProps): JSX.Element {
   const typeName: string = getEntityTypeString(node.entity_type);
+  const placement: DocumentPlacement = documentPlacement(node.allowed_child_types ?? [], node.name);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -86,6 +92,16 @@ export function NodeActionsMenu({
           >
             <Plus className="h-4 w-4 mr-2" />
             Add Child
+          </DropdownMenuItem>
+        )}
+        {onNewDocument && (
+          <DropdownMenuItem
+            disabled={placement.kind === 'blocked'}
+            onClick={() => onNewDocument(node.id)}
+            data-testid={`new-document-${node.id}`}
+          >
+            <FileText className="h-4 w-4 mr-2" aria-hidden="true" />
+            {placement.kind === 'blocked' ? `New document: ${placement.reason}` : 'New document'}
           </DropdownMenuItem>
         )}
         {onMoveNode && (

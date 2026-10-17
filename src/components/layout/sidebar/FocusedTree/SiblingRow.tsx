@@ -11,7 +11,8 @@ import { ChevronDown, ChevronRight, Star } from 'lucide-react';
 import { forwardRef, type ForwardedRef, type ForwardRefExoticComponent, type RefAttributes } from 'react';
 import { motion, type MotionValue } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { getEntityIcon, getEntityTypeString } from '@/lib/entity-type-registry';
+import { getEntityTypeString } from '@/lib/entity-type-registry';
+import { nodeIcon } from '@/lib/citadel-apps/node-icon';
 import { rowClass } from '../selected-row';
 import type { DomainNode } from '../tree-node-types';
 import type { ChildIndex } from '../focused-view';
@@ -47,7 +48,7 @@ export const SiblingRow: ForwardRefExoticComponent<SiblingRowProps & RefAttribut
   const hasChildren: boolean = children.length > 0;
   const unfolded: boolean = isSelected || isPeek;
   const canPeek: boolean = hasChildren && !isSelected;
-  const Icon: ReturnType<typeof getEntityIcon> = getEntityIcon(node.entity_type);
+  const Icon: ReturnType<typeof nodeIcon> = nodeIcon(node);
   const height: string = isMobile ? 'h-[44px]' : isRoot ? 'h-[36px]' : 'h-[30px]';
   const leaving: boolean = useLeaving();
   const fade: MotionValue<number> = useFadeOut();
