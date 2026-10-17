@@ -78,6 +78,17 @@ function isDraft(value: unknown): value is FlowDraft {
 }
 
 /**
+ * A draft saved before link packs were sold has no `linkPacks`: that visitor bought none. Upgraded
+ * on read so a Checkout that spans the deploy does not come back to a blank form.
+ */
+function withLinkPacks(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null) return value;
+  const plan: unknown = (value as { plan?: unknown }).plan;
+  if (typeof plan !== 'object' || plan === null || 'linkPacks' in plan) return value;
+  return { ...value, plan: { ...plan, linkPacks: 0 } };
+}
+
+/**
  * False when storage refused the write (private mode, blocked site data). The
  * only consequence is that a cancelled checkout comes back to a blank form, and
  * the cancelled screen already says whether the choices survived.
@@ -91,7 +102,7 @@ export function loadDraft(slug: string): FlowDraft | undefined {
   const raw: string | null = sessionGet(DRAFT_KEY);
   if (!raw) return undefined;
   try {
-    const parsed: unknown = JSON.parse(raw);
+    const parsed: unknown = withLinkPacks(JSON.parse(raw));
     return isDraft(parsed) && parsed.slug === slug ? parsed : undefined;
   } catch {
     return undefined;

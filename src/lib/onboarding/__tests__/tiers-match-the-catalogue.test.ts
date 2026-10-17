@@ -67,7 +67,7 @@ describe.skipIf(!existsSync(CATALOGUE))(`the tier table matches ${CATALOGUE}`, (
   });
 
   it('prices the secure-link packs as the catalogue does', () => {
-    const addon: Catalogue['addons'][number] | undefined = catalogue.addons.find((a) => a.id === 'secure_links');
+    const addon: Catalogue['addons'][number] | undefined = catalogue.addons.find((a) => a.id === 'secure-links');
     expect(addon).toBeDefined();
     if (!addon) return;
     expect(LINK_PACK_ADDON.linksPerPack).toBe(addon.grants.secure_links_pool);
@@ -76,6 +76,6 @@ describe.skipIf(!existsSync(CATALOGUE))(`the tier table matches ${CATALOGUE}`, (
   });
 
   it('mirrors every add-on the catalogue sells', () => {
-    expect(catalogue.addons.map((a) => a.id)).toEqual(['storage', 'secure_links']);
+    expect(catalogue.addons.map((a) => a.id)).toEqual(['storage', 'secure-links']);
   });
 });

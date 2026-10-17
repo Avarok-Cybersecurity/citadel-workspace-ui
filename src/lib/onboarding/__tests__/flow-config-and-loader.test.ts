@@ -46,8 +46,13 @@ describe('the draft kept across Checkout', () => {
     expect(loadDraft('acme')).toBeUndefined();
   });
 
-  it('ignores a plan that does not say how many link packs it holds', () => {
+  it('reads a draft saved before link packs were sold as having bought none', () => {
     sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ displayName: 'Acme', slug: 'acme', plan: { tier: 'team', interval: 'month', seats: 2, storageBlocks: 0 } }));
+    expect(loadDraft('acme')?.plan.linkPacks).toBe(0);
+  });
+
+  it('ignores a plan whose link packs are not a number', () => {
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ displayName: 'Acme', slug: 'acme', plan: { tier: 'team', interval: 'month', seats: 2, storageBlocks: 0, linkPacks: 'many' } }));
     expect(loadDraft('acme')).toBeUndefined();
   });
 });
