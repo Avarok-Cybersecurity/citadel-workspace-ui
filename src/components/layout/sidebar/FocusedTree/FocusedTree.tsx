@@ -8,7 +8,9 @@
  * Only ancestors, one sibling set and one child set are mounted, so a
  * 2,000-node estate costs what a 20-node one does.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
+import { BROWSER_FRAMES, probeTransition } from '@/lib/motion-state';
+import { MOTION_SECONDS } from '@/lib/motion';
 import { SidebarMenu } from '@/components/ui/sidebar';
 import type { DomainNode } from '../tree-node-types';
 import { childIndex, focusedView, stackRows, type ChildIndex, type FocusedView, type StackRow } from '../focused-view';
@@ -19,6 +21,9 @@ import { SiblingRow } from './SiblingRow';
 import type { NodeActions } from './NodeActionsMenu';
 import { addChildLabel, childCountLabel } from './level-labels';
 import { useTreeKeyboard, type TreeKeyboard } from './useTreeKeyboard';
+
+/** The glide and the arrivals that finish with it, with as long again for a slow commit before them. */
+const PROBE_MS: number = MOTION_SECONDS.layout * 1000 * 2;
 
 interface FocusedTreeProps {
   nodes: Readonly<Record<string, DomainNode>>;
@@ -41,9 +46,14 @@ export function FocusedTree({ nodes, root, selectedId, isMobile, actions, canAdd
   );
   const [peeked, setPeeked] = useState<ReadonlySet<string>>(new Set());
   const [stackOpen, setStackOpen] = useState<boolean>(false);
+  const selectedBefore: MutableRefObject<string> = useRef<string>(view.selected.id);
   useEffect((): void => {
     setPeeked(new Set());
     setStackOpen(false);
+    if (selectedBefore.current === view.selected.id) return;
+    selectedBefore.current = view.selected.id;
+    // A selection is the transition Auto watches: one that drops frames moves the rest of this page to lite.
+    void probeTransition(BROWSER_FRAMES, PROBE_MS);
   }, [view.selected.id]);
 
   const togglePeek: (nodeId: string) => void = useCallback((nodeId: string): void => {

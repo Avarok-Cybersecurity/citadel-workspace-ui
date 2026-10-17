@@ -9,25 +9,15 @@
  * already granting a permission: that level is where it comes from, because a
  * grant there reaches everything beneath it.
  *
- * Level names come from the live schema (`levelLabel`); nothing branches on
- * "Office" or "Room", which are only the default template's words.
+ * The path itself is lib/domain-path.ts, shared with the header's breadcrumbs.
  *
  * Pure: the nodes and the answers are the caller's.
  */
-import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
-import { workspaceRoot } from '@/components/layout/sidebar/tree-node-utils';
-import { ancestorsOf } from '@/components/layout/sidebar/focused-view';
-import { levelLabel } from '@/components/layout/sidebar/FocusedTree/level-labels';
-import { getEntityMetadata } from '@/lib/entity-type-registry';
-import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
+import type { DomainLevel } from '@/lib/domain-path';
 import type { PermissionsLoad } from './use-loaded-permissions';
 
-/** One level on the path: its id, its own name, and the schema's name for its kind. */
-export interface PermissionLevel {
-  id: string;
-  name: string;
-  kind: string;
-}
+/** One level on the path (lib/domain-path.ts), as the permission editor names it. */
+export type PermissionLevel = DomainLevel;
 
 /** Where a permission the member holds at the edited level comes from — or that they do not hold it. */
 export type GrantSource =
@@ -35,34 +25,8 @@ export type GrantSource =
   | { kind: 'inherited'; from: PermissionLevel }
   | { kind: 'none' };
 
-/** What an unknown level is called: the tree has not sent it, so there is no name to show. */
-export const UNLISTED_LEVEL: string = 'a level not yet loaded';
-
 /** "Office HQ"; just the name when the kind is unknown. */
 export const levelPhrase = (level: PermissionLevel): string => [level.kind, level.name].filter(Boolean).join(' ');
-
-const asLevel = (node: DomainNode): PermissionLevel => ({ id: node.id, name: node.name, kind: levelLabel(node) });
-
-/**
- * The workspace first, down to `domainId`; the root itself is the workspace on
- * its own. A domain the tree does not hold stays the level edited -- under the
- * workspace, unnamed -- rather than quietly becoming the workspace.
- */
-export function permissionPath(
-  nodes: Readonly<Record<string, DomainNode>>,
-  domainId: string,
-  workspaceName: string,
-): PermissionLevel[] {
-  const root: DomainNode | null = workspaceRoot(Object.values(nodes), workspaceName);
-  const workspace: PermissionLevel = root
-    ? asLevel(root)
-    : { id: WORKSPACE_ROOT_ID, name: workspaceName, kind: getEntityMetadata('Workspace').label };
-  const node: DomainNode | undefined = nodes[domainId];
-  // The id asked about is the id edited, whichever of the two names the workspace.
-  if (domainId === WORKSPACE_ROOT_ID || domainId === workspace.id) return [{ ...workspace, id: domainId }];
-  if (!root || !node) return [workspace, { id: domainId, name: UNLISTED_LEVEL, kind: '' }];
-  return [workspace, ...ancestorsOf(nodes, node, root).slice(1).map(asLevel), asLevel(node)];
-}
 
 /** Every level answered; until then nothing is known about where a grant comes from. */
 export function allLoaded(

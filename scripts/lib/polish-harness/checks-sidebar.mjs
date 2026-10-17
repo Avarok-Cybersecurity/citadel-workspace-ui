@@ -129,20 +129,20 @@ const LEVEL_CHANGES = [
 /** POLISH_CPU_THROTTLE=4 slows Chromium's CPU the way a CI runner is slow, to reproduce what only CI sees. */
 const THROTTLE = Number(process.env.POLISH_CPU_THROTTLE ?? 1);
 
-async function aLevelChangeIsOneMotion({ page, url, viewport }) {
-  if (THROTTLE > 1 && page.context().browser().browserType().name() !== 'chromium') throw new Error('POLISH_CPU_THROTTLE needs Chromium (CDP)');
+/** Every level change, sampled; `judge` turns one transition's findings into problems. */
+async function eachLevelChange({ page, url, viewport }, { throttle, query: extra, judge }) {
+  if (throttle > 1 && page.context().browser().browserType().name() !== 'chromium') throw new Error('CPU throttling needs Chromium (CDP)');
   const moving = await page.context().browser().newContext({ viewport, reducedMotion: 'no-preference' });
   const rough = [];
   try {
     for (const [name, query, clicked] of LEVEL_CHANGES) {
       const tab = await moving.newPage();
       try {
-        if (THROTTLE > 1) await (await moving.newCDPSession(tab)).send('Emulation.setCPUThrottlingRate', { rate: THROTTLE });
-        await tab.goto(url('focused-sidebar') + query);
+        if (throttle > 1) await (await moving.newCDPSession(tab)).send('Emulation.setCPUThrottlingRate', { rate: throttle });
+        await tab.goto(url('focused-sidebar') + query + extra);
         await tab.getByTestId(clicked).waitFor({ state: 'visible' });
         await settled(tab);
-        const found = roughness(await sampleTransition(tab, clicked, 800));
-        const problems = ROUGH.flatMap((k) => found[k].map((f) => `${k}: ${f.slice(0, 160)}`));
+        const problems = judge(await sampleTransition(tab, clicked, 800));
         if (problems.length > 0) rough.push(`${name}: ${problems.length} -- ${problems.slice(0, 3).join(' | ')}`);
       } finally {
         await tab.close();
@@ -154,10 +154,39 @@ async function aLevelChangeIsOneMotion({ page, url, viewport }) {
   assert.equal(rough.length, 0, rough.join('\n        '));
 }
 
+async function aLevelChangeIsOneMotion(args) {
+  await eachLevelChange(args, {
+    throttle: THROTTLE,
+    query: '',
+    judge: (frames) => { const found = roughness(frames); return ROUGH.flatMap((k) => found[k].map((f) => `${k}: ${f.slice(0, 160)}`)); },
+  });
+}
+
+/** The CPU of a slow phone, which is what lite is for. CDP throttling is Chromium's; WebKit runs it unthrottled. */
+const LITE_THROTTLE = 6;
+
+/** A row that moves in lite is in its new place at once: any frame between the two is a glide still running. */
+function glided(frames) {
+  const tops = new Map();
+  for (const f of frames) for (const [key, v] of Object.entries(f)) if (key.startsWith('row:') && v.opacity > 0.05) (tops.get(key) ?? tops.set(key, []).get(key)).push(v.shownTop);
+  return [...tops].filter(([, s]) => s.some((v) => v > Math.min(s[0], s[s.length - 1]) + 1 && v < Math.max(s[0], s[s.length - 1]) - 1)).map(([key]) => `${key} glided`);
+}
+
+/** Lite on a slow CPU: nothing drawn over anything else at strength, and nothing glides (it is lite that ran). */
+async function aLiteLevelChangeOverlapsNothing(args) {
+  const engine = args.page.context().browser().browserType().name();
+  await eachLevelChange(args, {
+    throttle: engine === 'chromium' ? LITE_THROTTLE : 1,
+    query: '&anim=lite',
+    judge: (frames) => [...roughness(frames).overlap.map((f) => `overlap: ${f.slice(0, 160)}`), ...glided(frames)],
+  });
+}
+
 export const SIDEBAR_CHECKS = {
   focusedRowsHaveTheirHeights,
   focusedTreeIsATree,
   aSelectionGlides,
   aLevelChangeIsOneMotion,
+  aLiteLevelChangeOverlapsNothing,
   targetsInTheFocusedSidebar: targetsAreBigEnough('focused-sidebar&sel=eng', '[role="tree"]'),
 };

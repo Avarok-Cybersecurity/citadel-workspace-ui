@@ -159,7 +159,19 @@ jobs:
 
   chat-polish:
     needs: parent-ref
-    name: Chat polish geometry
+    name: ${{ matrix.gate.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # The UI sweep joined this job when it outgrew the typecheck job: with the file manager,
+        # breadcrumb and Lite-motion checks (2026-10-17) it reached 300 Chromium checks, about
+        # 2.5 minutes alone, and the typecheck job's 15-minute cap cut it off mid-run -- the same
+        # way chat polish was cut off before it moved here.
+        gate:
+        # The whole command, not a script name to splice in: check-every-gate-is-invoked.mjs
+        # reads the workflow text for `npm run <gate>`, and this is the text each leg runs.
+          - { name: Chat polish geometry, run: 'npm run check:chat-polish' }
+          - { name: UI sweep geometry, run: 'npm run check:ui-sweep' }
     # jsdom has no layout, so a hover card lying across the rows above it, or a message pressed
     # against the bubble over it, passes every unit test. This serves the real components and
     # asserts bounding boxes, in Chromium (the engine this job installs).
@@ -209,8 +221,8 @@ jobs:
             sleep $((attempt * 15))
           done
         working-directory: parent/citadel-workspaces
-      - name: Chat polish geometry
-        run: npm run check:chat-polish
+      - name: ${{ matrix.gate.name }}
+        run: ${{ matrix.gate.run }}
         env:
           POLISH_ENGINES: chromium
         working-directory: parent/citadel-workspaces
@@ -462,14 +474,6 @@ jobs:
         # button on every dialog in the app, with every a11y gate green.
         if: matrix.project == 'citadel-workspaces'
         run: npm run check:mobile
-        working-directory: parent/citadel-workspaces
-
-      - name: UI sweep geometry
-        # People, overlays, spacing and touch reach, measured in the engine that paints them.
-        if: matrix.project == 'citadel-workspaces'
-        run: npm run check:ui-sweep
-        env:
-          POLISH_ENGINES: chromium
         working-directory: parent/citadel-workspaces
 
       # Delegates to the parent repo's gate rather than reimplementing it.

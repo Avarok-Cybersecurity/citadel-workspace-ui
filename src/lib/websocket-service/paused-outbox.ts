@@ -1,11 +1,11 @@
 /**
- * The paused-contact outbox over this service's own LocalDB operations.
+ * The held outbox (paused contacts, and peers yet to accept) over this service's own LocalDB operations.
  *
  * Built here, from the service's methods, rather than imported from the pause
  * module's agent wiring: that wiring imports this service, and the outbox sits
  * inside this service's send path.
  */
-import { PausedOutbox } from '@/lib/p2p-pause/outbox';
+import { HeldOutbox } from '@/lib/p2p-pause/outbox';
 
 interface LocalDBSurface {
   sendLocalDBGet(cid: bigint, key: string): Promise<{ value: number[] } | null>;
@@ -14,8 +14,8 @@ interface LocalDBSurface {
   sendLocalDBListKeys(cid: bigint, prefix?: string): Promise<string[]>;
 }
 
-export function pausedOutboxOver(db: LocalDBSurface): PausedOutbox {
-  return new PausedOutbox({
+export function heldOutboxOver(db: LocalDBSurface): HeldOutbox {
+  return new HeldOutbox({
     storage: {
       get: (cid: bigint, key: string): Promise<{ value: number[] } | null> => db.sendLocalDBGet(cid, key),
       set: (cid: bigint, key: string, value: number[]): Promise<void> => db.sendLocalDBSet(cid, key, value),

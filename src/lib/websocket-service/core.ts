@@ -17,8 +17,8 @@ import { resolveWebsocketUrl, readLoopbackAgentOrigin } from './resolve-url';
 import { createServiceModules, type ServiceModules } from './module-init';
 import { initService, waitForInit as waitForInitFn, resetService } from './initialization';
 import { sendRequest as sendRequestFn } from './send-request';
-import { pausedOutboxOver } from './paused-outbox';
-import type { PausedOutbox, ReliableSendOptions } from '@/lib/p2p-pause/outbox';
+import { heldOutboxOver } from './paused-outbox';
+import type { HeldOutbox, ReliableSendOptions } from '@/lib/p2p-pause/outbox';
 import type { ChatSecurityLevel } from '@/lib/p2p/chat-advanced-settings';
 import type { SendDelivery } from '@/lib/p2p/send-failure';
 import type { SignInFactors } from '@/lib/sign-in/types';
@@ -29,7 +29,8 @@ export class WebSocketServiceCore {
   initializationPromise: Promise<void> | null = null;
 
   private readonly modules: ServiceModules;
-  private readonly outbox: PausedOutbox = pausedOutboxOver(this);
+  /** The one held outbox. Public for the registration hold (lib/p2p/held-until-registered.ts), which flushes through the normal send. */
+  readonly outbox: HeldOutbox = heldOutboxOver(this);
 
   // Exposed for initialization.ts
   get initOps(): ServiceModules['initOps'] { return this.modules.initOps; }
@@ -139,7 +140,7 @@ export class WebSocketServiceCore {
 
   /** Resume's half: hand what the pause held to the ILM, in order, as each would have left at once. */
   async flushPausedOutbox(localCid: bigint, peerCid: bigint): Promise<number> {
-    return this.outbox.flush(localCid, peerCid,
+    return this.outbox.flush(localCid, peerCid, 'paused',
       (held: Uint8Array, options: ReliableSendOptions) => this.modules.messengerOps.sendP2PMessageReliable(
         localCid, peerCid, held, options.securityLevel, options.compressionHint));
   }
@@ -176,9 +177,7 @@ export class WebSocketServiceCore {
 
   async setOrphanMode(enabled: boolean): Promise<unknown> { return this.modules.sessionMgmt.setOrphanMode(enabled) }
 
-  setOrphanModeNonBlocking(enabled: boolean): void {
-    this.modules.sessionMgmt.setOrphanModeNonBlocking(enabled);
-  }
+  setOrphanModeNonBlocking(enabled: boolean): void { this.modules.sessionMgmt.setOrphanModeNonBlocking(enabled) }
 
   async claimSession(sessionCid: string | bigint, onlyIfOrphaned?: boolean): Promise<unknown> { return this.modules.sessionMgmt.claimSession(sessionCid, onlyIfOrphaned ?? false) }
 

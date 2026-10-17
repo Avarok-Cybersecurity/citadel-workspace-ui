@@ -67,15 +67,14 @@ describe('the sidebar asks before discarding', () => {
     // the check had been applied at this one source and four others discarded
     // the buffer silently. `leaving-the-editor-asks-first` covers all five;
     // this keeps the sidebar's own wiring pinned.
+    // The sidebar's select is use-select-node now, shared with the header's
+    // breadcrumbs, and that goes through the router-bound guard. The chain:
     const { readFileSync } = await import('node:fs');
     const { join } = await import('node:path');
     const { stripComments } = await import('@/test-utils/strip-comments');
-    const source: string = stripComments(
-      readFileSync(
-        join(process.cwd(), 'src/components/layout/sidebar/HierarchySidebar.tsx'),
-        'utf8',
-      ),
-    );
-    expect(source).toContain('mayLeaveEditor(confirm)');
+    const read = (rel: string): string => stripComments(readFileSync(join(process.cwd(), 'src', rel), 'utf8'));
+    expect(read('components/layout/sidebar/HierarchySidebar.tsx')).toMatch(/\bhandleNodeSelect: SelectNode = useSelectNode\(\)/);
+    expect(read('hooks/use-select-node.ts')).toMatch(/\buseGuardedNavigate\(\)/);
+    expect(read('hooks/use-guarded-navigate.ts')).toContain('mayLeaveEditor(confirm)');
   });
 });

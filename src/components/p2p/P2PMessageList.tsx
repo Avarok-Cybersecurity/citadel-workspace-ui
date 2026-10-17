@@ -9,6 +9,7 @@ import { groupMessagesByDate, quoteP2PReply } from '@/components/chat/shared';
 import { DateSeparator } from '@/components/chat/shared/DateSeparator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MessageBubble } from './bubbles';
+import { AwaitingAcceptContext } from './bubbles/awaiting-accept';
 import type { P2PMessage } from '@/lib/p2p';
 import { reactionChips } from '@/lib/reactions/reaction-state';
 import type { ReactionBinding } from '@/components/chat/shared/reactions/reaction-binding';
@@ -40,6 +41,8 @@ interface P2PMessageListProps {
   /** Focus the composer after a bubble's Edit or Reply; see chat/shared/menu-focus-handoff. */
   focusComposer: () => void;
   onReactMessage?: (messageId: string, emoji: string) => void;
+  /** The peer's name while they have not accepted; their pending bubbles say they are waiting. */
+  awaitingAcceptFrom: string | null;
 }
 
 export const P2PMessageList: React.ForwardRefExoticComponent<P2PMessageListProps & React.RefAttributes<HTMLDivElement>> = forwardRef<HTMLDivElement, P2PMessageListProps>(
@@ -68,6 +71,7 @@ export const P2PMessageList: React.ForwardRefExoticComponent<P2PMessageListProps
       onReplyMessage,
       focusComposer,
       onReactMessage,
+      awaitingAcceptFrom,
     }: P2PMessageListProps,
     ref: React.ForwardedRef<HTMLDivElement>
   ) {
@@ -97,6 +101,7 @@ export const P2PMessageList: React.ForwardRefExoticComponent<P2PMessageListProps
     );
 
     return (
+      <AwaitingAcceptContext.Provider value={awaitingAcceptFrom}>
       <ScrollArea className="flex-1 p-4" ref={ref} onScroll={onScroll}>
         {/*
         role="log" carries an implicit aria-live="polite" and
@@ -171,6 +176,7 @@ export const P2PMessageList: React.ForwardRefExoticComponent<P2PMessageListProps
           ))}
         </div>
       </ScrollArea>
+      </AwaitingAcceptContext.Provider>
     );
   }
 );

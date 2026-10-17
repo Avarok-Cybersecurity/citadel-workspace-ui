@@ -1,13 +1,12 @@
 /**
  * The boxes around the focused tree's rows, shaped so that they never fight the rows' glide (see
  * tree-motion): none of them changes size in the flow while the rows move, except the outermost, which
- * carries what sits below the tree.
+ * carries what sits below the tree. In lite none of them animates its size or position at all.
  */
 import { forwardRef, useLayoutEffect, useRef, useState, type ForwardedRef, type ForwardRefExoticComponent, type ReactNode, type RefAttributes, type RefObject } from 'react';
 import { animate, motion, useMotionValue, type MotionValue } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { useMotionAllowed } from '@/hooks/use-motion-allowed';
-import { GLIDE, PresenceScope, useFadeOut } from './tree-motion';
+import { AnimatePresence, FadeOnLeave, GLIDE, keepInScript, PresenceScope, useFadeOut, useTreeTier } from './tree-motion';
 
 /**
  * A box whose height follows its contents smoothly. Everything inside reaches
@@ -17,8 +16,8 @@ import { GLIDE, PresenceScope, useFadeOut } from './tree-motion';
  * the glide's timing carries them along.
  */
 export function AutoHeight({ children }: { children: ReactNode }): JSX.Element {
-  const allowed: boolean = useMotionAllowed();
-  return allowed ? <MeasuredHeight>{children}</MeasuredHeight> : <div className="relative">{children}</div>;
+  // Only at full: lite animates no height, and off animates nothing.
+  return useTreeTier() === 'full' ? <MeasuredHeight>{children}</MeasuredHeight> : <div className="relative">{children}</div>;
 }
 
 /**
@@ -57,7 +56,7 @@ export const StackBox: ForwardRefExoticComponent<{ children: ReactNode } & RefAt
       <motion.li ref={ref} role="none" data-testid="tree-ancestor-stack" className="relative mb-2 border border-transparent p-1" style={{ opacity: useFadeOut() }}>
         <motion.div
           aria-hidden="true"
-          layout
+          layout={useTreeTier() !== 'lite'}
           className="absolute -inset-px border border-primary-accent/35 bg-primary-accent/10"
           style={{ borderRadius: 7 }}
           initial={{ opacity: 0 }}
@@ -96,3 +95,51 @@ export const FadingItem: ForwardRefExoticComponent<{ children: ReactNode } & Ref
     return <motion.li ref={ref} role="none" style={{ opacity: useFadeOut() }}>{children}</motion.li>;
   },
 );
+
+/**
+ * Contents that unfold and fold. The list takes its full height at once -- so
+ * every row below glides to its true place -- and is uncovered from the top as
+ * they move away: the curtain's edge and the row below it share one timing, so
+ * neither is drawn over the other. `id` keys the
+ * presence, so a different node's children replace these by folding rather
+ * than by being swapped in place.
+ *
+ * A row that has just mounted (it moved here from another list) shows its
+ * children without a curtain: one of them may be gliding in from above, and
+ * would be cut. Those children arrive one by one instead.
+ *
+ * Lite has no curtain: the list is simply there, and its rows fade in as every arriving row does.
+ */
+// The top and sides reach far past the list, so a row gliding in from above is never cut; the bottom is the
+// curtain. At rest there is no clip at all: a row gliding in from below, or a focus ring, is not cut either.
+const SHUT: string = 'inset(-100vh -100vw 100% -100vw)';
+const OPEN: string = 'inset(-100vh -100vw 0% -100vw)';
+
+export function Unfold({ open, id, children }: { open: boolean; id: string; children: ReactNode }): JSX.Element {
+  const lite: boolean = useTreeTier() === 'lite';
+  return (
+    <AnimatePresence initial={false} mode="popLayout">
+      {open && lite && (
+        <motion.div key={id}>
+          <FadeOnLeave>
+            <PresenceScope>{children}</PresenceScope>
+          </FadeOnLeave>
+        </motion.div>
+      )}
+      {open && !lite && (
+        <motion.div
+          key={id}
+          layout="position"
+          initial={{ clipPath: SHUT, opacity: 0 }}
+          animate={{ clipPath: OPEN, opacity: 1, transitionEnd: { clipPath: 'none' } }}
+          exit={{ clipPath: [OPEN, SHUT] }}
+          onUpdate={keepInScript}
+        >
+          <FadeOnLeave>
+            <PresenceScope>{children}</PresenceScope>
+          </FadeOnLeave>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}

@@ -24,7 +24,7 @@ function composer(paused: boolean, text: string): void {
     <P2PMessageInput
       ref={createRef<HTMLTextAreaElement>()}
       inputMessage={text} messageType="text" showMarkdownPreview={false}
-      isSending={false} paused={paused} notConnectedWith={null}
+      isSending={false} paused={paused} awaitingAcceptFrom={null}
       onInputChange={vi.fn()} onInputFocus={vi.fn()} onInputBlur={vi.fn()}
       onSubmit={vi.fn()} onFileClick={vi.fn()} onFormat={vi.fn()}
       onTogglePreview={vi.fn()} onMessageTypeChange={vi.fn()}

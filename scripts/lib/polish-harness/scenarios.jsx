@@ -81,7 +81,7 @@ function P2PConversation() {
           displaySenderName={false} displaySenderAvatar={false}
           onScroll={nothing} onRetryMessage={nothing} onOpenDocument={nothing}
           onAcceptTransfer={nothing} onDeclineTransfer={nothing} onCancelTransfer={nothing} onOpenFile={nothing}
-          focusComposer={nothing} onReactMessage={nothing}
+          focusComposer={nothing} onReactMessage={nothing} awaitingAcceptFrom={null}
         />
       </div>
     </TooltipProvider>

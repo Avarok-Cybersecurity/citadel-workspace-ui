@@ -13,18 +13,17 @@
  * A preference with no reader does not belong in this file.
  */
 
+import { isAnimationsPreference, type AnimationsPreference } from './motion-tier';
+import { applyMotionPreference } from './motion-state';
+import { readDeviceCapabilities } from './device-capabilities';
+
 export interface AppearanceSettings {
   fontSize: number;
   sidebarWidth: 'narrow' | 'default' | 'wide';
   showAvatars: boolean;
-  animationsEnabled: boolean;
+  /** Auto, Full, Lite or Off; see motion-tier.ts. The document's classes are motion-state's. */
+  animations: AnimationsPreference;
 }
-
-/**
- * The class that turns motion off when Animations is switched off. index.css
- * reads it for CSS motion; use-motion-allowed reads it for script-driven motion.
- */
-export const REDUCE_MOTION_CLASS: "reduce-motion" = 'reduce-motion';
 
 export const APPEARANCE_STORAGE_KEY: "citadel:appearance-settings" = 'citadel:appearance-settings';
 
@@ -32,7 +31,7 @@ export const defaultAppearanceSettings: AppearanceSettings = {
   fontSize: 14,
   sidebarWidth: 'default',
   showAvatars: true,
-  animationsEnabled: true,
+  animations: 'auto',
 };
 
 const SIDEBAR_WIDTHS: Record<AppearanceSettings['sidebarWidth'], string> = {
@@ -45,8 +44,17 @@ const SIDEBAR_WIDTHS: Record<AppearanceSettings['sidebarWidth'], string> = {
 const MIN_FONT_SIZE: number = 12;
 const MAX_FONT_SIZE: number = 18;
 
+/**
+ * Before Auto/Full/Lite/Off the choice was a switch, `animationsEnabled`. Off stays off; on was the only
+ * motion there was, and becomes Auto, which is that same motion wherever the device keeps up with it.
+ */
+function storedAnimations(stored: { animations?: unknown; animationsEnabled?: unknown }): AnimationsPreference {
+  if (isAnimationsPreference(stored.animations)) return stored.animations;
+  return stored.animationsEnabled === false ? 'off' : defaultAppearanceSettings.animations;
+}
+
 function coerce(stored: unknown): AppearanceSettings {
-  const merged: { fontSize: number; sidebarWidth: "narrow" | "default" | "wide"; showAvatars: boolean; animationsEnabled: boolean; } = { ...defaultAppearanceSettings, ...(stored as Partial<AppearanceSettings>) };
+  const merged: AppearanceSettings = { ...defaultAppearanceSettings, ...(stored as Partial<AppearanceSettings>) };
   const fontSize: number = Number(merged.fontSize);
   return {
     fontSize:
@@ -57,7 +65,7 @@ function coerce(stored: unknown): AppearanceSettings {
       ? merged.sidebarWidth
       : defaultAppearanceSettings.sidebarWidth,
     showAvatars: merged.showAvatars !== false,
-    animationsEnabled: merged.animationsEnabled !== false,
+    animations: storedAnimations(typeof stored === 'object' && stored !== null ? stored : {}),
   };
 }
 
@@ -82,7 +90,7 @@ export function applyAppearanceSettings(settings: AppearanceSettings): void {
   const root: HTMLElement = document.documentElement;
   root.style.fontSize = `${settings.fontSize}px`;
   root.style.setProperty('--appearance-sidebar-width', SIDEBAR_WIDTHS[settings.sidebarWidth]);
-  root.classList.toggle(REDUCE_MOTION_CLASS, !settings.animationsEnabled);
+  applyMotionPreference(settings.animations, readDeviceCapabilities(navigator));
   // An attribute rather than a class: it reads as state, and the CSS rule that
   // consumes it sits next to the reduced-motion block it mirrors.
   root.dataset.avatars = settings.showAvatars ? 'on' : 'off';

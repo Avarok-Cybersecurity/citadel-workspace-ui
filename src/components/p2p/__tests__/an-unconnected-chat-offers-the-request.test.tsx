@@ -1,15 +1,19 @@
 /**
  * A chat with someone you are not registered with opens anyway (owner, 2026-10-15) and says
  * what to do: under the workspace's messaging trust the request goes out on open, otherwise the
- * banner offers it. Nothing can be sent until the two are registered.
+ * banner offers it. A message written before they accept is not refused (owner, 2026-10-16): it
+ * is held, shown pending, and says it sends when they accept (lib/p2p/held-until-registered.ts).
  *
  * The hook runs with its three effects injected (the trust check, the send, the outgoing record);
- * the composer is the production component.
+ * the composer and the bubble footer are the production components.
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { useConnectRequest, type ConnectRequest, type ConnectRequestDeps } from '../hooks/use-connect-request';
 import { P2PMessageInput } from '../P2PMessageInput';
+import { BubbleFooter } from '../bubbles/BubbleFooter';
+import { AwaitingAcceptContext, awaitingAcceptPlaceholder } from '../bubbles/awaiting-accept';
+import type { P2PMessage } from '@/lib/p2p/p2p-types';
 import type { PeerTrust } from '@/lib/workspace-service/messaging-trust-operations';
 
 afterEach(cleanup);
@@ -68,22 +72,40 @@ describe('the connect request in an unconnected chat', () => {
   });
 });
 
-describe('the composer while you are not connected', () => {
-  it('says why and sends nothing', () => {
+describe('the composer while they have not accepted', () => {
+  it('still sends, and says the message will wait for them; files need the link', () => {
     const onSubmit: () => void = vi.fn();
     render(
       <P2PMessageInput
         inputMessage="hello" messageType="text" showMarkdownPreview={false}
-        paused={false} isSending={false} notConnectedWith="Bob"
+        paused={false} isSending={false} awaitingAcceptFrom="Bob"
         onInputChange={vi.fn()} onInputFocus={vi.fn()} onInputBlur={vi.fn()}
         onSubmit={onSubmit} onFileClick={vi.fn()} onFormat={vi.fn()}
         onTogglePreview={vi.fn()} onMessageTypeChange={vi.fn()}
       />,
     );
     const input: HTMLElement = screen.getByTestId('p2p-message-input');
-    expect(input.getAttribute('placeholder')).toBe('Connect with Bob to send messages');
-    expect((screen.getByRole('button', { name: 'Send message' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(input.getAttribute('placeholder')).toBe(awaitingAcceptPlaceholder('Bob'));
+    expect((screen.getByRole('button', { name: 'Send message' }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole('button', { name: 'Send file' }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.keyDown(input, { key: 'Enter' });
-    expect(onSubmit).not.toHaveBeenCalled();
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('a message held for someone who has not accepted', () => {
+  const pending: P2PMessage = { id: 'm1', content: 'hi', senderCid: 1n, recipientCid: 2n, timestamp: 1, index: 0, status: 'pending', message_type: 'text' };
+
+  it('shows the clock and says when it sends', () => {
+    render(<AwaitingAcceptContext.Provider value="Bob"><BubbleFooter message={pending} isOwn /></AwaitingAcceptContext.Provider>);
+    expect(screen.getByTestId('message-status-pending')).toBeTruthy();
+    expect(screen.getByTestId('message-held-note').textContent).toBe('Sends when Bob accepts');
+  });
+
+  it('says nothing of the kind once they have, or once it is no longer pending', () => {
+    // The discrimination for the case above: the note follows the wait, not the clock.
+    render(<AwaitingAcceptContext.Provider value={null}><BubbleFooter message={pending} isOwn /></AwaitingAcceptContext.Provider>);
+    render(<AwaitingAcceptContext.Provider value="Bob"><BubbleFooter message={{ ...pending, status: 'sent' }} isOwn /></AwaitingAcceptContext.Provider>);
+    expect(screen.queryByTestId('message-held-note')).toBeNull();
   });
 });

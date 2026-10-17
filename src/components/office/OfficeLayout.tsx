@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, Settings } from "lucide-react";
-import { useLocation } from "react-router-dom";
-import { buildWorkspacePath } from "@/lib/workspace-navigation";
 import { DisabledWithTooltip } from "@/components/ui/DisabledWithTooltip";
 import { SettingsModal } from "@/components/SettingsModal";
 import { useGuardedNavigate, type GuardedNavigate } from '@/hooks/use-guarded-navigate';
+import { OfficeBreadcrumbs } from './OfficeBreadcrumbs';
 
 interface OfficeLayoutProps {
   title: string;
+  /** The node on screen, for the breadcrumbs; null is the workspace itself. */
+  nodeId: string | null;
   isEditing: boolean;
   onEditToggle: () => void;
   onSave?: () => void;
@@ -19,6 +20,7 @@ interface OfficeLayoutProps {
 
 export const OfficeLayout = ({
   title,
+  nodeId,
   isEditing,
   onEditToggle,
   onSave,
@@ -30,35 +32,16 @@ export const OfficeLayout = ({
   canEdit,
   editDeniedReason,
 }: OfficeLayoutProps): JSX.Element => {
-  const location: ReturnType<typeof useLocation> = useLocation();
   const navigate: GuardedNavigate = useGuardedNavigate();
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-
-  const handleNavigateUp = (): void => {
-    const params: URLSearchParams = new URLSearchParams(location.search);
-    params.delete("nodeId");
-    void navigate(buildWorkspacePath(params));
-  };
 
   return (
     <div className="h-[calc(100dvh-3.5rem)] overflow-hidden bg-background">
       <div className="h-full flex flex-col">
-        <div className="flex justify-between items-center px-4 py-2 border-b border-border bg-card">
-          <div className="flex items-center space-x-4">
-            {/* sr-only rather than `hidden` below md: `display:none` takes it out of
-                the accessibility tree, so on a phone the page had no h1 at all and
-                the document's own heading became the top level instead. Which
-                element was the page heading depended on the viewport. */}
-            <h1 className="text-xl font-semibold text-foreground sr-only md:not-sr-only md:block">
-              <button
-                onClick={handleNavigateUp}
-                className="hover:text-primary-accent transition-colors"
-              >
-                {title}
-              </button>
-            </h1>
-          </div>
-          <div className="flex items-center space-x-2">
+        <div className="flex justify-between items-center gap-2 px-4 py-2 border-b border-border bg-card">
+          {/* The page heading is the breadcrumbs' last segment. */}
+          <OfficeBreadcrumbs nodeId={nodeId} current={title} />
+          <div className="flex shrink-0 items-center space-x-2">
             <Button
               variant="ghost"
               size="icon"

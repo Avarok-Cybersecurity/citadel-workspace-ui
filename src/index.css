@@ -453,6 +453,37 @@ h1, h2, h3, h4, h5, h6 {
   animation-iteration-count: infinite !important;
 }
 
+/* Lite motion (Settings > Appearance > Animations: Lite, or Auto on a slower
+ * device; see lib/motion-tier.ts). What stays is opacity: an element that
+ * enters or leaves with tailwindcss-animate still fades, but no longer zooms,
+ * slides or spins in, and nothing pulses, pings or bounces for attention.
+ * Spinners keep turning -- they say something is happening, they are not
+ * decoration. Script motion reads the same class (use-motion-tier).
+ */
+/* Opacity-only keyframes in place of tailwindcss-animate's `enter`/`exit`. Not by zeroing the
+ * translate/scale variables: `enter` animates FROM translate(var(--tw-enter-translate-x)) to the
+ * element's own transform, and a centred dialog's own transform is translate(-50%, -50%). Zeroed,
+ * every dialog slid half the screen as it opened -- more motion than Full, and measured live by
+ * permission-matrix-phone.spec.ts as a dialog 100px past a 375px screen. */
+@keyframes lite-enter {
+  from { opacity: var(--tw-enter-opacity, 1); }
+}
+@keyframes lite-exit {
+  to { opacity: var(--tw-exit-opacity, 1); }
+}
+.lite-motion .animate-in {
+  animation-name: lite-enter !important;
+}
+.lite-motion .animate-out {
+  animation-name: lite-exit !important;
+}
+
+.lite-motion .animate-pulse,
+.lite-motion .animate-ping,
+.lite-motion .animate-bounce {
+  animation: none !important;
+}
+
 /* The Show Avatars switch. One rule, because every avatar in the app goes
  * through the same primitive and now carries `data-avatar`. */
 [data-avatars='off'] [data-avatar] {

@@ -5,10 +5,7 @@
  * Delegates low-level operations to message-send-operations.
  */
 
-import { describeError } from '@/lib/describe-error';
-import {
-  createMessagingLayerCommand,
-} from '@/types/p2p-types';
+import { createMessagingLayerCommand, serializeP2PCommand } from '@/types/p2p-types';
 import {
   createMessage,
 } from '@/types/messaging-layer';
@@ -31,14 +28,19 @@ import type { P2PCommand } from '@/types/p2p-commands';
 import type { CompressionHint } from 'citadel-workspace-client-ts';
 import { agentHostsConversations } from '../agent-conversations/capabilities';
 import { sendThroughAgent, resendThroughAgent } from '../agent-conversations/agent-actions';
+import { holdUntilRegistered, flushOnceRegistered, type RegistrationHoldDeps } from './held-until-registered';
+import { registrationHoldFor } from './registration-hold';
+import { compressionHintFor } from './compression-hints';
 
 export type { MessageSenderConfig, SendMessageOptions } from './message-sender-types';
 
 export class MessageSender {
   private readonly config: MessageSenderConfig;
+  private readonly hold: RegistrationHoldDeps;
 
   constructor(config: MessageSenderConfig) {
     this.config = config;
+    this.hold = registrationHoldFor(config);
   }
 
   public async sendMessage(
@@ -50,29 +52,17 @@ export class MessageSender {
 
     const { replyTo, mentions, attachments, messageType = 'text', documentId, documentTitle } = options || {};
 
+    // Not registered: the message is written and held until they accept (held-until-registered.ts).
+    // No PeerRegister from here -- the connect banner owns that request.
     const isAlreadyConnected: boolean = await p2pAutoConnectService.isPeerConnected(recipientCid) || this.config.isConnected(recipientCid);
-    const isAlreadyRegistered: boolean = p2pRegistrationService.isPeerRegistered(recipientCid);
+    const heldUntilRegistered: boolean = !p2pRegistrationService.isPeerRegistered(recipientCid) && !isAlreadyConnected;
 
-    if (!isAlreadyRegistered && !isAlreadyConnected) {
-      debugLog('MessageSender', `Peer ${recipientCid.toString()} not registered and not connected, registering now...`);
-      try {
-        await p2pRegistrationService.registerPeer(recipientCid, {
-          connectAfterRegister: false
-        });
-        debugLog('MessageSender', `Successfully registered peer ${recipientCid.toString()}`);
-      } catch (error) {
-        debugLog('MessageSender', `Failed to register peer ${recipientCid.toString()}:`, error);
-        throw new Error(`Failed to register peer for P2P communication: ${describeError(error)}`);
+    if (!heldUntilRegistered) {
+      void p2pAutoConnectService.ensurePeerConnectedInBackground(recipientCid);
+      const peerReady: boolean = await this.config.tryEnsurePeerReady(recipientCid);
+      if (!peerReady) {
+        debugLog('MessageSender', `[P2P] Sending to ${recipientCid.toString()} without CheckState confirmation (transport handles delivery)`);
       }
-    } else {
-      debugLog('MessageSender', `Peer ${recipientCid.toString()} already ${isAlreadyConnected ? 'connected' : 'registered'}, skipping registration`);
-    }
-
-    void p2pAutoConnectService.ensurePeerConnectedInBackground(recipientCid);
-
-    const peerReady: boolean = await this.config.tryEnsurePeerReady(recipientCid);
-    if (!peerReady) {
-      debugLog('MessageSender', `[P2P] Sending to ${recipientCid.toString()} without CheckState confirmation (transport handles delivery)`);
     }
 
     // The agent stores and sends it, and announces it to every window.
@@ -135,6 +125,11 @@ export class MessageSender {
     this.config.emitEvent('p2p:message-sent', { peerCid: recipientCid, message });
     options?.onOptimisticAppend?.();
 
+    if (heldUntilRegistered) {
+      await this.holdUntilRegistered(currentCid, recipientCid, command, message);
+      return message;
+    }
+
     debugLog('MessageSender', `[P2P] Sending message ${messageId} to ${recipientCid.toString().slice(0, 8)}...`);
     const sendStartTime: number = Date.now();
     try {
@@ -153,6 +148,23 @@ export class MessageSender {
     }
 
     return message;
+  }
+
+  /** Stays 'pending'; a failure to hold is a failure to send, and says so like one. */
+  private async holdUntilRegistered(localCid: bigint, peerCid: bigint, command: P2PCommand, message: P2PMessage): Promise<void> {
+    try {
+      await holdUntilRegistered(this.hold, localCid, peerCid, serializeP2PCommand(command), compressionHintFor(command));
+    } catch (error) {
+      markSendFailed(this.config, message, message.id, error, 'Could not be queued');
+      await persistMessageStatus(this.config, peerCid, message.id, message);
+      throw error;
+    }
+  }
+
+  /** Send what waited for `peerCid` to accept. 0 before they have, or without a session. */
+  public async flushHeldUntilRegistered(peerCid: bigint): Promise<number> {
+    const localCid: bigint | null = await this.config.getCurrentCid();
+    return localCid === null ? 0 : flushOnceRegistered(this.hold, localCid, peerCid);
   }
 
   /** Retry a message that previously failed. See ./resend-message. */

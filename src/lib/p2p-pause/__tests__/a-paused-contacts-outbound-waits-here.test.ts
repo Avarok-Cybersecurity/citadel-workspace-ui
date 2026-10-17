@@ -13,7 +13,7 @@
  * LocalDB, by a Map with its absent-key rejection and its prefix listing.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { PausedOutbox, PausedPeerError, type OutboxStorage } from '../outbox';
+import { HeldOutbox, PausedPeerError, type OutboxStorage } from '../outbox';
 import { pauseKey, PAUSED_MARKER } from '../pause-rules';
 import { stringToBytes } from '@/lib/utils/encoding-utils';
 
@@ -48,14 +48,14 @@ function text(b: Uint8Array): string { return new TextDecoder().decode(b); }
 describe('a send to a contact', () => {
   let db: AgentLocalDB;
   let clock: number;
-  let outbox: PausedOutbox;
+  let outbox: HeldOutbox;
   const sent: string[] = [];
   const send = (b: Uint8Array): (() => Promise<void>) => async (): Promise<void> => { sent.push(text(b)); };
 
   beforeEach((): void => {
     db = new AgentLocalDB();
     clock = 1_000;
-    outbox = new PausedOutbox({ storage: db, now: (): number => clock++ });
+    outbox = new HeldOutbox({ storage: db, now: (): number => clock++ });
     sent.length = 0;
   });
 
@@ -79,28 +79,28 @@ describe('a send to a contact', () => {
     await expect(outbox.sendOrHold(LARA, MAX, bytes('hi'), {}, send(bytes('hi')))).rejects.toThrow(/could not check/i);
     db.failReads = false;
     expect(sent).toEqual([]);
-    expect(await outbox.heldCount(LARA, MAX)).toBe(0);
+    expect(await outbox.heldCount(LARA, MAX, 'paused')).toBe(0);
   });
 
   it('leaves on resume, in the order it was written, and only once', async (): Promise<void> => {
     pause(LARA, MAX);
     for (const m of ['one', 'two', 'three']) await outbox.sendOrHold(LARA, MAX, bytes(m), {}, send(bytes(m)));
     const flushed: string[] = [];
-    await outbox.flush(LARA, MAX, async (b: Uint8Array): Promise<void> => { flushed.push(text(b)); });
+    await outbox.flush(LARA, MAX, 'paused', async (b: Uint8Array): Promise<void> => { flushed.push(text(b)); });
     expect(flushed).toEqual(['one', 'two', 'three']);
-    expect(await outbox.heldCount(LARA, MAX)).toBe(0);
+    expect(await outbox.heldCount(LARA, MAX, 'paused')).toBe(0);
   });
 
   it('leaves in write order even when every send lands in the same millisecond', async (): Promise<void> => {
     // The clock above never repeats, which hid this: keys ordered by time then a
     // random tiebreak put same-millisecond messages in random order. CI caught it
     // (2026-09-29): two sends from one test landed together and left as 2, 1.
-    const frozen: PausedOutbox = new PausedOutbox({ storage: db, now: (): number => 1_000 });
+    const frozen: HeldOutbox = new HeldOutbox({ storage: db, now: (): number => 1_000 });
     pause(LARA, MAX);
     const written: string[] = Array.from({ length: 12 }, (_: unknown, i: number): string => `m${i}`);
     for (const m of written) await frozen.sendOrHold(LARA, MAX, bytes(m), {}, send(bytes(m)));
     const flushed: string[] = [];
-    await frozen.flush(LARA, MAX, async (b: Uint8Array): Promise<void> => { flushed.push(text(b)); });
+    await frozen.flush(LARA, MAX, 'paused', async (b: Uint8Array): Promise<void> => { flushed.push(text(b)); });
     expect(flushed).toEqual(written);
   });
 
@@ -108,12 +108,12 @@ describe('a send to a contact', () => {
     pause(LARA, MAX);
     for (const m of ['one', 'two', 'three']) await outbox.sendOrHold(LARA, MAX, bytes(m), {}, send(bytes(m)));
     const flushed: string[] = [];
-    await expect(outbox.flush(LARA, MAX, async (b: Uint8Array): Promise<void> => {
+    await expect(outbox.flush(LARA, MAX, 'paused', async (b: Uint8Array): Promise<void> => {
       if (text(b) === 'two') throw new Error('socket closed');
       flushed.push(text(b));
     })).rejects.toThrow(/socket closed/);
     expect(flushed).toEqual(['one']);
-    expect(await outbox.heldCount(LARA, MAX)).toBe(2);
+    expect(await outbox.heldCount(LARA, MAX, 'paused')).toBe(2);
   });
 
   it('belongs to one pair: another contact, another session are untouched', async (): Promise<void> => {
@@ -124,23 +124,23 @@ describe('a send to a contact', () => {
     await outbox.sendOrHold(LARA, CAROL, bytes('to carol'), {}, send(bytes('to carol')));
     await outbox.sendOrHold(CAROL, MAX, bytes('carol to max'), {}, send(bytes('carol to max')));
     const flushed: string[] = [];
-    await outbox.flush(LARA, MAX, async (b: Uint8Array): Promise<void> => { flushed.push(text(b)); });
+    await outbox.flush(LARA, MAX, 'paused', async (b: Uint8Array): Promise<void> => { flushed.push(text(b)); });
     expect(flushed).toEqual(['to max']);
-    expect(await outbox.heldCount(LARA, CAROL)).toBe(1);
-    expect(await outbox.heldCount(CAROL, MAX)).toBe(1);
+    expect(await outbox.heldCount(LARA, CAROL, 'paused')).toBe(1);
+    expect(await outbox.heldCount(CAROL, MAX, 'paused')).toBe(1);
   });
 
   it('survives a reload: a fresh outbox over the same agent still holds it', async (): Promise<void> => {
     pause(LARA, MAX);
     await outbox.sendOrHold(LARA, MAX, bytes('before reload'), {}, send(bytes('before reload')));
-    const afterReload: PausedOutbox = new PausedOutbox({ storage: db, now: (): number => 5_000 });
+    const afterReload: HeldOutbox = new HeldOutbox({ storage: db, now: (): number => 5_000 });
     const flushed: string[] = [];
-    await afterReload.flush(LARA, MAX, async (b: Uint8Array): Promise<void> => { flushed.push(text(b)); });
+    await afterReload.flush(LARA, MAX, 'paused', async (b: Uint8Array): Promise<void> => { flushed.push(text(b)); });
     expect(flushed).toEqual(['before reload']);
   });
 
   it('flushes nothing, without error, when nothing was held', async (): Promise<void> => {
-    expect(await outbox.flush(LARA, MAX, async (): Promise<void> => { throw new Error('should not send'); })).toBe(0);
+    expect(await outbox.flush(LARA, MAX, 'paused', async (): Promise<void> => { throw new Error('should not send'); })).toBe(0);
   });
 });
 
@@ -148,7 +148,7 @@ describe('a send that bypasses the ILM (live documents, call signalling)', () =>
   it('is refused while paused -- there is no queue behind it to wait in', async (): Promise<void> => {
     const db: AgentLocalDB = new AgentLocalDB();
     db.rows.set(`${LARA.toString()}/${pauseKey(MAX)}`, stringToBytes(PAUSED_MARKER));
-    const outbox: PausedOutbox = new PausedOutbox({ storage: db, now: (): number => 1 });
+    const outbox: HeldOutbox = new HeldOutbox({ storage: db, now: (): number => 1 });
     await expect(outbox.refuseIfPaused(LARA, MAX)).rejects.toBeInstanceOf(PausedPeerError);
     await expect(outbox.refuseIfPaused(LARA, CAROL)).resolves.toBeUndefined();
   });

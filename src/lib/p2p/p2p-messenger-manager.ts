@@ -35,7 +35,7 @@ import { resolveCurrentCid, updatePeerPresenceOnConnect } from './messenger-cid-
 import { bindPeerConnectionState } from './bind-peer-connection-state';
 import { syncConnectionsFromBackend, updateFileTransferState, updateUnreadCount, autoRegisterPeer } from './messenger-compatibility';
 import { bindOutgoingFileOffers } from './record-outgoing-file-transfer';
-import { debugLog } from '@/lib/debug-config';
+import { debugLog, errorLog } from '@/lib/debug-config';
 import { conversationInFront } from '@/lib/notification-service/in-front';
 import { TIMEOUT } from '../timeout-constants';
 import type { MessagePage, ConversationMetadata } from '@/lib/p2p/p2p-types';
@@ -160,12 +160,15 @@ export class P2PMessengerManager extends EventListenerManager {
     });
     this.listen<{ peer: { cid: bigint; username: string } }>('p2p:peer-registered', ({ peer }) => {
       if (peer.cid && peer.username) this.conversationManager.setPeerUsername(peer.cid, peer.username);
+      this.flushHeldUntilRegistered(peer.cid); // here, not in a chat, so it goes whether or not the chat is open
     });
   }
 
   private async loadCachedMessages(): Promise<void> { await this.conversationManager.loadFromStorage(); this.cachedMessagesLoaded = true; }
   // ===== Public API: Messaging =====
   public async sendMessage(recipientCid: bigint, content: string, options?: SendMessageOptions): Promise<P2PMessage> { return this.messageSender.sendMessage(recipientCid, content, options); }
+  /** A held message stays held when this fails, so it is reported rather than lost. */
+  public flushHeldUntilRegistered(peerCid: bigint): void { this.messageSender.flushHeldUntilRegistered(peerCid).catch((e: unknown): void => errorLog('P2PMessenger', `Messages held for ${peerCid.toString()} did not send yet`, e)); }
   public async resendMessage(peerCid: bigint, messageId: string): Promise<void> { const c: P2PConversation | undefined = this.conversationManager.getConversation(peerCid); if (!c) throw new Error(`Conversation with ${peerCid} not found`); return this.messageSender.resendMessage(peerCid, messageId, c); }
   public async sendRawMessage(recipientCid: bigint, layer: MessagingLayer): Promise<void> { return this.messageSender.sendRawMessage(recipientCid, layer); }
   public async editMessage(peerCid: bigint, messageId: string, contents: string): Promise<void> { return editMessage(this.agent, this.conversationManager, (e, d) => this.emit(e, d), (p, l) => this.sendRawMessage(p, l), peerCid, messageId, contents); }

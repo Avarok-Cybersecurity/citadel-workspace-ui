@@ -57,4 +57,5 @@ export const CONTROL_CHECKS = {
   targetsInSettings: targetsAreBigEnough('settings', '[role="dialog"]'),
   targetsInPrivacySettings: targetsAreBigEnough('settings-privacy', '[role="dialog"]'),
   targetsAmongPeople: targetsAreBigEnough('people', '[data-avatar]'),
+  targetsInTheOfficeHeader: targetsAreBigEnough('office-header', '[data-testid="hierarchy-breadcrumbs"]'),
 };

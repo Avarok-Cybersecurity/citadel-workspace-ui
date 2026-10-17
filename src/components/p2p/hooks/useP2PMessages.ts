@@ -231,19 +231,11 @@ export function useP2PMessages({
     });
   }, [peerCid, messenger]);
 
+  // Covers what the global listener could not hear: registration that completed before this tab loaded.
+  useEffect((): void => { if (isRegistered) messenger.flushHeldUntilRegistered(peerCid); }, [isRegistered, peerCid, messenger]);
+
   return {
-    messages,
-    peerTyping,
-    peerPresence,
-    isConnected,
-    isRegistered,
-    isLoadingMore,
-    isLoadingHistory,
-    hasMorePages,
-    handleScroll,
-    handleRetryMessage,
-    handleEditMessage,
-    handleDeleteMessage,
-    handleReactMessage,
+    messages, peerTyping, peerPresence, isConnected, isRegistered, isLoadingMore, isLoadingHistory, hasMorePages,
+    handleScroll, handleRetryMessage, handleEditMessage, handleDeleteMessage, handleReactMessage,
   };
 }

@@ -11,6 +11,9 @@ import {
   loadAppearanceSettings,
   saveAppearanceSettings,
 } from '@/lib/appearance-settings';
+import { ANIMATIONS_PREFERENCES, isAnimationsPreference, type AnimationsPreference } from '@/lib/motion-tier';
+
+const ANIMATIONS_LABELS: Record<AnimationsPreference, string> = { auto: 'Auto', full: 'Full', lite: 'Lite', off: 'Off' };
 
 /**
  * Compact Mode and Group Messages used to sit here too. Neither had any
@@ -117,12 +120,16 @@ export function AppearanceSettingsTab(): JSX.Element {
         <div className="flex items-center justify-between gap-4 p-3 rounded-lg bg-background/50">
           <div className="min-w-0">
             <Label htmlFor="animations" className="text-sm font-medium">Animations</Label>
-            <p className="text-xs text-muted-foreground">Enable smooth transitions and effects</p>
+            <p className="text-xs text-muted-foreground">Auto uses lighter motion on slower devices</p>
           </div>
-          <Switch id="animations"
-            checked={settings.animationsEnabled}
-            onCheckedChange={(v) => update('animationsEnabled', v)}
-          />
+          <Select value={settings.animations} onValueChange={(v) => { if (isAnimationsPreference(v)) update('animations', v); }}>
+            <SelectTrigger id="animations" className="w-28 h-8 bg-surface text-sm" data-testid="appearance-animations">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ANIMATIONS_PREFERENCES.map((p: AnimationsPreference) => <SelectItem key={p} value={p}>{ANIMATIONS_LABELS[p]}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
       </div>
     </div>
