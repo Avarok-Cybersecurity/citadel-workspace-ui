@@ -10,7 +10,8 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { OfficeSkeletonLoader } from "../ui/skeleton-office";
 import { MDXEditor } from "@/components/mdx/MDXEditor";
 import TemplateSelector from "@/components/mdx/TemplateSelector";
-import { TemplateCategory, MdxTemplate } from "@/lib/mdx-templates";
+import { templateCategoryFor, type MdxTemplate, type TemplateCategory } from "@/lib/mdx-templates";
+import type { NodeEntityType } from "@/lib/entity-type-registry";
 import { saveOfficeContent } from "./save-office-content";
 import { useCompiledMdx } from "./use-compiled-mdx";
 import { useApplyTemplate } from "./use-apply-template";
@@ -135,6 +136,8 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
   }, [entityData, getInitialContent, isEditing]);
 
 
+  const level: NodeEntityType = entityData?.entity_type ?? 'Workspace';
+  const templateCategory: TemplateCategory | null = templateCategoryFor(level, state.treeSchema);
   const handleTemplateSelect: (template: MdxTemplate) => void = useApplyTemplate(components, setContent, (): void => setIsNewContent(false));
 
   // Show skeleton loader during loading state
@@ -161,9 +164,10 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-semibold text-foreground">Edit Content</h2>
         <div className="flex gap-2">
-          {(isNewContent || content.trim() === '') && (
+          {templateCategory && (isNewContent || content.trim() === '') && (
             <TemplateSelector
-              category={TemplateCategory.OFFICE}
+              category={templateCategory}
+              level={level}
               onSelectTemplate={handleTemplateSelect}
               buttonVariant="outline"
               buttonSize="sm"

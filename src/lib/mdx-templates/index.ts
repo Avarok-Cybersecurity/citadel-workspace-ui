@@ -6,7 +6,8 @@
 
 // Types and enums
 export type { MdxTemplate } from './types';
-export { TemplateCategory, OfficeType, RoomType } from './types';
+export { TemplateCategory, TemplateTheme } from './types';
+export { templateCategoryFor } from './template-category';
 
 // Office templates
 export {
@@ -26,7 +27,7 @@ export {
   roomTemplates,
 } from './room-templates';
 
-import { TemplateCategory, OfficeType, RoomType , type MdxTemplate } from './types';
+import { TemplateCategory, TemplateTheme, type MdxTemplate } from './types';
 import { officeTemplates } from './office-templates';
 import { roomTemplates } from './room-templates';
 
@@ -45,7 +46,7 @@ export function getTemplateById(id: string): MdxTemplate | undefined {
   return templates.find(template => template.id === id);
 }
 
-export function getTemplatesByType(category: TemplateCategory, type: OfficeType | RoomType): MdxTemplate | undefined {
+export function getTemplatesByType(category: TemplateCategory, type: TemplateTheme): MdxTemplate | undefined {
   return templates.find(template => template.category === category && template.type === type);
 }
 

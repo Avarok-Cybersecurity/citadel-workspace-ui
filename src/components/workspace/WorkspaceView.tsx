@@ -18,6 +18,8 @@ import { nodeInView } from '@/lib/workspace-navigation';
 import type { CurrentConnectionInfo } from '@/lib/connection/types';
 import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 import { useP2PChannelParam } from './use-p2p-channel-param';
+import { nodeAppState, type NodeAppState } from '@/lib/citadel-apps/node-app-metadata';
+import { DocumentView } from '../documents/DocumentView';
 
 interface WorkspaceViewProps {
   nodeId?: string | null;
@@ -119,6 +121,10 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId: nodeParam 
   if (nodeId && !node && !state.loading.nodes) {
     return <NodeNotFound nodeId={nodeId} />;
   }
+
+  // A document node opens in its app, not as a page; see lib/citadel-apps.
+  const app: NodeAppState = node ? nodeAppState(node.metadata) : { kind: 'none' };
+  if (node && app.kind !== 'none') return <DocumentView key={node.id} node={node} app={app} />;
 
   // Otherwise show the normal workspace content
   return (

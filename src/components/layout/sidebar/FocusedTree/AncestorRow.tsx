@@ -9,7 +9,7 @@ import { MoreHorizontal } from 'lucide-react';
 import { forwardRef, type ForwardedRef, type ForwardRefExoticComponent, type RefAttributes } from 'react';
 import { motion, type MotionValue } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { getEntityIcon } from '@/lib/entity-type-registry';
+import { nodeIcon } from '@/lib/citadel-apps/node-icon';
 import type { DomainNode } from '../tree-node-types';
 import { ITEM_CLASS, useRowItem, useFadeOut, useLeaving } from './tree-motion';
 import { rootLabel } from './level-labels';
@@ -28,7 +28,7 @@ interface AncestorRowProps {
 }
 
 export const AncestorRow: ForwardRefExoticComponent<AncestorRowProps & RefAttributes<HTMLLIElement>> = forwardRef<HTMLLIElement, AncestorRowProps>(function AncestorRow({ node, level, parentId, childCountLabel, isMobile, onSelect }: AncestorRowProps, ref: ForwardedRef<HTMLLIElement>): JSX.Element {
-  const Icon: ReturnType<typeof getEntityIcon> = getEntityIcon(node.entity_type);
+  const Icon: ReturnType<typeof nodeIcon> = nodeIcon(node);
   const isRoot: boolean = level === 1;
   const leaving: boolean = useLeaving();
   const fade: MotionValue<number> = useFadeOut();

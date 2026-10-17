@@ -1,3 +1,5 @@
+import { FileText } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { toastSuccess } from '@/lib/toast-helpers';
 import WorkspaceService from '@/lib/workspace-service';
@@ -21,6 +23,8 @@ interface NodeManagementModalProps {
   node?: DomainNode;
   /** Create mode: the server accepted the new node under `parentId`. */
   onCreated?: (parentId: string) => void;
+  /** Create mode: offer "New document" under the same parent instead; see NewDocumentDialog. */
+  onNewDocument?: () => void;
 }
 
 function buildModes(label: string): Record<'create' | 'edit', ModeConfig> {
@@ -66,6 +70,7 @@ export function NodeManagementModal({
   parentId,
   node,
   onCreated,
+  onNewDocument,
 }: NodeManagementModalProps): JSX.Element {
   const { toast } = useToast();
   const meta: EntityTypeMetadata = getEntityMetadata(entityType);
@@ -107,6 +112,12 @@ export function NodeManagementModal({
       fields={fields}
       initialData={initialData}
       onSubmit={handleSubmit}
+      customContent={mode === 'create' && onNewDocument ? (
+        <Button type="button" variant="outline" className="min-h-[44px] justify-start gap-2" onClick={onNewDocument} data-testid="node-modal-new-document">
+          <FileText className="h-4 w-4" aria-hidden="true" />
+          New document instead
+        </Button>
+      ) : undefined}
       entityName={getEntityTypeString(node?.entity_type ?? { Child: entityType }).toLowerCase()}
     />
   );
