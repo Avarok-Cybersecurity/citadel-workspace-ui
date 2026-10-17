@@ -460,15 +460,22 @@ h1, h2, h3, h4, h5, h6 {
  * Spinners keep turning -- they say something is happening, they are not
  * decoration. Script motion reads the same class (use-motion-tier).
  */
-.lite-motion * {
-  --tw-enter-scale: 1 !important;
-  --tw-exit-scale: 1 !important;
-  --tw-enter-rotate: 0 !important;
-  --tw-exit-rotate: 0 !important;
-  --tw-enter-translate-x: 0 !important;
-  --tw-enter-translate-y: 0 !important;
-  --tw-exit-translate-x: 0 !important;
-  --tw-exit-translate-y: 0 !important;
+/* Opacity-only keyframes in place of tailwindcss-animate's `enter`/`exit`. Not by zeroing the
+ * translate/scale variables: `enter` animates FROM translate(var(--tw-enter-translate-x)) to the
+ * element's own transform, and a centred dialog's own transform is translate(-50%, -50%). Zeroed,
+ * every dialog slid half the screen as it opened -- more motion than Full, and measured live by
+ * permission-matrix-phone.spec.ts as a dialog 100px past a 375px screen. */
+@keyframes lite-enter {
+  from { opacity: var(--tw-enter-opacity, 1); }
+}
+@keyframes lite-exit {
+  to { opacity: var(--tw-exit-opacity, 1); }
+}
+.lite-motion .animate-in {
+  animation-name: lite-enter !important;
+}
+.lite-motion .animate-out {
+  animation-name: lite-exit !important;
 }
 
 .lite-motion .animate-pulse,

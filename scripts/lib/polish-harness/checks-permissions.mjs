@@ -82,7 +82,40 @@ async function roleMatrixFitsThePhone({ page, url, viewport }) {
   assert.equal(reach, null, `role columns are out of reach at ${viewport.width}px: ${reach}`);
 }
 
+/**
+ * Under Lite motion a centred dialog stays on screen for every frame of its opening, not only once settled.
+ * Lite once zeroed tailwindcss-animate's translate variables, and `enter` animates from that translate to the
+ * element's own translate(-50%): every dialog slid in from mid-screen, and a 375px phone saw the member editor
+ * 100px past its edge (permission-matrix-phone.spec.ts, on a 4-core CI runner where Auto picks Lite).
+ */
+async function aLiteDialogOpensInPlace({ page, url, viewport }) {
+  // Before React draws anything, on the root as motion-state.ts sets it. An init script runs before <html> exists.
+  await page.addInitScript(() => {
+    const mark = () => document.documentElement?.classList.add('lite-motion');
+    if (document.documentElement) mark();
+    else new MutationObserver((_, watch) => { if (document.documentElement) { mark(); watch.disconnect(); } }).observe(document, { childList: true });
+  });
+  await page.goto(url('member-permissions'));
+  const dialog = page.getByTestId('member-permissions-dialog');
+  await dialog.waitFor({ state: 'visible' });
+  // Sampling frames raced the 200 ms opening: it was often over before the first sample. So the opening is
+  // replayed and held at its first frame, where a slide starts furthest out, and measured there.
+  const first = await dialog.evaluate((el) => {
+    el.style.animationName = 'none';
+    void el.offsetWidth;
+    el.style.animationName = '';
+    const opening = el.getAnimations();
+    for (const a of opening) { a.pause(); a.currentTime = 0; }
+    const r = el.getBoundingClientRect();
+    for (const a of opening) a.finish();
+    return { left: r.left, right: r.right, animations: opening.length };
+  });
+  assert.ok(first.animations > 0, 'the dialog has no opening animation to measure');
+  assert.ok(first.left >= -1 && first.right <= viewport.width + 1, `under Lite the dialog opens at ${first.left.toFixed(0)}..${first.right.toFixed(0)}, in ${viewport.width}px`);
+}
+
 export const PERMISSION_CHECKS = {
+  aLiteDialogOpensInPlace,
   roleMatrixFitsThePhone,
   checksCentredInTheMatrix: checksAreCentred('role-permissions', ROLE_MARK),
   checksCentredInTheBareBox: checksAreCentred('bare-checkbox'),
