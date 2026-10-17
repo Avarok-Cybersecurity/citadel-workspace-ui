@@ -6,7 +6,7 @@
  */
 import { narrowWebSocketMessage, hasVariant, getVariant } from '@/lib/ws-message-boundary';
 import { debugLog } from '@/lib/debug-config';
-import { AdmissionRefusal, RegisteredAwaitingSignIn, admissionReasonOf, type AdmissionReason } from '@/lib/admission/refusal';
+import { AdmissionRefusal, RegisteredAwaitingSignIn, admissionChallengeOf, admissionReasonOf, type AdmissionReason } from '@/lib/admission/refusal';
 import type { WebSocketMessage } from '@/types/ws-message-types';
 
 export interface RegistrationHandlerDeps {
@@ -46,7 +46,7 @@ export function createRegistrationResponseHandler(
     const admission: AdmissionReason | null = admissionReasonOf(v);
     // After RegisterSuccess, an admission refusal is the follow-up Connect's: the register token was spent.
     if (admission === 'admission_required' && registered !== null) { reject(new RegisteredAwaitingSignIn(registered)); return; }
-    reject(admission ? new AdmissionRefusal(admission, message) : new Error(message));
+    reject(admission ? new AdmissionRefusal(admission, message, admissionChallengeOf(v)) : new Error(message));
   };
   return (raw: unknown): void => {
     const message: WebSocketMessage | null = narrowWebSocketMessage(raw);

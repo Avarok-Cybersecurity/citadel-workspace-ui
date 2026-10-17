@@ -30,7 +30,7 @@ export async function connectAfterRegistration(
     }
     const answer: ConnectOutcome = await outcome;
     if (answer.kind !== 'failed') return answer.cid;
-    if (answer.reasonCode !== null) throw new AdmissionRefusal(answer.reasonCode, answer.message);
+    if (answer.reasonCode !== null) throw new AdmissionRefusal(answer.reasonCode, answer.message, answer.challenge);
     throw new Error(answer.message);
   } finally {
     unwatch();

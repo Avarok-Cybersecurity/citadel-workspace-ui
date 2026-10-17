@@ -115,12 +115,12 @@ export class FakeAgent {
 
   private register(body: Req): void {
     const refused: string | null = this.admission.check(body.admission_token);
-    if (refused) { this.emit('RegisterFailure', { request_id: body.request_id, message: 'A human check is required', reason_code: refused }); return; }
+    if (refused) { this.emit('RegisterFailure', { request_id: body.request_id, message: 'A human check is required', reason_code: refused, ...this.admission.published(refused) }); return; }
     const account: FakeAccount = this.account(body.username as string, 'Password', 100n + BigInt(this.accounts.length));
     account.password = this.text(body.proposed_password) ?? '';
     this.emit('RegisterSuccess', { cid: account.cid, request_id: body.request_id, recovery_codes: [...account.recoveryCodes] });
     // connect_after_register has no token left: the Register spent it (agent #112, Register.admission_token).
-    if (this.admission.required) { this.emit('ConnectFailure', { cid: 0n, request_id: body.request_id, message: 'A human check is required', reason_code: 'admission_required' }); return; }
+    if (this.admission.required) { this.emit('ConnectFailure', { cid: 0n, request_id: body.request_id, message: 'A human check is required', reason_code: 'admission_required', ...this.admission.published('admission_required') }); return; }
     this.emit('ConnectSuccess', { cid: account.cid, request_id: body.request_id });
   }
 
@@ -128,7 +128,7 @@ export class FakeAgent {
     const requestId: string = body.request_id as string;
     const fail = (): void => this.emit('ConnectFailure', { cid: 0n, request_id: requestId, message: 'authentication failed' });
     const admission: string | null = this.admission.check(body.admission_token);
-    if (admission) { this.emit('ConnectFailure', { cid: 0n, request_id: requestId, message: 'A human check is required', reason_code: admission }); return; }
+    if (admission) { this.emit('ConnectFailure', { cid: 0n, request_id: requestId, message: 'A human check is required', reason_code: admission, ...this.admission.published(admission) }); return; }
     const account: FakeAccount | undefined = this.accounts.find((a) => a.username === body.username);
     if (!account) { fail(); return; }
     const code: string | null = this.text(body.recovery_code);
