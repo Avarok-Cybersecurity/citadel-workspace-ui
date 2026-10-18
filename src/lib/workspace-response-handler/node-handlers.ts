@@ -71,6 +71,10 @@ export function handleNodeVariants(
     eventEmitter.emit('node:deleted', {
       nodeId: node_id, childrenDeleted: children_deleted, connection: connectionInfo,
     });
+    // A deleted document's decrypted copy leaves this device (and its children's).
+    import('@/lib/document-replica-cache').then(({ forgetDeletedNodes }) => forgetDeletedNodes([node_id, ...children_deleted])).catch((error: unknown): void => {
+      debugLog('WorkspaceResponseHandler', 'Could not remove deleted documents\' local copies', error);
+    });
     eventEmitter.emit('workspace:raw-response', response);
     return true;
   }

@@ -14,6 +14,7 @@ import type { CdocRuntime } from '@/lib/cdoc/runtime';
 import { recordingDocumentFiles, type RecordingDocumentFiles } from '@/test-utils/recording-document-files';
 import type { DocumentSource } from '@/lib/cdoc/document-source';
 import { DocumentHost } from '../DocumentHost';
+import { keepBlankReplica } from '../blank-replica';
 import { DownloadAsMenu } from '../page-view/DownloadAsMenu';
 
 const FILE: DocumentSource = { kind: 'file', format: 'md', bytes: new TextEncoder().encode('# Quarterly plan\n\nShip **open** and *export*.\n') };
@@ -22,7 +23,7 @@ function host(files: RecordingDocumentFiles, documentSource: DocumentSource = FI
   render(
     <DocumentHost
       nodeId="plan-1" appId="docs" title="Quarterly plan" permissions={{ edit: { enabled: true, reason: null } }}
-      documentSource={documentSource} files={files} original={null} commentAuthor="Ada"
+      documentSource={documentSource} files={files} original={null} commentAuthor="Ada" keepReplica={keepBlankReplica}
       loadCdocRuntime={(): Promise<CdocRuntime> => Promise.resolve(inProcessRuntime('main-thread'))}
     />,
   );

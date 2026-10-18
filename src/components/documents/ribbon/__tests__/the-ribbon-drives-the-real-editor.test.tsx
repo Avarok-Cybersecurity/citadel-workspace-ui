@@ -11,6 +11,7 @@ import { inProcessRuntime } from '@/lib/cdoc/__tests__/wasm-rig';
 import type { CdocRuntime } from '@/lib/cdoc/runtime';
 import { DocumentHost, type DocumentHostProps } from '../../DocumentHost';
 import { recordingDocumentFiles } from '@/test-utils/recording-document-files';
+import { keepBlankReplica } from '../../blank-replica';
 
 const BLANK: DocumentHostProps = {
   nodeId: 'plan-1',
@@ -24,6 +25,8 @@ const BLANK: DocumentHostProps = {
   // Any fixed instant: nothing is downloaded here.
   files: recordingDocumentFiles('2026-10-18T00:00:00Z'),
   original: null,
+  // A document nobody shares: the commands, not the collaboration, are under test here.
+  keepReplica: keepBlankReplica,
 };
 
 describe('the ribbon over the real editor', () => {

@@ -13,6 +13,8 @@ import type { CdocRuntimeFactory } from '@/lib/cdoc/runtime-loader';
 import type { DocumentFiles } from '@/lib/document-files';
 import type { RevfsNode } from '@/types/revfs-types';
 import { NotOpened, type OriginalFile } from '@/components/documents/NotOpened';
+// A file opens read-only, so its replica is never opened; the keeper only satisfies the contract.
+import { keepBlankReplica } from '@/components/documents/blank-replica';
 import { docsRouteOf, type WorkspaceFileReader } from './docs-file-open';
 
 /** A file opens read-only: saving back to the file manager is not wired yet. */
@@ -58,7 +60,7 @@ function FileBody({ node, route, reader, loadCdocRuntime, files, original }: Omi
   );
   if (read.kind === 'failed') return <NotOpened original={original} why={read.message} testId="docs-file-unreadable" />;
   if (source === null) return <p role="status" className="m-auto text-sm text-muted-foreground">Reading {node.name}…</p>;
-  return <DocumentHost nodeId={node.path} appId="docs" title={node.name} permissions={READ_ONLY} documentSource={source} loadCdocRuntime={loadCdocRuntime} files={files} original={original} commentAuthor={NO_COMMENTS} />;
+  return <DocumentHost nodeId={node.path} appId="docs" title={node.name} permissions={READ_ONLY} documentSource={source} loadCdocRuntime={loadCdocRuntime} files={files} original={original} commentAuthor={NO_COMMENTS} keepReplica={keepBlankReplica} />;
 }
 
 export function DocsFileScreen({ node, folderName, onBack, onDownload, ...rest }: DocsFileScreenProps): JSX.Element {

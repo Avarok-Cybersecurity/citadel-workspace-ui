@@ -183,6 +183,12 @@ export async function dbDelete(store: StoreName, key: string): Promise<void> {
   await db.delete(store, key);
 }
 
+/** The keys in a store that start with `prefix`. */
+export async function dbKeysWithPrefix(store: StoreName, prefix: string): Promise<string[]> {
+  const db: IDBPDatabase<CitadelDBSchema> = await getDB();
+  return (await db.getAllKeys(store, IDBKeyRange.bound(prefix, `${prefix}\uffff`))).map(String);
+}
+
 // ============================================================================
 // Synchronous Fallback (for legacy callers during migration)
 // These use localStorage but will be deprecated

@@ -15,7 +15,7 @@ import { describe, it, expect, vi  } from 'vitest';
 import { handleLogout } from '../session-management';
 import { removeAllSessions } from '../session-list';
 
-function harness(writeFails: boolean): { state: { storedSessions: { sessions: never[]; }; removeSession: ReturnType<typeof vi.fn>; clearSessions: ReturnType<typeof vi.fn>; currentConnectionInfo: { cid: bigint; }; }; io: { storeSessionsToLocalDB: ReturnType<typeof vi.fn>; disconnect: ReturnType<typeof vi.fn>; }; } {
+function harness(writeFails: boolean): { state: { storedSessions: { sessions: never[]; }; removeSession: ReturnType<typeof vi.fn>; clearSessions: ReturnType<typeof vi.fn>; currentConnectionInfo: { cid: bigint; }; }; io: { storeSessionsToLocalDB: ReturnType<typeof vi.fn>; disconnect: ReturnType<typeof vi.fn>; forgetAccountDocuments: ReturnType<typeof vi.fn>; }; } {
   const state: {
     storedSessions: { sessions: never[] };
     removeSession: ReturnType<typeof vi.fn>;
@@ -27,11 +27,12 @@ function harness(writeFails: boolean): { state: { storedSessions: { sessions: ne
     clearSessions: vi.fn(),
     currentConnectionInfo: { cid: 7n },
   };
-  const io: { storeSessionsToLocalDB: ReturnType<typeof vi.fn>; disconnect: ReturnType<typeof vi.fn> } = {
+  const io: { storeSessionsToLocalDB: ReturnType<typeof vi.fn>; disconnect: ReturnType<typeof vi.fn>; forgetAccountDocuments: ReturnType<typeof vi.fn> } = {
     storeSessionsToLocalDB: vi.fn(async () => {
       if (writeFails) throw new Error('LocalDBSetKV request timed out');
     }),
     disconnect: vi.fn(async () => {}),
+    forgetAccountDocuments: vi.fn(async () => {}),
   };
   return { state, io };
 }
@@ -60,6 +61,13 @@ describe('signing out when the local write times out', () => {
     io.storeSessionsToLocalDB.mockImplementation(async () => { order.push('persist'); });
     await handleLogout('alice', '127.0.0.1:12349', 42n, state as never, io as never);
     expect(order).toEqual(['disconnect', 'persist']);
+  });
+
+  it('removes the account\'s document copies from this device, even when the disconnect fails', async () => {
+    const { state, io } = harness(false);
+    io.disconnect.mockImplementation(async () => { throw new Error('the agent is gone'); });
+    await expect(handleLogout('alice', '127.0.0.1:12349', 42n, state as never, io as never)).rejects.toThrow('the agent is gone');
+    expect(io.forgetAccountDocuments).toHaveBeenCalledWith(42n);
   });
 
   it('removing every session disconnects too', async () => {

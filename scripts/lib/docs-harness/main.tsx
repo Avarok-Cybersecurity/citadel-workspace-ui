@@ -10,6 +10,7 @@ import '@/styles/brand-tokens.css';
 import { DocumentHost } from '@/components/documents/DocumentHost';
 import { loadCdocRuntime } from '@/lib/cdoc/runtime-loader';
 import { browserDocumentFiles } from '@/lib/document-files';
+import { keepBlankReplica } from '@/components/documents/blank-replica';
 
 const root: HTMLElement | null = document.getElementById('root');
 if (root === null) throw new Error('the harness page has no #root');
@@ -21,7 +22,7 @@ app.render(
     <DocumentHost
       nodeId="harness" appId="docs" title="Harness" permissions={{ edit: { enabled: true, reason: null } }}
       documentSource={{ kind: 'blank' }} loadCdocRuntime={loadCdocRuntime} commentAuthor="Harness"
-      files={browserDocumentFiles} original={null}
+      files={browserDocumentFiles} original={null} keepReplica={keepBlankReplica}
     />
   </div>,
 );

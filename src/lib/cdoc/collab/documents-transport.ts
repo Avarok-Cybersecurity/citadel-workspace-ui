@@ -1,0 +1,40 @@
+/**
+ * The production DocumentsTransport: this tab's workspace session, through the same
+ * `sendProtocolRequest` path every workspace request takes (WorkspaceProtocolRequest::Documents
+ * inscribed in InternalServiceRequest::Message), with answers off the response handler.
+ *
+ * Multi-tab: the server's answers and pushes reach this tab inside a MessageNotification
+ * addressed to the session's cid, which routing-rules.ts routes by cid to every tab holding
+ * the session (route-by-cid.ts). So each tab's DocumentSession sees its session's whole
+ * Documents traffic, including the `Appended` answers of another tab of the same account; the
+ * session tells its own by `client_seq`.
+ */
+import type { DocumentsRequest } from 'citadel-workspace-client-ts';
+import { eventEmitter } from '@/lib/event-emitter';
+import type { ProtocolSender } from '@/lib/workspace-service/workspace-operations';
+import { readAgentReconnectEvent, type AgentReconnectEvent } from '@/types/agent-reconnect';
+import { DOCUMENTS_EVENT, type DocumentsEvent } from '@/lib/workspace-response-handler/documents-event';
+import type { DocumentsTransport, LinkState } from './ports';
+
+export function workspaceDocumentsTransport(sender: ProtocolSender): DocumentsTransport {
+  const selfCid: bigint | null = sender.currentCid;
+  if (selfCid === null) throw new Error('A document can be opened only in a signed-in session');
+  return {
+    selfCid,
+    send: (request: DocumentsRequest): Promise<void> => sender.sendProtocolRequest({ Documents: request }),
+    onResponse: (listener: (response: DocumentsEvent['answer']) => void): (() => void) =>
+      eventEmitter.on(DOCUMENTS_EVENT, (event: DocumentsEvent | undefined): void => { if (event) listener(event.answer); }),
+    onError: (listener: (message: string) => void): (() => void) =>
+      eventEmitter.on('workspace:raw-response', (response: unknown): void => {
+        const message: unknown = typeof response === 'object' && response !== null && 'Error' in response ? (response as { Error: unknown }).Error : undefined;
+        if (typeof message === 'string') listener(message);
+      }),
+    onLink: (listener: (state: LinkState) => void): (() => void) =>
+      eventEmitter.on('websocket-message', (message: unknown): void => {
+        const event: AgentReconnectEvent | null = readAgentReconnectEvent(message);
+        if (event === null || event.cid !== selfCid) return;
+        if (event.kind === 'reconnected') listener('up');
+        else listener('down');
+      }),
+  };
+}

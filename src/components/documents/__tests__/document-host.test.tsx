@@ -9,6 +9,7 @@ import { inProcessRuntime } from '@/lib/cdoc/__tests__/wasm-rig';
 import type { CdocRuntime } from '@/lib/cdoc/runtime';
 import { recordingDocumentFiles } from '@/test-utils/recording-document-files';
 import { DocumentHost, UnreadableDocument, type DocumentHostProps } from '../DocumentHost';
+import { keepBlankReplica } from '../blank-replica';
 
 const EDITABLE: DocumentHostProps = {
   nodeId: 'plan-1',
@@ -22,6 +23,7 @@ const EDITABLE: DocumentHostProps = {
   // Any fixed instant: these tests download nothing.
   files: recordingDocumentFiles('2026-10-17T00:00:00Z'),
   original: null,
+  keepReplica: keepBlankReplica,
 };
 
 describe('DocumentHost', () => {

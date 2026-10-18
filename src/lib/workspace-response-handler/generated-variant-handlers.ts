@@ -15,6 +15,7 @@ import { membershipChanged } from './membership-change';
 import { recordMemberNames } from '@/lib/member-names';
 import { recordPresenceChoices } from '@/lib/published-presence';
 import type { MappedMember } from '@/lib/workspace-response-handler/member-mapping';
+import { DOCUMENTS_EVENT } from './documents-event';
 
 export function handleGeneratedVariants(
   response: WorkspaceProtocolResponse,
@@ -211,6 +212,13 @@ export function handleGeneratedVariants(
     // messaging-trust-operations.ts wait on the raw event for their own answer.
     eventEmitter.emit('workspace:messaging-trust', { answer: response.MessagingTrust, connection: connectionInfo });
     eventEmitter.emit('workspace:raw-response', response);
+    return true;
+  }
+
+  if (isVariant(response, 'Documents')) {
+    // Answers and pushes for open documents (cdoc/collab/documents-transport.ts). Not raw and
+    // not logged: no write here waits on a type match, and the bytes are the document.
+    eventEmitter.emit(DOCUMENTS_EVENT, { answer: response.Documents });
     return true;
   }
 

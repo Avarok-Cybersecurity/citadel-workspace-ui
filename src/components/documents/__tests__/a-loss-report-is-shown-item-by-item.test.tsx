@@ -13,6 +13,7 @@ import type { CdocRuntime } from '@/lib/cdoc/runtime';
 import { recordingDocumentFiles, type RecordingDocumentFiles } from '@/test-utils/recording-document-files';
 import { DocsDocumentBar } from '../page-view/DocsDocumentBar';
 import { DocumentHost } from '../DocumentHost';
+import { keepBlankReplica } from '../blank-replica';
 
 // Any fixed instant: nothing is downloaded here.
 const FILES: RecordingDocumentFiles = recordingDocumentFiles('2026-10-18T00:00:00Z');
@@ -51,7 +52,7 @@ describe('a Word file with macros', () => {
   it('is not opened, says why, names its macro parts and offers no Download as', async () => {
     render(
       <DocumentHost
-        nodeId="m" appId="docs" title="budget.docx" permissions={{ edit: { enabled: false, reason: 'Read only here.' } }} files={FILES} original={null} commentAuthor={null}
+        nodeId="m" appId="docs" title="budget.docx" permissions={{ edit: { enabled: false, reason: 'Read only here.' } }} files={FILES} original={null} commentAuthor={null} keepReplica={keepBlankReplica}
         documentSource={{ kind: 'file', format: 'docx', bytes: fixture('poi-simple-macro.docm') }}
         loadCdocRuntime={(): Promise<CdocRuntime> => Promise.resolve(inProcessRuntime('main-thread'))}
       />,
@@ -70,7 +71,7 @@ describe('the bar while a file opens', () => {
   const open = (bytes: Uint8Array): void => {
     render(
       <DocumentHost
-        nodeId="o" appId="docs" title="report.docx" permissions={{ edit: { enabled: false, reason: 'Read only here.' } }} files={FILES} original={null} commentAuthor={null}
+        nodeId="o" appId="docs" title="report.docx" permissions={{ edit: { enabled: false, reason: 'Read only here.' } }} files={FILES} original={null} commentAuthor={null} keepReplica={keepBlankReplica}
         documentSource={{ kind: 'file', format: 'docx', bytes }}
         loadCdocRuntime={(): Promise<CdocRuntime> => Promise.resolve(inProcessRuntime('main-thread'))}
       />,
