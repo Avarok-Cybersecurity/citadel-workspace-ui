@@ -39,11 +39,3 @@ export function readConversionReport(report: unknown, problems: unknown): Conver
   }
   return { losses: report.losses.map(lossOf), problems };
 }
-
-export function refusedMacros(report: ConversionReport): Array<Extract<ConversionLoss, { kind: 'macros' }>> {
-  return report.losses.filter((l: ConversionLoss): l is Extract<ConversionLoss, { kind: 'macros' }> => l.kind === 'macros');
-}
-
-export function isLossless(report: ConversionReport): boolean {
-  return report.losses.length === 0 && report.problems.length === 0;
-}
