@@ -1,8 +1,9 @@
 /**
  * Layout › Page Setup: Margins, Orientation, Size and Columns, each a menu of choices that
  * sends one SetSectionProperty for the sections the selection spans. The caret section's
- * current setup is the pressed choice; before the editor reports it every choice is mixed,
- * and Size waits for it, since a size keeps the section's orientation.
+ * current setup is the pressed choice; before the editor reports it no choice says pressed
+ * or not (the status line says why), and Size waits for it, since a size keeps the section's
+ * orientation.
  */
 import { Columns2, FileText, RectangleHorizontal, Ruler, type LucideIcon } from 'lucide-react';
 import type { PageSetup, PageSetupPatch } from '@/lib/cdoc/editor/model-values';
@@ -34,7 +35,7 @@ function SetupMenuButton({ menu, section }: { menu: SetupMenu; section: PageSetu
     <RibbonMenu testId={`ribbon-page-${menu.id}`} label={menu.label} icon={menu.icon} text={menu.label} widthPx={240} unavailable={blocked ? SECTION_UNKNOWN : null}>
       {(close: () => void): JSX.Element[] => menu.choices.map((choice: PageSetupChoice): JSX.Element => (
         <MenuOption key={choice.id} testId={`ribbon-page-${menu.id}-${choice.id}`} label={choice.label} detail={choice.detail}
-          pressed={section === null ? 'mixed' : choice.current(section)}
+          pressed={section === null ? undefined : choice.current(section)}
           onChoose={(): void => {
             const patch: PageSetupPatch | null = choice.patch(section);
             close();

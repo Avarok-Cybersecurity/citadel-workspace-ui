@@ -170,6 +170,12 @@ describe('the Home ribbon', () => {
     ]);
   });
 
+  it('names the colour resets in words, not only by their look-alike icons', () => {
+    setUp(UNKNOWN);
+    expect(screen.getByTestId('ribbon-text-color-auto')).toHaveTextContent('Automatic');
+    expect(screen.getByTestId('ribbon-highlight-none')).toHaveTextContent('No highlight');
+  });
+
   it('applies a colour when the picker commits it', () => {
     const { editor } = setUp(UNKNOWN);
     const input: HTMLElement = screen.getByTestId('ribbon-highlight');

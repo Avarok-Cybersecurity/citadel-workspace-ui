@@ -7,6 +7,7 @@
 import type { EditorState, SelectionText } from '@/lib/cdoc/editor/controller';
 import { pastedTextCommands } from '@/lib/cdoc/editor/input/pasted-text';
 import type { RibbonEditor } from './editor-context';
+import { shortcutLabel } from './RibbonButton';
 import type { RibbonEnvironment } from './ribbon-environment';
 
 /** Whether there is a selection to copy: a caret's text is complete and empty. */
@@ -14,11 +15,16 @@ export function hasSelection(selected: SelectionText): boolean {
   return !selected.complete || selected.text !== '';
 }
 
-/** What the browser's refusal means to the person, and what they can do instead. */
-function refusal(error: unknown, reading: boolean, environment: RibbonEnvironment): unknown {
+export type ClipboardOperation = 'cut' | 'copy' | 'paste';
+
+/** Each operation's own shortcut: the keyboard does it through the editor's clipboard events. */
+export const CLIPBOARD_KEYS: Readonly<Record<ClipboardOperation, string>> = { cut: 'X', copy: 'C', paste: 'V' };
+
+/** What the browser's refusal means to the person, and the shortcut that does the same instead. */
+function refusal(error: unknown, operation: ClipboardOperation, environment: RibbonEnvironment): unknown {
   if (!(error instanceof DOMException) || error.name !== 'NotAllowedError') return error;
-  const key: string = reading ? 'V' : 'C';
-  return new Error(`The browser did not allow ${reading ? 'reading' : 'writing'} the clipboard. Allow clipboard access for this site, or press ${environment.modifier}+${key}.`);
+  const access: string = operation === 'paste' ? 'reading' : 'writing';
+  return new Error(`The browser did not allow ${access} the clipboard. Allow clipboard access for this site, or press ${shortcutLabel({ key: CLIPBOARD_KEYS[operation] }, environment)}.`);
 }
 
 async function selectedText(editor: RibbonEditor): Promise<string> {
@@ -27,18 +33,22 @@ async function selectedText(editor: RibbonEditor): Promise<string> {
   return selected.complete ? selected.text : editor.selectionText();
 }
 
-export async function copySelection(editor: RibbonEditor, environment: RibbonEnvironment): Promise<void> {
+async function writeSelection(editor: RibbonEditor, environment: RibbonEnvironment, operation: ClipboardOperation): Promise<void> {
   const text: string = await selectedText(editor);
-  await environment.writeClipboard(text).catch((error: unknown): never => { throw refusal(error, false, environment); });
+  await environment.writeClipboard(text).catch((error: unknown): never => { throw refusal(error, operation, environment); });
+}
+
+export function copySelection(editor: RibbonEditor, environment: RibbonEnvironment): Promise<void> {
+  return writeSelection(editor, environment, 'copy');
 }
 
 export async function cutSelection(editor: RibbonEditor, environment: RibbonEnvironment): Promise<EditorState> {
-  await copySelection(editor, environment);
+  await writeSelection(editor, environment, 'cut');
   return editor.execute({ name: 'cut' });
 }
 
 export async function pasteClipboard(editor: RibbonEditor, environment: RibbonEnvironment): Promise<void> {
-  const text: string = await environment.readClipboard().catch((error: unknown): never => { throw refusal(error, true, environment); });
+  const text: string = await environment.readClipboard().catch((error: unknown): never => { throw refusal(error, 'paste', environment); });
   if (text === '') throw new Error('The clipboard has no text to paste.');
   for (const command of pastedTextCommands(text)) await editor.execute(command);
 }

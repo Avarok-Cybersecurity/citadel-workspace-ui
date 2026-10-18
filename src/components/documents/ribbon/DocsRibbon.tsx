@@ -10,6 +10,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import type { EditorState } from '@/lib/cdoc/editor/controller';
 import type { ActionGate } from '@/hooks/use-permission-result';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils';
 import { CdocFontFaces } from './CdocFontFaces';
 import { HomeRibbon } from './HomeRibbon';
 import { InsertRibbon } from './InsertRibbon';
@@ -59,8 +60,9 @@ export function DocsRibbon({ edit, commentAuthor, environment }: DocsRibbonProps
             ))}
           </TabsList>
           {/* In the tab row, so it appearing or going never moves the toolbar. Mounted empty, so it is announced. */}
-          <p role="status" data-testid="docs-ribbon-status" className="ml-auto min-w-0 text-right text-[12px] leading-tight text-muted-foreground">
-            {ribbon.disabledReason ?? ribbon.failure ?? (ribbon.caret.known ? '' : UNKNOWN_CARET)}
+          {/* One line on a phone, so a long refusal never pushes the toolbar down; its toast has the whole text. */}
+          <p role="status" data-testid="docs-ribbon-status" className={cn('ml-auto min-w-0 text-right text-[12px] leading-tight text-muted-foreground', compact && 'truncate')}>
+            {ribbon.disabledReason ?? ribbon.failure ?? ribbon.notice ?? (ribbon.caret.known ? '' : UNKNOWN_CARET)}
           </p>
           </div>
           <TabsContent value="home" tabIndex={-1} className="mt-1"><HomeRibbon /></TabsContent>

@@ -3,7 +3,7 @@
  * Copy wait for a selection.
  */
 import { ClipboardPaste, Copy, Scissors } from 'lucide-react';
-import { copySelection, cutSelection, hasSelection, pasteClipboard } from './clipboard';
+import { CLIPBOARD_KEYS, copySelection, cutSelection, hasSelection, pasteClipboard } from './clipboard';
 import type { RibbonEditor } from './editor-context';
 import { RibbonButton } from './RibbonButton';
 import { RibbonGroup } from './RibbonToolbar';
@@ -16,12 +16,12 @@ export function ClipboardGroup(): JSX.Element {
   const nothing: string | null = selection === null || hasSelection(selection) ? null : NOTHING_SELECTED;
   return (
     <RibbonGroup label="Clipboard" testId="ribbon-clipboard" collapses={true} icon={ClipboardPaste}>
-      <RibbonButton testId="ribbon-paste" label="Paste" icon={ClipboardPaste} shortcut={{ key: 'V' }}
+      <RibbonButton testId="ribbon-paste" label="Paste" icon={ClipboardPaste} shortcut={{ key: CLIPBOARD_KEYS.paste }}
         onPress={(): void => { void attempt('paste', (editor: RibbonEditor): Promise<void> => pasteClipboard(editor, environment)); }} />
-      <RibbonButton testId="ribbon-cut" label="Cut" icon={Scissors} shortcut={{ key: 'X' }} unavailable={nothing}
+      <RibbonButton testId="ribbon-cut" label="Cut" icon={Scissors} shortcut={{ key: CLIPBOARD_KEYS.cut }} unavailable={nothing}
         onPress={(): void => { void attempt('cut the selection', (editor: RibbonEditor): Promise<unknown> => cutSelection(editor, environment)); }} />
-      <RibbonButton testId="ribbon-copy" label="Copy" icon={Copy} shortcut={{ key: 'C' }} unavailable={nothing}
-        onPress={(): void => { void attempt('copy the selection', (editor: RibbonEditor): Promise<void> => copySelection(editor, environment)); }} />
+      <RibbonButton testId="ribbon-copy" label="Copy" icon={Copy} shortcut={{ key: CLIPBOARD_KEYS.copy }} unavailable={nothing}
+        onPress={(): void => { void attempt('copy the selection', (editor: RibbonEditor): Promise<void> => copySelection(editor, environment), 'Copied.'); }} />
     </RibbonGroup>
   );
 }

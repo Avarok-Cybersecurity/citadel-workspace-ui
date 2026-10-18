@@ -31,6 +31,21 @@ describe('lists', () => {
     ]));
   });
 
+  it('ends a list with No list, whatever its kind', async () => {
+    const { editor, user } = setUp(knownCaret({}, { numbering: { numId: 3, level: 0 } }));
+    await user.click(screen.getByTestId('ribbon-list-none'));
+    await waitFor((): void => expect(editor.sent).toEqual([{ name: 'clearNumbering' }]));
+  });
+
+  it('refuses No list outside a list', async () => {
+    const { editor, user } = setUp(knownCaret({}, {}));
+    const none: HTMLElement = screen.getByTestId('ribbon-list-none');
+    expect(none).toHaveAttribute('aria-disabled', 'true');
+    await user.click(none);
+    expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent('This paragraph is not in a list.');
+    expect(editor.sent).toEqual([]);
+  });
+
   it('offers Word’s five numbering formats and None, which ends the list', async () => {
     const { editor, user } = setUp(knownCaret({}, {}));
     for (const kind of ['decimal', 'lowerLetter', 'upperLetter', 'lowerRoman', 'upperRoman', 'none']) await number(user, kind);

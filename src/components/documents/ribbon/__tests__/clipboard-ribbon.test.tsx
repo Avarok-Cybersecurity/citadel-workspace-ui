@@ -29,6 +29,11 @@ describe('the Clipboard group', () => {
     await waitFor((): void => expect(clipboard.writes).toEqual(['Quarterly plan']));
     expect(editor.sent).toEqual([]);
     expect(editor.focused).toBe(1);
+    // Nothing on the page changes, so the status line says it worked.
+    await waitFor((): void => expect(status()).toHaveTextContent(/^Copied\.$/));
+    // …and only until the next command, so it never describes something later.
+    await user.click(screen.getByTestId('ribbon-mark-bold'));
+    await waitFor((): void => expect(status()).toHaveTextContent(/^$/));
   });
 
   it('reads a selection past the record’s cap out of the editor before copying it', async () => {
@@ -49,7 +54,7 @@ describe('the Clipboard group', () => {
     const { editor, clipboard, user } = setUp(SELECTED);
     clipboard.refusal = new DOMException('Write permission denied.', 'NotAllowedError');
     await user.click(screen.getByTestId('ribbon-cut'));
-    await waitFor((): void => expect(status()).toHaveTextContent('Could not cut the selection. The browser did not allow writing the clipboard. Allow clipboard access for this site, or press Ctrl+C.'));
+    await waitFor((): void => expect(status()).toHaveTextContent('Could not cut the selection. The browser did not allow writing the clipboard. Allow clipboard access for this site, or press Ctrl+X.'));
     expect(editor.sent).toEqual([]);
   });
 
@@ -59,6 +64,8 @@ describe('the Clipboard group', () => {
       expect(screen.getByTestId(id)).toHaveAttribute('aria-disabled', 'true');
       await user.click(screen.getByTestId(id));
     }
+    // A tap shows no tooltip, so the press itself says why in the status line.
+    expect(status()).toHaveTextContent(/^Select some text first\.$/);
     await user.hover(screen.getByTestId('ribbon-copy'));
     expect((await screen.findAllByText('Select some text first.')).length).toBeGreaterThan(0);
     expect(clipboard.writes).toEqual([]);

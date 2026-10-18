@@ -50,17 +50,17 @@ export interface MenuOptionProps {
   readonly label: string;
   /** What the choice sets, shown under its name. */
   readonly detail: string;
-  /** Whether this is the current choice; omitted when the editor reports none. */
+  /** Whether this is the current choice; omitted while the editor has not reported one. */
   readonly pressed?: PressedState;
   readonly onChoose: () => void;
 }
 
 /** One choice in a RibbonMenu: its name and what it sets, refused while the ribbon is. */
 export function MenuOption({ testId, label, detail, pressed, onChoose }: MenuOptionProps): JSX.Element {
-  const { disabledReason } = useRibbon();
+  const { disabledReason, explain } = useRibbon();
   return (
     <button type="button" data-roving-item="" data-testid={testId} aria-pressed={pressed} aria-disabled={disabledReason !== null}
-      onClick={(): void => { if (disabledReason === null) onChoose(); }}
+      onClick={(): void => { if (disabledReason === null) onChoose(); else explain(disabledReason); }}
       // Text, so the current choice keeps the foreground colour (primary on its tint fails contrast in dark) and is ringed instead.
       className={cn(RIBBON_CONTROL, 'h-auto min-h-[44px] w-full flex-col items-start justify-center px-3 py-1 text-left aria-[pressed=true]:text-foreground aria-[pressed=true]:ring-2 aria-[pressed=true]:ring-primary')}>
       <span>{label}</span>

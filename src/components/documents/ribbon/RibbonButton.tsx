@@ -58,7 +58,7 @@ function RibbonButtonImpl(
   { testId, label, icon: Icon, shortcut, pressed, unavailable, text, onPress, onClick, className, ...rest }: RibbonButtonProps,
   ref: ForwardedRef<HTMLButtonElement>,
 ): JSX.Element {
-  const { disabledReason } = useRibbon();
+  const { disabledReason, explain } = useRibbon();
   const reason: string | null = disabledReason ?? unavailable ?? null;
   return (
     <RibbonTip label={label} shortcut={shortcut} reason={reason}>
@@ -73,7 +73,10 @@ function RibbonButtonImpl(
         aria-disabled={reason !== null}
         className={cn(RIBBON_CONTROL, className)}
         onClick={(event: MouseEvent<HTMLButtonElement>): void => {
-          if (reason !== null) return event.preventDefault();
+          if (reason !== null) {
+            event.preventDefault();
+            return explain(reason);
+          }
           onPress?.();
           onClick?.(event);
         }}

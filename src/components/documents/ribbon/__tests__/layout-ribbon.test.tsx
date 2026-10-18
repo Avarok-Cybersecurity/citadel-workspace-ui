@@ -102,8 +102,10 @@ describe('the Layout ribbon', () => {
     expect(screen.getByTestId('ribbon-page-size-open')).toHaveAttribute('aria-disabled', 'true');
     await user.click(screen.getByTestId('ribbon-page-size-open'));
     expect(screen.queryByTestId('ribbon-page-size')).toBeNull();
+    expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent('The page’s setup shows once you click or type in the document.');
     await user.click(screen.getByTestId('ribbon-page-margins-open'));
-    expect(await screen.findByTestId('ribbon-page-margins-normal')).toHaveAttribute('aria-pressed', 'mixed');
+    // Unknown is not "half pressed": the options say nothing until the section is reported.
+    expect(await screen.findByTestId('ribbon-page-margins-normal')).not.toHaveAttribute('aria-pressed');
     await user.click(screen.getByTestId('ribbon-page-margins-narrow'));
     await waitFor((): void => expect(editor.sent).toEqual([section({ margins: { top: 3600, bottom: 3600, left: 3600, right: 3600, ...HALF_INCH_HEADERS } })]));
   });

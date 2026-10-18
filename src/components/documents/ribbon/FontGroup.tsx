@@ -61,11 +61,11 @@ export function FontGroup(): JSX.Element {
       ))}
       <ColorControl testId="ribbon-text-color" label="Font colour" icon={Baseline} value={caretRun(caret, 'color')}
         onPick={(color: HexColor): void => { void run({ name: 'setRunProperty', patch: { color } }, 'change the font colour'); }} />
-      <RibbonButton testId="ribbon-text-color-auto" label="Automatic font colour" icon={CircleSlash}
+      <RibbonButton testId="ribbon-text-color-auto" label="Automatic font colour" icon={CircleSlash} text="Automatic"
         onPress={(): void => { void run({ name: 'setRunProperty', patch: { color: null } }, 'set the font colour to automatic'); }} />
       <ColorControl testId="ribbon-highlight" label="Text highlight colour" icon={Highlighter} value={caretRun(caret, 'highlight')}
         onPick={(highlight: HexColor): void => { void run({ name: 'setRunProperty', patch: { highlight } }, 'highlight the text'); }} />
-      <RibbonButton testId="ribbon-highlight-none" label="No highlight" icon={Ban}
+      <RibbonButton testId="ribbon-highlight-none" label="No highlight" icon={Ban} text="No highlight"
         onPress={(): void => { void run({ name: 'setRunProperty', patch: { highlight: null } }, 'remove the highlight'); }} />
       <RibbonButton testId="ribbon-clear-formatting" label="Clear formatting" icon={RemoveFormatting} shortcut={{ key: 'Space' }}
         onPress={(): void => { void run({ name: 'setRunProperty', patch: CLEAR_FORMATTING }, 'clear the formatting'); }} />

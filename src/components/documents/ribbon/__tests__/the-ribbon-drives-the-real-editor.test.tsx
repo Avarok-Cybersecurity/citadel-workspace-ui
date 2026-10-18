@@ -82,7 +82,12 @@ describe('the ribbon over the real editor', () => {
     await user.click(await screen.findByTestId('ribbon-styles-open', {}, { timeout: 10_000 }));
     expect(await screen.findByTestId('ribbon-style-Heading1', {}, { timeout: 10_000 })).toHaveTextContent('Heading 1');
     await user.keyboard('{Escape}');
+    // A first result makes the caret's paragraph known: outside a list, so No list is refused.
+    await user.click(screen.getByTestId('ribbon-mark-bold'));
+    await waitFor((): void => expect(screen.getByTestId('ribbon-list-none')).toHaveAttribute('aria-disabled', 'true'), { timeout: 10_000 });
     await user.click(screen.getByTestId('ribbon-bullets'));
+    // The engine reports the paragraph in a list now, so it can be ended.
+    await waitFor((): void => expect(screen.getByTestId('ribbon-list-none')).toHaveAttribute('aria-disabled', 'false'), { timeout: 10_000 });
     await user.click(screen.getByTestId('docs-ribbon-tab-insert'));
     await user.click(screen.getByTestId('ribbon-insert-footnote'));
     await waitFor((): void => expect(screen.getByTestId('editor-input')).toHaveFocus(), { timeout: 10_000 });

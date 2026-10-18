@@ -100,9 +100,26 @@ async function popoversStayOnScreen({ page, url, viewport }) {
   await assertPopoversOnScreen(page, viewport, 'the page-size menu');
 }
 
+/** A long refusal in the status line never pushes the toolbar down (on a phone it is one line). */
+async function statusStaysOneLine({ page, url }) {
+  await openRibbon(page, url, 'docs-ribbon-refusing');
+  const toolbar = page.getByTestId('ribbon-home-toolbar');
+  const before = await toolbar.evaluate((el) => el.getBoundingClientRect().top);
+  await page.getByTestId('docs-ribbon-tab-home').focus();
+  // Undo is a command at every width (its group never collapses); this one is refused.
+  await page.getByTestId('ribbon-undo').click();
+  const status = page.getByTestId('docs-ribbon-status');
+  await status.filter({ hasText: 'Could not undo.' }).waitFor({ state: 'visible', timeout: 3000 });
+  await page.keyboard.press('Escape');
+  await settled(page);
+  const after = await toolbar.evaluate((el) => el.getBoundingClientRect().top);
+  assert.equal(after, before, `the refusal moved the toolbar from ${before} to ${after}`);
+}
+
 export const RIBBON_CHECKS = {
   ribbonPassesAxe: eachTabPassesAxe('docs-ribbon'),
   ribbonPassesAxeWithAnUnknownCaret: eachTabPassesAxe('docs-ribbon-unknown'),
   ribbonTargetsAndWidth,
   popoversStayOnScreen,
+  statusStaysOneLine,
 };
