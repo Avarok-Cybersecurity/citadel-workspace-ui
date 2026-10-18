@@ -216,6 +216,11 @@ export interface EditorController {
    * everything this replica holds; the collaboration session decides when.
    */
   collectGarbage(): Promise<void>;
+  /**
+   * Stores an image's bytes in the document's image store (EditorHandle.addImage) and resolves
+   * with the content id `insertImage` takes. `mime` is the image's media type, e.g. image/png.
+   */
+  addImage(bytes: Uint8Array, mime: string): Promise<string>;
   /** Returns keyboard focus to the editor, e.g. after a ribbon button took it. */
   focus(): void;
   on<E extends EditorEventName>(event: E, listener: (payload: EditorEvents[E]) => void): () => void;
