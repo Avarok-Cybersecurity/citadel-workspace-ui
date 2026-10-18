@@ -113,6 +113,10 @@ describe('the ribbon over the real editor', () => {
       await waitFor((): void => expect(screen.getByTestId('ribbon-copy')).toHaveAttribute('aria-disabled', 'false'), { timeout: 10_000 });
       await user.click(screen.getByTestId('ribbon-copy'));
       await waitFor((): void => expect(clipboard).toBe('Hello from the clipboard'), { timeout: 10_000 });
+      // Focus going back to the real editor moves nothing, so the confirmation is not cleared unread.
+      await waitFor((): void => expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent(/^Copied\.$/), { timeout: 10_000 });
+      await act(async (): Promise<void> => { await new Promise((r: (v: unknown) => void): void => { setTimeout(r, 300); }); });
+      expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent(/^Copied\.$/);
     } finally {
       Reflect.deleteProperty(navigator, 'clipboard');
     }

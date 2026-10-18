@@ -48,7 +48,7 @@ export function DocsRibbon({ edit, commentAuthor, environment }: DocsRibbonProps
   // wraps to its whole text. Mounted empty, so what it says later is announced.
   const status: JSX.Element = (
     <p role="status" data-testid="docs-ribbon-status"
-      className={cn('min-w-0 text-[12px] leading-tight text-muted-foreground', compact ? 'pt-1' : 'ml-auto text-right')}>
+      className={cn('min-w-0 text-[12px] leading-tight text-muted-foreground', compact ? 'min-h-[19px] pt-1' : 'ml-auto text-right')}>
       {ribbon.disabledReason ?? ribbon.failure ?? ribbon.notice ?? (ribbon.caret.known ? '' : UNKNOWN_CARET)}
     </p>
   );
