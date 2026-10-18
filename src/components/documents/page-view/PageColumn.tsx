@@ -9,6 +9,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import type { PageRenderer } from '@/lib/cdoc/paint/page-renderer';
 import { deviceScale, type DeviceScale } from '@/lib/cdoc/paint/units';
 import type { OverlayScene } from '@/lib/cdoc/paint/overlay-painter';
+import type { PageRect } from '@/lib/cdoc/editor/controller';
 import type { OverlayContextOf } from './PageOverlays';
 import { PageCanvas } from './PageCanvas';
 import { currentPage, layoutPages, visiblePages, type PageBox, type PageLayout } from './page-layout';
@@ -28,6 +29,8 @@ export interface ColumnEditing {
   readonly revisionOf: (page: number) => number;
   readonly sceneOf: (page: number, scale: DeviceScale) => OverlayScene;
   readonly overlayContext: OverlayContextOf;
+  /** The local caret: the hidden textarea sits there, so an IME's candidate window does too. */
+  readonly caret: PageRect | null;
 }
 
 export interface PageColumnProps {
@@ -46,6 +49,12 @@ export interface PageColumnProps {
 }
 
 export const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
+
+function caretAnchor(layout: PageLayout, columnWidth: number, caret: PageRect | null, scale: DeviceScale): { top: number; left: number } {
+  const box: PageBox | undefined = caret === null ? undefined : layout.boxes[caret.page];
+  if (caret === null || box === undefined) return { top: 0, left: 0 };
+  return { top: box.top + caret.rect.y * scale.css, left: (columnWidth - box.width) / 2 + caret.rect.x * scale.css };
+}
 
 export function PageColumn({ renderer, sizes, zoom, dpr, onZoomChange, onPageStatus, scroller, editing, children }: PageColumnProps): JSX.Element {
   const [viewport, setViewport] = useState<{ readonly top: number; readonly height: number; readonly width: number }>({ top: 0, height: 0, width: 0 });
@@ -125,7 +134,7 @@ export function PageColumn({ renderer, sizes, zoom, dpr, onZoomChange, onPageSta
       onScroll={measure}
       className="relative h-full min-h-0 flex-1 overflow-auto bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
-      {children}
+      {layout === null && children}
       {paintError !== null && <p role="alert" className="sticky top-0 z-10 bg-background p-2 text-sm text-destructive">A page could not be painted. {paintError}</p>}
       {layout !== null && (
         <div className="relative" style={{ width: columnWidth, height: layout.height }}>
@@ -139,6 +148,11 @@ export function PageColumn({ renderer, sizes, zoom, dpr, onZoomChange, onPageSta
               }}
             />
           ))}
+          {/* Always mounted here once laid out, so the textarea never remounts (and never drops
+              focus or its listeners) as the caret comes and goes; it only moves. */}
+          <div className="pointer-events-none absolute" style={caretAnchor(layout, columnWidth, editing?.caret ?? null, deviceScale(zoom, dpr))}>
+            {children}
+          </div>
         </div>
       )}
     </div>

@@ -6,7 +6,7 @@
  */
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import type { EditorSession } from '@/lib/cdoc/editor/editor-session';
-import type { EditorEvents, EditorState } from '@/lib/cdoc/editor/controller';
+import type { EditorEvents, EditorState, PageRect } from '@/lib/cdoc/editor/controller';
 import type { PeerPresence } from '@/lib/cdoc/editor/peer-overlay';
 import { attachImeBridge } from '@/lib/cdoc/editor/input/ime-bridge';
 import { attachPointer, type PagePoint } from '@/lib/cdoc/editor/input/pointer';
@@ -24,6 +24,7 @@ export interface EditorSurfaceOptions {
 
 export interface EditorSurface {
   readonly overlayContext: OverlayContextOf;
+  readonly caret: PageRect | null;
   readonly textarea: RefObject<HTMLTextAreaElement>;
   readonly pageSizes: Int32Array;
   readonly revisionOf: (page: number) => number;
@@ -89,6 +90,7 @@ export function useEditorSurface(editor: EditorSession, scroller: RefObject<HTML
   const collapsed: boolean = state.selectionRects.length === 0;
   return {
     overlayContext: options.overlayContext,
+    caret: state.caret,
     textarea,
     pageSizes,
     state,

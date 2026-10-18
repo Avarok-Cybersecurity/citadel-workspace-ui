@@ -89,6 +89,16 @@ describe.each(['worker', 'main-thread'] as const)('EditorPageView with the %s re
     expect(grew).toBe(1);
   });
 
+  it('keeps the textarea (and so an IME window) at the caret, without remounting it', async () => {
+    const { editor, input } = await mount(mode);
+    const anchor = (): number => parseFloat((input.parentElement as HTMLElement).style.left);
+    const before: number = anchor();
+    type(input, 'moves');
+    await settled(editor);
+    await waitFor(() => expect(anchor()).toBeGreaterThan(before));
+    expect(screen.getByTestId('editor-input')).toBe(input);
+  });
+
   it('maps Backspace and Ctrl+Z through the keymap', async () => {
     const { editor, input } = await mount(mode);
     type(input, 'ab');
