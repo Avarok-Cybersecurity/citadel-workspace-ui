@@ -31,7 +31,7 @@ import { isVisibleWithin } from '../lib/index.js';
 interface TestResults {
   // Test 1: Settings Modal
   settingsModalOpens: boolean;
-  fiveTabsExist: boolean;
+  sixTabsExist: boolean;
   permissionsTabExists: boolean;
   permissionsTabHasLockIcon: boolean;
 
@@ -403,7 +403,7 @@ async function runTest(): Promise<boolean> {
 
   const results: TestResults = {
     settingsModalOpens: false,
-    fiveTabsExist: false,
+    sixTabsExist: false,
     permissionsTabExists: false,
     permissionsTabHasLockIcon: false,
     workspaceAccordionExists: false,
@@ -489,8 +489,8 @@ async function runTest(): Promise<boolean> {
     if (results.settingsModalOpens) {
       // Count tabs
       const tabCount = await countSettingsTabs(page);
-      results.fiveTabsExist = tabCount === 5;
-      console.log(`  Tab count: ${tabCount} (expected: 5) - ${results.fiveTabsExist ? 'PASS' : 'FAIL'}`);
+      results.sixTabsExist = tabCount === 6;
+      console.log(`  Tab count: ${tabCount} (expected: 6: General, Connections, Theme, Privacy, Perms, Security) - ${results.sixTabsExist ? 'PASS' : 'FAIL'}`);
 
       // Check for Permissions tab. The visible label is short-form 'Perms'
       // (matches the SettingsModal tab text); other tests in this repo
@@ -607,7 +607,7 @@ async function runTest(): Promise<boolean> {
 
     const allPassed =
       results.settingsModalOpens &&
-      results.fiveTabsExist &&
+      results.sixTabsExist &&
       results.permissionsTabExists &&
       results.permissionsTabHasLockIcon &&
       results.workspaceAccordionExists &&
@@ -620,7 +620,7 @@ async function runTest(): Promise<boolean> {
 
     console.log('\nTest 1: Settings Modal');
     console.log(`  Settings modal opens:        ${results.settingsModalOpens ? 'PASS' : 'FAIL'}`);
-    console.log(`  Five tabs exist:             ${results.fiveTabsExist ? 'PASS' : 'FAIL'}`);
+    console.log(`  Six tabs exist:              ${results.sixTabsExist ? 'PASS' : 'FAIL'}`);
     console.log(`  Permissions tab exists:      ${results.permissionsTabExists ? 'PASS' : 'FAIL'}`);
     console.log(`  Lock icon in tab:            ${results.permissionsTabHasLockIcon ? 'PASS' : 'FAIL'}`);
 
