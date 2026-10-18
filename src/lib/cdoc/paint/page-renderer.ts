@@ -14,6 +14,7 @@ import type { GlyphPathBatch } from '../engine/cdoc-engine';
 import type { CanvasPort, PaintTarget } from './canvas-port';
 import { PageRasterizer, type PaintOutcome, type RasterizerOptions } from './page-rasterizer';
 import { deviceScale } from './units';
+import { ImageResolver } from './image-resolve';
 
 export interface PageRenderer {
   mount(slot: number, canvas: HTMLCanvasElement): Promise<void>;
@@ -74,6 +75,7 @@ export class MainThreadPageRenderer implements PageRenderer {
   private readonly queue: SlotQueue = new SlotQueue();
   private readonly targets: Map<number, PaintTarget> = new Map<number, PaintTarget>();
   private rasterizer: PageRasterizer;
+  private readonly images: ImageResolver;
 
   constructor(
     private readonly client: CdocClient,
@@ -82,6 +84,11 @@ export class MainThreadPageRenderer implements PageRenderer {
     private readonly targetOf: (canvas: HTMLCanvasElement) => PaintTarget,
   ) {
     this.rasterizer = new PageRasterizer(port, options);
+    this.images = new ImageResolver(port, (contentId: string): Promise<Uint8Array | null> => this.client.request({ kind: 'image', contentId }).then(
+      ({ record }): Uint8Array => record,
+      // Not held by the editor (a peer's image, or a read-only document): drawn as "not available".
+      (): null => null,
+    ));
   }
 
   mount(slot: number, canvas: HTMLCanvasElement): Promise<void> {
@@ -102,6 +109,7 @@ export class MainThreadPageRenderer implements PageRenderer {
         const batch: GlyphPathBatch = await this.client.request({ kind: 'glyphPaths', face: rasterizer.faceKey(faceId), glyphIds: glyphIds.slice() });
         rasterizer.addOutlines(faceId, glyphIds, batch.records, batch.offsets);
       }
+      await this.images.fill(rasterizer, pageNumber);
       return rasterizer.paint(target, pageNumber, deviceScale(zoom, dpr));
     });
   }
@@ -112,6 +120,7 @@ export class MainThreadPageRenderer implements PageRenderer {
   }
 
   reset(): void {
+    this.rasterizer.dispose();
     this.rasterizer = new PageRasterizer(this.port, this.options);
   }
 

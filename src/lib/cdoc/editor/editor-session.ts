@@ -8,6 +8,7 @@ import type { CdocClient } from '../worker/cdoc-client';
 import type { PageRenderer } from '../paint/page-renderer';
 import {
   COMMAND_OPCODES,
+  SET_VIEWPORT_OPCODE,
   type AddedImage,
   type EditorCommand,
   type EditorCommandName,
@@ -18,10 +19,14 @@ import {
   type EditorPosition,
   type EditorState,
   type PeerView,
+  type SelectAt,
 } from './controller';
 import { Emitter } from './emitter';
 import { encodeCommand } from './wire/encode-command';
-import { decodeAddedImage, decodeAwareness, decodeCollected, decodePeerView, decodePosition, decodeResult, type Awareness, type EditorResult } from './wire/decode-records';
+import { decodeAddedImage, decodeAwareness, decodeCollected, decodePeerView, decodePosition, type Awareness } from './wire/decode-records';
+import { decodeResult, type EditorResult } from './wire/decode-result';
+import { decodeChunks, decodeStyles, type DocumentStyle } from './wire/decode-v4-records';
+import { readExportReport, readImportReport } from './file-reports';
 import { RecordWriter } from './wire/record-writer';
 import type { ExportedFile, ExportTarget, ImportReport } from './file-formats';
 import type { EditorResults } from '../worker/editor-protocol';
@@ -38,6 +43,8 @@ export interface EditorView {
   readonly peers: PeerSet;
   /** The element that takes keystrokes (the IME bridge's textarea), or null to detach it. */
   attachFocus(target: (() => void) | null): void;
+  /** The pages on screen: results then carry selection rectangles for those and the repainted ones. */
+  setViewport(pages: readonly number[]): Promise<EditorState>;
 }
 
 export class EditorSession implements EditorController, EditorView {
@@ -48,11 +55,9 @@ export class EditorSession implements EditorController, EditorView {
   private disposed: boolean = false;
   private readonly events: Emitter<EditorEvents> = new Emitter<EditorEvents>();
   readonly peers: PeerSet = new PeerSet();
-  /** Opening from file bytes is not in this binary yet (EditorEngine refuses it), so never set. */
-  readonly importReport: ImportReport | null = null;
   readonly commands: EditorCommands;
 
-  private constructor(private readonly deps: EditorSessionDeps, initial: EditorState, sizes: Int32Array) {
+  private constructor(private readonly deps: EditorSessionDeps, initial: EditorState, sizes: Int32Array, readonly importReport: ImportReport | null) {
     this.current = initial;
     this.sizes = sizes;
     // One method per command name, each building that command; the type is EditorCommands by
@@ -73,7 +78,8 @@ export class EditorSession implements EditorController, EditorView {
     return new EditorSession(deps, {
       anchor: own.anchor, head: own.head, caret: view.caret, selectionRects: view.selectionRects,
       caretPage: view.caret?.page ?? null, pageCount, composing: false, caretFormatting: { known: false },
-    }, opened.pageSizes);
+      created: [], selectionText: { complete: true, text: '' },
+    }, opened.pageSizes, from.kind === 'bytes' && opened.importReportJson !== null ? readImportReport(opened.importReportJson, from.format) : null);
   }
 
   get state(): EditorState {
@@ -92,12 +98,38 @@ export class EditorSession implements EditorController, EditorView {
   }
 
   execute(command: EditorCommand): Promise<EditorState> {
+    return this.serial((): Promise<EditorState> => this.apply(command));
+  }
+
+  /** Runs `command` now: only ever inside a serial task. */
+  private async apply(command: EditorCommand): Promise<EditorState> {
+    const { result } = await this.deps.client.request({ kind: 'apply', record: encodeCommand(command) });
+    const composing: boolean = command.name === 'compositionStart' || command.name === 'compositionUpdate'
+      ? true
+      : command.name === 'compositionCommit' || command.name === 'compositionCancel' ? false : this.current.composing;
+    return this.adopt(decodeResult(result), true, composing);
+  }
+
+  selectAt(page: number, x: number, y: number, how: SelectAt): Promise<EditorState> {
     return this.serial(async (): Promise<EditorState> => {
-      const { result } = await this.deps.client.request({ kind: 'apply', record: encodeCommand(command) });
-      const composing: boolean = command.name === 'compositionStart' || command.name === 'compositionUpdate'
-        ? true
-        : command.name === 'compositionCommit' || command.name === 'compositionCancel' ? false : this.current.composing;
-      return this.adopt(decodeResult(result), true, composing);
+      const at: EditorPosition = decodePosition((await this.deps.client.request({ kind: 'hitTest', page, x, y })).position);
+      switch (how.kind) {
+        case 'caret': return this.apply({ name: 'setSelection', anchor: at, head: at });
+        case 'extend': return this.apply({ name: 'setSelection', anchor: this.current.anchor, head: at });
+        case 'drag': return this.apply({ name: 'setSelection', anchor: how.anchor, head: at });
+        case 'word': return this.apply({ name: 'selectWord', at });
+        case 'paragraph': return this.apply({ name: 'selectParagraph', at });
+      }
+    });
+  }
+
+  setViewport(pages: readonly number[]): Promise<EditorState> {
+    const w: RecordWriter = new RecordWriter().u8(SET_VIEWPORT_OPCODE).uv(pages.length, 'viewport pages');
+    for (const page of pages) w.uv(page, 'viewport page');
+    const record: Uint8Array = w.finish();
+    return this.serial(async (): Promise<EditorState> => {
+      const { result } = await this.deps.client.request({ kind: 'apply', record });
+      return this.adopt(decodeResult(result), true, this.current.composing);
     });
   }
 
@@ -114,7 +146,7 @@ export class EditorSession implements EditorController, EditorView {
     if (countChanged) this.sizes = (await this.deps.client.request({ kind: 'pageSizes' })).pageSizes;
     this.current = {
       anchor: r.anchor, head: r.head, caret: r.caret, selectionRects: r.selectionRects, caretPage: r.caret?.page ?? null,
-      pageCount: r.pageCount, composing, caretFormatting: r.formatting,
+      pageCount: r.pageCount, composing, caretFormatting: r.formatting, created: r.created, selectionText: r.selectionText,
     };
     if (local && r.update.length > 0) this.events.emit('change', { update: r.update, dirtyPages: r.dirtyPages });
     if (countChanged || r.dirtyPages.length > 0) this.events.emit('pages', { pageCount: r.pageCount, dirtyPages: r.dirtyPages });
@@ -148,7 +180,7 @@ export class EditorSession implements EditorController, EditorView {
 
   encodeDiffChunked(remoteStateVector: Uint8Array | null, maxBytes: number): Promise<Uint8Array[]> {
     const sv: Uint8Array | null = remoteStateVector === null ? null : remoteStateVector.slice();
-    return this.serial(async (): Promise<Uint8Array[]> => [...(await this.deps.client.request({ kind: 'encodeDiffChunked', sv, maxBytes })).updates]);
+    return this.serial(async (): Promise<Uint8Array[]> => decodeChunks((await this.deps.client.request({ kind: 'encodeDiffChunked', sv, maxBytes })).record));
   }
 
   collectGarbage(known: readonly Uint8Array[]): Promise<{ readonly units: number; readonly deletes: number }> {
@@ -157,8 +189,23 @@ export class EditorSession implements EditorController, EditorView {
     return this.serial(async () => decodeCollected((await this.deps.client.request({ kind: 'gc', known: w.finish() })).record));
   }
 
+  selectionText(): Promise<string> {
+    return this.serial(async (): Promise<string> => (await this.deps.client.request({ kind: 'selectionText' })).text);
+  }
+
   exportAs(target: ExportTarget): Promise<ExportedFile> {
-    return this.serial(async (): Promise<ExportedFile> => (await this.deps.client.request({ kind: 'exportAs', target })).file);
+    return this.serial(async (): Promise<ExportedFile> => {
+      const { bytes, reportJson } = await this.deps.client.request({ kind: 'exportAs', target });
+      return { bytes, report: reportJson === null ? null : readExportReport(reportJson) };
+    });
+  }
+
+  missingPatterns(): Promise<readonly string[]> {
+    return this.serial(async (): Promise<readonly string[]> => (await this.deps.client.request({ kind: 'missingPatterns' })).tags);
+  }
+
+  styles(): Promise<DocumentStyle[]> {
+    return this.serial(async (): Promise<DocumentStyle[]> => decodeStyles((await this.deps.client.request({ kind: 'styles' })).record));
   }
 
   addImage(bytes: Uint8Array, maxBytes: number): Promise<AddedImage> {

@@ -12,6 +12,7 @@ import { PageRasterizer, type PaintOutcome, type RasterizerOptions } from '../pa
 import { deviceScale } from '../paint/units';
 import { transferablesOf, type CdocKind, type CdocRequest, type CdocResponse, type CdocResults, type RequestOf } from './protocol';
 import { openEditor, serveEditor } from './editor-host';
+import { ImageResolver } from '../paint/image-resolve';
 
 export interface CdocHostDeps {
   /** Called once, on the first request that needs the engine. */
@@ -37,9 +38,11 @@ export class CdocHost {
   private painter: PageRasterizer;
   private source: PaintSource | null = null;
   private editor: EditorEngine | null = null;
+  private readonly images: ImageResolver;
 
   constructor(private readonly deps: CdocHostDeps) {
     this.painter = new PageRasterizer(deps.port, deps.rasterizer);
+    this.images = new ImageResolver(deps.port, (contentId: string): Promise<Uint8Array | null> => this.imageRecord(contentId));
   }
 
   private getEngine(): Promise<CdocEngine> {
@@ -52,6 +55,7 @@ export class CdocHost {
     this.editor?.dispose();
     this.editor = editor;
     this.source = source;
+    this.painter.dispose();
     this.painter = new PageRasterizer(this.deps.port, this.deps.rasterizer);
   }
 
@@ -65,7 +69,18 @@ export class CdocHost {
     return this.editor;
   }
 
-  private paintCanvas(engine: CdocEngine, req: RequestOf<'paintCanvas'>): PaintOutcome {
+  /** The editor's image record; null for an id it does not hold, or a read-only document. */
+  private async imageRecord(contentId: string): Promise<Uint8Array | null> {
+    if (this.editor === null) return null;
+    try {
+      return this.editor.image(contentId);
+    } catch {
+      // An image from a peer lives in the content store, not here: drawn as "not available".
+      return null;
+    }
+  }
+
+  private async paintCanvas(engine: CdocEngine, req: RequestOf<'paintCanvas'>): Promise<PaintOutcome> {
     const target: PaintTarget | undefined = this.canvases.get(req.slot);
     if (target === undefined) throw new Error(`no canvas is attached in slot ${req.slot}`);
     if (!this.painter.holds(req.pageNumber)) this.painter.setList(openDisplayList(this.requireSource().paint([req.pageNumber])));
@@ -73,6 +88,7 @@ export class CdocHost {
       const batch: GlyphPathBatch = engine.glyphPaths(this.painter.faceKey(faceId), glyphIds);
       this.painter.addOutlines(faceId, glyphIds, batch.records, batch.offsets);
     }
+    await this.images.fill(this.painter, req.pageNumber);
     return this.painter.paint(target, req.pageNumber, deviceScale(req.zoom, req.dpr));
   }
 
@@ -103,8 +119,8 @@ export class CdocHost {
         this.painter.invalidate(req.pages);
         return { pages: req.pages };
       case 'apply': case 'applyRemote': case 'hitTest': case 'snapshot': case 'awareness': case 'peerView': case 'pageSizes':
-      case 'stateVector': case 'encodeDiff': case 'encodeDiffChunked': case 'gc': case 'addImage': case 'exportAs':
-        return serveEditor(this.requireEditor(), req);
+      case 'stateVector': case 'encodeDiff': case 'encodeDiffChunked': case 'gc': case 'addImage': case 'selectionText': case 'styles': case 'image': case 'exportAs': case 'missingPatterns':
+        return serveEditor(engine, this.requireEditor(), req);
       default: {
         const unrouted: never = req;
         throw new Error(`no route for request ${(unrouted as { readonly kind: string }).kind}`);

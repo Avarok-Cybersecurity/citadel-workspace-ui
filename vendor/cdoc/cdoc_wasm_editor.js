@@ -1,4 +1,4 @@
-/* @ts-self-types="./cdoc_wasm.d.ts" */
+/* @ts-self-types="./cdoc_wasm_editor.d.ts" */
 
 /**
  * Faces being gathered for editing.
@@ -27,6 +27,22 @@ export class EditorFonts {
         const ptr1 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
         const len1 = WASM_VECTOR_LEN;
         wasm.editorfonts_addFont(this.__wbg_ptr, ptr0, len0, bold, italic, ptr1, len1);
+    }
+    /**
+     * Compiles a hyphenation pattern file by its manifest tag (`de-1996`); a language with no
+     * file registered is not hyphenated.
+     * @param {string} tag
+     * @param {string} text
+     */
+    addPatterns(tag, text) {
+        const ptr0 = passStringToWasm0(tag, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(text, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.editorfonts_addPatterns(this.__wbg_ptr, ptr0, len0, ptr1, len1);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
     }
     /**
      * Serves `target` whenever a document asks for `name`.
@@ -142,6 +158,33 @@ export class EditorHandle {
         return EditorHandle.__wrap(ret[0]);
     }
     /**
+     * Adds to `images` every image this editor holds that its pages draw, for the PDF
+     * artefact's `RenderAssets.addImage`.
+     * @param {ImageStore} images
+     */
+    drawnImages(images) {
+        _assertClass(images, ImageStore);
+        wasm.editorhandle_drawnImages(this.__wbg_ptr, images.__wbg_ptr);
+    }
+    /**
+     * What a peer at `sv` (a `stateVector()`, or `null` for a peer holding nothing, such as
+     * an empty log) lacks, as updates of at most `max_bytes` each: the chunks record.
+     * @param {Uint8Array | null | undefined} sv
+     * @param {number} max_bytes
+     * @returns {Uint8Array}
+     */
+    encodeDiffChunked(sv, max_bytes) {
+        var ptr0 = isLikeNone(sv) ? 0 : passArray8ToWasm0(sv, wasm.__wbindgen_malloc);
+        var len0 = WASM_VECTOR_LEN;
+        const ret = wasm.editorhandle_encodeDiffChunked(this.__wbg_ptr, ptr0, len0, max_bytes);
+        if (ret[3]) {
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v2;
+    }
+    /**
      * What a peer at state vector `sv` lacks.
      * @param {Uint8Array} sv
      * @returns {Uint8Array}
@@ -156,6 +199,55 @@ export class EditorHandle {
         var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
         wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
         return v2;
+    }
+    /**
+     * The document as a file of `kind` (`docx`, `odt`, `md`, `txt` or `pdf`) with the loss
+     * report; image bytes come from the images added here, then from `images`. Options JSON:
+     * `{"kind": "document" | "template"}` for `docx` and `odt`, `{}` for `md` and `txt`,
+     * `{"now": <RFC 3339>}` for `pdf`.
+     * @param {string} kind
+     * @param {string} options_json
+     * @param {ImageStore} images
+     * @returns {FileExport}
+     */
+    export(kind, options_json, images) {
+        const ptr0 = passStringToWasm0(kind, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(options_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        _assertClass(images, ImageStore);
+        const ret = wasm.editorhandle_export(this.__wbg_ptr, ptr0, len0, ptr1, len1, images.__wbg_ptr);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return FileExport.__wrap(ret[0]);
+    }
+    /**
+     * A new document from a file of `kind` (`docx`, `odt`, `md` or `txt`) as client
+     * `client` (a `BigInt`); embedded images of at most `max_image_bytes` each are held by
+     * their content ids. Options JSON: `{}` for `docx` and `odt`, the `md_to_pm` and
+     * `txt_to_pm` options for `md` and `txt`.
+     * @param {Uint8Array} bytes
+     * @param {string} kind
+     * @param {string} options_json
+     * @param {bigint} client
+     * @param {EditorSealedFonts} fonts
+     * @param {number} max_image_bytes
+     * @returns {ImportedEditor}
+     */
+    static fromDocument(bytes, kind, options_json, client, fonts, max_image_bytes) {
+        const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(kind, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(options_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        _assertClass(fonts, EditorSealedFonts);
+        const ret = wasm.editorhandle_fromDocument(ptr0, len0, ptr1, len1, ptr2, len2, client, fonts.__wbg_ptr, max_image_bytes);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return ImportedEditor.__wrap(ret[0]);
     }
     /**
      * Collects the tombstones every peer in `known` (the known-peers record) has seen;
@@ -189,6 +281,51 @@ export class EditorHandle {
         var v1 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
         wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
         return v1;
+    }
+    /**
+     * The image record (`"CDB" 0x01 mime:str bytes:bytes`) of an image the editor holds, for
+     * the canvas painter; an unknown id fails by name.
+     * @param {string} content_id
+     * @returns {Uint8Array}
+     */
+    image(content_id) {
+        const ptr0 = passStringToWasm0(content_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.editorhandle_image(this.__wbg_ptr, ptr0, len0);
+        if (ret[3]) {
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v2;
+    }
+    /**
+     * The list record of every image the editor holds (id, MIME type, size), for warming
+     * a cache.
+     * @returns {Uint8Array}
+     */
+    images() {
+        const ret = wasm.editorhandle_images(this.__wbg_ptr);
+        var v1 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v1;
+    }
+    /**
+     * The document as model JSON, for an artefact that does not edit (the PDF artefact:
+     * `model_to_pm`, then `pm_to_pdf`).
+     * @returns {string}
+     */
+    modelJson() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const ret = wasm.editorhandle_modelJson(this.__wbg_ptr);
+            deferred1_0 = ret[0];
+            deferred1_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
     }
     /**
      * Opens a replica from a CRDT snapshot as client `client` (a `BigInt`).
@@ -278,6 +415,44 @@ export class EditorHandle {
         return v2;
     }
     /**
+     * The selection's rectangles record (`"CDR" 0x01`) on `page`: for a page scrolled into
+     * view, since results carry them for the viewport and the dirty pages only.
+     * @param {number} page
+     * @returns {Uint8Array}
+     */
+    selectionRects(page) {
+        const ret = wasm.editorhandle_selectionRects(this.__wbg_ptr, page);
+        if (ret[3]) {
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        var v1 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v1;
+    }
+    /**
+     * The selection's plain text, however long: what Copy puts on the clipboard when the
+     * result record's text was past its cap.
+     * @returns {string}
+     */
+    selectionText() {
+        let deferred2_0;
+        let deferred2_1;
+        try {
+            const ret = wasm.editorhandle_selectionText(this.__wbg_ptr);
+            var ptr1 = ret[0];
+            var len1 = ret[1];
+            if (ret[3]) {
+                ptr1 = 0; len1 = 0;
+                throw takeFromExternrefTable0(ret[2]);
+            }
+            deferred2_0 = ptr1;
+            deferred2_1 = len1;
+            return getStringFromWasm0(ptr1, len1);
+        } finally {
+            wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+        }
+    }
+    /**
      * The full CRDT snapshot.
      * @returns {Uint8Array}
      */
@@ -293,6 +468,20 @@ export class EditorHandle {
      */
     stateVector() {
         const ret = wasm.editorhandle_stateVector(this.__wbg_ptr);
+        var v1 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v1;
+    }
+    /**
+     * The document's styles record: every style of the document with the properties it
+     * resolves to, for the styles gallery.
+     * @returns {Uint8Array}
+     */
+    styles() {
+        const ret = wasm.editorhandle_styles(this.__wbg_ptr);
+        if (ret[3]) {
+            throw takeFromExternrefTable0(ret[2]);
+        }
         var v1 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
         wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
         return v1;
@@ -474,6 +663,103 @@ export class ImageStore {
 if (Symbol.dispose) ImageStore.prototype[Symbol.dispose] = ImageStore.prototype.free;
 
 /**
+ * A session opened on an imported file, and the import report.
+ */
+export class ImportedEditor {
+    static __wrap(ptr) {
+        const obj = Object.create(ImportedEditor.prototype);
+        obj.__wbg_ptr = ptr;
+        ImportedEditorFinalization.register(obj, obj.__wbg_ptr, obj);
+        return obj;
+    }
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        ImportedEditorFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_importededitor_free(ptr, 0);
+    }
+    /**
+     * The session; this object is spent.
+     * @returns {EditorHandle}
+     */
+    editor() {
+        const ptr = this.__destroy_into_raw();
+        const ret = wasm.importededitor_editor(ptr);
+        return EditorHandle.__wrap(ret);
+    }
+    /**
+     * `{"report", "problems", "kind"}` as JSON.
+     * @returns {string}
+     */
+    reportJson() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const ret = wasm.importededitor_reportJson(this.__wbg_ptr);
+            deferred1_0 = ret[0];
+            deferred1_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+}
+if (Symbol.dispose) ImportedEditor.prototype[Symbol.dispose] = ImportedEditor.prototype.free;
+
+/**
+ * A CRDT snapshot made from a stored document, and `{"report", "problems"}` as JSON.
+ */
+export class Migrated {
+    static __wrap(ptr) {
+        const obj = Object.create(Migrated.prototype);
+        obj.__wbg_ptr = ptr;
+        MigratedFinalization.register(obj, obj.__wbg_ptr, obj);
+        return obj;
+    }
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        MigratedFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_migrated_free(ptr, 0);
+    }
+    /**
+     * `{"report", "problems"}` as JSON.
+     * @returns {string}
+     */
+    reportJson() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const ret = wasm.migrated_reportJson(this.__wbg_ptr);
+            deferred1_0 = ret[0];
+            deferred1_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * The snapshot, to open with `EditorHandle`.
+     * @returns {Uint8Array}
+     */
+    snapshot() {
+        const ret = wasm.migrated_snapshot(this.__wbg_ptr);
+        var v1 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v1;
+    }
+}
+if (Symbol.dispose) Migrated.prototype[Symbol.dispose] = Migrated.prototype.free;
+
+/**
  * Faces, images and the time a render uses, handed in from JavaScript.
  */
 export class RenderAssets {
@@ -515,6 +801,22 @@ export class RenderAssets {
         const ptr2 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
         const len2 = WASM_VECTOR_LEN;
         wasm.renderassets_addImage(this.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2);
+    }
+    /**
+     * Compiles a hyphenation pattern file by its manifest tag (`de-1996`); a language with no
+     * file registered is not hyphenated.
+     * @param {string} tag
+     * @param {string} text
+     */
+    addPatterns(tag, text) {
+        const ptr0 = passStringToWasm0(tag, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(text, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.renderassets_addPatterns(this.__wbg_ptr, ptr0, len0, ptr1, len1);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
     }
     /**
      * Serves `target` whenever a document asks for `name` (e.g. Calibri → Carlito).
@@ -668,6 +970,33 @@ export function glyph_path(assets, family, bold, italic, glyph_id) {
 }
 
 /**
+ * The manifest tags (`crates/cdoc-para/patterns/manifest.json`) of the hyphenation pattern
+ * files a model document needs, as a JSON array: register these before laying it out.
+ * @param {string} model_json
+ * @returns {string}
+ */
+export function hyphenation_patterns_needed(model_json) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(model_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.hyphenation_patterns_needed(ptr0, len0);
+        var ptr2 = ret[0];
+        var len2 = ret[1];
+        if (ret[3]) {
+            ptr2 = 0; len2 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred3_0 = ptr2;
+        deferred3_1 = len2;
+        return getStringFromWasm0(ptr2, len2);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
  * The list label of every paragraph, in ProseMirror paragraph order, as a JSON array of
  * strings and nulls.
  * @param {string} pm_json
@@ -777,6 +1106,23 @@ export function odt_to_pm(bytes, images) {
     } finally {
         wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
     }
+}
+
+/**
+ * ProseMirror JSON to a CRDT snapshot written as `client`, for moving a stored document onto
+ * collaborative editing; the report JSON is `{"report", "problems"}`.
+ * @param {string} pm_json
+ * @param {bigint} client
+ * @returns {Migrated}
+ */
+export function pm_to_crdt_snapshot(pm_json, client) {
+    const ptr0 = passStringToWasm0(pm_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.pm_to_crdt_snapshot(ptr0, len0, client);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return Migrated.__wrap(ret[0]);
 }
 
 /**
@@ -914,53 +1260,6 @@ export function pm_to_odt(pm_json, images, options_json) {
         throw takeFromExternrefTable0(ret[1]);
     }
     return FileExport.__wrap(ret[0]);
-}
-
-/**
- * ProseMirror JSON → PDF bytes.
- * @param {string} pm_json
- * @param {RenderAssets} assets
- * @returns {Uint8Array}
- */
-export function pm_to_pdf(pm_json, assets) {
-    const ptr0 = passStringToWasm0(pm_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    const len0 = WASM_VECTOR_LEN;
-    _assertClass(assets, RenderAssets);
-    const ret = wasm.pm_to_pdf(ptr0, len0, assets.__wbg_ptr);
-    if (ret[3]) {
-        throw takeFromExternrefTable0(ret[2]);
-    }
-    var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
-    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
-    return v2;
-}
-
-/**
- * ProseMirror JSON → a JSON array of SVG page documents for the paged preview.
- * @param {string} pm_json
- * @param {RenderAssets} assets
- * @returns {string}
- */
-export function pm_to_svg_pages(pm_json, assets) {
-    let deferred3_0;
-    let deferred3_1;
-    try {
-        const ptr0 = passStringToWasm0(pm_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        _assertClass(assets, RenderAssets);
-        const ret = wasm.pm_to_svg_pages(ptr0, len0, assets.__wbg_ptr);
-        var ptr2 = ret[0];
-        var len2 = ret[1];
-        if (ret[3]) {
-            ptr2 = 0; len2 = 0;
-            throw takeFromExternrefTable0(ret[2]);
-        }
-        deferred3_0 = ptr2;
-        deferred3_1 = len2;
-        return getStringFromWasm0(ptr2, len2);
-    } finally {
-        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
-    }
 }
 
 /**
@@ -1115,7 +1414,7 @@ function __wbg_get_imports() {
     };
     return {
         __proto__: null,
-        "./cdoc_wasm_bg.js": import0,
+        "./cdoc_wasm_editor_bg.js": import0,
     };
 }
 
@@ -1134,6 +1433,12 @@ const FileExportFinalization = (typeof FinalizationRegistry === 'undefined')
 const ImageStoreFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_imagestore_free(ptr, 1));
+const ImportedEditorFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_importededitor_free(ptr, 1));
+const MigratedFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_migrated_free(ptr, 1));
 const RenderAssetsFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_renderassets_free(ptr, 1));
@@ -1180,6 +1485,10 @@ function getUint8ArrayMemory0() {
         cachedUint8ArrayMemory0 = new Uint8Array(wasm.memory.buffer);
     }
     return cachedUint8ArrayMemory0;
+}
+
+function isLikeNone(x) {
+    return x === undefined || x === null;
 }
 
 function passArray32ToWasm0(arg, malloc) {
@@ -1352,7 +1661,7 @@ async function __wbg_init(module_or_path) {
     }
 
     if (module_or_path === undefined) {
-        module_or_path = "/cdoc/cdoc_wasm_bg.wasm";
+        module_or_path = "/cdoc/cdoc_wasm_editor_bg.wasm";
     }
     const imports = __wbg_get_imports();
 

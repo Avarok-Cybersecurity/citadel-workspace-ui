@@ -1,9 +1,12 @@
 /**
  * Where each page sits in the scrolling column, in CSS px, and which pages to paint. Pure:
  * sizes in, boxes out. A page's CSS size is its device-pixel canvas size divided by the DPR,
- * so the canvas maps 1:1 onto screen pixels and is never resampled.
+ * and its top and left fall on whole device pixels, so the canvas maps 1:1 onto screen pixels
+ * and is never resampled: a page at a half device pixel is redrawn by the compositor between
+ * two pixel columns, and every glyph edge blurs by a pixel.
  */
-import { pageSizePx, type DeviceScale } from '@/lib/cdoc/paint/units';
+import { pageSizeCss, type DeviceScale } from '@/lib/cdoc/paint/units';
+import type { PagePoint } from '@/lib/cdoc/editor/input/pointer';
 
 export interface PageBox {
   readonly pageNumber: number;
@@ -21,17 +24,33 @@ export interface PageLayout {
 
 /** `sizes` holds width, height pairs in Pt100 (OpenedDocument.pageSizes). */
 export function layoutPages(sizes: Int32Array, scale: DeviceScale, gapPx: number): PageLayout {
+  // Whole CSS sizes; each top rounded onto the device-pixel grid from the exact running total.
+  const onGrid = (css: number): number => Math.round(css * scale.dpr) / scale.dpr;
   const boxes: PageBox[] = [];
   let top: number = gapPx;
   let widest: number = 0;
   for (let i: number = 0; i < sizes.length / 2; i++) {
-    const device: { readonly w: number; readonly h: number } = pageSizePx(sizes[2 * i], sizes[2 * i + 1], scale.k);
-    const box: PageBox = { pageNumber: i, top, width: device.w / scale.dpr, height: device.h / scale.dpr };
-    boxes.push(box);
-    widest = Math.max(widest, box.width);
-    top += box.height + gapPx;
+    const css: { readonly w: number; readonly h: number } = pageSizeCss(sizes[2 * i], sizes[2 * i + 1], scale);
+    boxes.push({ pageNumber: i, top: onGrid(top), width: css.w, height: css.h });
+    widest = Math.max(widest, css.w);
+    top += css.h + gapPx;
   }
-  return { boxes, width: widest + 2 * gapPx, height: top };
+  return { boxes, width: widest + 2 * gapPx, height: onGrid(top) };
+}
+
+/** The CSS px to add to a position so it lands on a whole device pixel (|result| ≤ half a device px). */
+export function deviceResidue(cssPx: number, dpr: number): number {
+  return Math.round(cssPx * dpr) / dpr - cssPx;
+}
+
+/**
+ * A page's left edge in the column, CSS px: centred, then moved to the nearest whole device
+ * pixel of the screen. `columnLeft` is where the column itself starts on screen (its client
+ * rect), which the app's layout may put at a fraction of a device pixel.
+ */
+export function pageLeft(columnWidth: number, pageWidth: number, columnLeft: number, dpr: number): number {
+  const centred: number = (columnWidth - pageWidth) / 2;
+  return centred + deviceResidue(columnLeft + centred, dpr);
 }
 
 /** The pages any part of which is in the viewport, widened by `overscan` pages each side. */
@@ -59,4 +78,28 @@ export function currentPage(layout: PageLayout, scrollTop: number, viewportHeigh
     if (box.top <= middle) current = box.pageNumber;
   }
   return current;
+}
+
+/**
+ * The page point `deltaY` CSS px below (or above, negative) a point on a page: what PageDown and
+ * PageUp move the caret to. Past the last page or before the first it stays on that page's edge.
+ */
+export function pagePointBy(layout: PageLayout, from: PagePoint, deltaY: number, css: number): PagePoint | null {
+  const start: PageBox | undefined = layout.boxes[from.page];
+  if (start === undefined || layout.boxes.length === 0) return null;
+  const target: number = start.top + from.y * css + deltaY;
+  let box: PageBox = layout.boxes[0];
+  for (const b of layout.boxes) if (b.top <= target) box = b;
+  const y: number = Math.min(Math.max(0, (target - box.top) / css), box.height / css);
+  return { page: box.pageNumber, x: from.x, y: Math.round(y) };
+}
+
+/**
+ * The scrollTop that brings `[top, bottom]` (CSS px in the column) into the viewport with
+ * `margin` to spare, or null when it is already in view: the caret is kept visible this way.
+ */
+export function revealScrollTop(top: number, bottom: number, viewTop: number, viewHeight: number, margin: number): number | null {
+  if (top - margin < viewTop) return Math.max(0, top - margin);
+  if (bottom + margin > viewTop + viewHeight) return bottom + margin - viewHeight;
+  return null;
 }

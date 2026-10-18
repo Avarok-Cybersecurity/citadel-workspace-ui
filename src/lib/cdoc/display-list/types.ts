@@ -1,5 +1,5 @@
 /**
- * A decoded display list (`docs/display-list.md` v1). Every coordinate, length and size is
+ * A decoded display list (`docs/display-list.md` v3). Every coordinate, length and size is
  * Pt100 (hundredths of a point), page space, y down. Colours are packed `0xRRGGBBAA`, straight
  * alpha.
  */
@@ -13,7 +13,7 @@ export interface Rect {
   readonly h: number;
 }
 
-/** One entry of a face's glyph table: what a TEXT_RUN index refers to. */
+/** One entry of a face's glyph table: a glyph the list's runs draw, to preload before the bodies. */
 export interface GlyphMetric {
   readonly glyphId: number;
   /** The face's `hmtx` advance, font units. */
@@ -45,10 +45,30 @@ export interface PageEntry {
   readonly height: number;
 }
 
+/** A heading of the document's outline (§ Document table). */
+export interface OutlineHeading {
+  /** 0 outermost. */
+  readonly level: number;
+  /** Its page number in the layout, which a partial list may not hold. */
+  readonly page: number;
+  /** Top of the heading's first line. */
+  readonly y: number;
+  readonly title: string;
+}
+
+/** The whole document's, in a partial list too. */
+export interface DocumentTable {
+  readonly title: string | null;
+  /** BCP 47. */
+  readonly language: string | null;
+  readonly outline: readonly OutlineHeading[];
+}
+
 export interface DisplayList {
   readonly view: DataView;
   readonly faces: readonly Face[];
   readonly strings: readonly string[];
+  readonly document: DocumentTable;
   /** In slot order; a partial list holds only some page numbers. */
   readonly pages: readonly PageEntry[];
   /** First byte after the page index: every body starts at or after it. */
@@ -83,12 +103,15 @@ export type Op =
     }
   | { readonly kind: 'fillPath'; readonly color: Rgba; readonly path: PathData }
   | { readonly kind: 'strokePath'; readonly width: number; readonly color: Rgba; readonly path: PathData }
-  /** Unshaped: `indices` are positions in the face's glyph table. */
-  | { readonly kind: 'textRun'; readonly head: RunHead; readonly indices: Uint32Array }
-  /** Shaped: per glyph id, advance, x offset, y offset. */
+  /**
+   * Shaped (every run is): the characters it stands for, then per glyph its id, its cluster (the
+   * UTF-8 byte offset in `text` of its first character), advance, x offset and y offset.
+   */
   | {
       readonly kind: 'glyphRun';
       readonly head: RunHead;
+      readonly text: string;
+      readonly clusters: Uint32Array;
       readonly glyphIds: Uint16Array;
       readonly advances: Int32Array;
       readonly dx: Int32Array;
@@ -96,6 +119,8 @@ export type Op =
     }
   | { readonly kind: 'image'; readonly rect: Rect; readonly contentId: string }
   | { readonly kind: 'link'; readonly rect: Rect; readonly target: string }
+  /** An unsigned signature field: the PDF writes a form field; a page painter draws nothing. */
+  | { readonly kind: 'sigField'; readonly rect: Rect; readonly fieldId: string; readonly role: string }
   | { readonly kind: 'clipPush'; readonly rect: Rect }
   | { readonly kind: 'clipPop' };
 

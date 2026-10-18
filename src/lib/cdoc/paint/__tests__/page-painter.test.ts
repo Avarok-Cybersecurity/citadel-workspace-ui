@@ -21,7 +21,8 @@ const list = (file: string): DisplayList => openDisplayList(new Uint8Array(readF
 const OPTIONS: RasterizerOptions = {
   atlas: { cellSizes: [16, 32, 64, 128], surfaceSide: 1024 },
   paper: 'rgb(255,255,255)',
-  missingImageStroke: 'rgb(200,200,200)',
+  placeholder: { stroke: 'rgb(200,200,200)', labelColor: 'rgb(100,100,100)', labelCssPx: 11, labelFamily: 'sans-serif' },
+  imageCacheBytes: 1024 * 1024,
 };
 
 function rasterizer(dl: DisplayList, options: RasterizerOptions = OPTIONS): PageRasterizer {
@@ -46,8 +47,8 @@ describe('every op on the every-op golden', () => {
   const target: RecordingTarget = recordingTarget();
   const outcome: ReturnType<PageRasterizer['paint']> = rasterizer(dl).paint(target, 0, scale);
 
-  it('sizes the canvas to the page in device px', () => {
-    expect(target.sizes).toEqual([[Math.round(dl.pages[0].width * scale.k), Math.round(dl.pages[0].height * scale.k)]]);
+  it('sizes the canvas to the page in device px: a whole number of CSS px, times the DPR', () => {
+    expect(target.sizes).toEqual([[Math.round(dl.pages[0].width * scale.css) * scale.dpr, Math.round(dl.pages[0].height * scale.css) * scale.dpr]]);
   });
 
   it('paints the sheet first, then FILL_RECT at its rounded edges', () => {
@@ -66,7 +67,7 @@ describe('every op on the every-op golden', () => {
 
   it('draws TEXT_RUN and GLYPH_RUN glyphs from the atlas', () => {
     const glyphs: number = decodePage(dl, 0).ops.reduce((n: number, o: Op) =>
-      n + (o.kind === 'textRun' ? o.indices.length : o.kind === 'glyphRun' ? o.glyphIds.length : 0), 0);
+      n + (o.kind === 'glyphRun' ? o.glyphIds.length : 0), 0);
     expect(named(target.calls, 'drawImage')).toHaveLength(glyphs);
   });
 
@@ -95,8 +96,9 @@ describe('the device scale', () => {
   it('multiplies every coordinate by devicePixelRatio, rounding once', () => {
     const one: RecordingTarget = paint(1);
     const two: RecordingTarget = paint(2);
-    expect(two.sizes[0][0]).toBe(Math.round(dl.pages[0].width * deviceScale(1, 2).k));
-    expect(two.sizes[0][0]).toBeGreaterThanOrEqual(2 * one.sizes[0][0] - 1);
+    // Twice the 1x canvas exactly: the browser composites a canvas at its CSS size, so a 2x
+    // canvas one device px off that (an odd width) would be rescaled and blur.
+    expect(two.sizes[0]).toEqual([2 * one.sizes[0][0], 2 * one.sizes[0][1]]);
     const r1: readonly unknown[] = named(one.calls, 'fillRect')[1].args;
     const r2: readonly unknown[] = named(two.calls, 'fillRect')[1].args;
     expect(Math.abs((r2[0] as number) - 2 * (r1[0] as number))).toBeLessThanOrEqual(1);

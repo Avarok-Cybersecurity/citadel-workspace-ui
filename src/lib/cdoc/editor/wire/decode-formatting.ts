@@ -10,7 +10,7 @@ import { isMap, readValue, type CodecValue } from './codec-reader';
 import { RecordError } from './record-writer';
 import type { RecordReader } from './decode-records';
 
-function map(bytes: Uint8Array, what: string): { readonly [key: string]: CodecValue } {
+export function map(bytes: Uint8Array, what: string): { readonly [key: string]: CodecValue } {
   const v: CodecValue = readValue(bytes);
   if (!isMap(v)) throw new RecordError(`${what} is not a map`);
   return v;
@@ -21,7 +21,8 @@ function keySet<K extends string>(bits: bigint, keys: readonly K[], what: string
   return new Set<K>(keys.filter((_: K, i: number) => ((bits >> BigInt(i)) & 1n) === 1n));
 }
 
-export function readFormatting(r: RecordReader): KnownFormatting {
+/** The `formatting` block; the caret's section is read later in the record (decode-result.ts). */
+export function readFormatting(r: RecordReader): Omit<KnownFormatting, 'section'> {
   const run: RunPropertiesPatch = map(r.bytesField(), 'run') as RunPropertiesPatch;
   const runDirect: RunPropertiesPatch = map(r.bytesField(), 'run_direct') as RunPropertiesPatch;
   const paragraph: ParagraphProperties = map(r.bytesField(), 'paragraph') as ParagraphProperties;

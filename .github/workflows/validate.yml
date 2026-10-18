@@ -172,6 +172,8 @@ jobs:
         # reads the workflow text for `npm run <gate>`, and this is the text each leg runs.
           - { name: Chat polish geometry, run: 'npm run check:chat-polish' }
           - { name: UI sweep geometry, run: 'npm run check:ui-sweep' }
+          # Text sharpness on pixels: the shipped editor at 1x and 2x, against fillText.
+          - { name: Docs text crispness, run: 'npm run check:docs-crispness' }
     # jsdom has no layout, so a hover card lying across the rows above it, or a message pressed
     # against the bubble over it, passes every unit test. This serves the real components and
     # asserts bounding boxes, in Chromium (the engine this job installs).

@@ -1,5 +1,5 @@
 /**
- * Bounds-checked reads over a DataView, in the encodings of `docs/display-list.md` v1
+ * Bounds-checked reads over a DataView, in the encodings of `docs/display-list.md` v2
  * § Conventions: little-endian fixed integers, `uv` (LEB128, ≤ 5 bytes, fits 32 bits), `zz`
  * (zigzag over `uv`) and `str` (`uv` length + UTF-8). Nothing is copied: the reader walks the
  * caller's buffer.
@@ -17,6 +17,11 @@ const UTF8: TextDecoder = new TextDecoder('utf-8', { fatal: true });
 /** `zz` decode: `(u >>> 1) ^ -(u & 1)`, on a value already read as an unsigned 32-bit `uv`. */
 export function unzigzag(u: number): number {
   return (u >>> 1) ^ -(u & 1);
+}
+
+export interface Utf8String {
+  readonly text: string;
+  readonly bytes: Uint8Array;
 }
 
 export class ByteReader {
@@ -104,19 +109,37 @@ export class ByteReader {
     throw new DisplayListError('varint longer than five bytes');
   }
 
+  /**
+   * A `uv` element count, checked against the bytes left before anything is sized by it: each
+   * element takes at least `minBytes`, so a count the remaining bytes cannot hold is refused
+   * rather than allocated (CWE-789).
+   */
+  count(minBytes: number, what: string): number {
+    const n: number = this.uv();
+    const left: number = this.end - this.pos;
+    if (n * minBytes > left) throw new DisplayListError(`${what} claims ${n} entries, but only ${left} bytes remain`);
+    return n;
+  }
+
   zz(): number {
     return unzigzag(this.uv() >>> 0);
   }
 
   str(): string {
+    return this.utf8().text;
+  }
+
+  /** A `str` with its UTF-8 bytes, for a reader that indexes it by byte offset. */
+  utf8(): Utf8String {
     const len: number = this.uv();
     this.need(len);
-    const bytes: Uint8Array = new Uint8Array(this.view.buffer, this.view.byteOffset + this.pos, len);
+    const at: number = this.pos;
+    const bytes: Uint8Array = new Uint8Array(this.view.buffer, this.view.byteOffset + at, len);
     this.pos += len;
     try {
-      return UTF8.decode(bytes);
+      return { text: UTF8.decode(bytes), bytes };
     } catch {
-      throw new DisplayListError(`string at byte ${this.pos - len} is not UTF-8`);
+      throw new DisplayListError(`string at byte ${at} is not UTF-8`);
     }
   }
 }

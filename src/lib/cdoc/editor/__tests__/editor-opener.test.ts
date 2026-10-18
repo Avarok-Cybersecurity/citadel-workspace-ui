@@ -1,7 +1,8 @@
 /**
  * Replicas: each open is a new CRDT client id drawn from the random source, read back from
  * the real engine's own awareness record; tombstone collection between two real replicas;
- * images held by signature; and the file calls that are not in this binary failing by name.
+ * images held by signature. Files, chunked diffs and the v4 members are editor-files.test.ts
+ * and editor-v4.test.ts.
  */
 import { describe, expect, it } from 'vitest';
 import { inProcessRuntime, type TestRuntime } from '../../__tests__/wasm-rig';
@@ -67,26 +68,5 @@ describe('the editor opener', () => {
     expect(image).toEqual({ contentId: `sha256-${createHash('sha256').update(PNG_1X1).digest('hex')}`, kind: 'png', width: 1, height: 1 });
     await expect(editor.addImage(PNG_1X1, PNG_1X1.length - 1)).rejects.toThrow();
     await expect(editor.addImage(Uint8Array.from([0x47, 0x49, 0x46, 0x38, 0x39, 0x61]), 1024)).rejects.toThrow(/unsupported image type: GIF/);
-  });
-
-  // cdoc-edit-io (EditorHandle.fromDocument / export) is not vendored yet: both refuse by
-  // name, and these turn red when it is, to become the import and export tests.
-  it('refuses to open file bytes, and to export, saying which call is missing', async () => {
-    const runtime: TestRuntime = inProcessRuntime('worker');
-    const open: (from: EditorOrigin) => Promise<EditorSession> = createEditorOpener({ client: runtime.client, renderer: runtime.renderer }, counting());
-    await expect(open({ kind: 'bytes', bytes: Uint8Array.from([1, 2, 3]), format: 'docx' })).rejects.toThrow(/cannot open docx files \(EditorHandle\.fromDocument is missing\)/);
-    const editor: EditorSession = await open({ kind: 'blank' });
-    await expect(editor.exportAs({ format: 'pdf', nowRfc3339: '2026-10-18T00:00:00Z' })).rejects.toThrow(/cannot export pdf \(EditorHandle\.export is missing\)/);
-    await expect(editor.exportAs({ format: 'docx' })).rejects.toThrow(/cannot export docx \(EditorHandle\.export is missing\)/);
-    expect(editor.importReport).toBeNull();
-  });
-
-  // The crdt sync work adds EditorHandle.encodeDiffChunked; until it is vendored the call refuses
-  // by name (this turns red then, to become the chunking test), and a bad limit never reaches it.
-  it('refuses to chunk a diff, saying which call is missing', async () => {
-    const runtime: TestRuntime = inProcessRuntime('worker');
-    const editor: EditorSession = await createEditorOpener({ client: runtime.client, renderer: runtime.renderer }, counting())({ kind: 'blank' });
-    await expect(editor.encodeDiffChunked(null, 65_536)).rejects.toThrow(/cannot chunk a diff \(EditorHandle\.encodeDiffChunked is missing\)/);
-    await expect(editor.encodeDiffChunked(await editor.stateVector(), 0)).rejects.toThrow(/maxBytes 0 is not a positive u32/);
   });
 });

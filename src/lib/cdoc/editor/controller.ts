@@ -8,131 +8,19 @@
  * EditorCommand is the single source: `commands` and `execute` are both derived from it, so a
  * command added there is a type error until it has an opcode and both surfaces carry it.
  */
-import type { CommentValue, PageSetupPatch, ParagraphPatch, Pt100, RunPropertiesPatch } from './model-values';
+import type { Pt100 } from './model-values';
+import type { CommandOf, EditorCommand, EditorCommandName, EditorPosition, PageRect } from './editor-commands';
 import type { CaretFormatting } from './caret-formatting';
 import type { ExportedFile, ExportTarget, ImportFormat, ImportReport } from './file-formats';
 import type { PeerOverlay } from './peer-overlay';
+import type { Created, SelectionText } from './wire/decode-result';
+import type { DocumentStyle } from './wire/decode-v4-records';
 
-/**
- * A CRDT position (`client:uv clock:uv`), opaque: copied out of a result or a hit test and
- * back into a request, never read. Survives local and remote edits.
- */
-export type EditorPosition = Uint8Array & { readonly __editorPosition: unique symbol };
+export type { DocumentStyle } from './wire/decode-v4-records';
 
-/** A rectangle in page space, Pt100, top-left origin, y down. */
-export interface PtRect {
-  readonly x: Pt100;
-  readonly y: Pt100;
-  readonly width: Pt100;
-  readonly height: Pt100;
-}
+export type { Created, SelectionText } from './wire/decode-result';
 
-/** A rectangle on a zero-based page. */
-export interface PageRect {
-  readonly page: number;
-  readonly rect: PtRect;
-}
-
-export type DeleteUnit = 'char' | 'word';
-export type BreakKind = 'line' | 'page' | 'column';
-export type Mark = 'bold' | 'italic' | 'underline' | 'strike' | 'subscript' | 'superscript';
-export type CaretGranularity = 'char' | 'word' | 'lineBoundary' | 'line' | 'paragraph' | 'document';
-
-export type EditorCommand =
-  | { readonly name: 'insertText'; readonly text: string }
-  | { readonly name: 'deleteBackward'; readonly unit: DeleteUnit }
-  | { readonly name: 'deleteForward'; readonly unit: DeleteUnit }
-  | { readonly name: 'splitParagraph' }
-  | { readonly name: 'insertBreak'; readonly kind: BreakKind }
-  | { readonly name: 'insertTab' }
-  | { readonly name: 'toggleMark'; readonly mark: Mark }
-  | { readonly name: 'setRunProperty'; readonly patch: RunPropertiesPatch }
-  | { readonly name: 'setParagraphProperty'; readonly patch: ParagraphPatch }
-  | { readonly name: 'setParagraphStyle'; readonly style: string }
-  | { readonly name: 'setNumbering'; readonly numId: number; readonly level: number }
-  | { readonly name: 'clearNumbering' }
-  | { readonly name: 'indent' }
-  | { readonly name: 'outdent' }
-  /** Page setup of every section from the anchor's to the head's. */
-  | { readonly name: 'setSectionProperty'; readonly patch: PageSetupPatch }
-  | { readonly name: 'insertTable'; readonly rows: number; readonly cols: number }
-  | { readonly name: 'insertRowAbove' }
-  | { readonly name: 'insertRowBelow' }
-  | { readonly name: 'insertColumnLeft' }
-  | { readonly name: 'insertColumnRight' }
-  | { readonly name: 'deleteRow' }
-  | { readonly name: 'deleteColumn' }
-  | { readonly name: 'deleteTable' }
-  | { readonly name: 'mergeCells' }
-  | { readonly name: 'insertImage'; readonly contentId: string; readonly width: Pt100; readonly height: Pt100 }
-  | { readonly name: 'insertFootnote'; readonly id: number }
-  | { readonly name: 'insertLink'; readonly href: string }
-  | { readonly name: 'removeLink' }
-  | { readonly name: 'insertComment'; readonly comment: CommentValue }
-  | { readonly name: 'replace'; readonly from: EditorPosition; readonly to: EditorPosition; readonly text: string }
-  | { readonly name: 'selectAll' }
-  | { readonly name: 'setSelection'; readonly anchor: EditorPosition; readonly head: EditorPosition }
-  | { readonly name: 'undo' }
-  | { readonly name: 'redo' }
-  /** Ends the current undo step: on blur, after a typing pause, before a paste. */
-  | { readonly name: 'breakUndoGroup' }
-  | { readonly name: 'moveCaret'; readonly granularity: CaretGranularity; readonly forward: boolean; readonly extend: boolean }
-  | { readonly name: 'selectWord'; readonly at: EditorPosition }
-  | { readonly name: 'selectParagraph'; readonly at: EditorPosition }
-  | { readonly name: 'compositionStart' }
-  /** `caret` counts characters into `text`. */
-  | { readonly name: 'compositionUpdate'; readonly text: string; readonly caret: number }
-  | { readonly name: 'compositionCommit' }
-  | { readonly name: 'compositionCancel' };
-
-export type EditorCommandName = EditorCommand['name'];
-export type CommandOf<N extends EditorCommandName> = Extract<EditorCommand, { name: N }>;
-
-/** Each command's request opcode, exactly docs/edit-commands.md's table. */
-export const COMMAND_OPCODES: { readonly [N in EditorCommandName]: number } = {
-  insertText: 0x01,
-  deleteBackward: 0x02,
-  deleteForward: 0x03,
-  splitParagraph: 0x04,
-  insertBreak: 0x05,
-  insertTab: 0x06,
-  toggleMark: 0x07,
-  setRunProperty: 0x08,
-  setParagraphProperty: 0x09,
-  setParagraphStyle: 0x0a,
-  setNumbering: 0x0b,
-  clearNumbering: 0x0c,
-  indent: 0x0d,
-  outdent: 0x0e,
-  setSectionProperty: 0x0f,
-  insertTable: 0x10,
-  insertRowAbove: 0x11,
-  insertRowBelow: 0x12,
-  insertColumnLeft: 0x13,
-  insertColumnRight: 0x14,
-  deleteRow: 0x15,
-  deleteColumn: 0x16,
-  deleteTable: 0x17,
-  mergeCells: 0x18,
-  insertImage: 0x20,
-  insertFootnote: 0x21,
-  insertLink: 0x22,
-  removeLink: 0x23,
-  insertComment: 0x24,
-  replace: 0x30,
-  selectAll: 0x31,
-  setSelection: 0x32,
-  undo: 0x40,
-  redo: 0x41,
-  breakUndoGroup: 0x42,
-  moveCaret: 0x43,
-  selectWord: 0x44,
-  selectParagraph: 0x45,
-  compositionStart: 0x50,
-  compositionUpdate: 0x51,
-  compositionCommit: 0x52,
-  compositionCancel: 0x53,
-};
+export * from './editor-commands';
 
 export type { CaretFormatting } from './caret-formatting';
 
@@ -149,6 +37,10 @@ export interface EditorState {
   /** An IME composition is open; its provisional text is drawn at the caret. */
   readonly composing: boolean;
   readonly caretFormatting: CaretFormatting;
+  /** What the last command made under ids the editor picked (a footnote, a list instance). */
+  readonly created: readonly Created[];
+  /** The selection's plain text, for Copy and Cut; empty for a caret. */
+  readonly selectionText: SelectionText;
 }
 
 /** A peer's caret and selection mapped onto this replica's pages. */
@@ -179,6 +71,17 @@ export type EditorCommands = {
 };
 
 /** What a replica opens from: a new blank document, a CRDT snapshot, or a file's bytes. */
+/** What a press at a point selects (EditorController.selectAt). */
+export type SelectAt =
+  /** A caret at the point. */
+  | { readonly kind: 'caret' }
+  /** From the selection's anchor to the point: Shift+click. */
+  | { readonly kind: 'extend' }
+  /** From `anchor` to the point: a drag from where it began. */
+  | { readonly kind: 'drag'; readonly anchor: EditorPosition }
+  | { readonly kind: 'word' }
+  | { readonly kind: 'paragraph' };
+
 export type EditorOrigin =
   | { readonly kind: 'blank' }
   | { readonly kind: 'snapshot'; readonly snapshot: Uint8Array }
@@ -211,6 +114,12 @@ export interface EditorController {
   execute(command: EditorCommand): Promise<EditorState>;
   /** The position nearest `(x, y)` on zero-based `page`, in Pt100 page space. */
   hitTest(page: number, x: Pt100, y: Pt100): Promise<EditorPosition>;
+  /**
+   * Hit-tests `(x, y)` on `page` and selects there, as one step of the command queue: a command
+   * queued after it (a keystroke after the click) always applies to the selection it made, never
+   * to one computed against the document before.
+   */
+  selectAt(page: number, x: Pt100, y: Pt100, how: SelectAt): Promise<EditorState>;
   /** Applies a peer's CRDT update; emits `pages` and `selection`, never `change`. */
   applyRemote(update: Uint8Array): Promise<EditorState>;
   /** The full CRDT snapshot, to persist or to seed a joining peer. */
@@ -239,8 +148,17 @@ export interface EditorController {
    * in the workspace's content store under that id before relaying the insertImage update.
    */
   addImage(bytes: Uint8Array, maxBytes: number): Promise<AddedImage>;
+  /** The selection as plain text, empty when it is collapsed: what copy and cut put on the clipboard. */
+  selectionText(): Promise<string>;
+  /** The document's style sheet, each style as it resolves, for the styles gallery. */
+  styles(): Promise<DocumentStyle[]>;
   /** The live document as a file. */
   exportAs(target: ExportTarget): Promise<ExportedFile>;
+  /**
+   * Hyphenation pattern tags (`de-1996`) the document now needs that this replica was opened
+   * without: an edit brought in a language, and its hyphenation applies after reopening.
+   */
+  missingPatterns(): Promise<readonly string[]>;
   /** What the import lost, for a replica opened from file bytes; null otherwise. */
   readonly importReport: ImportReport | null;
   /** Returns keyboard focus to the editor, e.g. after a ribbon button took it. */

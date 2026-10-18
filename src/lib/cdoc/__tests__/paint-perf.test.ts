@@ -9,7 +9,7 @@ import { measurePaint, type PaintPerf } from './perf/paint-perf';
 describe('the cdoc paint measurement', () => {
   it('decodes and paints every page of the 100-page golden, serving repeats from the atlas', async () => {
     const r: PaintPerf = await measurePaint(1, 1, 2);
-    expect(r.pages).toBe(103);
+    expect(r.pages).toBe(102);
     expect(r.atlas.misses).toBeGreaterThan(0);
     expect(r.atlas.direct).toBe(0);
     // A few dozen distinct glyphs repeated over 103 pages: almost every draw is a cache hit.

@@ -27,7 +27,7 @@ const host = (): CdocHost => realHost(recordingPort().port, (): RecordingTarget 
 });
 
 function glyphCount(list: DisplayList): number {
-  return decodePage(list, 0).ops.reduce((n: number, o: Op) => n + (o.kind === 'textRun' ? o.indices.length : o.kind === 'glyphRun' ? o.glyphIds.length : 0), 0);
+  return decodePage(list, 0).ops.reduce((n: number, o: Op) => n + (o.kind === 'glyphRun' ? o.glyphIds.length : 0), 0);
 }
 
 describe('InProcessCdocClient over the real wasm', () => {

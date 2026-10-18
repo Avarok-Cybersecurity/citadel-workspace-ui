@@ -1,6 +1,7 @@
 /**
- * The document engine the worker runs: cdoc-wasm with its faces, one open document, and its
- * display list. No I/O of its own; the wasm module and the font source are handed in.
+ * The document engine the worker runs: cdoc-wasm with its faces and hyphenation patterns, one
+ * open document, and its display list. No I/O of its own; the wasm modules and the asset
+ * sources are handed in (EngineAssets, PdfWriter).
  *
  * R1 lays the document out once, at open, and keeps the whole display list: `paint(pages)`
  * answers from it, so scrolling never re-lays out. The reply holds every requested page and
@@ -8,13 +9,18 @@
  * An editable document is an EditorEngine (openEditor) instead, which paints only the pages
  * asked for; both share this engine's faces, and glyph outlines are asked for by face key, so
  * they answer for either.
+ *
+ * Patterns are fetched for the languages a document needs before it is laid out, as cdoc-wasm
+ * asks (`hyphenation_patterns_needed`). An editor's fonts are sealed with a fixed pattern set,
+ * and a seal lives as long as the page (cdoc-edit leaks it), so each set is sealed once.
  */
 import { openDisplayList } from '../display-list/decoder';
 import { DisplayListError } from '../display-list/byte-reader';
 import type { DisplayList, FaceKey, PageEntry } from '../display-list/types';
-import type { FontFaceEntry, FontManifest, FontSource } from '../fonts/font-manifest';
-import type { CdocWasm, EditorSealedFonts, RenderAssets } from './cdoc-wasm-api';
+import type { CdocWasm, EditorSealedFonts, ImageStore, RenderAssets } from './cdoc-wasm-api';
 import { EditorEngine, type EditorOrigin } from './editor-engine';
+import { patternSet, type EngineAssets, type LoadedFace } from './engine-assets';
+import type { PdfWriter } from './pdf-writer';
 import type { DocumentSource } from '../document-source';
 
 export interface OpenedDocument {
@@ -29,50 +35,43 @@ export interface GlyphPathBatch {
   readonly offsets: Uint32Array;
 }
 
-/**
- * RenderAssets takes the time its PDF output records. The display list records no time and
- * this engine never writes a PDF, so the clock is a fixed, visibly meaningless instant.
- */
 interface OpenDoc {
   readonly bytes: Uint8Array;
   readonly list: DisplayList;
-  readonly assets: RenderAssets;
 }
 
+/**
+ * RenderAssets takes the time its PDF output records. The display list records no time and
+ * this artefact never writes a PDF, so the clock is a fixed, visibly meaningless instant.
+ */
 const DISPLAY_LIST_HAS_NO_CLOCK: string = '1970-01-01T00:00:00Z';
 
-type LoadedFace = readonly [FontFaceEntry, Uint8Array];
-
 export class CdocEngine {
-  private faces: Promise<readonly LoadedFace[]> | null = null;
   private assets: Promise<RenderAssets> | null = null;
-  private editorFonts: Promise<EditorSealedFonts> | null = null;
+  /** The pattern tags registered on `assets` so far: registration only ever adds. */
+  private readonly assetPatterns: Set<string> = new Set<string>();
+  private readonly sealed: Map<string, Promise<EditorSealedFonts>> = new Map<string, Promise<EditorSealedFonts>>();
   /** Set once the faces are in: glyph outlines and metrics answer from it synchronously. */
   private ready: RenderAssets | null = null;
   private doc: OpenDoc | null = null;
 
   constructor(
     private readonly wasm: CdocWasm,
-    private readonly manifest: FontManifest,
-    private readonly fonts: FontSource,
+    private readonly files: EngineAssets,
+    private readonly pdf: PdfWriter,
   ) {}
 
-  /** Every face in the manifest, fetched once and in parallel; a failed fetch is retried next time. */
-  private loadFaces(): Promise<readonly LoadedFace[]> {
-    this.faces ??= Promise.all(
-      this.manifest.faces.map(async (face: FontFaceEntry): Promise<LoadedFace> => [face, await this.fonts.load(face)]),
-    );
-    this.faces.catch((): void => {
-      this.faces = null;
-    });
-    return this.faces;
+  /** The pattern tags a model document needs, as cdoc-wasm names them. */
+  patternsNeeded(modelJson: string): readonly string[] {
+    const tags: unknown = JSON.parse(this.wasm.hyphenation_patterns_needed(modelJson));
+    if (!Array.isArray(tags) || !tags.every((t: unknown): t is string => typeof t === 'string')) throw new Error('hyphenation_patterns_needed did not answer a list of tags');
+    return patternSet(tags);
   }
 
   private loadAssets(): Promise<RenderAssets> {
-    this.assets ??= this.loadFaces().then((loaded: readonly LoadedFace[]): RenderAssets => {
-      const assets: RenderAssets = new this.wasm.RenderAssets(this.manifest.fallback, DISPLAY_LIST_HAS_NO_CLOCK);
-      for (const [face, bytes] of loaded) assets.addFont(face.family, face.bold, face.italic, bytes);
-      for (const [name, target] of Object.entries(this.manifest.aliases)) assets.aliasFont(name, target);
+    this.assets ??= this.files.loadFaces().then((faces: readonly LoadedFace[]): RenderAssets => {
+      const assets: RenderAssets = new this.wasm.RenderAssets(this.files.fontManifest.fallback, DISPLAY_LIST_HAS_NO_CLOCK);
+      this.files.furnish(assets, faces, []);
       this.ready = assets;
       return assets;
     });
@@ -82,25 +81,66 @@ export class CdocEngine {
     return this.assets;
   }
 
-  /** The faces sealed for editing, once for the engine's life (cdoc-edit: seal once, reuse). */
-  private loadEditorFonts(): Promise<EditorSealedFonts> {
-    this.editorFonts ??= this.loadFaces().then((loaded: readonly LoadedFace[]): EditorSealedFonts => {
-      const fonts: InstanceType<CdocWasm['EditorFonts']> = new this.wasm.EditorFonts(this.manifest.fallback);
-      for (const [face, bytes] of loaded) fonts.addFont(face.family, face.bold, face.italic, bytes);
-      for (const [name, target] of Object.entries(this.manifest.aliases)) fonts.aliasFont(name, target);
-      return fonts.seal();
-    });
-    this.editorFonts.catch((): void => {
-      this.editorFonts = null;
-    });
-    return this.editorFonts;
+  /** The read-only assets with `tags` registered too. */
+  private async assetsWith(tags: readonly string[]): Promise<RenderAssets> {
+    const assets: RenderAssets = await this.loadAssets();
+    const missing: readonly string[] = tags.filter((t: string): boolean => !this.assetPatterns.has(t));
+    for (const [tag, text] of await this.files.loadPatterns(missing)) {
+      if (this.assetPatterns.has(tag)) continue;
+      assets.addPatterns(tag, text);
+      this.assetPatterns.add(tag);
+    }
+    return assets;
   }
 
-  /** Opens an editor as replica `client`; outlines for its pages come from this engine. */
+  /** The faces and the patterns `tags` sealed for editing, once per pattern set. */
+  private sealedFor(tags: readonly string[]): Promise<EditorSealedFonts> {
+    const key: string = tags.join(',');
+    let sealed: Promise<EditorSealedFonts> | undefined = this.sealed.get(key);
+    if (sealed === undefined) {
+      sealed = Promise.all([this.files.loadFaces(), this.files.loadPatterns(tags)]).then(([faces, patterns]): EditorSealedFonts => {
+        const fonts: InstanceType<CdocWasm['EditorFonts']> = new this.wasm.EditorFonts(this.files.fontManifest.fallback);
+        this.files.furnish(fonts, faces, patterns);
+        return fonts.seal();
+      });
+      sealed.catch((): void => {
+        this.sealed.delete(key);
+      });
+      this.sealed.set(key, sealed);
+    }
+    return sealed;
+  }
+
+  /**
+   * Opens an editor as replica `client`; outlines for its pages come from this engine. Which
+   * languages a snapshot or a file needs is only known once it is open, so it opens without
+   * patterns first and, when it needs some, is opened again on fonts sealed with them.
+   */
   async openEditor(client: bigint, origin: EditorOrigin): Promise<EditorEngine> {
-    const [fonts] = await Promise.all([this.loadEditorFonts(), this.loadAssets()]);
+    const [fonts] = await Promise.all([this.sealedFor([]), this.loadAssets()]);
     this.doc = null;
-    return EditorEngine.open(this.wasm, fonts, client, origin);
+    const probe: EditorEngine = EditorEngine.open(this.wasm, fonts, [], client, origin);
+    let needed: readonly string[];
+    try {
+      needed = this.patternsNeeded(probe.modelJson());
+    } catch (error: unknown) {
+      probe.dispose();
+      throw error;
+    }
+    if (needed.length === 0) return probe;
+    probe.dispose();
+    return EditorEngine.open(this.wasm, await this.sealedFor(needed), needed, client, origin);
+  }
+
+  /** `editor` as a PDF, through the PDF artefact, with the pattern set it was laid out with. */
+  async writePdf(editor: EditorEngine, nowRfc3339: string): Promise<Uint8Array> {
+    const images: ImageStore = new this.wasm.ImageStore();
+    try {
+      editor.drawnImages(images);
+      return await this.pdf.write({ modelJson: editor.modelJson(), images, patterns: editor.patterns, nowRfc3339 });
+    } finally {
+      images.free();
+    }
   }
 
   private pmJson(source: DocumentSource): string {
@@ -112,10 +152,12 @@ export class CdocEngine {
   }
 
   async open(source: DocumentSource): Promise<OpenedDocument> {
-    const assets: RenderAssets = await this.loadAssets();
-    const bytes: Uint8Array = this.wasm.pm_to_display_list(this.pmJson(source), assets);
+    const pmJson: string = this.pmJson(source);
+    const modelJson: string = source.kind === 'model' ? source.modelJson : this.wasm.pm_to_model(pmJson);
+    const assets: RenderAssets = await this.assetsWith(this.patternsNeeded(modelJson));
+    const bytes: Uint8Array = this.wasm.pm_to_display_list(pmJson, assets);
     const decoded: DisplayList = openDisplayList(bytes);
-    this.doc = { bytes, list: decoded, assets };
+    this.doc = { bytes, list: decoded };
     const pageSizes: Int32Array = new Int32Array(decoded.pages.length * 2);
     decoded.pages.forEach((p: PageEntry, i: number) => {
       pageSizes[2 * i] = p.width;

@@ -62,7 +62,19 @@ export function quarterPx(v: number): number {
   return Math.round(v * 4) / 4;
 }
 
-/** A page's canvas size in device pixels. */
-export function pageSizePx(width: number, height: number, k: number): { readonly w: number; readonly h: number } {
-  return { w: px(width, k), h: px(height, k) };
+/**
+ * A page's canvas size in device pixels: a whole number of CSS px, times the DPR. The browser
+ * composites a canvas at its CSS size, so a fractional one (an odd device width at DPR 2 is
+ * 793.5 CSS px) is drawn into the next whole CSS size, rescaling every glyph by a pixel's width
+ * across the page: the blur this prevents. Content keeps the exact scale `k`; the sheet gains or
+ * loses under one CSS px of paper at its right and bottom edges.
+ */
+export function pageSizePx(width: number, height: number, scale: DeviceScale): { readonly w: number; readonly h: number } {
+  const css: { readonly w: number; readonly h: number } = pageSizeCss(width, height, scale);
+  return { w: Math.round(css.w * scale.dpr), h: Math.round(css.h * scale.dpr) };
+}
+
+/** A page's size on screen: whole CSS px (at a fractional DPR its canvas is the nearest device size). */
+export function pageSizeCss(width: number, height: number, scale: DeviceScale): { readonly w: number; readonly h: number } {
+  return { w: Math.round(width * scale.css), h: Math.round(height * scale.css) };
 }

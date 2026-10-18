@@ -9,7 +9,8 @@ import { InProcessCdocClient } from '../../worker/clients';
 import { realHost } from '../../__tests__/wasm-rig';
 import { recordingPort, recordingTarget } from '../../paint/__tests__/recording-canvas';
 import { encodeCommand } from '../wire/encode-command';
-import { decodeAwareness, decodePeerView, decodePosition, decodeResult, type EditorResult } from '../wire/decode-records';
+import { decodeAwareness, decodePeerView, decodePosition } from '../wire/decode-records';
+import { decodeResult, type EditorResult } from '../wire/decode-result';
 import type { EditorCommand, EditorPosition } from '../controller';
 import { openDisplayList } from '../../display-list/decoder';
 import { decodePage } from '../../display-list/page-ops';
@@ -81,7 +82,7 @@ describe('editor records against cdoc-edit', () => {
     const { displayList } = await client.request({ kind: 'paint', pages: [0] });
     const list: DisplayList = openDisplayList(displayList);
     const used: Set<number> = new Set<number>(
-      decodePage(list, 0).ops.flatMap((op: Op) => (op.kind === 'textRun' || op.kind === 'glyphRun' ? [op.head.faceId] : [])),
+      decodePage(list, 0).ops.flatMap((op: Op) => (op.kind === 'glyphRun' ? [op.head.faceId] : [])),
     );
     return [...used].map((id: number) => ({ bold: list.faces[id].bold, italic: list.faces[id].italic }));
   }

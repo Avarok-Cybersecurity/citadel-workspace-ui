@@ -1,6 +1,7 @@
 /**
- * The two overlay canvases over a page: selection highlights underneath, carets and peer name
- * labels on top. Main thread, sized like the page canvas (device px), repainted whole on every
+ * The three overlay canvases over a page: selection highlights underneath, peers' carets and
+ * name labels above them, and the local caret on top, alone on its canvas so its blink only
+ * shows and hides that canvas. Main thread, sized like the page canvas (device px), repainted whole on every
  * selection or peer change, which is cheap: a few rectangles. Rectangles follow units.ts's one
  * rounding rule, so a highlight lines up with the text the page canvas drew.
  */
@@ -58,7 +59,7 @@ export function paintSelectionLayer(ctx: Ctx2D, width: number, height: number, s
   for (const r of scene.selection.filter(onPage(scene.page))) fillRect(ctx, r, scene.scale.k);
 }
 
-export function paintCaretLayer(ctx: Ctx2D, width: number, height: number, scene: OverlayScene, style: OverlayStyle): void {
+export function paintPeerLayer(ctx: Ctx2D, width: number, height: number, scene: OverlayScene, style: OverlayStyle): void {
   ctx.clearRect(0, 0, width, height);
   for (const peer of scene.peers) {
     const caret: PageRect | null = peer.view.caret;
@@ -74,6 +75,10 @@ export function paintCaretLayer(ctx: Ctx2D, width: number, height: number, scene
     ctx.fillStyle = style.labelText;
     ctx.fillText(peer.name, at.x + pad, at.y);
   }
+}
+
+export function paintCaretLayer(ctx: Ctx2D, width: number, height: number, scene: OverlayScene, style: OverlayStyle): void {
+  ctx.clearRect(0, 0, width, height);
   if (scene.caret !== null && scene.caret.page === scene.page) {
     ctx.fillStyle = style.caret;
     caretAt(ctx, scene.caret, scene.scale, style.caretCssPx);

@@ -4,6 +4,7 @@
  */
 import { DisplayListError } from '../display-list/byte-reader';
 import type { CanvasPort, Ctx2D, PaintTarget, Surface } from './canvas-port';
+import type { DecodedImage } from './image-cache';
 
 function offscreen(width: number, height: number): Surface {
   const canvas: OffscreenCanvas = new OffscreenCanvas(width, height);
@@ -26,6 +27,10 @@ export function domCanvasPort(): CanvasPort {
   return {
     createSurface: create,
     createPath: (): Path2D => new Path2D(),
+    decodeImage: async (bytes: Uint8Array, mime: string): Promise<DecodedImage> => {
+      const bitmap: ImageBitmap = await createImageBitmap(new Blob([bytes.slice()], { type: mime }));
+      return { source: bitmap, width: bitmap.width, height: bitmap.height, close: (): void => bitmap.close() };
+    },
   };
 }
 
