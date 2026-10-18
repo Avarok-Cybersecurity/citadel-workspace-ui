@@ -29,5 +29,6 @@ export function serveEditor(editor: EditorEngine, req: EditorSessionRequest): Ed
     case 'gc':
       editor.collectGarbage();
       return { collected: true };
+    case 'addImage': return { contentId: editor.addImage(req.bytes, req.mime) };
   }
 }

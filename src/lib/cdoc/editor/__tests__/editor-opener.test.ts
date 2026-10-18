@@ -46,4 +46,11 @@ describe('the editor opener', () => {
     await editor.execute({ name: 'deleteBackward', unit: 'word' });
     await expect(editor.collectGarbage()).rejects.toThrow(/cannot collect garbage \(EditorHandle\.gc is missing\)/);
   });
+
+  // Likewise EditorHandle.addImage, from the same release.
+  it('fails, saying so, when the binary cannot store images', async () => {
+    const runtime: TestRuntime = inProcessRuntime('worker');
+    const editor: EditorSession = await createEditorOpener({ client: runtime.client, renderer: runtime.renderer }, counting())({ blank: true });
+    await expect(editor.addImage(Uint8Array.from([0x89, 0x50, 0x4e, 0x47]), 'image/png')).rejects.toThrow(/cannot store images \(EditorHandle\.addImage is missing\)/);
+  });
 });

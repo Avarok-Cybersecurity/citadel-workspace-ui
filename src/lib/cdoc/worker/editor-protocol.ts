@@ -21,6 +21,8 @@ export type EditorRequestBody =
   | { readonly kind: 'pageSizes' }
   /** Collects tombstones (EditorController.collectGarbage). */
   | { readonly kind: 'gc' }
+  /** Stores image bytes in the document's image store. */
+  | { readonly kind: 'addImage'; readonly bytes: Uint8Array; readonly mime: string }
   /** Drops the worker painter's copy of `pages` (an edit changed them) before they repaint. */
   | { readonly kind: 'invalidatePages'; readonly pages: readonly number[] };
 
@@ -44,8 +46,9 @@ export interface EditorResults {
   pageSizes: { readonly pageSizes: Int32Array };
   invalidatePages: { readonly pages: readonly number[] };
   gc: { readonly collected: true };
+  addImage: { readonly contentId: string };
 }
 
 export type EditorKind = EditorRequestBody['kind'];
 
-export const EDITOR_KINDS: readonly EditorKind[] = ['editorOpen', 'apply', 'applyRemote', 'hitTest', 'snapshot', 'awareness', 'peerView', 'pageSizes', 'invalidatePages', 'gc'];
+export const EDITOR_KINDS: readonly EditorKind[] = ['editorOpen', 'apply', 'applyRemote', 'hitTest', 'snapshot', 'awareness', 'peerView', 'pageSizes', 'invalidatePages', 'gc', 'addImage'];

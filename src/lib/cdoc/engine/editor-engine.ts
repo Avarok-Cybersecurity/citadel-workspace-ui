@@ -88,6 +88,15 @@ export class EditorEngine {
     (gc as () => void).call(this.handle);
   }
 
+  /** EditorHandle.addImage (from the caret-state release on): stores bytes, returns the content id. */
+  addImage(bytes: Uint8Array, mime: string): string {
+    const add: unknown = (this.handle as unknown as { readonly addImage?: unknown }).addImage;
+    if (typeof add !== 'function') throw new Error('this cdoc-wasm build cannot store images (EditorHandle.addImage is missing)');
+    const id: unknown = (add as (bytes: Uint8Array, mime: string) => unknown).call(this.handle, bytes, mime);
+    if (typeof id !== 'string' || id === '') throw new Error('EditorHandle.addImage returned no content id');
+    return id;
+  }
+
   dispose(): void {
     this.handle.free();
   }

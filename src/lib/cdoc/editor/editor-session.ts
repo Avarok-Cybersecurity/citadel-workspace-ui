@@ -139,6 +139,10 @@ export class EditorSession implements EditorController, EditorView {
     });
   }
 
+  addImage(bytes: Uint8Array, mime: string): Promise<string> {
+    return this.serial(async (): Promise<string> => (await this.deps.client.request({ kind: 'addImage', bytes: bytes.slice(), mime })).contentId);
+  }
+
   attachFocus(target: (() => void) | null): void {
     this.focusTarget = target;
   }
