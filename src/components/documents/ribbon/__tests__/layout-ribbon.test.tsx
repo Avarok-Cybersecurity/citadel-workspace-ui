@@ -64,8 +64,8 @@ describe('the Layout ribbon', () => {
       section({ orientation: 'portrait' }),
       section({ size: { width: 61200, height: 79200, orientation: 'portrait' }, orientation: 'portrait' }),
       section({ size: { width: 61200, height: 100800, orientation: 'portrait' }, orientation: 'portrait' }),
-      section({ size: { width: 59528, height: 84189, orientation: 'portrait' }, orientation: 'portrait' }),
-      section({ size: { width: 41953, height: 59528, orientation: 'portrait' }, orientation: 'portrait' }),
+      section({ size: { width: 59530, height: 84190, orientation: 'portrait' }, orientation: 'portrait' }),
+      section({ size: { width: 41955, height: 59530, orientation: 'portrait' }, orientation: 'portrait' }),
       section({ columns: { count: 1, gap: 3600, separator: false } }),
       section({ columns: { count: 3, gap: 3600, separator: false } }),
     ]));
@@ -73,7 +73,7 @@ describe('the Layout ribbon', () => {
   });
 
   it('presses the section’s current setup in each menu, and keeps a landscape page landscape when its size changes', async () => {
-    const landscape: PageSetup = { ...A4_NORMAL, size: { width: 84189, height: 59528, orientation: 'landscape' }, columns: { count: 2, gap: 3600, separator: false } };
+    const landscape: PageSetup = { ...A4_NORMAL, size: { width: 84190, height: 59530, orientation: 'landscape' }, columns: { count: 2, gap: 3600, separator: false } };
     const editor: FakeEditor = new FakeEditor(knownCaret({}, {}, {}, landscape));
     renderRibbon({ editor, edit: MAY_EDIT, commentAuthor: 'Ada' });
     const user: UserEvent = userEvent.setup();

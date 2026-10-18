@@ -1,6 +1,6 @@
 /**
  * Home › Clipboard: Cut, Copy and Paste (plain text), the operations in clipboard.ts. Cut and
- * Copy wait for a selection.
+ * Copy wait for a selection; Copy only reads, so a document the person may not edit still copies.
  */
 import { ClipboardPaste, Copy, Scissors } from 'lucide-react';
 import { CLIPBOARD_KEYS, copySelection, cutSelection, hasSelection, pasteClipboard } from './clipboard';
@@ -20,8 +20,8 @@ export function ClipboardGroup(): JSX.Element {
         onPress={(): void => { void attempt('paste', (editor: RibbonEditor): Promise<void> => pasteClipboard(editor, environment)); }} />
       <RibbonButton testId="ribbon-cut" label="Cut" icon={Scissors} shortcut={{ key: CLIPBOARD_KEYS.cut }} unavailable={nothing}
         onPress={(): void => { void attempt('cut the selection', (editor: RibbonEditor): Promise<unknown> => cutSelection(editor, environment)); }} />
-      <RibbonButton testId="ribbon-copy" label="Copy" icon={Copy} shortcut={{ key: CLIPBOARD_KEYS.copy }} unavailable={nothing}
-        onPress={(): void => { void attempt('copy the selection', (editor: RibbonEditor): Promise<void> => copySelection(editor, environment), 'Copied.'); }} />
+      <RibbonButton testId="ribbon-copy" label="Copy" icon={Copy} shortcut={{ key: CLIPBOARD_KEYS.copy }} unavailable={nothing} reads
+        onPress={(): void => { void attempt('copy the selection', (editor: RibbonEditor): Promise<void> => copySelection(editor, environment), { done: 'Copied.', reads: true }); }} />
     </RibbonGroup>
   );
 }

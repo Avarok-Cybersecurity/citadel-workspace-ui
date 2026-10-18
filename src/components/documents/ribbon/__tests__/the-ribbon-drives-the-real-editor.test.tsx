@@ -73,6 +73,10 @@ describe('the ribbon over the real editor', () => {
     await user.keyboard('{Escape}');
     await user.click(screen.getByTestId('ribbon-page-orientation-open'));
     expect(await screen.findByTestId('ribbon-page-orientation-landscape')).toHaveAttribute('aria-pressed', 'true');
+    await user.keyboard('{Escape}');
+    // A blank document is A4 as the engine sizes it, and the Size menu names it so.
+    await user.click(screen.getByTestId('ribbon-page-size-open'));
+    expect(await screen.findByTestId('ribbon-page-size-a4')).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent(/^$/);
   }, 30_000);
 

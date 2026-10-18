@@ -105,4 +105,20 @@ describe('the Clipboard group', () => {
     await waitFor((): void => expect(status()).toHaveTextContent('Could not paste. The clipboard has no text to paste.'));
     expect(editor.sent).toEqual([]);
   });
+
+  it('still copies from a document the person may only read, where Cut and Paste are refused', async () => {
+    const editor: FakeEditor = new FakeEditor(knownCaret({}, {}));
+    editor.state = editorState(knownCaret({}, {}), { selectionText: SELECTED });
+    const clipboard: TestClipboard = new TestClipboard();
+    renderRibbon({ editor, edit: { enabled: false, reason: 'You can only read this document.' }, commentAuthor: 'Ada', environment: fixedEnvironment(clipboard) });
+    const user: UserEvent = userEvent.setup();
+    expect(screen.getByTestId('ribbon-copy')).toHaveAttribute('aria-disabled', 'false');
+    expect(screen.getByTestId('ribbon-cut')).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByTestId('ribbon-paste')).toHaveAttribute('aria-disabled', 'true');
+    await user.click(screen.getByTestId('ribbon-copy'));
+    await waitFor((): void => expect(clipboard.writes).toEqual(['Quarterly plan']));
+    await waitFor((): void => expect(status()).toHaveTextContent(/^Copied\.$/));
+    await user.click(screen.getByTestId('ribbon-paste'));
+    expect(editor.sent).toEqual([]);
+  });
 });

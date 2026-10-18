@@ -39,13 +39,20 @@ export const MARGIN_CHOICES: readonly PageSetupChoice[] = [
   margins('wide', 'Wide', INCH, INCH * 2, '1 in top and bottom, 2 in sides'),
 ];
 
-/** `width` × `height` are the portrait sheet; a landscape section has them the other way round. */
-function paper(id: string, label: string, width: Pt100, height: Pt100, detail: string): PageSetupChoice {
+/** Word stores page sizes in twips; one twip is 5 Pt100. */
+const PT100_PER_TWIP: number = 5;
+/** A size within a point of a paper's is that paper (a converted document's may round differently). */
+const SIZE_TOLERANCE: Pt100 = 100;
+
+/** `width` × `height` are the portrait sheet in Word's twips; a landscape section has them the other way round. */
+function paper(id: string, label: string, widthTwips: number, heightTwips: number, detail: string): PageSetupChoice {
+  const width: Pt100 = widthTwips * PT100_PER_TWIP;
+  const height: Pt100 = heightTwips * PT100_PER_TWIP;
   return {
     id, label, detail,
     current: (section: PageSetup): boolean => {
       const { width: w, height: h } = section.size;
-      return Math.min(w, h) === width && Math.max(w, h) === height;
+      return Math.abs(Math.min(w, h) - width) <= SIZE_TOLERANCE && Math.abs(Math.max(w, h) - height) <= SIZE_TOLERANCE;
     },
     // The orientation is applied after the size, turning the sheet to the section's.
     patch: (section: PageSetup | null): PageSetupPatch | null => (section === null ? null : {
@@ -56,10 +63,10 @@ function paper(id: string, label: string, width: Pt100, height: Pt100, detail: s
 }
 
 export const SIZE_CHOICES: readonly PageSetupChoice[] = [
-  paper('letter', 'Letter', 61200, 79200, '8.5 × 11 in'),
-  paper('legal', 'Legal', 61200, 100800, '8.5 × 14 in'),
-  paper('a4', 'A4', 59528, 84189, '210 × 297 mm'),
-  paper('a5', 'A5', 41953, 59528, '148 × 210 mm'),
+  paper('letter', 'Letter', 12240, 15840, '8.5 × 11 in'),
+  paper('legal', 'Legal', 12240, 20160, '8.5 × 14 in'),
+  paper('a4', 'A4', 11906, 16838, '210 × 297 mm'),
+  paper('a5', 'A5', 8391, 11906, '148 × 210 mm'),
 ];
 
 export const ORIENTATION_CHOICES: readonly PageSetupChoice[] = (['portrait', 'landscape'] as const).map((orientation): PageSetupChoice => ({

@@ -18,6 +18,11 @@ export interface Ribbon {
   readonly notice: string | null;
   /** Why no command can run now, or null when they can. */
   readonly disabledReason: string | null;
+  /**
+   * Why the document cannot even be read from now (still opening, or mid-composition), or null.
+   * Reading (Copy) is never refused for want of permission to edit.
+   */
+  readonly readReason: string | null;
   readonly caret: CaretFormatting;
   /** The selection's text as the last result carried it; null with no editor. */
   readonly selection: SelectionText | null;
@@ -30,11 +35,18 @@ export interface Ribbon {
    * Runs `work` on the open editor the way `run` runs a command: a failure is shown, and focus
    * returns after. `done` is said in the status line on success, for work the page does not show.
    */
-  attempt(what: string, work: (editor: RibbonEditor) => Promise<unknown>, done?: string): Promise<void>;
+  attempt(what: string, work: (editor: RibbonEditor) => Promise<unknown>, options?: AttemptOptions): Promise<void>;
   /** Says in the status line why a control that was pressed could not act (a tap shows no tooltip). */
   explain(reason: string): void;
   /** Hands keyboard focus back to the document, e.g. after a dialog closes with nothing done. */
   returnFocus(): void;
+}
+
+export interface AttemptOptions {
+  /** Said in the status line on success, for work the page does not show. */
+  readonly done?: string;
+  /** The work only reads the document, so it runs where editing is not allowed. */
+  readonly reads?: boolean;
 }
 
 export const RibbonContext: Context<Ribbon | null> = createContext<Ribbon | null>(null);
@@ -47,11 +59,14 @@ export function useRibbon(): Ribbon {
 
 const UNKNOWN: CaretFormatting = { known: false };
 
-function reasonFor(editor: RibbonEditor | null, state: EditorState | null, edit: ActionGate): string | null {
-  if (!edit.enabled) return edit.reason ?? 'You cannot edit this document.';
+function readReasonFor(editor: RibbonEditor | null, state: EditorState | null): string | null {
   if (editor === null || state === null) return 'The document is still opening.';
   if (state.composing) return 'Finish the text you are composing first.';
   return null;
+}
+
+function editReasonFor(edit: ActionGate): string | null {
+  return edit.enabled ? null : edit.reason ?? 'You cannot edit this document.';
 }
 
 /** Long enough for a screen reader to see the status line emptied before the notice is written. */
@@ -78,13 +93,14 @@ export function useRibbonValue(editor: RibbonEditor | null, state: EditorState |
       setNotice(null);
       if (message !== null) setTimeout((): void => { if (mounted.current) setNotice(message); }, ANNOUNCE_GAP_MS);
     };
-    const disabledReason: string | null = reasonFor(editor, state, edit);
-    const attempt = async (what: string, work: (live: RibbonEditor) => Promise<unknown>, done?: string): Promise<void> => {
-      if (editor === null || disabledReason !== null) return;
+    const readReason: string | null = readReasonFor(editor, state);
+    const disabledReason: string | null = editReasonFor(edit) ?? readReason;
+    const attempt = async (what: string, work: (live: RibbonEditor) => Promise<unknown>, options: AttemptOptions = {}): Promise<void> => {
+      if (editor === null || (options.reads === true ? readReason : disabledReason) !== null) return;
       try {
         await work(editor);
         setFailure(null);
-        say(done ?? null);
+        say(options.done ?? null);
       } catch (error: unknown) {
         const message: string = `Could not ${what}. ${describeError(error)}`;
         // Finite, so on a phone it never sits over the ribbon for good; the status line keeps it.
@@ -98,6 +114,7 @@ export function useRibbonValue(editor: RibbonEditor | null, state: EditorState |
       failure,
       notice,
       disabledReason,
+      readReason,
       caret: state?.caretFormatting ?? UNKNOWN,
       selection: state?.selectionText ?? null,
       environment,
