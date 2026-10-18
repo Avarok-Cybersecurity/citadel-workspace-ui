@@ -3,6 +3,7 @@
  */
 
 import type { Page } from 'playwright';
+import { waitForRegistrationToSettle } from './post-registration.js';
 import { reportTimeout } from './screen-state.js';
 import { sleep } from './utils.js';
 import { UxIssueTracker } from './ux-tracker.js';
@@ -51,6 +52,15 @@ export async function closeAnyModals(page: Page, maxAttempts = 5): Promise<void>
       })
       .catch(() => '<gone>');
     console.log(`  closeAnyModals: Modal detected (attempt ${i + 1}/${maxAttempts}): ${what}`);
+
+    // "Secure your account" is not dismissable: Escape closes the card and
+    // leaves the join wizard behind it, whose Cancel discards the new account.
+    // It is answered instead, whichever path registered the account, and the
+    // wizard still painted during navigation is waited out, not escaped.
+    if (await page.getByTestId('post-registration').isVisible().catch(() => false)) {
+      await waitForRegistrationToSettle(page);
+      continue;
+    }
 
     // Strategy 1: Click Cancel or Close button inside the modal
     const cancelBtn = page.locator(

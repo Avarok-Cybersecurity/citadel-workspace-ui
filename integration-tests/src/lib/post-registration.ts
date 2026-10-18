@@ -67,11 +67,11 @@ async function walkPostRegistrationSteps(page: Page): Promise<boolean> {
       card.waitFor({ state: 'visible', timeout: remaining }).then(() => 'card', () => 'timeout'),
     ]);
     if (next !== 'card') return next === 'entered';
-    await answerVisibleStep(page);
+    await answerPostRegistrationStep(page);
   }
 }
 
-async function answerVisibleStep(page: Page): Promise<void> {
+async function answerPostRegistrationStep(page: Page): Promise<void> {
   const skipKey = page.getByTestId('add-security-key-skip');
   const codes = page.getByTestId('recovery-codes');
   const finish = page.getByTestId('finish-sign-in-continue');
