@@ -40,7 +40,7 @@ describe('the Home ribbon', () => {
     ['ribbon-mark-superscript', { name: 'toggleMark', mark: 'superscript' }],
     ['ribbon-clear-formatting', {
       name: 'setRunProperty',
-      patch: { style: null, font: null, size: null, bold: null, italic: null, underline: null, strike: null, verticalAlign: null, color: null, highlight: null, smallCaps: null, allCaps: null },
+      patch: { style: null, font: null, size: null, bold: null, italic: null, underline: null, strike: null, verticalAlign: null, color: null, highlight: null, smallCaps: null, allCaps: null, kern: null, ligatures: null, lang: null },
     }],
     ['ribbon-text-color-auto', { name: 'setRunProperty', patch: { color: null } }],
     ['ribbon-highlight-none', { name: 'setRunProperty', patch: { highlight: null } }],
