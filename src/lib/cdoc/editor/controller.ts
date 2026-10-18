@@ -182,6 +182,15 @@ export type EditorCommands = {
     : (args: ArgsOf<N>) => Promise<EditorState>;
 };
 
+/** What a replica opens from: a CRDT snapshot, or a new blank document. */
+export type EditorOrigin = { readonly snapshot: Uint8Array } | { readonly blank: true };
+
+/**
+ * The only way to open a replica. Each call is a NEW replica with its own random 64-bit CRDT
+ * client id (two tabs of one account are two replicas), never a default and never the CID.
+ */
+export type EditorOpener = (from: EditorOrigin) => Promise<EditorController>;
+
 export interface EditorController {
   readonly state: EditorState;
   readonly commands: EditorCommands;
@@ -202,6 +211,11 @@ export interface EditorController {
   awareness(): Promise<Uint8Array>;
   /** A peer's awareness record as rectangles on this replica's pages. */
   peerView(record: Uint8Array): Promise<PeerView>;
+  /**
+   * Collects this replica's tombstones (cdoc-crdt Doc::gc). Valid only when every peer holds
+   * everything this replica holds; the collaboration session decides when.
+   */
+  collectGarbage(): Promise<void>;
   /** Returns keyboard focus to the editor, e.g. after a ribbon button took it. */
   focus(): void;
   on<E extends EditorEventName>(event: E, listener: (payload: EditorEvents[E]) => void): () => void;
