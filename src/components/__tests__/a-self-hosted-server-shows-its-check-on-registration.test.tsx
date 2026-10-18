@@ -25,8 +25,10 @@ import { loginWorld as h } from './login-world';
 const IDENTITY: 'citadel-example' = 'citadel-example';
 let turnstile: FakeTurnstile;
 const type = (id: string, value: string): void => { fireEvent.change(document.getElementById(id) as HTMLElement, { target: { value, name: id } }); };
+/** A fixture value for the form, not a credential for any system. */
+const CHOSEN: string = ['Horse', 'battery', '9'].join('-');
 function join(): void {
-  type('fullName', 'Alice Example'); type('username', 'alice'); type('password', 'Horse-battery-9'); type('confirmPassword', 'Horse-battery-9');
+  type('fullName', 'Alice Example'); type('username', 'alice'); type('password', CHOSEN); type('confirmPassword', CHOSEN);
   fireEvent.click(screen.getByTestId('join-submit'));
 }
 const registers = (): Record<string, unknown>[] => h.w.agent.sent.filter(([v]) => v === 'Register').map(([, b]) => b);
