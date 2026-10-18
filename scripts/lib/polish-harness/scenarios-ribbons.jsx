@@ -39,6 +39,6 @@ function Ribbon({ caret, refusing = false }) {
 export const RIBBON_SCENARIOS = {
   'docs-ribbon': () => <Ribbon caret={KNOWN} />,
   'docs-ribbon-unknown': () => <Ribbon caret={{ known: false }} />,
-  // The first command is refused with a long reason (statusStaysOneLine).
+  // The first command is refused with a long reason (statusNeverMovesTheToolbar).
   'docs-ribbon-refusing': () => <Ribbon caret={KNOWN} refusing />,
 };

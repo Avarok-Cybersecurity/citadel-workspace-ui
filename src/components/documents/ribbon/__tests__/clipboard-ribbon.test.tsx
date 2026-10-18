@@ -3,7 +3,7 @@
  * deletes it only once it is there); Paste enters the clipboard's text as one undo step. The
  * clipboard is the TestClipboard the ribbon's environment is given.
  */
-import { screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import type { SelectionText } from '@/lib/cdoc/editor/controller';
@@ -31,6 +31,13 @@ describe('the Clipboard group', () => {
     expect(editor.focused).toBe(1);
     // Nothing on the page changes, so the status line says it worked.
     await waitFor((): void => expect(status()).toHaveTextContent(/^Copied\.$/));
+    // Copying again empties the line first, so a screen reader hears "Copied." again.
+    const seen: string[] = [];
+    const watcher: MutationObserver = new MutationObserver((): void => { seen.push(status().textContent ?? ''); });
+    watcher.observe(status(), { childList: true, characterData: true, subtree: true });
+    await user.click(screen.getByTestId('ribbon-copy'));
+    await waitFor((): void => expect(seen).toEqual(['', 'Copied.']));
+    watcher.disconnect();
     // …and only until the next command, so it never describes something later.
     await user.click(screen.getByTestId('ribbon-mark-bold'));
     await waitFor((): void => expect(status()).toHaveTextContent(/^$/));
@@ -65,7 +72,11 @@ describe('the Clipboard group', () => {
       await user.click(screen.getByTestId(id));
     }
     // A tap shows no tooltip, so the press itself says why in the status line.
-    expect(status()).toHaveTextContent(/^Select some text first\.$/);
+    await waitFor((): void => expect(status()).toHaveTextContent(/^Select some text first\.$/));
+    // Selecting text makes that reason stale, so it goes.
+    act((): void => editor.report(editorState(knownCaret({}, {}), { selectionText: SELECTED })));
+    expect(status()).toHaveTextContent(/^$/);
+    act((): void => editor.report(editorState(knownCaret({}, {}), { selectionText: CARET })));
     await user.hover(screen.getByTestId('ribbon-copy'));
     expect((await screen.findAllByText('Select some text first.')).length).toBeGreaterThan(0);
     expect(clipboard.writes).toEqual([]);

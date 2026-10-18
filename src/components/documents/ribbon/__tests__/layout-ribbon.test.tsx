@@ -102,7 +102,7 @@ describe('the Layout ribbon', () => {
     expect(screen.getByTestId('ribbon-page-size-open')).toHaveAttribute('aria-disabled', 'true');
     await user.click(screen.getByTestId('ribbon-page-size-open'));
     expect(screen.queryByTestId('ribbon-page-size')).toBeNull();
-    expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent('The page’s setup shows once you click or type in the document.');
+    await waitFor((): void => expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent('The page’s setup shows once you click or type in the document.'));
     await user.click(screen.getByTestId('ribbon-page-margins-open'));
     // Unknown is not "half pressed": the options say nothing until the section is reported.
     expect(await screen.findByTestId('ribbon-page-margins-normal')).not.toHaveAttribute('aria-pressed');

@@ -54,12 +54,17 @@ function reasonFor(editor: RibbonEditor | null, state: EditorState | null, edit:
   return null;
 }
 
+/** Long enough for a screen reader to see the status line emptied before the notice is written. */
+const ANNOUNCE_GAP_MS: number = 50;
+
 /** How long a refusal's toast stays: long enough to read twice; the status line keeps it after. */
 const REFUSAL_TOAST_MS: number = 8000;
 
 export function useRibbonValue(editor: RibbonEditor | null, state: EditorState | null, edit: ActionGate, environment: RibbonEnvironment, compact: boolean): Ribbon {
   const [failure, setFailure] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // A notice is about the moment it was given; once the selection moves it no longer applies.
+  useEffect((): void => { setNotice(null); }, [state]);
   // A menu closing or a command settling after the document has gone has no document to focus.
   const mounted: MutableRefObject<boolean> = useRef<boolean>(true);
   useEffect((): (() => void) => {
@@ -68,13 +73,18 @@ export function useRibbonValue(editor: RibbonEditor | null, state: EditorState |
   }, []);
   return useMemo((): Ribbon => {
     const returnFocus = (): void => { if (mounted.current) editor?.focus(); };
+    // Emptied first, so saying the same thing twice ("Copied." again) is announced again.
+    const say = (message: string | null): void => {
+      setNotice(null);
+      if (message !== null) setTimeout((): void => { if (mounted.current) setNotice(message); }, ANNOUNCE_GAP_MS);
+    };
     const disabledReason: string | null = reasonFor(editor, state, edit);
     const attempt = async (what: string, work: (live: RibbonEditor) => Promise<unknown>, done?: string): Promise<void> => {
       if (editor === null || disabledReason !== null) return;
       try {
         await work(editor);
         setFailure(null);
-        setNotice(done ?? null);
+        say(done ?? null);
       } catch (error: unknown) {
         const message: string = `Could not ${what}. ${describeError(error)}`;
         // Finite, so on a phone it never sits over the ribbon for good; the status line keeps it.
@@ -94,7 +104,7 @@ export function useRibbonValue(editor: RibbonEditor | null, state: EditorState |
       compact,
       run: (command: EditorCommand, what: string): Promise<void> => attempt(what, (live: RibbonEditor): Promise<EditorState> => live.execute(command)),
       attempt,
-      explain: (reason: string): void => { setFailure(null); setNotice(reason); },
+      explain: (reason: string): void => { setFailure(null); say(reason); },
       returnFocus,
     };
   }, [editor, state, edit, environment, compact, failure, notice]);

@@ -42,7 +42,7 @@ describe('lists', () => {
     const none: HTMLElement = screen.getByTestId('ribbon-list-none');
     expect(none).toHaveAttribute('aria-disabled', 'true');
     await user.click(none);
-    expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent('This paragraph is not in a list.');
+    await waitFor((): void => expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent('This paragraph is not in a list.'));
     expect(editor.sent).toEqual([]);
   });
 

@@ -44,6 +44,14 @@ export function DocsRibbon({ edit, commentAuthor, environment }: DocsRibbonProps
   const [tab, setTab] = useState<RibbonTab>('home');
   // No ribbon until the editor has opened: controls with nothing to drive would only say so.
   if (editor === null) return null;
+  // Where it never moves the toolbar: beside the tabs, or on a phone under the toolbar, where it
+  // wraps to its whole text. Mounted empty, so what it says later is announced.
+  const status: JSX.Element = (
+    <p role="status" data-testid="docs-ribbon-status"
+      className={cn('min-w-0 text-[12px] leading-tight text-muted-foreground', compact ? 'pt-1' : 'ml-auto text-right')}>
+      {ribbon.disabledReason ?? ribbon.failure ?? ribbon.notice ?? (ribbon.caret.known ? '' : UNKNOWN_CARET)}
+    </p>
+  );
   return (
     <RibbonContext.Provider value={ribbon}>
       <TooltipProvider delayDuration={400}>
@@ -59,15 +67,12 @@ export function DocsRibbon({ edit, commentAuthor, environment }: DocsRibbonProps
               </TabsTrigger>
             ))}
           </TabsList>
-          {/* In the tab row, so it appearing or going never moves the toolbar. Mounted empty, so it is announced. */}
-          {/* One line on a phone, so a long refusal never pushes the toolbar down; its toast has the whole text. */}
-          <p role="status" data-testid="docs-ribbon-status" className={cn('ml-auto min-w-0 text-right text-[12px] leading-tight text-muted-foreground', compact && 'truncate')}>
-            {ribbon.disabledReason ?? ribbon.failure ?? ribbon.notice ?? (ribbon.caret.known ? '' : UNKNOWN_CARET)}
-          </p>
+          {!compact && status}
           </div>
           <TabsContent value="home" tabIndex={-1} className="mt-1"><HomeRibbon /></TabsContent>
           <TabsContent value="insert" tabIndex={-1} className="mt-1"><InsertRibbon commentAuthor={commentAuthor} /></TabsContent>
           <TabsContent value="layout" tabIndex={-1} className="mt-1"><LayoutRibbon /></TabsContent>
+          {compact && status}
         </Tabs>
       </TooltipProvider>
     </RibbonContext.Provider>

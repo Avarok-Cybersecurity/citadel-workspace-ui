@@ -100,8 +100,8 @@ async function popoversStayOnScreen({ page, url, viewport }) {
   await assertPopoversOnScreen(page, viewport, 'the page-size menu');
 }
 
-/** A long refusal in the status line never pushes the toolbar down (on a phone it is one line). */
-async function statusStaysOneLine({ page, url }) {
+/** A long refusal in the status line never pushes the toolbar down (on a phone the line sits under it). */
+async function statusNeverMovesTheToolbar({ page, url }) {
   await openRibbon(page, url, 'docs-ribbon-refusing');
   const toolbar = page.getByTestId('ribbon-home-toolbar');
   const before = await toolbar.evaluate((el) => el.getBoundingClientRect().top);
@@ -114,6 +114,32 @@ async function statusStaysOneLine({ page, url }) {
   await settled(page);
   const after = await toolbar.evaluate((el) => el.getBoundingClientRect().top);
   assert.equal(after, before, `the refusal moved the toolbar from ${before} to ${after}`);
+  const clipped = await status.evaluate((el) => el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1);
+  assert.ok(!clipped, 'the status line clips the refusal');
+}
+
+/** Why a control is refused, wherever it is read (the status line a tap writes, the tooltip), fits the viewport whole. */
+async function reasonsFitTheScreen({ page, url, viewport }) {
+  await openRibbon(page, url, 'docs-ribbon-unknown');
+  await showTab(page, 'layout');
+  const group = page.getByTestId('ribbon-page-setup-open');
+  if (await group.isVisible()) await group.click();
+  const size = page.getByTestId('ribbon-page-size-open');
+  await size.waitFor({ state: 'visible' });
+  await settled(page);
+  // A tap on a refused control: Playwright counts aria-disabled as not clickable, a finger does not.
+  await size.click({ force: true });
+  const status = page.getByTestId('docs-ribbon-status');
+  await status.filter({ hasText: 'The page’s setup shows once you click or type in the document.' }).waitFor({ state: 'visible', timeout: 3000 });
+  const line = await status.evaluate((el) => ({ clipped: el.scrollWidth > el.clientWidth + 1, ...el.getBoundingClientRect().toJSON() }));
+  assert.ok(!line.clipped && line.x >= 0 && line.x + line.width <= viewport.width, `the status line clips its reason: ${JSON.stringify(line)}`);
+  await size.hover();
+  const tip = page.locator('[role="tooltip"]').first();
+  await tip.waitFor({ state: 'attached', timeout: 3000 });
+  await settled(page);
+  // The role=tooltip node is Radix's hidden copy for assistive tech; its parent is the tip people see.
+  const box = await tip.evaluate((el) => el.parentElement.getBoundingClientRect().toJSON());
+  assert.ok(box.x >= 0 && box.x + box.width <= viewport.width, `the tooltip ${JSON.stringify(box)} leaves the ${viewport.width}px viewport`);
 }
 
 export const RIBBON_CHECKS = {
@@ -121,5 +147,6 @@ export const RIBBON_CHECKS = {
   ribbonPassesAxeWithAnUnknownCaret: eachTabPassesAxe('docs-ribbon-unknown'),
   ribbonTargetsAndWidth,
   popoversStayOnScreen,
-  statusStaysOneLine,
+  statusNeverMovesTheToolbar,
+  reasonsFitTheScreen,
 };

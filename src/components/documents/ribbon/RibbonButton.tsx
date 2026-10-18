@@ -35,7 +35,8 @@ export function RibbonTip({ label, shortcut, reason, suppressed, children }: { l
     <Tooltip open={open && suppressed !== true} onOpenChange={setOpen}>
       {/* Activating the control closes its tip, so the dialog it opens gets the next Escape. */}
       <TooltipTrigger asChild onKeyDown={(e: KeyboardEvent<HTMLElement>): void => { if (isEnterCommit(e) || e.key === ' ') setOpen(false); }}>{children}</TooltipTrigger>
-      <TooltipContent side="bottom">{text}</TooltipContent>
+      {/* Never wider than a phone: a refusal's reason wraps instead of running off the screen. */}
+      <TooltipContent side="bottom" collisionPadding={16} className="max-w-[calc(100vw-32px)] whitespace-normal">{text}</TooltipContent>
     </Tooltip>
   );
 }
