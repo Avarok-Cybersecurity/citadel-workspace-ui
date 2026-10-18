@@ -1,7 +1,7 @@
 /**
  * Citadel Docs inside DocumentHost: loads the cdoc runtime (worker + renderer) when it mounts,
  * shows the page view, and fills the host's status bar. A blank document opens in the editor
- * (EditorPageView over an EditorSession, a fresh replica); a converted one (pm, model) opens
+ * (EditorPageView over the EditorSession its ReplicaKeeper shows); a converted one (pm, model) opens
  * read-only until document content arrives as a CRDT snapshot. DocumentHost imports this lazily, and
  * this reaches cdoc only through `loadRuntime`, so neither is in the shell's bundle.
  */
@@ -15,16 +15,30 @@ import { EditorPageView } from './EditorPageView';
 import type { EditorSession } from '@/lib/cdoc/editor/editor-session';
 import { UNDO_PAUSE_MS, platformOf } from '@/lib/cdoc/editor/editor-config';
 import { createEditorOpener } from '@/lib/cdoc/editor/editor-opener';
-import type { EditorOrigin } from '@/lib/cdoc/editor/controller';
+import type { EditorController, EditorOrigin } from '@/lib/cdoc/editor/controller';
 import type { EditorSurfaceOptions } from './page-view/use-editor-surface';
 import type { Ctx2D } from '@/lib/cdoc/paint/canvas-port';
 import { DocsStatusBar } from './page-view/DocsStatusBar';
 import { useDevicePixelRatio } from './page-view/use-device-pixel-ratio';
 import { INITIAL_ZOOM } from './page-view/zoom';
 
+/**
+ * Opens and keeps the page's replica: calls `open` (this runtime's EditorOpener) as often as it
+ * needs, and `show` with each replica the page should draw (a re-open replaces the previous one,
+ * which the keeper disposes). Returns the teardown. DocsCanvas never disposes a replica it was
+ * shown: the keeper owns replica lifetimes.
+ */
+export type ReplicaKeeper = (
+  open: (from: EditorOrigin) => Promise<EditorSession>,
+  show: (editor: EditorSession) => void,
+  fail: (error: unknown) => void,
+) => () => void;
+
 export interface DocsCanvasProps {
   readonly documentSource: DocumentSource;
   readonly loadRuntime: CdocRuntimeFactory;
+  /** Who opens and keeps the replica of an editable document (DocumentHost decides). */
+  readonly keepReplica: ReplicaKeeper;
   /** The host's status bar; null until it has mounted. */
   readonly statusBar: HTMLElement | null;
 }
@@ -34,16 +48,9 @@ type Runtime =
   | { readonly kind: 'ready'; readonly runtime: CdocRuntime; readonly editor: EditorSession | null }
   | { readonly kind: 'failed'; readonly message: string };
 
-async function start(runtime: CdocRuntime, source: DocumentSource): Promise<EditorSession | null> {
-  if (source.kind !== 'blank') return null;
-  const open: (from: EditorOrigin) => Promise<EditorSession> = createEditorOpener(
-    { client: runtime.client, renderer: runtime.renderer },
-    (b: Uint8Array): Uint8Array => crypto.getRandomValues(b),
-  );
-  return open({ blank: true });
-}
+const failure = (error: unknown): Runtime => ({ kind: 'failed', message: error instanceof Error ? error.message : String(error) });
 
-export default function DocsCanvas({ documentSource, loadRuntime, statusBar }: DocsCanvasProps): JSX.Element {
+export default function DocsCanvas({ documentSource, loadRuntime, keepReplica, statusBar }: DocsCanvasProps): JSX.Element {
   const [state, setState] = useState<Runtime>({ kind: 'loading' });
   const [zoom, setZoom] = useState<number>(INITIAL_ZOOM);
   const [status, setStatus] = useState<PageStatus | null>(null);
@@ -58,28 +65,45 @@ export default function DocsCanvas({ documentSource, loadRuntime, statusBar }: D
     onError: (error: unknown): void => setEditError(error instanceof Error ? error.message : String(error)),
   }), [overlayContext]);
 
+  /**
+   * The live controller, one value, null while the editor opens (or for a read-only view): what
+   * the ribbon's EditorControllerContext.Provider is given. A blank document opens ready to type:
+   * the editor takes the keyboard once its surface has mounted (child effects run first).
+   */
+  const controller: EditorController | null = state.kind === 'ready' ? state.editor : null;
+  useEffect((): void => {
+    controller?.focus();
+  }, [controller]);
+
   useEffect((): (() => void) => {
     let live: boolean = true;
     let loaded: CdocRuntime | null = null;
-    let editor: EditorSession | null = null;
-    loadRuntime().then(async (runtime: CdocRuntime): Promise<void> => {
+    let release: (() => void) | null = null;
+    loadRuntime().then((runtime: CdocRuntime): void => {
       loaded = runtime;
       if (!live) return runtime.client.dispose();
-      editor = await start(runtime, documentSource);
-      if (!live) return editor?.dispose();
-      setState({ kind: 'ready', runtime, editor });
+      if (documentSource.kind !== 'blank') return setState({ kind: 'ready', runtime, editor: null });
+      release = keepReplica(
+        createEditorOpener({ client: runtime.client, renderer: runtime.renderer }, (b: Uint8Array): Uint8Array => crypto.getRandomValues(b)),
+        (editor: EditorSession): void => {
+          if (live) setState({ kind: 'ready', runtime, editor });
+        },
+        (error: unknown): void => {
+          if (live) setState(failure(error));
+        },
+      );
     }).then(
       (): void => undefined,
       (error: unknown): void => {
-        if (live) setState({ kind: 'failed', message: error instanceof Error ? error.message : String(error) });
+        if (live) setState(failure(error));
       },
     );
     return (): void => {
       live = false;
-      editor?.dispose();
+      release?.();
       loaded?.client.dispose();
     };
-  }, [loadRuntime, documentSource]);
+  }, [loadRuntime, documentSource, keepReplica]);
 
   return (
     <>
