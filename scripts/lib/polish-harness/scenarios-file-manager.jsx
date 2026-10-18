@@ -21,7 +21,7 @@ const NOTHING = () => {};
 export const NO_ACTIONS = {
   openFolder: NOTHING, openFile: NOTHING, inspect: NOTHING, download: NOTHING, share: NOTHING, moveTo: NOTHING,
   copyLink: NOTHING, remove: NOTHING, rename: async () => {}, cut: NOTHING, copy: NOTHING, paste: async () => {},
-  newFolder: NOTHING, upload: NOTHING, refresh: NOTHING, drop: NOTHING,
+  newFolder: NOTHING, upload: NOTHING, refresh: NOTHING, drop: NOTHING, openInDocs: NOTHING,
 };
 
 const ME = 1n;

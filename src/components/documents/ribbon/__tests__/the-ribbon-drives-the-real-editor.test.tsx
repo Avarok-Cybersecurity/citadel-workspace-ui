@@ -10,6 +10,7 @@ import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { inProcessRuntime } from '@/lib/cdoc/__tests__/wasm-rig';
 import type { CdocRuntime } from '@/lib/cdoc/runtime';
 import { DocumentHost, type DocumentHostProps } from '../../DocumentHost';
+import { recordingDocumentFiles } from '@/test-utils/recording-document-files';
 
 const BLANK: DocumentHostProps = {
   nodeId: 'plan-1',
@@ -20,6 +21,9 @@ const BLANK: DocumentHostProps = {
   loadCdocRuntime: (): Promise<CdocRuntime> => Promise.resolve(inProcessRuntime('main-thread')),
   // Any signed-in name: this is about commands reaching the engine, not who signs.
   commentAuthor: 'Ada',
+  // Any fixed instant: nothing is downloaded here.
+  files: recordingDocumentFiles('2026-10-18T00:00:00Z'),
+  original: null,
 };
 
 describe('the ribbon over the real editor', () => {

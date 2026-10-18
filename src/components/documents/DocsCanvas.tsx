@@ -10,7 +10,12 @@ import { createPortal } from 'react-dom';
 import type { DocumentSource } from '@/lib/cdoc/document-source';
 import type { CdocRuntimeFactory } from '@/lib/cdoc/runtime-loader';
 import type { CdocRuntime } from '@/lib/cdoc/runtime';
-import { PageView, type PageStatus } from './PageView';
+import type { ConversionReport, ExportedFile, ExportTarget } from '@/lib/cdoc/editor/file-formats';
+import type { DocumentFiles } from '@/lib/document-files';
+import { DocsDocumentBar, PENDING, type Pending } from './page-view/DocsDocumentBar';
+import type { DocsExporter } from './page-view/useDocsExport';
+import { PageView, type OpenOutcome, type PageStatus } from './PageView';
+import type { OriginalFile } from './NotOpened';
 import { EditorPageView } from './EditorPageView';
 import type { EditorSession } from '@/lib/cdoc/editor/editor-session';
 import { CARET_BLINK_MS, HYPHENATION_CHECK_IDLE_MS, UNDO_PAUSE_MS, platformOf } from '@/lib/cdoc/editor/editor-config';
@@ -51,6 +56,11 @@ export interface DocsCanvasProps {
   /** Whether the person may change the document; the ribbon says why not when they may not. */
   readonly edit: ActionGate;
   readonly commentAuthor: string | null;
+  /** The document's name, which downloads are named after. */
+  readonly title: string;
+  readonly files: DocumentFiles;
+  /** The file this document was opened from (DocumentHost's), offered if the engine refuses it. */
+  readonly original: OriginalFile | null;
 }
 
 type Runtime =
@@ -75,7 +85,7 @@ const browserFrame = (task: () => void): (() => void) => {
   return (): void => window.cancelAnimationFrame(id);
 };
 
-export default function DocsCanvas({ documentSource, loadRuntime, keepReplica, statusBar, edit, commentAuthor }: DocsCanvasProps): JSX.Element {
+export default function DocsCanvas({ documentSource, loadRuntime, keepReplica, statusBar, edit, commentAuthor, title, files, original }: DocsCanvasProps): JSX.Element {
   const [state, setState] = useState<Runtime>({ kind: 'loading' });
   const [zoom, setZoom] = useState<number>(INITIAL_ZOOM);
   const [status, setStatus] = useState<PageStatus | null>(null);
@@ -106,6 +116,21 @@ export default function DocsCanvas({ documentSource, loadRuntime, keepReplica, s
     controller?.focus();
   }, [controller]);
   const notice: string | null = useHyphenationNotice(controller, HYPHENATION_CHECK_IDLE_MS, browserDelay);
+
+  // "Download as…": the replica's document while editing, else the read-only document the engine opened.
+  const [outcome, setOutcome] = useState<OpenOutcome | null>(null);
+  const onOpened: (next: OpenOutcome) => void = useCallback((next: OpenOutcome): void => setOutcome(next), []);
+  useEffect((): void => setOutcome(null), [documentSource]);
+  const client: CdocRuntime['client'] | null = state.kind === 'ready' ? state.runtime.client : null;
+  const exporter: DocsExporter | Pending | null = useMemo((): DocsExporter | Pending | null => {
+    if (controller !== null) return (target: ExportTarget): Promise<ExportedFile> => controller.exportAs(target);
+    if (outcome === null) return PENDING;
+    if (client === null || outcome.kind !== 'opened') return null;
+    return (target: ExportTarget): Promise<ExportedFile> => client.request({ kind: 'export', target });
+  }, [controller, client, outcome]);
+  const importReport: ConversionReport | Pending | null = documentSource.kind !== 'file' || outcome?.kind === 'failed' ? null : (outcome?.report ?? PENDING);
+  // Page and zoom mean nothing for a document that was refused or failed to open.
+  const showsPages: boolean = outcome === null || outcome.kind === 'opened';
 
   useEffect((): (() => void) => {
     let live: boolean = true;
@@ -143,16 +168,17 @@ export default function DocsCanvas({ documentSource, loadRuntime, keepReplica, s
       <EditorControllerContext.Provider value={controller}>
         <DocsRibbon edit={edit} commentAuthor={commentAuthor} environment={ribbonEnvironment} />
       </EditorControllerContext.Provider>
+      {state.kind === 'ready' && <DocsDocumentBar title={title} files={files} importReport={importReport} refused={outcome?.kind === 'refused'} exporter={exporter} />}
       {state.kind === 'ready' && state.editor !== null && input !== null && (
         <EditorPageView editor={state.editor} renderer={state.runtime.renderer} zoom={zoom} dpr={dpr} onZoomChange={setZoom} onPageStatus={onPageStatus} input={input} />
       )}
       {editError !== null && <p role="alert" className="border-t p-2 text-sm text-destructive">That edit was not made. {editError}</p>}
       {state.kind === 'ready' && state.editor === null && (
-        <PageView client={state.runtime.client} renderer={state.runtime.renderer} source={documentSource} zoom={zoom} dpr={dpr} onZoomChange={setZoom} onPageStatus={onPageStatus} />
+        <PageView client={state.runtime.client} renderer={state.runtime.renderer} source={documentSource} zoom={zoom} dpr={dpr} onZoomChange={setZoom} onPageStatus={onPageStatus} onOpened={onOpened} original={original} />
       )}
       {state.kind === 'loading' && <p role="status" className="m-auto text-sm text-muted-foreground">Loading Citadel Docs…</p>}
       {state.kind === 'failed' && <p role="alert" className="m-auto p-6 text-sm text-destructive">Citadel Docs could not start. {state.message}</p>}
-      {statusBar !== null && createPortal(<DocsStatusBar status={status} notice={notice} zoom={zoom} onZoomChange={setZoom} />, statusBar)}
+      {statusBar !== null && showsPages && createPortal(<DocsStatusBar status={status} notice={notice} zoom={zoom} onZoomChange={setZoom} />, statusBar)}
     </>
   );
 }

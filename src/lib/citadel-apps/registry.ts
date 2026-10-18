@@ -8,6 +8,7 @@
  */
 import type { ComponentType } from 'react';
 import { FileText, FileType, Sigma } from 'lucide-react';
+import { DOCS_IMPORT_FORMATS } from './docs-import-formats';
 
 export const CITADEL_APP_IDS = ['docs', 'pdf', 'latex'] as const;
 
@@ -30,7 +31,7 @@ export const CITADEL_APPS: readonly CitadelApp[] = [
     name: 'Citadel Docs',
     description: 'Rich documents: headings, lists, tables and comments.',
     icon: FileText,
-    fileExtensions: ['cdoc'],
+    fileExtensions: ['cdoc', ...DOCS_IMPORT_FORMATS],
     available: true,
   },
   {

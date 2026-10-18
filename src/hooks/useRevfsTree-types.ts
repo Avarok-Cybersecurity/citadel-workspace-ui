@@ -3,6 +3,10 @@
  */
 
 import type { RevfsNode, RevfsFileMetadata } from '@/types/revfs-types';
+import type { PulledChunk } from '@/types/revfs-intents';
+
+/** A chunk of a file this storage's last pull of it left with the agent (ReadPulledFileChunk). */
+export type ReadPulledChunk = (filePath: string, offset: bigint, maxLen: number) => Promise<PulledChunk>;
 
 /** Default storage quota: 100 MB */
 export const DEFAULT_QUOTA_BYTES: number = 100 * 1024 * 1024;
@@ -32,6 +36,7 @@ export interface UseRevfsTreeResult {
   rmdir: (path: string) => Promise<boolean>;
   uploadFile: (dirPath: string, fileName: string, metadata: RevfsFileMetadata, content: Uint8Array) => Promise<boolean>;
   downloadFile: (filePath: string) => Promise<string | undefined>;
+  readPulledChunk: ReadPulledChunk;
   removeFile: (filePath: string) => Promise<boolean>;
   /** Rename a file or directory */
   rename: (path: string, newName: string) => Promise<boolean>;
@@ -58,6 +63,7 @@ export interface UseServerRevfsTreeResult {
   rmdir: (path: string) => Promise<boolean>;
   uploadFile: (dirPath: string, fileName: string, metadata: RevfsFileMetadata, content: Uint8Array) => Promise<boolean>;
   downloadFile: (filePath: string) => Promise<string | undefined>;
+  readPulledChunk: ReadPulledChunk;
   removeFile: (filePath: string) => Promise<boolean>;
   /** Rename a file or directory */
   rename: (path: string, newName: string) => Promise<boolean>;

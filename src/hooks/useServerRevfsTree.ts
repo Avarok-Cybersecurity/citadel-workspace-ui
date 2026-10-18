@@ -13,7 +13,8 @@ import { serverTreeKey, calculateStorageUsage } from '@/lib/revfs/tree-operation
 import { eventEmitter } from '@/lib/event-emitter';
 import workspaceService from '@/lib/workspace-service';
 import { debugLog } from '@/lib/debug-config';
-import type { UseServerRevfsTreeResult, ServerCapabilities } from './useRevfsTree-types';
+import type { ReadPulledChunk, UseServerRevfsTreeResult, ServerCapabilities } from './useRevfsTree-types';
+import type { PulledChunk } from '@/types/revfs-intents';
 import { DEFAULT_SERVER_CAPABILITIES, NOTHING_PENDING } from './useRevfsTree-types';
 
 export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResult {
@@ -132,6 +133,11 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
     return revfsService.downloadFileFromServer(myCid, filePath);
   }, [myCid]);
 
+  const readPulledChunk: ReadPulledChunk = useCallback(async (filePath: string, offset: bigint, maxLen: number): Promise<PulledChunk> => {
+    if (!myCid) throw new Error('No session to read the file with.');
+    return revfsService.readPulledChunk(myCid, null, filePath, offset, maxLen);
+  }, [myCid]);
+
   const removeFile: (filePath: string) => Promise<boolean> = useCallback(async (filePath: string): Promise<boolean> => {
     // No session: nothing was written, so nothing was accepted.
     if (!myCid) return false;
@@ -178,6 +184,7 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
     rmdir,
     uploadFile,
     downloadFile,
+    readPulledChunk,
     removeFile,
     rename,
     move,

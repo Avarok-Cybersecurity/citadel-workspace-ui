@@ -6,10 +6,19 @@
  */
 import type { FontFaceEntry, FontManifest, FontSource } from '../fonts/font-manifest';
 import type { PatternEntry, PatternManifest, PatternSource } from '../fonts/pattern-manifest';
-import type { Furnishable } from './cdoc-wasm-api';
+import type { Furnishable, ImageStore, ImageTarget } from './cdoc-wasm-api';
 
 export type LoadedFace = readonly [FontFaceEntry, Uint8Array];
 export type LoadedPatterns = readonly [tag: string, text: string];
+
+/** Registers every image in `images` (a file's, or the ones an editor draws) on `target`. */
+export function addImages(target: ImageTarget, images: ImageStore): void {
+  for (let i: number = 0; i < images.len(); i++) {
+    const [id, mime, bytes] = [images.id(i), images.mime(i), images.bytes(i)];
+    if (id === undefined || mime === undefined || bytes === undefined) throw new Error(`image ${i} of ${images.len()} is incomplete`);
+    target.addImage(id, mime, bytes);
+  }
+}
 
 /** Sorted, without repeats: the one spelling of a pattern set, for cache keys and comparisons. */
 export function patternSet(tags: readonly string[]): readonly string[] {

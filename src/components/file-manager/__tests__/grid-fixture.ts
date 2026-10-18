@@ -13,7 +13,7 @@ export type SpiedActions = { [K in keyof VFSItemActions]: VFSItemActions[K] & Re
 
 export function spyActions(): SpiedActions {
   return {
-    openFolder: vi.fn(), openFile: vi.fn(), inspect: vi.fn(), download: vi.fn(), share: vi.fn(), moveTo: vi.fn(),
+    openFolder: vi.fn(), openFile: vi.fn(), openInDocs: vi.fn(), inspect: vi.fn(), download: vi.fn(), share: vi.fn(), moveTo: vi.fn(),
     copyLink: vi.fn(), remove: vi.fn(), rename: vi.fn(async (): Promise<void> => {}), cut: vi.fn(), copy: vi.fn(),
     paste: vi.fn(async (): Promise<void> => {}), newFolder: vi.fn(), upload: vi.fn(), refresh: vi.fn(), drop: vi.fn(),
   } as SpiedActions;

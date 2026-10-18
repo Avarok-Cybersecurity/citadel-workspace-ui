@@ -10,6 +10,7 @@ import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 import type { NodeAppState } from '@/lib/citadel-apps/node-app-metadata';
 import type { DocumentSource } from '@/lib/cdoc/document-source';
 import { loadCdocRuntime } from '@/lib/cdoc/runtime-loader';
+import { browserDocumentFiles } from '@/lib/document-files';
 import { DocumentHost, UnreadableDocument } from './DocumentHost';
 
 /** Until the document-content work item reads the node's stored document, every node opens blank. */
@@ -33,6 +34,9 @@ export function DocumentView({ node, app }: DocumentViewProps): JSX.Element {
       documentSource={BLANK_DOCUMENT}
       loadCdocRuntime={loadCdocRuntime}
       commentAuthor={self.name ?? self.username ?? null}
+      files={browserDocumentFiles}
+      // A workspace document, not a file: there is no original to download.
+      original={null}
     />
   );
 }

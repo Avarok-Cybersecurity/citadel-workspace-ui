@@ -6,13 +6,13 @@
  * PDF breaks lines where the page view does.
  */
 import type { ImageStore, PdfRenderAssets, PdfWasm } from './cdoc-wasm-api';
-import type { EngineAssets, LoadedFace, LoadedPatterns } from './engine-assets';
+import { addImages, type EngineAssets, type LoadedFace, type LoadedPatterns } from './engine-assets';
 
 export interface PdfInput {
   readonly modelJson: string;
-  /** The images the document draws, from EditorHandle.drawnImages. */
+  /** The images the document draws: EditorHandle.drawnImages, or an imported file's. */
   readonly images: ImageStore;
-  /** The pattern set the editor was sealed with. */
+  /** The pattern set the document was laid out with on screen. */
   readonly patterns: readonly string[];
   /** The time the PDF records. */
   readonly nowRfc3339: string;
@@ -44,11 +44,7 @@ export class PdfWriter {
     const assets: PdfRenderAssets = new wasm.RenderAssets(this.assets.fontManifest.fallback, input.nowRfc3339);
     try {
       this.assets.furnish(assets, faces, patterns);
-      for (let i: number = 0; i < input.images.len(); i++) {
-        const [id, mime, bytes] = [input.images.id(i), input.images.mime(i), input.images.bytes(i)];
-        if (id === undefined || mime === undefined || bytes === undefined) throw new Error(`drawn image ${i} of ${input.images.len()} is missing`);
-        assets.addImage(id, mime, bytes);
-      }
+      addImages(assets, input.images);
       return wasm.pm_to_pdf(wasm.model_to_pm(input.modelJson), assets);
     } finally {
       assets.free();

@@ -9,9 +9,9 @@ import { openDisplayList } from '../../display-list/decoder';
 import { decodePage } from '../../display-list/page-ops';
 import type { DisplayList, Op } from '../../display-list/types';
 import { parseFaceMetrics, parseGlyphPath, type GlyphOutline } from '../../glyph/glyph-record';
-import type { GlyphPathBatch, OpenedDocument } from '../../engine/cdoc-engine';
+import type { GlyphPathBatch } from '../../engine/cdoc-engine';
 import type { PaintOutcome } from '../../paint/page-rasterizer';
-import { pmWithText, realHost } from '../../__tests__/wasm-rig';
+import { pmWithText, realHost, openedPages, type OpenedPages } from '../../__tests__/wasm-rig';
 import { recordingPort, recordingTarget, type Call, type RecordingTarget } from '../../paint/__tests__/recording-canvas';
 import type { CdocClient } from '../cdoc-client';
 import type { CdocHost } from '../cdoc-host';
@@ -34,7 +34,7 @@ describe('InProcessCdocClient over the real wasm', () => {
   const client: CdocClient = new InProcessCdocClient(host());
 
   it('opens a blank document as one A4 page', async () => {
-    const opened: OpenedDocument = await client.request({ kind: 'open', source: { kind: 'blank' } });
+    const opened: OpenedPages = openedPages(await client.request({ kind: 'open', source: { kind: 'blank' } }));
     expect(opened.pageCount).toBe(1);
     expect(Array.from(opened.pageSizes)).toEqual([59530, 84190]);
   });
