@@ -295,6 +295,7 @@ async function main() {
       'settings/General': 'Settings',
       'settings/Theme': 'Settings',
       'settings/Privacy': 'Settings',
+      'settings/Security': 'Settings',
       'settings/session-gated tabs': 'Settings',
       'join/security': 'Security Settings',
       'join/profile': 'Create Your Profile',
