@@ -31,9 +31,11 @@ export interface DocumentHostProps {
   /** What the editor opens. R1 opens a blank document; the stored content wires up next. */
   documentSource: DocumentSource;
   loadCdocRuntime: CdocRuntimeFactory;
+  /** The name new comments are signed with; null until the person's name has loaded. */
+  commentAuthor: string | null;
 }
 
-export function DocumentHost({ nodeId, appId, title, permissions, documentSource, loadCdocRuntime }: DocumentHostProps): JSX.Element {
+export function DocumentHost({ nodeId, appId, title, permissions, documentSource, loadCdocRuntime, commentAuthor }: DocumentHostProps): JSX.Element {
   const app: CitadelApp = citadelApp(appId);
   const Icon: CitadelApp['icon'] = app.icon;
   const [statusBar, setStatusBar] = useState<HTMLElement | null>(null);
@@ -54,7 +56,7 @@ export function DocumentHost({ nodeId, appId, title, permissions, documentSource
       {appId === 'docs' ? (
         <section aria-label={`${app.name} editor`} data-testid="document-editor-region" className="flex min-h-0 flex-1 flex-col">
           <Suspense fallback={<p role="status" className="m-auto text-sm text-muted-foreground">Loading {app.name}…</p>}>
-            <DocsCanvas documentSource={documentSource} loadRuntime={loadCdocRuntime} keepReplica={keepBlankReplica} statusBar={statusBar} />
+            <DocsCanvas documentSource={documentSource} loadRuntime={loadCdocRuntime} keepReplica={keepBlankReplica} statusBar={statusBar} edit={permissions.edit} commentAuthor={commentAuthor} />
           </Suspense>
         </section>
       ) : (

@@ -1,0 +1,148 @@
+/**
+ * Home: every control sends exactly its command, toggles read the caret (indeterminate when the
+ * engine has not reported it), and focus goes back to the document after each command.
+ */
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import userEvent, { type UserEvent } from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
+import type { CaretFormatting, EditorCommand } from '@/lib/cdoc/editor/controller';
+import { FakeEditor, editorState } from './fake-editor';
+import { MAY_EDIT, renderRibbon } from './render-ribbon';
+
+const UNKNOWN: CaretFormatting = { known: false };
+const BOLD_12PT_CENTRED: CaretFormatting = {
+  known: true,
+  run: { bold: true, size: 24, font: 'Calibri', color: '#C00000' },
+  paragraph: { alignment: 'center', style: 'Heading1', spacing: { before: 600, line: { rule: 'multiple', lines: 360 } } },
+};
+
+function setUp(caret: CaretFormatting): { editor: FakeEditor; user: UserEvent } {
+  const editor: FakeEditor = new FakeEditor(caret);
+  renderRibbon({ editor, edit: MAY_EDIT, commentAuthor: 'Ada' });
+  return { editor, user: userEvent.setup() };
+}
+
+async function pressed(user: UserEvent, editor: FakeEditor, testId: string): Promise<EditorCommand> {
+  const before: number = editor.focused;
+  await user.click(screen.getByTestId(testId));
+  await waitFor((): void => expect(editor.focused).toBe(before + 1));
+  return editor.sent[editor.sent.length - 1];
+}
+
+describe('the Home ribbon', () => {
+  const BUTTONS: ReadonlyArray<readonly [string, EditorCommand]> = [
+    ['ribbon-undo', { name: 'undo' }],
+    ['ribbon-redo', { name: 'redo' }],
+    ['ribbon-mark-bold', { name: 'toggleMark', mark: 'bold' }],
+    ['ribbon-mark-italic', { name: 'toggleMark', mark: 'italic' }],
+    ['ribbon-mark-underline', { name: 'toggleMark', mark: 'underline' }],
+    ['ribbon-mark-strike', { name: 'toggleMark', mark: 'strike' }],
+    ['ribbon-mark-subscript', { name: 'toggleMark', mark: 'subscript' }],
+    ['ribbon-mark-superscript', { name: 'toggleMark', mark: 'superscript' }],
+    ['ribbon-clear-formatting', {
+      name: 'setRunProperty',
+      patch: { bold: false, italic: false, underline: { style: 'none' }, strike: false, verticalAlign: 'baseline', smallCaps: false, allCaps: false },
+    }],
+    ['ribbon-indent', { name: 'indent' }],
+    ['ribbon-outdent', { name: 'outdent' }],
+    ['ribbon-align-left', { name: 'setParagraphProperty', patch: { alignment: 'left' } }],
+    ['ribbon-align-center', { name: 'setParagraphProperty', patch: { alignment: 'center' } }],
+    ['ribbon-align-right', { name: 'setParagraphProperty', patch: { alignment: 'right' } }],
+    ['ribbon-align-justify', { name: 'setParagraphProperty', patch: { alignment: 'justify' } }],
+  ];
+
+  it.each(BUTTONS)('%s sends exactly its command and returns focus to the document', async (testId: string, command: EditorCommand) => {
+    const { editor, user } = setUp(UNKNOWN);
+    expect(await pressed(user, editor, testId)).toEqual(command);
+    expect(editor.sent).toHaveLength(1);
+  });
+
+  it('renders every toggle indeterminate while the caret formatting is unknown, never a guess', () => {
+    setUp(UNKNOWN);
+    for (const id of ['ribbon-mark-bold', 'ribbon-mark-italic', 'ribbon-align-left', 'ribbon-align-center']) {
+      expect(screen.getByTestId(id)).toHaveAttribute('aria-pressed', 'mixed');
+    }
+    expect(screen.getByTestId('ribbon-font-family')).toHaveValue('');
+    expect(screen.getByTestId('ribbon-font-size')).toHaveValue('');
+    expect(screen.getByTestId('ribbon-line-spacing')).toHaveValue('');
+    expect(screen.getByTestId('ribbon-home-spacing-before')).toHaveValue('');
+  });
+
+  it('reads the caret once the engine reports it, and follows it as it moves', () => {
+    const editor: FakeEditor = setUp(BOLD_12PT_CENTRED).editor;
+    expect(screen.getByTestId('ribbon-mark-bold')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('ribbon-mark-italic')).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByTestId('ribbon-align-center')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('ribbon-font-size')).toHaveValue('24');
+    expect(screen.getByTestId('ribbon-font-family')).toHaveValue('Calibri');
+    expect(screen.getByTestId('ribbon-line-spacing')).toHaveValue('360');
+    expect(screen.getByTestId('ribbon-home-spacing-before')).toHaveValue('6');
+    act((): void => editor.report(editorState(UNKNOWN)));
+    expect(screen.getByTestId('ribbon-mark-bold')).toHaveAttribute('aria-pressed', 'mixed');
+  });
+
+  it('sets the font and size from the lists it offers', async () => {
+    const { editor, user } = setUp(UNKNOWN);
+    await user.selectOptions(screen.getByTestId('ribbon-font-family'), 'Carlito');
+    await user.selectOptions(screen.getByTestId('ribbon-font-size'), '28');
+    expect(editor.sent).toEqual([
+      { name: 'setRunProperty', patch: { font: 'Carlito' } },
+      { name: 'setRunProperty', patch: { size: 28 } },
+    ]);
+  });
+
+  it('grows and shrinks along Word’s list from the caret’s size, and cannot when the size is unknown', async () => {
+    const { editor, user } = setUp(BOLD_12PT_CENTRED);
+    expect(await pressed(user, editor, 'ribbon-grow-font')).toEqual({ name: 'setRunProperty', patch: { size: 28 } });
+    expect(await pressed(user, editor, 'ribbon-shrink-font')).toEqual({ name: 'setRunProperty', patch: { size: 22 } });
+    act((): void => editor.report(editorState(UNKNOWN)));
+    expect(screen.getByTestId('ribbon-grow-font')).toHaveAttribute('aria-disabled', 'true');
+    await user.click(screen.getByTestId('ribbon-grow-font'));
+    expect(editor.sent).toHaveLength(2);
+  });
+
+  it('keeps the paragraph’s other spacing when it changes one member it knows', async () => {
+    const { editor, user } = setUp(BOLD_12PT_CENTRED);
+    await user.selectOptions(screen.getByTestId('ribbon-line-spacing'), '480');
+    const field: HTMLElement = screen.getByTestId('ribbon-home-spacing-after');
+    await user.clear(field);
+    await user.type(field, '12{Enter}');
+    expect(editor.sent).toEqual([
+      { name: 'setParagraphProperty', patch: { spacing: { before: 600, line: { rule: 'multiple', lines: 480 } } } },
+      { name: 'setParagraphProperty', patch: { spacing: { before: 600, line: { rule: 'multiple', lines: 360 }, after: 1200 } } },
+    ]);
+  });
+
+  it('refuses a spacing out of range without sending anything', async () => {
+    const { editor, user } = setUp(UNKNOWN);
+    await user.type(screen.getByTestId('ribbon-home-spacing-before'), '-3{Enter}');
+    expect(editor.sent).toEqual([]);
+  });
+
+  it('applies a colour when the picker commits it', () => {
+    const { editor } = setUp(UNKNOWN);
+    const input: HTMLElement = screen.getByTestId('ribbon-highlight');
+    fireEvent.input(input, { target: { value: '#ffff00' } });
+    expect(editor.sent).toEqual([]);
+    fireEvent.change(input, { target: { value: '#ffff00' } });
+    expect(editor.sent).toEqual([{ name: 'setRunProperty', patch: { highlight: '#FFFF00' } }]);
+  });
+
+  it('applies a style from the gallery, previewed in the style’s own look', async () => {
+    const { editor, user } = setUp(BOLD_12PT_CENTRED);
+    expect(screen.getByTestId('ribbon-styles-open')).toHaveTextContent('Heading 1');
+    await user.click(screen.getByTestId('ribbon-styles-open'));
+    const title: HTMLElement = await screen.findByTestId('ribbon-style-Title');
+    expect(title.firstElementChild).toHaveStyle({ fontFamily: '"cdoc Carlito", sans-serif' });
+    expect(screen.getByTestId('ribbon-style-Heading1')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByTestId('ribbon-style-Hyperlink')).toBeNull();
+    await user.click(title);
+    await waitFor((): void => expect(editor.sent).toEqual([{ name: 'setParagraphStyle', style: 'Title' }]));
+  });
+
+  it('names each command’s shortcut in its tooltip', async () => {
+    const { user } = setUp(UNKNOWN);
+    await user.hover(screen.getByTestId('ribbon-mark-bold'));
+    expect((await screen.findAllByText('Bold (Ctrl+B)')).length).toBeGreaterThan(0);
+  });
+});

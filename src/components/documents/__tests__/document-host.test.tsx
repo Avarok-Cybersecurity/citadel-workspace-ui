@@ -16,6 +16,8 @@ const EDITABLE: DocumentHostProps = {
   permissions: { edit: { enabled: true, reason: null } },
   documentSource: { kind: 'blank' },
   loadCdocRuntime: (): Promise<CdocRuntime> => Promise.resolve(inProcessRuntime('main-thread')),
+  // Any signed-in name: these tests are about the host, not who signs a comment.
+  commentAuthor: 'Ada',
 };
 
 describe('DocumentHost', () => {
