@@ -10,8 +10,9 @@
 import type { CitadelAppId } from './registry';
 import type { ExportFormat } from '../cdoc/editor/file-formats';
 
-export const DOCS_IMPORT_FORMATS = ['docx', 'dotx', 'odt', 'md', 'txt'] as const;
-export type DocsImportFormat = (typeof DOCS_IMPORT_FORMATS)[number];
+import { DOCS_IMPORT_FORMATS, type DocsImportFormat } from './docs-import-formats';
+
+export { DOCS_IMPORT_FORMATS, type DocsImportFormat };
 
 /** Every format the engine writes, in menu order. */
 export const DOCS_EXPORT_FORMATS: readonly ExportFormat[] = ['docx', 'dotx', 'odt', 'md', 'txt', 'pdf'];
@@ -23,6 +24,7 @@ export interface DocsFormatInfo {
   readonly label: string;
 }
 
+/** A format's extension is its id (see docs-import-formats). */
 export const DOCS_FORMATS: { readonly [F in ExportFormat]: DocsFormatInfo } = {
   docx: { extension: 'docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', label: 'Word document (.docx)' },
   dotx: { extension: 'dotx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.template', label: 'Word template (.dotx)' },
