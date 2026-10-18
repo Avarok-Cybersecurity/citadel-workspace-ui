@@ -5,7 +5,7 @@
  * drawn, the canvas never disposes a shown replica, the keeper is torn down before the client).
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor, type RenderResult } from '@testing-library/react';
 import type { EditorSession } from '@/lib/cdoc/editor/editor-session';
 import type { EditorOrigin } from '@/lib/cdoc/editor/controller';
 import { inProcessRuntime, type TestRuntime } from '@/lib/cdoc/__tests__/wasm-rig';
@@ -43,7 +43,7 @@ describe('DocsCanvas', () => {
     const opened: EditorSession[] = [];
     let reopen: (() => Promise<void>) | null = null;
     const keeper: ReplicaKeeper = (open: (from: EditorOrigin) => Promise<EditorSession>, show: (e: EditorSession) => void): (() => void) => {
-      const next = async (): Promise<void> => {
+      const next: () => Promise<void> = async (): Promise<void> => {
         const editor: EditorSession = await open({ kind: 'blank' });
         const dispose: () => void = editor.dispose.bind(editor);
         editor.dispose = (): void => {
@@ -64,7 +64,7 @@ describe('DocsCanvas', () => {
         events.push('keeper torn down');
       };
     };
-    const view = render(<DocsCanvas documentSource={{ kind: 'blank' }} loadRuntime={async (): Promise<CdocRuntime> => runtime} keepReplica={keeper} statusBar={null} />);
+    const view: RenderResult = render(<DocsCanvas documentSource={{ kind: 'blank' }} loadRuntime={async (): Promise<CdocRuntime> => runtime} keepReplica={keeper} statusBar={null} />);
     await screen.findByTestId('editor-input');
     await act(async (): Promise<void> => { await reopen?.(); });
     expect(opened).toHaveLength(2);
