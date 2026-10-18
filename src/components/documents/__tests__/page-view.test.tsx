@@ -63,6 +63,8 @@ describe.each(['worker', 'main-thread'] as const)('PageView with the %s renderer
     expect(runtime.painted[0].sizes[0]).toEqual([1588, 2246]);
     expect(screen.getAllByTestId('document-page')[0].style.width).toBe('794px');
     expect(screen.getAllByTestId('document-page')[0].style.height).toBe('1123px');
+    // A page nobody edits keeps the default cursor; the editor's pages show the I-beam.
+    expect(screen.getAllByTestId('document-page')[0].classList.contains('cursor-text')).toBe(false);
   });
 });
 

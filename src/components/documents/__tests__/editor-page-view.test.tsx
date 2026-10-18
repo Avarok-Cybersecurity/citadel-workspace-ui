@@ -113,24 +113,31 @@ describe.each(['worker', 'main-thread'] as const)('EditorPageView with the %s re
     await waitFor(() => expect(fills(runtime.overlays.get(selection as HTMLCanvasElement)?.calls ?? [])).toBeGreaterThan(0));
   });
 
-  it('draws the caret, and peers with their names, on the caret overlay', async () => {
+  it('draws the caret on its own overlay, and peers with their names on theirs', async () => {
     const { runtime, editor, input } = await mount(mode);
     type(input, 'x');
     await settled(editor);
     const view: PeerView = await editor.peerView(await editor.awareness());
     act(() => { editor.peers.setPeers([{ name: 'Ada', color: '#aa00ff', view: { ...view, client: 99n } }]); });
-    const caret: HTMLCanvasElement | null = screen.getAllByTestId('document-page')[0].querySelector('canvas[data-layer="caret"]');
+    const page: HTMLElement = screen.getAllByTestId('document-page')[0];
+    const peers: HTMLCanvasElement | null = page.querySelector('canvas[data-layer="peers"]');
+    const caret: HTMLCanvasElement | null = page.querySelector('canvas[data-layer="caret"]');
     await waitFor(() => {
-      const calls: readonly Call[] = runtime.overlays.get(caret as HTMLCanvasElement)?.calls ?? [];
+      const calls: readonly Call[] = runtime.overlays.get(peers as HTMLCanvasElement)?.calls ?? [];
       expect(calls.some((c) => c.name === 'fillText' && c.args[0] === 'Ada')).toBe(true);
-      expect(fills(calls)).toBeGreaterThanOrEqual(3);
+      // The peer's caret and its label box.
+      expect(fills(calls)).toBeGreaterThanOrEqual(2);
+      expect(fills(runtime.overlays.get(caret as HTMLCanvasElement)?.calls ?? [])).toBeGreaterThanOrEqual(1);
     });
   });
 
   it('tells the editor the pages on screen, so a long selection carries rects for those pages only', async () => {
-    const { editor } = await mount(mode);
+    const { editor, frames } = await mount(mode);
     await act(async () => { await editor.execute({ name: 'insertText', text: 'line\n'.repeat(300) }); });
     await waitFor(() => expect(editor.state.pageCount).toBeGreaterThanOrEqual(5));
+    // The painted pages are reported on the next frame.
+    act(() => frames.run());
+    await settled(editor);
     await act(async () => { await editor.execute({ name: 'selectAll' }); });
     const pagesWithRects = (): number[] => [...new Set(editor.state.selectionRects.map((r) => r.page))].sort((a, b) => a - b);
     await waitFor(() => expect(pagesWithRects()).toEqual(painted()));

@@ -12,11 +12,14 @@ import type { OverlayScene } from '@/lib/cdoc/paint/overlay-painter';
 import type { PageRect } from '@/lib/cdoc/editor/controller';
 import type { OverlayContextOf } from './PageOverlays';
 import { PageCanvas } from './PageCanvas';
-import { currentPage, deviceResidue, layoutPages, pageLeft, visiblePages, type PageBox, type PageLayout } from './page-layout';
+import { currentPage, deviceResidue, layoutPages, pageLeft, pagePointBy, revealScrollTop, visiblePages, type PageBox, type PageLayout } from './page-layout';
+import type { PagePoint } from '@/lib/cdoc/editor/input/pointer';
 import { INITIAL_ZOOM, zoomBySteps, zoomByWheel } from './zoom';
 
 /** Space between pages and around the column, CSS px. */
 export const PAGE_GAP_PX: number = 24;
+/** Room kept between the caret and the viewport's top or bottom when it is scrolled into view, CSS px. */
+const CARET_MARGIN_PX: number = 24;
 /** Pages painted beyond the visible ones, each side. */
 const OVERSCAN_PAGES: number = 1;
 
@@ -33,6 +36,12 @@ export interface ColumnEditing {
   readonly caret: PageRect | null;
   /** The pages painted now (the visible ones and one each side), whenever that set changes. */
   readonly onPaintedPages: (pages: readonly number[]) => void;
+  /** The local caret's blink phase. */
+  readonly caretShown: boolean;
+  /** Focus reached the document from the keyboard: the region shows its focus ring. */
+  readonly focusRing: boolean;
+  /** PageUp and PageDown: put the caret at a page point, extending the selection or not. */
+  readonly moveCaretTo: (point: PagePoint, extend: boolean) => void;
 }
 
 export interface PageColumnProps {
@@ -84,6 +93,7 @@ export function PageColumn({ renderer, sizes, zoom, dpr, onZoomChange, onPageSta
   const column: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
   const [origin, setOrigin] = useState<ColumnOrigin>({ left: 0, top: 0 });
   const zoomRef: MutableRefObject<number> = useRef<number>(zoom);
+  const pageKeys: MutableRefObject<((event: KeyboardEvent) => boolean) | null> = useRef<((event: KeyboardEvent) => boolean) | null>(null);
   const lastZoom: MutableRefObject<number> = useRef<number>(zoom);
   const opening: boolean = sizes === null;
 
@@ -122,6 +132,10 @@ export function PageColumn({ renderer, sizes, zoom, dpr, onZoomChange, onPageSta
       onZoomChange(zoomByWheel(zoomRef.current, event.deltaY));
     };
     const onKeyDown = (event: KeyboardEvent): void => {
+      if (pageKeys.current?.(event) === true) {
+        event.preventDefault();
+        return;
+      }
       if (!event.ctrlKey && !event.metaKey) return;
       const next: number | null = event.key === '=' || event.key === '+' ? zoomBySteps(zoomRef.current, 1)
         : event.key === '-' ? zoomBySteps(zoomRef.current, -1)
@@ -147,6 +161,35 @@ export function PageColumn({ renderer, sizes, zoom, dpr, onZoomChange, onPageSta
     if (total > 0) onPageStatus({ current: current + 1, total });
   }, [current, total, onPageStatus]);
 
+  const caret: PageRect | null = editing?.caret ?? null;
+  const moveCaretTo: ((point: PagePoint, extend: boolean) => void) | null = editing?.moveCaretTo ?? null;
+  pageKeys.current = (event: KeyboardEvent): boolean => {
+    const el: HTMLDivElement | null = scroller.current;
+    if ((event.key !== 'PageUp' && event.key !== 'PageDown') || event.ctrlKey || event.metaKey || event.altKey) return false;
+    if (el === null || layout === null || caret === null || moveCaretTo === null) return false;
+    const delta: number = (event.key === 'PageDown' ? 1 : -1) * el.clientHeight;
+    const to: PagePoint | null = pagePointBy(layout, { page: caret.page, x: caret.rect.x, y: caret.rect.y }, delta, deviceScale(zoom, dpr).css);
+    if (to === null) return false;
+    el.scrollTop = Math.max(0, el.scrollTop + delta);
+    moveCaretTo(to, event.shiftKey);
+    return true;
+  };
+
+  // The caret stays in view after every command: a move that takes it off screen scrolls to it.
+  // Only a new caret does; a zoom or a relayout under a caret the person scrolled away from does not.
+  const revealed: MutableRefObject<PageRect | null> = useRef<PageRect | null>(null);
+  useEffect((): void => {
+    if (revealed.current === caret) return;
+    revealed.current = caret;
+    const el: HTMLDivElement | null = scroller.current;
+    const box: PageBox | undefined = caret === null || layout === null ? undefined : layout.boxes[caret.page];
+    if (el === null || caret === null || box === undefined) return;
+    const css: number = deviceScale(zoom, dpr).css;
+    const top: number = box.top + caret.rect.y * css;
+    const to: number | null = revealScrollTop(top, top + caret.rect.height * css, el.scrollTop, el.clientHeight, CARET_MARGIN_PX);
+    if (to !== null) el.scrollTop = to;
+  }, [caret, layout, zoom, dpr, scroller]);
+
   const [paintError, setPaintError] = useState<string | null>(null);
   const onPaintError: (error: unknown) => void = useCallback((error: unknown): void => setPaintError(messageOf(error)), []);
 
@@ -166,7 +209,8 @@ export function PageColumn({ renderer, sizes, zoom, dpr, onZoomChange, onPageSta
       tabIndex={0}
       data-testid="page-view"
       onScroll={measure}
-      className="relative h-full min-h-0 flex-1 overflow-auto bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      data-focus-ring={editing?.focusRing === true ? 'true' : undefined}
+      className="relative h-full min-h-0 flex-1 overflow-auto bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[focus-ring=true]:ring-2 data-[focus-ring=true]:ring-inset data-[focus-ring=true]:ring-ring"
     >
       {layout === null && children}
       {paintError !== null && <p role="alert" className="sticky top-0 z-10 bg-background p-2 text-sm text-destructive">A page could not be painted. {paintError}</p>}
@@ -178,13 +222,13 @@ export function PageColumn({ renderer, sizes, zoom, dpr, onZoomChange, onPageSta
               onPaintError={onPaintError} revision={editing?.revisionOf(box.pageNumber) ?? 0}
               overlay={editing === null || sizes === null ? null : {
                 width: sizes[2 * box.pageNumber], height: sizes[2 * box.pageNumber + 1],
-                scene: editing.sceneOf(box.pageNumber, deviceScale(zoom, dpr)), contextOf: editing.overlayContext,
+                scene: editing.sceneOf(box.pageNumber, deviceScale(zoom, dpr)), contextOf: editing.overlayContext, caretShown: editing.caretShown,
               }}
             />
           ))}
           {/* Always mounted here once laid out, so the textarea never remounts (and never drops
               focus or its listeners) as the caret comes and goes; it only moves. */}
-          <div className="pointer-events-none absolute" style={caretAnchor(caretBox(layout, editing?.caret ?? null, columnWidth, origin, dpr), editing?.caret ?? null, deviceScale(zoom, dpr))}>
+          <div className="pointer-events-none absolute" style={caretAnchor(caretBox(layout, caret, columnWidth, origin, dpr), caret, deviceScale(zoom, dpr))}>
             {children}
           </div>
         </div>

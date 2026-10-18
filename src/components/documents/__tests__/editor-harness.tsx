@@ -9,6 +9,7 @@ import { inProcessRuntime, type TestRuntime } from '@/lib/cdoc/__tests__/wasm-ri
 import { EditorSession } from '@/lib/cdoc/editor/editor-session';
 import { EditorPageView } from '../EditorPageView';
 import type { EditorOrigin } from '@/lib/cdoc/editor/controller';
+import { ManualFrames, ManualRepeat } from './manual-clock';
 
 const VIEWPORT_PX: number = 800;
 
@@ -32,19 +33,26 @@ export interface Mounted {
   readonly editor: EditorSession;
   readonly errors: unknown[];
   readonly input: HTMLTextAreaElement;
+  /** The caret's blink clock and the frames a drag scrolls on, stepped by the test. */
+  readonly blink: ManualRepeat;
+  readonly frames: ManualFrames;
 }
 
 export interface MountOptions {
   /** 'refuses': the system clipboard rejects every write, as a browser without the permission does. */
   readonly clipboard: 'records' | 'refuses';
   readonly from: EditorOrigin;
+  /** prefers-reduced-motion (or Animations off): the caret stays steady. */
+  readonly reducedMotion: boolean;
 }
 
 /** The test's usual case, not the app's: a blank document and a clipboard that records writes. */
-const USUAL: MountOptions = { clipboard: 'records', from: { kind: 'blank' } };
+const USUAL: MountOptions = { clipboard: 'records', from: { kind: 'blank' }, reducedMotion: false };
 
 export async function mount(mode: 'worker' | 'main-thread', options: Partial<MountOptions> = {}): Promise<Mounted> {
-  const { clipboard: clipboardPolicy, from }: MountOptions = { ...USUAL, ...options };
+  const { clipboard: clipboardPolicy, from, reducedMotion }: MountOptions = { ...USUAL, ...options };
+  const blink: ManualRepeat = new ManualRepeat();
+  const frames: ManualFrames = new ManualFrames();
   const runtime: TestRuntime = inProcessRuntime(mode);
   const editor: EditorSession = await EditorSession.open({ client: runtime.client, renderer: runtime.renderer }, 11n, from);
   const errors: unknown[] = [];
@@ -58,12 +66,13 @@ export async function mount(mode: 'worker' | 'main-thread', options: Partial<Mou
           if (clipboardPolicy === 'refuses') throw new Error('NotAllowedError: Write permission denied.');
           clipboard.push(text);
         },
+        caretBlink: { phaseMs: 530, repeat: blink.repeat, reducedMotion }, frame: frames.frame,
       }}
     />,
   );
   const input: HTMLTextAreaElement = await screen.findByTestId('editor-input') as HTMLTextAreaElement;
   await waitFor(() => expect(runtime.painted.some((t) => t.sizes.length > 0)).toBe(true));
-  return { clipboard, runtime, editor, errors, input };
+  return { clipboard, runtime, editor, errors, input, blink, frames };
 }
 
 export function type(input: HTMLElement, text: string): void {

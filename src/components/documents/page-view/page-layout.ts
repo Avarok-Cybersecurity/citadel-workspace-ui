@@ -6,6 +6,7 @@
  * two pixel columns, and every glyph edge blurs by a pixel.
  */
 import { pageSizeCss, type DeviceScale } from '@/lib/cdoc/paint/units';
+import type { PagePoint } from '@/lib/cdoc/editor/input/pointer';
 
 export interface PageBox {
   readonly pageNumber: number;
@@ -77,4 +78,28 @@ export function currentPage(layout: PageLayout, scrollTop: number, viewportHeigh
     if (box.top <= middle) current = box.pageNumber;
   }
   return current;
+}
+
+/**
+ * The page point `deltaY` CSS px below (or above, negative) a point on a page: what PageDown and
+ * PageUp move the caret to. Past the last page or before the first it stays on that page's edge.
+ */
+export function pagePointBy(layout: PageLayout, from: PagePoint, deltaY: number, css: number): PagePoint | null {
+  const start: PageBox | undefined = layout.boxes[from.page];
+  if (start === undefined || layout.boxes.length === 0) return null;
+  const target: number = start.top + from.y * css + deltaY;
+  let box: PageBox = layout.boxes[0];
+  for (const b of layout.boxes) if (b.top <= target) box = b;
+  const y: number = Math.min(Math.max(0, (target - box.top) / css), box.height / css);
+  return { page: box.pageNumber, x: from.x, y: Math.round(y) };
+}
+
+/**
+ * The scrollTop that brings `[top, bottom]` (CSS px in the column) into the viewport with
+ * `margin` to spare, or null when it is already in view: the caret is kept visible this way.
+ */
+export function revealScrollTop(top: number, bottom: number, viewTop: number, viewHeight: number, margin: number): number | null {
+  if (top - margin < viewTop) return Math.max(0, top - margin);
+  if (bottom + margin > viewTop + viewHeight) return bottom + margin - viewHeight;
+  return null;
 }

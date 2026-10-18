@@ -11,6 +11,7 @@ import { useEffect, useRef, useState, type MutableRefObject, type RefObject } fr
 import type { LinkArea } from '@/lib/cdoc/paint/page-painter';
 import type { PageRenderer } from '@/lib/cdoc/paint/page-renderer';
 import { RASTERIZER_OPTIONS } from '@/lib/cdoc/paint/paint-config';
+import { cn } from '@/lib/utils';
 import { PageOverlays, type PageOverlaysProps } from './PageOverlays';
 
 interface PageCanvasProps {
@@ -81,7 +82,7 @@ export function PageCanvas({ renderer, placed, zoom, dpr, pageCount, onPaintErro
       aria-label={`Page ${pageNumber + 1} of ${pageCount}`}
       data-testid="document-page"
       data-page={pageNumber}
-      className="absolute shadow-md ring-1 ring-border"
+      className={cn('absolute shadow-md ring-1 ring-border', overlay !== null && 'cursor-text')}
       style={{ top, left, width: box.width, height: box.height, backgroundColor: RASTERIZER_OPTIONS.paper }}
     >
       {overlay !== null && <PageOverlays {...overlay} />}
