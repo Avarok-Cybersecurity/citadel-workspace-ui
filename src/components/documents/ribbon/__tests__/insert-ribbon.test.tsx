@@ -6,13 +6,12 @@ import { act, screen, waitFor } from '@testing-library/react';
 import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import type { CaretFormatting } from '@/lib/cdoc/editor/controller';
-import { FakeEditor } from './fake-editor';
+import { FakeEditor, knownCaret } from './fake-editor';
 import { FIXED_ENVIRONMENT, MAY_EDIT, renderRibbon } from './render-ribbon';
 import { MAX_PICTURE_BYTES } from '../picture';
-import type { RibbonEnvironment } from '../ribbon-environment';
 
 /** A paragraph the engine reports with no direct spacing or indent, so Layout's fields can be set. */
-const PLAIN: CaretFormatting = { known: true, run: {}, paragraph: {} };
+const PLAIN: CaretFormatting = knownCaret({}, {});
 
 function setUp(commentAuthor: string | null): { editor: FakeEditor; user: UserEvent } {
   const editor: FakeEditor = new FakeEditor(PLAIN);
@@ -20,7 +19,7 @@ function setUp(commentAuthor: string | null): { editor: FakeEditor; user: UserEv
   return { editor, user: userEvent.setup() };
 }
 
-async function openTab(user: UserEvent, tab: 'insert' | 'layout'): Promise<void> {
+async function openTab(user: UserEvent, tab: 'insert'): Promise<void> {
   await user.click(screen.getByTestId(`docs-ribbon-tab-${tab}`));
 }
 
@@ -94,7 +93,7 @@ describe('the Insert ribbon', () => {
     const png: File = new File([new Uint8Array([137, 80, 78, 71])], 'chart.png', { type: 'image/png' });
     await user.upload(screen.getByTestId('ribbon-picture-file'), png);
     await waitFor((): void => expect(editor.sent).toEqual([{ name: 'insertImage', contentId: 'image-1', width: 45130, height: 33848 }]));
-    expect(editor.images.map((i: { mime: string; bytes: Uint8Array }): [string, number[]] => [i.mime, [...i.bytes]])).toEqual([['image/png', [137, 80, 78, 71]]]);
+    expect(editor.images.map((i: { maxBytes: number; bytes: Uint8Array }): [number, number[]] => [i.maxBytes, [...i.bytes]])).toEqual([[MAX_PICTURE_BYTES, [137, 80, 78, 71]]]);
   });
 
   it('refuses a picture type the outputs cannot draw, and says so', async () => {
@@ -110,14 +109,12 @@ describe('the Insert ribbon', () => {
   });
 
   it('names the file when it cannot be decoded, rather than quoting the engine', async () => {
-    const editor: FakeEditor = new FakeEditor(PLAIN);
-    const environment: RibbonEnvironment = { ...FIXED_ENVIRONMENT, imageSize: (): Promise<{ width: number; height: number }> => Promise.reject(new Error('Cannot decode the data')) };
-    renderRibbon({ editor, edit: MAY_EDIT, commentAuthor: 'Ada', environment });
-    const user: UserEvent = userEvent.setup();
+    const { editor, user } = setUp('Ada');
+    editor.refuseNextImage('image: unrecognised signature');
     await openTab(user, 'insert');
     await user.upload(screen.getByTestId('ribbon-picture-file'), new File([new Uint8Array([0])], 'broken.png', { type: 'image/png' }));
     await waitFor((): void => expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent('Could not insert the picture. broken.png could not be read as a picture.'));
-    expect(editor.images).toEqual([]);
+    expect(editor.sent).toEqual([]);
   });
 
   it('refuses a picture over the size cap before reading it', async () => {
@@ -130,15 +127,14 @@ describe('the Insert ribbon', () => {
   });
 
   it('blocks a second picture while one is being inserted', async () => {
-    const editor: FakeEditor = new FakeEditor(PLAIN);
-    let finish: (size: { width: number; height: number }) => void = (): void => undefined;
-    const environment: RibbonEnvironment = { ...FIXED_ENVIRONMENT, imageSize: (): Promise<{ width: number; height: number }> => new Promise((resolve: (s: { width: number; height: number }) => void): void => { finish = resolve; }) };
-    renderRibbon({ editor, edit: MAY_EDIT, commentAuthor: 'Ada', environment });
-    const user: UserEvent = userEvent.setup();
+    const { editor, user } = setUp('Ada');
+    let finish: () => void = (): void => undefined;
+    editor.holdImages(new Promise<void>((resolve: () => void): void => { finish = resolve; }));
+    editor.imagePixels = { width: 10, height: 10 };
     await openTab(user, 'insert');
     await user.upload(screen.getByTestId('ribbon-picture-file'), new File([new Uint8Array([1])], 'a.png', { type: 'image/png' }));
     expect(screen.getByTestId('ribbon-insert-picture')).toHaveAttribute('aria-disabled', 'true');
-    act((): void => finish({ width: 10, height: 10 }));
+    act((): void => finish());
     await waitFor((): void => expect(screen.getByTestId('ribbon-insert-picture')).toHaveAttribute('aria-disabled', 'false'));
     expect(editor.sent).toEqual([{ name: 'insertImage', contentId: 'image-1', width: 750, height: 750 }]);
   });
@@ -180,28 +176,5 @@ describe('the Insert ribbon', () => {
       { name: 'insertBreak', kind: 'line' },
       { name: 'insertText', text: '©' },
     ]));
-  });
-});
-
-describe('the Layout ribbon', () => {
-  it('sets indents and spacing in points, as Pt100', async () => {
-    const { editor, user } = setUp('Ada');
-    await openTab(user, 'layout');
-    await user.type(screen.getByTestId('ribbon-layout-indent-left'), '36{Enter}');
-    await user.type(screen.getByTestId('ribbon-layout-indent-right'), '-4.5{Enter}');
-    await user.type(screen.getByTestId('ribbon-layout-spacing-after'), '8{Enter}');
-    await user.click(screen.getByTestId('ribbon-layout-break-page'));
-    await waitFor((): void => expect(editor.sent).toEqual([
-      { name: 'setParagraphProperty', patch: { indent: { left: 3600 } } },
-      { name: 'setParagraphProperty', patch: { indent: { right: -450 } } },
-      { name: 'setParagraphProperty', patch: { spacing: { after: 800 } } },
-      { name: 'insertBreak', kind: 'page' },
-    ]));
-  });
-
-  it('offers no page-setup controls the editor cannot run', async () => {
-    const { user } = setUp('Ada');
-    await openTab(user, 'layout');
-    expect(screen.queryByText(/margins|orientation/i)).toBeNull();
   });
 });

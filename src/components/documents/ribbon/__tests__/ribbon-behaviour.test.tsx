@@ -6,7 +6,7 @@
 import { act, screen, waitFor } from '@testing-library/react';
 import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
-import { FakeEditor, editorState } from './fake-editor';
+import { FakeEditor, editorState, knownCaret } from './fake-editor';
 import { MAY_EDIT, renderRibbon } from './render-ribbon';
 
 const DESKTOP_WIDTH: number = window.innerWidth;
@@ -66,8 +66,8 @@ describe('the status line', () => {
   it('says the caret’s formatting is not shown while the engine does not report it', () => {
     const editor: FakeEditor = new FakeEditor({ known: false });
     renderRibbon({ editor, edit: MAY_EDIT, commentAuthor: 'Ada' });
-    expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent('Formatting at the cursor is not shown yet, so spacing and indents wait for it.');
-    act((): void => editor.report(editorState({ known: true, run: {}, paragraph: {} })));
+    expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent('Formatting at the cursor shows once you click or type in the document.');
+    act((): void => editor.report(editorState(knownCaret({}, {}))));
     expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent(/^$/);
   });
 });
@@ -95,7 +95,7 @@ describe('keyboard', () => {
   });
 
   it('lets a text field keep the arrows until its caret reaches an end', async () => {
-    renderRibbon({ editor: new FakeEditor({ known: true, run: {}, paragraph: {} }), edit: MAY_EDIT, commentAuthor: 'Ada' });
+    renderRibbon({ editor: new FakeEditor(knownCaret({}, {})), edit: MAY_EDIT, commentAuthor: 'Ada' });
     const user: UserEvent = userEvent.setup();
     const before: HTMLInputElement = screen.getByTestId('ribbon-home-spacing-before') as HTMLInputElement;
     act((): void => before.focus());

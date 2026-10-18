@@ -6,15 +6,14 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import type { CaretFormatting, EditorCommand } from '@/lib/cdoc/editor/controller';
-import { FakeEditor, editorState } from './fake-editor';
+import { FakeEditor, editorState, knownCaret } from './fake-editor';
 import { MAY_EDIT, renderRibbon } from './render-ribbon';
 
 const UNKNOWN: CaretFormatting = { known: false };
-const BOLD_12PT_CENTRED: CaretFormatting = {
-  known: true,
-  run: { bold: true, size: 24, font: 'Calibri', color: '#C00000' },
-  paragraph: { alignment: 'center', style: 'Heading1', spacing: { before: 600, line: { rule: 'multiple', lines: 360 } } },
-};
+const BOLD_12PT_CENTRED: CaretFormatting = knownCaret(
+  { bold: true, size: 24, font: 'Calibri', color: '#C00000' },
+  { alignment: 'center', style: 'Heading1', spacing: { before: 600, line: { rule: 'multiple', lines: 360 } } },
+);
 
 function setUp(caret: CaretFormatting): { editor: FakeEditor; user: UserEvent } {
   const editor: FakeEditor = new FakeEditor(caret);
@@ -101,16 +100,35 @@ describe('the Home ribbon', () => {
     expect(editor.sent).toHaveLength(2);
   });
 
-  it('keeps the paragraph’s other spacing when it changes one member it knows', async () => {
+  it('sends only the spacing member it changes, which the engine patches field by field', async () => {
     const { editor, user } = setUp(BOLD_12PT_CENTRED);
     await user.selectOptions(screen.getByTestId('ribbon-line-spacing'), '480');
     const field: HTMLElement = screen.getByTestId('ribbon-home-spacing-after');
     await user.clear(field);
     await user.type(field, '12{Enter}');
     expect(editor.sent).toEqual([
-      { name: 'setParagraphProperty', patch: { spacing: { before: 600, line: { rule: 'multiple', lines: 480 } } } },
-      { name: 'setParagraphProperty', patch: { spacing: { before: 600, line: { rule: 'multiple', lines: 360 }, after: 1200 } } },
+      { name: 'setParagraphProperty', patch: { spacing: { line: { rule: 'multiple', lines: 480 } } } },
+      { name: 'setParagraphProperty', patch: { spacing: { after: 1200 } } },
     ]);
+  });
+
+  it('shows what differs across the selection as indeterminate or empty, and grows from no size it cannot name', async () => {
+    const mixed: CaretFormatting = knownCaret(
+      { bold: true, size: 24, font: 'Calibri' },
+      { alignment: 'center', style: 'Heading1', spacing: { before: 600, line: { rule: 'multiple', lines: 360 } } },
+      { run: ['bold', 'size', 'font'], paragraph: ['alignment', 'style', 'spacing'] },
+    );
+    const { editor, user } = setUp(mixed);
+    expect(screen.getByTestId('ribbon-mark-bold')).toHaveAttribute('aria-pressed', 'mixed');
+    expect(screen.getByTestId('ribbon-mark-italic')).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByTestId('ribbon-align-center')).toHaveAttribute('aria-pressed', 'mixed');
+    for (const id of ['ribbon-font-size', 'ribbon-font-family', 'ribbon-line-spacing', 'ribbon-home-spacing-before']) expect(screen.getByTestId(id)).toHaveValue('');
+    expect(screen.getByTestId('ribbon-styles-open')).toHaveTextContent(/^Styles$/);
+    expect(screen.getByTestId('ribbon-grow-font')).toHaveAttribute('aria-disabled', 'true');
+    await user.click(screen.getByTestId('ribbon-grow-font'));
+    expect(editor.sent).toEqual([]);
+    await user.click(screen.getByTestId('ribbon-styles-open'));
+    expect(await screen.findByTestId('ribbon-style-Heading1')).toHaveAttribute('aria-pressed', 'mixed');
   });
 
   it('keeps a spacing out of range in the field, says the range, and sends nothing', async () => {
@@ -139,13 +157,14 @@ describe('the Home ribbon', () => {
     expect(editor.sent).toEqual([]);
   });
 
-  it('will not send one spacing while the others are unknown, since the engine would reset them', async () => {
+  it('sends a spacing while the caret is unknown, since siblings are kept, not reset', async () => {
     const { editor, user } = setUp(UNKNOWN);
-    expect(screen.getByTestId('ribbon-home-spacing-before')).toHaveAttribute('aria-disabled', 'true');
-    expect(screen.getByTestId('ribbon-line-spacing')).toHaveAttribute('aria-disabled', 'true');
     await user.type(screen.getByTestId('ribbon-home-spacing-before'), '3{Enter}');
     await user.selectOptions(screen.getByTestId('ribbon-line-spacing'), '480');
-    expect(editor.sent).toEqual([]);
+    expect(editor.sent).toEqual([
+      { name: 'setParagraphProperty', patch: { spacing: { before: 300 } } },
+      { name: 'setParagraphProperty', patch: { spacing: { line: { rule: 'multiple', lines: 480 } } } },
+    ]);
   });
 
   it('applies a colour when the picker commits it', () => {

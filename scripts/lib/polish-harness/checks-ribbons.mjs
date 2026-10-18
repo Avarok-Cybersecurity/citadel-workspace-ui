@@ -73,15 +73,30 @@ async function ribbonTargetsAndWidth({ page, url, viewport }) {
   }
 }
 
-/** The table grid stays inside a phone's width. */
+async function assertPopoversOnScreen(page, viewport, what) {
+  const boxes = await page.locator('[data-radix-popper-content-wrapper]:has([role="dialog"])').evaluateAll((all) => all.map((el) => el.getBoundingClientRect().toJSON()));
+  assert.ok(boxes.length > 0, `${what} opened no popover`);
+  for (const b of boxes) assert.ok(b.x >= 0 && b.x + b.width <= viewport.width, `${what}: a popover ${JSON.stringify(b)} leaves the ${viewport.width}px viewport`);
+}
+
+/** The table grid and the page-size menu (the widest of Page Setup's) stay inside a phone's width. */
 async function popoversStayOnScreen({ page, url, viewport }) {
   await openRibbon(page, url, 'docs-ribbon');
   await showTab(page, 'insert');
   await page.getByTestId('ribbon-insert-table').click();
   await page.getByTestId('ribbon-table-cell-7-7').waitFor({ state: 'visible' });
   await settled(page);
-  const boxes = await page.locator('[data-radix-popper-content-wrapper]:has([role="dialog"])').evaluateAll((all) => all.map((el) => el.getBoundingClientRect().toJSON()));
-  for (const b of boxes) assert.ok(b.x >= 0 && b.x + b.width <= viewport.width, `a popover ${JSON.stringify(b)} leaves the ${viewport.width}px viewport`);
+  await assertPopoversOnScreen(page, viewport, 'the table grid');
+  await page.keyboard.press('Escape');
+  await openRibbon(page, url, 'docs-ribbon');
+  await showTab(page, 'layout');
+  // At phone width Page Setup is collapsed into one button whose popover holds the menus.
+  const group = page.getByTestId('ribbon-page-setup-open');
+  if (await group.isVisible()) await group.click();
+  await page.getByTestId('ribbon-page-size-open').click();
+  await page.getByTestId('ribbon-page-size-a5').waitFor({ state: 'visible' });
+  await settled(page);
+  await assertPopoversOnScreen(page, viewport, 'the page-size menu');
 }
 
 export const RIBBON_CHECKS = {

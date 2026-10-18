@@ -5,7 +5,7 @@
  * commands land.
  */
 import { describe, expect, it } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { inProcessRuntime } from '@/lib/cdoc/__tests__/wasm-rig';
 import type { CdocRuntime } from '@/lib/cdoc/runtime';
@@ -42,5 +42,34 @@ describe('the ribbon over the real editor', () => {
     await user.click(await screen.findByTestId('docs-ribbon-tab-insert', {}, { timeout: 10_000 }));
     await user.click(screen.getByTestId('ribbon-remove-link'));
     await waitFor((): void => expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent(/^Could not remove the link\. .+/), { timeout: 10_000 });
+  }, 30_000);
+
+  it('reads the caret from the engine: Bold turns pressed, and the size grows from the style’s own', async () => {
+    render(<DocumentHost {...BLANK} />);
+    const user: UserEvent = userEvent.setup();
+    const bold: HTMLElement = await screen.findByTestId('ribbon-mark-bold', {}, { timeout: 10_000 });
+    expect(bold).toHaveAttribute('aria-pressed', 'mixed');
+    await user.click(bold);
+    await waitFor((): void => expect(bold).toHaveAttribute('aria-pressed', 'true'), { timeout: 10_000 });
+    const size: HTMLElement = screen.getByTestId('ribbon-font-size');
+    const before: string = (size as HTMLSelectElement).value;
+    expect(before).not.toBe('');
+    await user.click(screen.getByTestId('ribbon-grow-font'));
+    await waitFor((): void => expect(Number((size as HTMLSelectElement).value)).toBeGreaterThan(Number(before)), { timeout: 10_000 });
+    expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent(/^$/);
+  }, 30_000);
+
+  it('takes a page setup: landscape, then Narrow margins, with nothing refused', async () => {
+    render(<DocumentHost {...BLANK} />);
+    const user: UserEvent = userEvent.setup();
+    await user.click(await screen.findByTestId('docs-ribbon-tab-layout', {}, { timeout: 10_000 }));
+    await user.click(screen.getByTestId('ribbon-page-orientation-open'));
+    await user.click(await screen.findByTestId('ribbon-page-orientation-landscape'));
+    await user.click(screen.getByTestId('ribbon-page-margins-open'));
+    await user.click(await screen.findByTestId('ribbon-page-margins-narrow'));
+    // Focus goes back to the document once the command has settled, accepted or refused.
+    await waitFor((): void => expect(screen.getByTestId('editor-input')).toHaveFocus(), { timeout: 10_000 });
+    await act(async (): Promise<void> => { await Promise.resolve(); });
+    expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent(/^$/);
   }, 30_000);
 });

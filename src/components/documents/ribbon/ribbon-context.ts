@@ -5,7 +5,7 @@
  */
 import { createContext, useContext, useMemo, useState, type Context } from 'react';
 import { toast } from 'sonner';
-import type { CaretFormatting, EditorCommand, EditorState } from '@/lib/cdoc/editor/controller';
+import type { AddedImage, CaretFormatting, EditorCommand, EditorState } from '@/lib/cdoc/editor/controller';
 import type { ActionGate } from '@/hooks/use-permission-result';
 import { describeError } from '@/lib/describe-error';
 import type { RibbonEditor } from './editor-context';
@@ -24,8 +24,8 @@ export interface Ribbon {
   run(command: EditorCommand, what: string): Promise<void>;
   /** Runs `work` the way `run` runs a command: a failure is shown, and focus returns after. */
   attempt(what: string, work: () => Promise<unknown>): Promise<void>;
-  /** Stores an image's bytes in the document and answers the content id InsertImage takes. */
-  addImage(bytes: Uint8Array, mime: string): Promise<string>;
+  /** Hands a picture file of at most `maxBytes` to the editor, which reads its type and pixel size. */
+  addImage(bytes: Uint8Array, maxBytes: number): Promise<AddedImage>;
   /** Hands keyboard focus back to the document, e.g. after a dialog closes with nothing done. */
   returnFocus(): void;
 }
@@ -76,9 +76,9 @@ export function useRibbonValue(editor: RibbonEditor | null, state: EditorState |
       compact,
       run: (command: EditorCommand, what: string): Promise<void> => attempt(what, (live: RibbonEditor): Promise<EditorState> => live.execute(command)),
       attempt: (what: string, work: () => Promise<unknown>): Promise<void> => attempt(what, work),
-      addImage: (bytes: Uint8Array, mime: string): Promise<string> => {
+      addImage: (bytes: Uint8Array, maxBytes: number): Promise<AddedImage> => {
         if (editor === null) return Promise.reject(new Error('the editor has not opened'));
-        return editor.addImage(bytes, mime);
+        return editor.addImage(bytes, maxBytes);
       },
       returnFocus: (): void => editor?.focus(),
     };

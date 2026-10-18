@@ -4,11 +4,11 @@
  */
 import { AlignCenter, AlignJustify, AlignLeft, AlignRight, IndentDecrease, IndentIncrease, Pilcrow, type LucideIcon } from 'lucide-react';
 import type { Alignment, LineSpacing } from '@/lib/cdoc/editor/model-values';
-import { WORD_LINE_SPACINGS, alignmentState, lineSpacingLabel } from './formatting';
+import { WORD_LINE_SPACINGS, alignmentState, caretParagraph, lineSpacingLabel } from './formatting';
 import { RibbonButton, type Shortcut } from './RibbonButton';
 import { RibbonPicker, type PickerOption } from './RibbonFields';
 import { RibbonGroup } from './RibbonToolbar';
-import { SIBLINGS_UNKNOWN, SpacingFields, spacingPatch } from './ParagraphFields';
+import { SpacingFields } from './ParagraphFields';
 import { useRibbon, type Ribbon } from './ribbon-context';
 
 interface AlignControl {
@@ -43,10 +43,10 @@ export function ParagraphGroup(): JSX.Element {
         <RibbonButton key={a.alignment} testId={`ribbon-align-${a.alignment}`} label={a.label} icon={a.icon} shortcut={a.shortcut} pressed={alignmentState(caret, a.alignment)}
           onPress={(): void => { void run({ name: 'setParagraphProperty', patch: { alignment: a.alignment } }, a.label.toLowerCase()); }} />
       ))}
-      <RibbonPicker testId="ribbon-line-spacing" label="Line spacing" options={LINE_OPTIONS} widthPx={72} unavailable={caret.known ? null : SIBLINGS_UNKNOWN}
-        value={caret.known ? caretLines(caret.paragraph.spacing?.line) : null}
+      <RibbonPicker testId="ribbon-line-spacing" label="Line spacing" options={LINE_OPTIONS} widthPx={72} unavailable={null}
+        value={caretLines(caretParagraph(caret, 'spacing')?.line)}
         onPick={(lines: string): void => {
-          void run({ name: 'setParagraphProperty', patch: spacingPatch(caret, { line: { rule: 'multiple', lines: Number(lines) } }) }, 'change the line spacing');
+          void run({ name: 'setParagraphProperty', patch: { spacing: { line: { rule: 'multiple', lines: Number(lines) } } } }, 'change the line spacing');
         }} />
       <SpacingFields idPrefix="ribbon-home" />
     </RibbonGroup>

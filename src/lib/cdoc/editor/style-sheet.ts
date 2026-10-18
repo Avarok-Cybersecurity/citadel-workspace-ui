@@ -3,7 +3,7 @@
  * document defaults, then each `basedOn` ancestor, then the style itself, a later set field
  * winning, exactly as `RunProperties::overlay` layers them.
  */
-import type { ParagraphPropertiesPatch, RunPropertiesPatch } from './model-values';
+import type { ParagraphProperties, RunPropertiesPatch } from './model-values';
 
 export type StyleKind = 'paragraph' | 'character' | 'table';
 
@@ -14,12 +14,12 @@ export interface StyleDefinition {
   readonly kind: StyleKind;
   readonly basedOn?: string;
   readonly next?: string;
-  readonly paragraph: ParagraphPropertiesPatch;
+  readonly paragraph: ParagraphProperties;
   readonly run: RunPropertiesPatch;
 }
 
 export interface StyleSheet {
-  readonly defaults: { readonly run: RunPropertiesPatch; readonly paragraph: ParagraphPropertiesPatch };
+  readonly defaults: { readonly run: RunPropertiesPatch; readonly paragraph: ParagraphProperties };
   readonly styles: readonly StyleDefinition[];
 }
 

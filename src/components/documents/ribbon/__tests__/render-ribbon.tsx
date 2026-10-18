@@ -22,8 +22,6 @@ export const FIXED_ENVIRONMENT: RibbonEnvironment = {
     reader.onerror = (): void => reject(reader.error);
     reader.readAsArrayBuffer(file);
   }),
-  // jsdom decodes no images: every picture reads as 800 × 600 px.
-  imageSize: (): Promise<{ width: number; height: number }> => Promise.resolve({ width: 800, height: 600 }),
   modifier: 'Ctrl',
 };
 

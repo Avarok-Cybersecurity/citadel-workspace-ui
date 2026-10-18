@@ -19,7 +19,7 @@ import { RibbonContext, useRibbonValue, type Ribbon } from './ribbon-context';
 import type { RibbonEnvironment } from './ribbon-environment';
 
 /** Shown while the engine does not report the caret's formatting, which the toggles then cannot show. */
-const UNKNOWN_CARET: string = 'Formatting at the cursor is not shown yet, so spacing and indents wait for it.';
+const UNKNOWN_CARET: string = 'Formatting at the cursor shows once you click or type in the document.';
 
 export type RibbonTab = 'home' | 'insert' | 'layout';
 

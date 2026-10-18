@@ -5,8 +5,7 @@
  * names the caret's style once the engine reports it.
  */
 import { Pilcrow } from 'lucide-react';
-import { useState, type CSSProperties } from 'react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import type { CSSProperties } from 'react';
 import type { RunPropertiesPatch } from '@/lib/cdoc/editor/model-values';
 import { paragraphStyles, resolvedRun, styleDisplayName, type StyleDefinition, type StyleSheet } from '@/lib/cdoc/editor/style-sheet';
 import { FONT_MANIFEST } from '@/lib/cdoc/generated/font-manifest';
@@ -14,8 +13,10 @@ import { BUILTIN_STYLE_SHEET } from '@/lib/cdoc/generated/builtin-styles';
 import { RASTERIZER_OPTIONS } from '@/lib/cdoc/paint/paint-config';
 import { cn } from '@/lib/utils';
 import { cssFontFamily } from './CdocFontFaces';
-import { RIBBON_CONTROL, RibbonButton } from './RibbonButton';
-import { RibbonGroup, RibbonToolbar } from './RibbonToolbar';
+import { caretParagraph } from './formatting';
+import { RIBBON_CONTROL } from './RibbonButton';
+import { RibbonMenu } from './RibbonMenu';
+import { RibbonGroup } from './RibbonToolbar';
 import { useRibbon, type Ribbon } from './ribbon-context';
 
 /** Previews are capped so Title does not dwarf the list; the relative sizes still read. */
@@ -56,23 +57,15 @@ function StyleOption({ sheet, style, current, onChoose }: { sheet: StyleSheet; s
 
 export function StylesGallery({ sheet }: { sheet: StyleSheet }): JSX.Element {
   const { caret, run }: Ribbon = useRibbon();
-  const [open, setOpen] = useState<boolean>(false);
-  const currentId: string | null = caret.known ? caret.paragraph.style ?? null : null;
+  const currentId: string | null = caretParagraph(caret, 'style');
   const current: StyleDefinition | undefined = sheet.styles.find((s: StyleDefinition): boolean => s.id === currentId);
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <RibbonButton testId="ribbon-styles-open" label="Styles" icon={Pilcrow} text={current === undefined ? 'Styles' : styleDisplayName(current)} />
-      </PopoverTrigger>
-      <PopoverContent align="start" collisionPadding={16} className="max-h-[min(480px,70vh)] w-[260px] overflow-y-auto p-2">
-        <RibbonToolbar label="Styles" testId="ribbon-styles" vertical>
-          {paragraphStyles(sheet).map((style: StyleDefinition): JSX.Element => (
-            <StyleOption key={style.id} sheet={sheet} style={style} current={caret.known ? style.id === currentId : 'mixed'}
-              onChoose={(): void => { setOpen(false); void run({ name: 'setParagraphStyle', style: style.id }, `apply the ${styleDisplayName(style)} style`); }} />
-          ))}
-        </RibbonToolbar>
-      </PopoverContent>
-    </Popover>
+    <RibbonMenu testId="ribbon-styles" label="Styles" icon={Pilcrow} text={current === undefined ? 'Styles' : styleDisplayName(current)} widthPx={260}>
+      {(close: () => void): JSX.Element[] => paragraphStyles(sheet).map((style: StyleDefinition): JSX.Element => (
+        <StyleOption key={style.id} sheet={sheet} style={style} current={currentId === null ? 'mixed' : style.id === currentId}
+          onChoose={(): void => { close(); void run({ name: 'setParagraphStyle', style: style.id }, `apply the ${styleDisplayName(style)} style`); }} />
+      ))}
+    </RibbonMenu>
   );
 }
 

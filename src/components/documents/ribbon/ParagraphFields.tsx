@@ -1,12 +1,12 @@
 /**
  * Paragraph spacing and indent fields, in points (Pt100 on the wire), shared by Home and
- * Layout. The engine overlays `spacing` and `indent` as whole values, so a patch naming one
- * member clears its siblings; when the caret's paragraph is known its other members are sent
- * with it, and until then only the changed member can be sent.
+ * Layout. ParagraphPatch is field-wise, so each field sends only its own member and its
+ * siblings are kept by the engine; a field shows the caret's value, or nothing while that
+ * value is not known or differs across the selected paragraphs.
  */
 import type { CaretFormatting } from '@/lib/cdoc/editor/controller';
-import type { ParagraphPropertiesPatch, Pt100 } from '@/lib/cdoc/editor/model-values';
-import { pointsToPt100, pt100ToPoints } from './formatting';
+import type { Indent, ParagraphPatch, Pt100, Spacing } from '@/lib/cdoc/editor/model-values';
+import { caretParagraph, pointsToPt100, pt100ToPoints } from './formatting';
 import { RibbonNumberField } from './RibbonFields';
 import { useRibbon, type Ribbon } from './ribbon-context';
 
@@ -18,28 +18,22 @@ const SPACING_MAX_PT: number = 1584;
 const INDENT_MAX_PT: number = 1584;
 const INDENT_MIN_PT: number = -1584;
 
-/**
- * While the caret's paragraph is not known, a member cannot be sent without clearing its
- * siblings (the engine overlays these values whole), so the fields wait for the caret.
- */
-export const SIBLINGS_UNKNOWN: string = 'Setting one spacing or indent would reset the others until the paragraph’s formatting is shown.';
-
-type Spacing = NonNullable<ParagraphPropertiesPatch['spacing']>;
-
-export function spacingPatch(caret: CaretFormatting, change: Spacing): ParagraphPropertiesPatch {
-  const current: Spacing | undefined = caret.known ? caret.paragraph.spacing : undefined;
-  return { spacing: { ...current, ...change } };
+export function spacingPatch(key: SpacingKey, value: Pt100): ParagraphPatch {
+  return { spacing: { [key]: value } };
 }
 
-type Indent = NonNullable<ParagraphPropertiesPatch['indent']>;
-
-export function indentPatch(caret: CaretFormatting, change: Indent): ParagraphPropertiesPatch {
-  const current: Indent | undefined = caret.known ? caret.paragraph.indent : undefined;
-  return { indent: { ...current, ...change } };
+export function indentPatch(key: IndentKey, value: Pt100): ParagraphPatch {
+  return { indent: { [key]: value } };
 }
 
-function caretPoints(value: Pt100 | undefined, known: boolean): number | null {
-  return known && value !== undefined ? pt100ToPoints(value) : null;
+function spacingPoints(caret: CaretFormatting, key: SpacingKey): number | null {
+  const spacing: Spacing | null = caretParagraph(caret, 'spacing');
+  return spacing?.[key] === undefined ? null : pt100ToPoints(spacing[key]);
+}
+
+function indentPoints(caret: CaretFormatting, key: IndentKey): number | null {
+  const indent: Indent | null = caretParagraph(caret, 'indent');
+  return indent?.[key] === undefined ? null : pt100ToPoints(indent[key]);
 }
 
 const SPACING_LABELS: Readonly<Record<SpacingKey, string>> = { before: 'Before', after: 'After' };
@@ -50,9 +44,9 @@ export function SpacingFields({ idPrefix }: { idPrefix: string }): JSX.Element {
   return (
     <>
       {(['before', 'after'] as const).map((key: SpacingKey): JSX.Element => (
-        <RibbonNumberField key={key} testId={`${idPrefix}-spacing-${key}`} label={`Spacing ${SPACING_LABELS[key].toLowerCase()}`} shortLabel={SPACING_LABELS[key]} unit="pt" min={0} max={SPACING_MAX_PT} unavailable={caret.known ? null : SIBLINGS_UNKNOWN}
-          value={caretPoints(caret.known ? caret.paragraph.spacing?.[key] : undefined, caret.known)}
-          onCommit={(points: number): void => { void run({ name: 'setParagraphProperty', patch: spacingPatch(caret, { [key]: pointsToPt100(points) }) }, `change the spacing ${key}`); }} />
+        <RibbonNumberField key={key} testId={`${idPrefix}-spacing-${key}`} label={`Spacing ${SPACING_LABELS[key].toLowerCase()}`} shortLabel={SPACING_LABELS[key]} unit="pt" min={0} max={SPACING_MAX_PT} unavailable={null}
+          value={spacingPoints(caret, key)}
+          onCommit={(points: number): void => { void run({ name: 'setParagraphProperty', patch: spacingPatch(key, pointsToPt100(points)) }, `change the spacing ${key}`); }} />
       ))}
     </>
   );
@@ -63,9 +57,9 @@ export function IndentFields({ idPrefix }: { idPrefix: string }): JSX.Element {
   return (
     <>
       {(['left', 'right'] as const).map((key: IndentKey): JSX.Element => (
-        <RibbonNumberField key={key} testId={`${idPrefix}-indent-${key}`} label={`Indent ${INDENT_LABELS[key].toLowerCase()}`} shortLabel={INDENT_LABELS[key]} unit="pt" min={INDENT_MIN_PT} max={INDENT_MAX_PT} unavailable={caret.known ? null : SIBLINGS_UNKNOWN}
-          value={caretPoints(caret.known ? caret.paragraph.indent?.[key] : undefined, caret.known)}
-          onCommit={(points: number): void => { void run({ name: 'setParagraphProperty', patch: indentPatch(caret, { [key]: pointsToPt100(points) }) }, `change the ${key} indent`); }} />
+        <RibbonNumberField key={key} testId={`${idPrefix}-indent-${key}`} label={`Indent ${INDENT_LABELS[key].toLowerCase()}`} shortLabel={INDENT_LABELS[key]} unit="pt" min={INDENT_MIN_PT} max={INDENT_MAX_PT} unavailable={null}
+          value={indentPoints(caret, key)}
+          onCommit={(points: number): void => { void run({ name: 'setParagraphProperty', patch: indentPatch(key, pointsToPt100(points)) }, `change the ${key} indent`); }} />
       ))}
     </>
   );

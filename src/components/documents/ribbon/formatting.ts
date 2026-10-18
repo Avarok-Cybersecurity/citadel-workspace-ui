@@ -2,11 +2,13 @@
  * The values the Home and Layout ribbons offer and how they read the caret's formatting. The
  * lists that are Word's own UI (its size list, its line-spacing list) are stated once here;
  * everything else (font families, styles) comes from the manifests the engine itself reads.
- * Nothing here guesses: with `caretFormatting.known === false` every reader answers "mixed"
- * or null, and the controls render indeterminate.
+ * Nothing here guesses: with `caretFormatting.known === false`, or a key the engine reports
+ * as mixed across the selection, every reader answers "mixed" or null, and the controls
+ * render indeterminate.
  */
 import type { CaretFormatting, Mark } from '@/lib/cdoc/editor/controller';
-import type { Alignment, Pt100, RunPropertiesPatch } from '@/lib/cdoc/editor/model-values';
+import type { ParagraphKey, RunKey } from '@/lib/cdoc/editor/caret-formatting';
+import type { Alignment, ParagraphProperties, Pt100, RunPropertiesPatch } from '@/lib/cdoc/editor/model-values';
 import type { FontManifest, FontFaceEntry } from '@/lib/cdoc/fonts/font-manifest';
 
 /** Word's font-size list, in the model's half-points (8 pt … 72 pt). */
@@ -58,8 +60,21 @@ export function servedFamily(requested: string, manifest: FontManifest): string 
   return manifest.aliases[requested] ?? manifest.fallback;
 }
 
+/** The run key each mark reads: sub- and superscript are both `verticalAlign`. */
+const MARK_KEYS: Readonly<Record<Mark, RunKey>> = {
+  bold: 'bold', italic: 'italic', underline: 'underline', strike: 'strike', subscript: 'verticalAlign', superscript: 'verticalAlign',
+};
+
+function runKnown(caret: CaretFormatting, key: RunKey): caret is Extract<CaretFormatting, { known: true }> {
+  return caret.known && !caret.runMixed.has(key);
+}
+
+function paragraphKnown(caret: CaretFormatting, key: ParagraphKey): caret is Extract<CaretFormatting, { known: true }> {
+  return caret.known && !caret.paragraphMixed.has(key);
+}
+
 export function markState(caret: CaretFormatting, mark: Mark): PressedState {
-  if (!caret.known) return 'mixed';
+  if (!runKnown(caret, MARK_KEYS[mark])) return 'mixed';
   const run: RunPropertiesPatch = caret.run;
   switch (mark) {
     case 'bold': return run.bold === true;
@@ -72,12 +87,17 @@ export function markState(caret: CaretFormatting, mark: Mark): PressedState {
 }
 
 export function alignmentState(caret: CaretFormatting, alignment: Alignment): PressedState {
-  return caret.known ? caret.paragraph.alignment === alignment : 'mixed';
+  return paragraphKnown(caret, 'alignment') ? caret.paragraph.alignment === alignment : 'mixed';
 }
 
-/** The caret's run value for a picker, or null when it is not known (an empty picker). */
-export function caretRun<K extends keyof RunPropertiesPatch>(caret: CaretFormatting, key: K): NonNullable<RunPropertiesPatch[K]> | null {
-  return caret.known ? caret.run[key] ?? null : null;
+/** The caret's run value for a picker, or null when it is not known or mixed (an empty picker). */
+export function caretRun<K extends RunKey>(caret: CaretFormatting, key: K): NonNullable<RunPropertiesPatch[K]> | null {
+  return runKnown(caret, key) ? caret.run[key] ?? null : null;
+}
+
+/** The caret paragraph's value, or null when it is not known or mixed. */
+export function caretParagraph<K extends ParagraphKey & keyof ParagraphProperties>(caret: CaretFormatting, key: K): NonNullable<ParagraphProperties[K]> | null {
+  return paragraphKnown(caret, key) ? caret.paragraph[key] ?? null : null;
 }
 
 export function pointsToPt100(points: number): Pt100 {
