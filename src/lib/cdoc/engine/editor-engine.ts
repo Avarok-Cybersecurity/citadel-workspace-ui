@@ -6,6 +6,7 @@
  */
 import type { CdocWasm, EditorHandle, EditorSealedFonts } from './cdoc-wasm-api';
 import type { EditorOrigin } from '../editor/controller';
+import type { ExportFormat } from '../editor/file-formats';
 
 export type { EditorOrigin } from '../editor/controller';
 
@@ -22,10 +23,13 @@ export class EditorEngine {
 
   static open(wasm: CdocWasm, fonts: EditorSealedFonts, client: bigint, origin: EditorOrigin): EditorEngine {
     if (client < 0n || client > 0xffff_ffff_ffff_ffffn) throw new Error(`client ${client} is not a u64`);
-    const handle: EditorHandle = 'snapshot' in origin
-      ? wasm.EditorHandle.open(origin.snapshot, client, fonts)
-      : wasm.EditorHandle.blank(client, fonts);
-    return new EditorEngine(handle);
+    switch (origin.kind) {
+      case 'blank': return new EditorEngine(wasm.EditorHandle.blank(client, fonts));
+      case 'snapshot': return new EditorEngine(wasm.EditorHandle.open(origin.snapshot, client, fonts));
+      case 'bytes':
+        // cdoc-edit-io adds the engine call (EditorHandle.fromDocument); until then, refused by name.
+        throw new Error(`this cdoc-wasm build cannot open ${origin.format} files (EditorHandle.fromDocument is missing)`);
+    }
   }
 
   get pageCount(): number {
@@ -78,23 +82,35 @@ export class EditorEngine {
     return this.handle.peerView(record);
   }
 
-  /**
-   * cdoc-crdt's Doc::gc. EditorHandle exposes it from the cdoc-edit caret-state release on; on
-   * an older binary this fails rather than pretending to have collected anything.
-   */
-  collectGarbage(): void {
-    const gc: unknown = (this.handle as unknown as { readonly gc?: unknown }).gc;
-    if (typeof gc !== 'function') throw new Error('this cdoc-wasm build cannot collect garbage (EditorHandle.gc is missing)');
-    (gc as () => void).call(this.handle);
+  stateVector(): Uint8Array {
+    return this.handle.stateVector();
   }
 
-  /** EditorHandle.addImage (from the caret-state release on): stores bytes, returns the content id. */
-  addImage(bytes: Uint8Array, mime: string): string {
-    const add: unknown = (this.handle as unknown as { readonly addImage?: unknown }).addImage;
-    if (typeof add !== 'function') throw new Error('this cdoc-wasm build cannot store images (EditorHandle.addImage is missing)');
-    const id: unknown = (add as (bytes: Uint8Array, mime: string) => unknown).call(this.handle, bytes, mime);
-    if (typeof id !== 'string' || id === '') throw new Error('EditorHandle.addImage returned no content id');
-    return id;
+  encodeDiff(sv: Uint8Array): Uint8Array {
+    return this.handle.encodeDiff(sv);
+  }
+
+  /** cdoc-crdt's Doc::gc over the known-peers record; returns the "CDG" collected record. */
+  collectGarbage(known: Uint8Array): Uint8Array {
+    return this.handle.gc(known);
+  }
+
+  /** Holds an image of at most `maxBytes`; returns the "CDI" added-image record. */
+  addImage(bytes: Uint8Array, maxBytes: number): Uint8Array {
+    if (!Number.isSafeInteger(maxBytes) || maxBytes < 0 || maxBytes > 0xffff_ffff) throw new Error(`maxBytes ${maxBytes} is not a u32`);
+    return this.handle.addImage(bytes, maxBytes);
+  }
+
+  /**
+   * The live document as a file. cdoc-edit-io adds the engine call; until it is vendored this
+   * fails by name rather than exporting something else.
+   */
+  exportAs(format: ExportFormat): Uint8Array {
+    const exportFn: unknown = (this.handle as unknown as { readonly exportAs?: unknown }).exportAs;
+    if (typeof exportFn !== 'function') throw new Error(`this cdoc-wasm build cannot export ${format} (EditorHandle.exportAs is missing)`);
+    const bytes: unknown = (exportFn as (format: string) => unknown).call(this.handle, format);
+    if (!(bytes instanceof Uint8Array)) throw new Error('EditorHandle.exportAs returned no bytes');
+    return bytes;
   }
 
   dispose(): void {

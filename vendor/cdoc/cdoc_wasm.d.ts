@@ -33,6 +33,10 @@ export class EditorHandle {
     free(): void;
     [Symbol.dispose](): void;
     /**
+     * Holds an image file of at most `max_bytes` bytes; returns the added-image record.
+     */
+    addImage(bytes: Uint8Array, max_bytes: number): Uint8Array;
+    /**
      * Applies a peer's update; returns the result record.
      */
     applyRemote(update: Uint8Array): Uint8Array;
@@ -48,6 +52,11 @@ export class EditorHandle {
      * What a peer at state vector `sv` lacks.
      */
     encodeDiff(sv: Uint8Array): Uint8Array;
+    /**
+     * Collects the tombstones every peer in `known` (the known-peers record) has seen;
+     * returns the collected record. Call it only when every listed peer is caught up.
+     */
+    gc(known: Uint8Array): Uint8Array;
     /**
      * The position record nearest `(x, y)` on `page`.
      */
@@ -323,10 +332,12 @@ export interface InitOutput {
     readonly editorfonts_aliasFont: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly editorfonts_new: (a: number, b: number) => number;
     readonly editorfonts_seal: (a: number) => number;
+    readonly editorhandle_addImage: (a: number, b: number, c: number, d: number) => [number, number, number, number];
     readonly editorhandle_applyRemote: (a: number, b: number, c: number) => [number, number, number, number];
     readonly editorhandle_awareness: (a: number) => [number, number];
     readonly editorhandle_blank: (a: bigint, b: number) => [number, number, number];
     readonly editorhandle_encodeDiff: (a: number, b: number, c: number) => [number, number, number, number];
+    readonly editorhandle_gc: (a: number, b: number, c: number) => [number, number, number, number];
     readonly editorhandle_hitTest: (a: number, b: number, c: number, d: number) => [number, number, number, number];
     readonly editorhandle_open: (a: number, b: number, c: bigint, d: number) => [number, number, number];
     readonly editorhandle_pageCount: (a: number) => number;

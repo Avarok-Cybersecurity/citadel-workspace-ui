@@ -8,6 +8,7 @@ import type { CdocClient } from '../worker/cdoc-client';
 import type { PageRenderer } from '../paint/page-renderer';
 import {
   COMMAND_OPCODES,
+  type AddedImage,
   type EditorCommand,
   type EditorCommandName,
   type EditorCommands,
@@ -20,7 +21,9 @@ import {
 } from './controller';
 import { Emitter } from './emitter';
 import { encodeCommand } from './wire/encode-command';
-import { decodeAwareness, decodePeerView, decodePosition, decodeResult, type Awareness, type EditorResult } from './wire/decode-records';
+import { decodeAddedImage, decodeAwareness, decodeCollected, decodePeerView, decodePosition, decodeResult, type Awareness, type EditorResult } from './wire/decode-records';
+import { RecordWriter } from './wire/record-writer';
+import type { ExportFormat, ImportReport } from './file-formats';
 import type { EditorResults } from '../worker/editor-protocol';
 import { PeerSet } from './peer-set';
 
@@ -45,6 +48,8 @@ export class EditorSession implements EditorController, EditorView {
   private disposed: boolean = false;
   private readonly events: Emitter<EditorEvents> = new Emitter<EditorEvents>();
   readonly peers: PeerSet = new PeerSet();
+  /** Opening from file bytes is not in this binary yet (EditorEngine refuses it), so never set. */
+  readonly importReport: ImportReport | null = null;
   readonly commands: EditorCommands;
 
   private constructor(private readonly deps: EditorSessionDeps, initial: EditorState, sizes: Int32Array) {
@@ -109,7 +114,7 @@ export class EditorSession implements EditorController, EditorView {
     if (countChanged) this.sizes = (await this.deps.client.request({ kind: 'pageSizes' })).pageSizes;
     this.current = {
       anchor: r.anchor, head: r.head, caret: r.caret, selectionRects: r.selectionRects, caretPage: r.caret?.page ?? null,
-      pageCount: r.pageCount, composing, caretFormatting: { known: false },
+      pageCount: r.pageCount, composing, caretFormatting: r.formatting,
     };
     if (local && r.update.length > 0) this.events.emit('change', { update: r.update, dirtyPages: r.dirtyPages });
     if (countChanged || r.dirtyPages.length > 0) this.events.emit('pages', { pageCount: r.pageCount, dirtyPages: r.dirtyPages });
@@ -133,14 +138,26 @@ export class EditorSession implements EditorController, EditorView {
     return this.serial(async () => decodePeerView((await this.deps.client.request({ kind: 'peerView', record: record.slice() })).record));
   }
 
-  collectGarbage(): Promise<void> {
-    return this.serial(async (): Promise<void> => {
-      await this.deps.client.request({ kind: 'gc' });
-    });
+  stateVector(): Promise<Uint8Array> {
+    return this.serial(async (): Promise<Uint8Array> => (await this.deps.client.request({ kind: 'stateVector' })).stateVector);
   }
 
-  addImage(bytes: Uint8Array, mime: string): Promise<string> {
-    return this.serial(async (): Promise<string> => (await this.deps.client.request({ kind: 'addImage', bytes: bytes.slice(), mime })).contentId);
+  encodeDiff(sv: Uint8Array): Promise<Uint8Array> {
+    return this.serial(async (): Promise<Uint8Array> => (await this.deps.client.request({ kind: 'encodeDiff', sv: sv.slice() })).update);
+  }
+
+  collectGarbage(known: readonly Uint8Array[]): Promise<{ readonly units: number; readonly deletes: number }> {
+    const w: RecordWriter = new RecordWriter().uv(known.length);
+    for (const sv of known) w.bytes(sv);
+    return this.serial(async () => decodeCollected((await this.deps.client.request({ kind: 'gc', known: w.finish() })).record));
+  }
+
+  exportAs(format: ExportFormat): Promise<Uint8Array> {
+    return this.serial(async (): Promise<Uint8Array> => (await this.deps.client.request({ kind: 'exportAs', format })).bytes);
+  }
+
+  addImage(bytes: Uint8Array, maxBytes: number): Promise<AddedImage> {
+    return this.serial(async (): Promise<AddedImage> => decodeAddedImage((await this.deps.client.request({ kind: 'addImage', bytes: bytes.slice(), maxBytes })).record));
   }
 
   attachFocus(target: (() => void) | null): void {

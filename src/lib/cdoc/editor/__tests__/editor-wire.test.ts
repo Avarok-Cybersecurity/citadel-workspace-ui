@@ -24,7 +24,7 @@ async function run(command: EditorCommand): Promise<EditorResult> {
 
 beforeEach(async () => {
   client = new InProcessCdocClient(realHost(recordingPort().port, recordingTarget));
-  await client.request({ kind: 'editorOpen', client: 7n, from: { blank: true } });
+  await client.request({ kind: 'editorOpen', client: 7n, from: { kind: 'blank' } });
 });
 
 describe('editor records against cdoc-edit', () => {
@@ -103,6 +103,34 @@ describe('editor records against cdoc-edit', () => {
       expect(await paintedFaces()).toEqual([face]);
     },
   );
+
+  it('reports formatting at the caret: bold after a toggle, mixed across bold and plain', async () => {
+    await run({ name: 'insertText', text: 'plain ' });
+    await run({ name: 'toggleMark', mark: 'bold' });
+    const typed: EditorResult = await run({ name: 'insertText', text: 'bold' });
+    expect(typed.formatting.run.bold).toBe(true);
+    expect(typed.formatting.runMixed.size).toBe(0);
+    const all: EditorResult = await run({ name: 'selectAll' });
+    expect([...all.formatting.runMixed]).toContain('bold');
+    expect(all.formatting.run.bold).not.toBe(true);
+  });
+
+  it('patches a paragraph field by field and clears with null', async () => {
+    await run({ name: 'insertText', text: 'centred' });
+    const set: EditorResult = await run({ name: 'setParagraphProperty', patch: { alignment: 'center', spacing: { before: 1200 } } });
+    expect(set.formatting.paragraphDirect.alignment).toBe('center');
+    expect(set.formatting.paragraphDirect.spacing?.before).toBe(1200);
+    const cleared: EditorResult = await run({ name: 'setParagraphProperty', patch: { alignment: null } });
+    expect(cleared.formatting.paragraphDirect.alignment).toBeUndefined();
+    expect(cleared.formatting.paragraphDirect.spacing?.before).toBe(1200);
+  });
+
+  it('turns the page to landscape with SetSectionProperty', async () => {
+    await run({ name: 'insertText', text: 'wide' });
+    await run({ name: 'setSectionProperty', patch: { orientation: 'landscape' } });
+    const { pageSizes } = await client.request({ kind: 'pageSizes' });
+    expect([...pageSizes]).toEqual([84190, 59530]);
+  });
 
   it('undoes typing back to an empty change set', async () => {
     await run({ name: 'insertText', text: 'gone' });

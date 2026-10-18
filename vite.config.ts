@@ -243,6 +243,7 @@ export default defineConfig(({ mode }) => {
           // (cdoc-edit, citadel-docs aff63f9) is 4,222,829 bytes, over the old 4 MiB,
           // and workbox drops an over-cap file from the precache SILENTLY. Measured
           // size plus ~6%; it comes back down when the wasm is split per app.
+          // 59d18eb (gc, addImage, result v2) measures 4,323,294: 4% under, held.
           maximumFileSizeToCacheInBytes: 4_500_000,
           // SPA fallback, minus the endpoints that must always hit the network.
           // `/`, never `/index.html`: the Worker's asset handler answers /index.html with a

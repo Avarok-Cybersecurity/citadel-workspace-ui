@@ -102,7 +102,8 @@ export class CdocHost {
       case 'invalidatePages':
         this.painter.invalidate(req.pages);
         return { pages: req.pages };
-      case 'apply': case 'applyRemote': case 'hitTest': case 'snapshot': case 'awareness': case 'peerView': case 'pageSizes': case 'gc': case 'addImage':
+      case 'apply': case 'applyRemote': case 'hitTest': case 'snapshot': case 'awareness': case 'peerView': case 'pageSizes':
+      case 'stateVector': case 'encodeDiff': case 'gc': case 'addImage': case 'exportAs':
         return serveEditor(this.requireEditor(), req);
     }
   }

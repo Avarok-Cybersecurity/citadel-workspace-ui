@@ -1,5 +1,5 @@
 /**
- * EditorCommand -> request record (docs/edit-commands.md v1): the opcode from COMMAND_OPCODES,
+ * EditorCommand -> request record (docs/edit-commands.md v2): the opcode from COMMAND_OPCODES,
  * then the command's fields in the spec's order. Enumerations are written as their index in
  * the spec's table, the same tables cdoc-edit's decoder reads.
  */
@@ -25,7 +25,8 @@ function fields(w: RecordWriter, c: EditorCommand): void {
     case 'insertBreak': w.u8(code(BREAKS, c.kind)); return;
     case 'toggleMark': w.u8(code(MARKS, c.mark)); return;
     case 'setRunProperty':
-    case 'setParagraphProperty': w.value(c.patch); return;
+    case 'setParagraphProperty':
+    case 'setSectionProperty': w.value(c.patch); return;
     case 'setParagraphStyle': w.str(c.style); return;
     case 'setNumbering': w.uv(c.numId, 'numId').u8(c.level); return;
     case 'insertTable': w.uv(c.rows, 'rows').uv(c.cols, 'cols'); return;

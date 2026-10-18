@@ -32,7 +32,7 @@ const percentile = (xs: number[], p: number): number => [...xs].sort((a: number,
 export async function measureKeystrokes(pages: number, keystrokes: number): Promise<KeystrokePerf> {
   const client: InProcessCdocClient = new InProcessCdocClient(realHost(nullPort, (): typeof nullTarget => nullTarget));
   const renderer: WorkerPageRenderer = new WorkerPageRenderer(client, (): OffscreenCanvas => ({}) as OffscreenCanvas);
-  const editor: EditorSession = await EditorSession.open({ client, renderer }, 1n, { blank: true });
+  const editor: EditorSession = await EditorSession.open({ client, renderer }, 1n, { kind: 'blank' });
   while (editor.state.pageCount < pages) await editor.execute({ name: 'insertText', text: `${PARAGRAPH}\n`.repeat(40) });
   // Into the middle of the document, as a writer editing an existing draft would be.
   const middle: EditorPosition = await editor.hitTest(Math.floor(pages / 2), 7200, 20_000);

@@ -217,6 +217,8 @@ const DEFERRED_MODULES = [
  * its codec, the faster DOCX reader) is 4,222,829 bytes (1.5 MB gzipped); measured plus ~4%,
  * with the precache cap raised to 4,500,000 beside it. It comes back down with the per-app
  * wasm split (formats, editing and PDF loaded lazily); raise it on purpose, with the reason here.
+ *   Re-measured at citadel-docs 59d18eb (EditorHandle gc and addImage, result v2 with caret
+ *   formatting): 4,323,294 bytes, 1.8% under; held, not raised.
  */
 const CDOC_WASM_BUDGET_BYTES = 4_400_000;
 const CDOC_WASM = join(dist, 'cdoc', 'cdoc_wasm_bg.wasm');

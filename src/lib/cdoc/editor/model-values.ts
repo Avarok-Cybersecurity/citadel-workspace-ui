@@ -40,20 +40,56 @@ export type LineSpacing =
 
 export type FirstLine = { readonly kind: 'indent'; readonly by: Pt100 } | { readonly kind: 'hanging'; readonly by: Pt100 };
 
+export type Spacing = { readonly before?: Pt100; readonly after?: Pt100; readonly line?: LineSpacing };
+export type Indent = { readonly left?: Pt100; readonly right?: Pt100; readonly firstLine?: FirstLine };
+
 /**
- * `ParagraphProperties` less `borders` and `shading`, which no command surface sets yet; add
- * them here, in the model's shape, when one does.
+ * `ParagraphProperties` as the editor reports them (formatting at the caret), less `borders`
+ * and `shading`, which no command surface reads yet; add them in the model's shape when one does.
  */
-export interface ParagraphPropertiesPatch {
+export interface ParagraphProperties {
   readonly style?: string;
   readonly alignment?: Alignment;
-  readonly spacing?: { readonly before?: Pt100; readonly after?: Pt100; readonly line?: LineSpacing };
-  readonly indent?: { readonly left?: Pt100; readonly right?: Pt100; readonly firstLine?: FirstLine };
+  readonly spacing?: Spacing;
+  readonly indent?: Indent;
   readonly keepWithNext?: boolean;
   readonly keepLines?: boolean;
   readonly pageBreakBefore?: boolean;
   readonly numbering?: { readonly numId: number; readonly level: number };
   readonly outlineLevel?: number;
+}
+
+/** A field of a patch: absent keeps the paragraph's value, a value sets it, null clears it. */
+type Patched<T> = T | null;
+
+/**
+ * `ParagraphPatch` (docs/edit-commands.md v2): each field absent (keep), a value (set) or null
+ * (clear, so the style's value shows). `spacing` and `indent` are patched field by field.
+ */
+export interface ParagraphPatch {
+  readonly style?: Patched<string>;
+  readonly alignment?: Patched<Alignment>;
+  readonly spacing?: Patched<{ readonly before?: Patched<Pt100>; readonly after?: Patched<Pt100>; readonly line?: Patched<LineSpacing> }>;
+  readonly indent?: Patched<{ readonly left?: Patched<Pt100>; readonly right?: Patched<Pt100>; readonly firstLine?: Patched<FirstLine> }>;
+  readonly keepWithNext?: Patched<boolean>;
+  readonly keepLines?: Patched<boolean>;
+  readonly pageBreakBefore?: Patched<boolean>;
+  readonly numbering?: Patched<{ readonly numId: number; readonly level: number }>;
+  readonly outlineLevel?: Patched<number>;
+}
+
+export type Orientation = 'portrait' | 'landscape';
+
+/** `PageSetupPatch`: an absent field keeps the section's value, a present one replaces it whole. */
+export interface PageSetupPatch {
+  readonly size?: { readonly width: Pt100; readonly height: Pt100; readonly orientation: Orientation };
+  /** Applied after `size`: swaps width and height when the paper has the other orientation. */
+  readonly orientation?: Orientation;
+  readonly margins?: {
+    readonly top: Pt100; readonly bottom: Pt100; readonly left: Pt100; readonly right: Pt100;
+    readonly header: Pt100; readonly footer: Pt100; readonly gutter: Pt100;
+  };
+  readonly columns?: { readonly count: number; readonly gap: Pt100; readonly separator: boolean };
 }
 
 /** A comment or reply; `date` is RFC 3339, `parent` names the comment replied to. */

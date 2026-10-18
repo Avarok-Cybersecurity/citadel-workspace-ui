@@ -26,9 +26,10 @@ export function serveEditor(editor: EditorEngine, req: EditorSessionRequest): Ed
     case 'awareness': return { record: editor.awareness() };
     case 'peerView': return { record: editor.peerView(req.record) };
     case 'pageSizes': return { pageSizes: editor.pageSizes() };
-    case 'gc':
-      editor.collectGarbage();
-      return { collected: true };
-    case 'addImage': return { contentId: editor.addImage(req.bytes, req.mime) };
+    case 'stateVector': return { stateVector: editor.stateVector() };
+    case 'encodeDiff': return { update: editor.encodeDiff(req.sv) };
+    case 'gc': return { record: editor.collectGarbage(req.known) };
+    case 'addImage': return { record: editor.addImage(req.bytes, req.maxBytes) };
+    case 'exportAs': return { bytes: editor.exportAs(req.format) };
   }
 }

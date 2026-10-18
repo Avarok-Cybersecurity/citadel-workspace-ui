@@ -3,12 +3,14 @@
  * Layout) call commands by name, read the selection and caret, and listen for changes; the
  * collaboration wiring relays updates and awareness. The editor itself (cdoc-edit's
  * EditorHandle) runs in the cdoc worker; every command becomes one request record of
- * citadel-docs docs/edit-commands.md (version 1), whose opcode COMMAND_OPCODES names.
+ * citadel-docs docs/edit-commands.md (version 2), whose opcode COMMAND_OPCODES names.
  *
  * EditorCommand is the single source: `commands` and `execute` are both derived from it, so a
  * command added there is a type error until it has an opcode and both surfaces carry it.
  */
-import type { CommentValue, ParagraphPropertiesPatch, Pt100, RunPropertiesPatch } from './model-values';
+import type { CommentValue, PageSetupPatch, ParagraphPatch, Pt100, RunPropertiesPatch } from './model-values';
+import type { CaretFormatting } from './caret-formatting';
+import type { ExportFormat, ImportFormat, ImportReport } from './file-formats';
 import type { PeerOverlay } from './peer-overlay';
 
 /**
@@ -45,12 +47,14 @@ export type EditorCommand =
   | { readonly name: 'insertTab' }
   | { readonly name: 'toggleMark'; readonly mark: Mark }
   | { readonly name: 'setRunProperty'; readonly patch: RunPropertiesPatch }
-  | { readonly name: 'setParagraphProperty'; readonly patch: ParagraphPropertiesPatch }
+  | { readonly name: 'setParagraphProperty'; readonly patch: ParagraphPatch }
   | { readonly name: 'setParagraphStyle'; readonly style: string }
   | { readonly name: 'setNumbering'; readonly numId: number; readonly level: number }
   | { readonly name: 'clearNumbering' }
   | { readonly name: 'indent' }
   | { readonly name: 'outdent' }
+  /** Page setup of every section from the anchor's to the head's. */
+  | { readonly name: 'setSectionProperty'; readonly patch: PageSetupPatch }
   | { readonly name: 'insertTable'; readonly rows: number; readonly cols: number }
   | { readonly name: 'insertRowAbove' }
   | { readonly name: 'insertRowBelow' }
@@ -100,6 +104,7 @@ export const COMMAND_OPCODES: { readonly [N in EditorCommandName]: number } = {
   clearNumbering: 0x0c,
   indent: 0x0d,
   outdent: 0x0e,
+  setSectionProperty: 0x0f,
   insertTable: 0x10,
   insertRowAbove: 0x11,
   insertRowBelow: 0x12,
@@ -129,16 +134,7 @@ export const COMMAND_OPCODES: { readonly [N in EditorCommandName]: number } = {
   compositionCancel: 0x53,
 };
 
-/**
- * Formatting at the caret, for the ribbons' toggle and picker states. The v1 result record
- * carries none of it (no run or paragraph properties, style or numbering at the caret), so
- * today it is always `{ known: false }`; ribbons must render an indeterminate state for that,
- * never guess. It becomes `known: true` when cdoc-edit reports it (a caret-formatting result
- * is scheduled there); the `known: true` shape is the model's, so ribbons can be written now.
- */
-export type CaretFormatting =
-  | { readonly known: false }
-  | { readonly known: true; readonly run: RunPropertiesPatch; readonly paragraph: ParagraphPropertiesPatch };
+export type { CaretFormatting } from './caret-formatting';
 
 export interface EditorState {
   readonly anchor: EditorPosition;
@@ -182,8 +178,20 @@ export type EditorCommands = {
     : (args: ArgsOf<N>) => Promise<EditorState>;
 };
 
-/** What a replica opens from: a CRDT snapshot, or a new blank document. */
-export type EditorOrigin = { readonly snapshot: Uint8Array } | { readonly blank: true };
+/** What a replica opens from: a new blank document, a CRDT snapshot, or a file's bytes. */
+export type EditorOrigin =
+  | { readonly kind: 'blank' }
+  | { readonly kind: 'snapshot'; readonly snapshot: Uint8Array }
+  | { readonly kind: 'bytes'; readonly bytes: Uint8Array; readonly format: ImportFormat };
+
+/** A stored image (the "CDI" record): its content id is `sha256-` and the file's hex digest. */
+export interface AddedImage {
+  readonly contentId: string;
+  readonly kind: 'png' | 'jpeg';
+  /** Pixels; the display size is the caller's, sent with insertImage in Pt100. */
+  readonly width: number;
+  readonly height: number;
+}
 
 /**
  * The only way to open a replica. Each call is a NEW replica with its own random 64-bit CRDT
@@ -211,16 +219,27 @@ export interface EditorController {
   awareness(): Promise<Uint8Array>;
   /** A peer's awareness record as rectangles on this replica's pages. */
   peerView(record: Uint8Array): Promise<PeerView>;
+  /** This replica's state vector, for a peer to compute what this replica lacks. */
+  stateVector(): Promise<Uint8Array>;
+  /** The update a peer at state vector `sv` lacks, to send it. */
+  encodeDiff(sv: Uint8Array): Promise<Uint8Array>;
   /**
-   * Collects this replica's tombstones (cdoc-crdt Doc::gc). Valid only when every peer holds
-   * everything this replica holds; the collaboration session decides when.
+   * Collects this replica's tombstones (cdoc-crdt Doc::gc) that every peer in `known` (each
+   * peer's acknowledged stateVector) has seen; resolves with what was removed. Valid only when
+   * every peer holds everything this replica holds; the collaboration session decides when.
+   * The undo history ends.
    */
-  collectGarbage(): Promise<void>;
+  collectGarbage(known: readonly Uint8Array[]): Promise<{ readonly units: number; readonly deletes: number }>;
   /**
-   * Stores an image's bytes in the document's image store (EditorHandle.addImage) and resolves
-   * with the content id `insertImage` takes. `mime` is the image's media type, e.g. image/png.
+   * Holds an image file (PNG or JPEG, read from its signature) of at most `maxBytes` bytes, and
+   * resolves with its content id and pixel size; `insertImage` then places it. Store the bytes
+   * in the workspace's content store under that id before relaying the insertImage update.
    */
-  addImage(bytes: Uint8Array, mime: string): Promise<string>;
+  addImage(bytes: Uint8Array, maxBytes: number): Promise<AddedImage>;
+  /** The live document as a file. */
+  exportAs(format: ExportFormat): Promise<Uint8Array>;
+  /** What the import lost, for a replica opened from file bytes; null otherwise. */
+  readonly importReport: ImportReport | null;
   /** Returns keyboard focus to the editor, e.g. after a ribbon button took it. */
   focus(): void;
   on<E extends EditorEventName>(event: E, listener: (payload: EditorEvents[E]) => void): () => void;

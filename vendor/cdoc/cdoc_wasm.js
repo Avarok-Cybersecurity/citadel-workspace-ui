@@ -85,6 +85,23 @@ export class EditorHandle {
         wasm.__wbg_editorhandle_free(ptr, 0);
     }
     /**
+     * Holds an image file of at most `max_bytes` bytes; returns the added-image record.
+     * @param {Uint8Array} bytes
+     * @param {number} max_bytes
+     * @returns {Uint8Array}
+     */
+    addImage(bytes, max_bytes) {
+        const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.editorhandle_addImage(this.__wbg_ptr, ptr0, len0, max_bytes);
+        if (ret[3]) {
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v2;
+    }
+    /**
      * Applies a peer's update; returns the result record.
      * @param {Uint8Array} update
      * @returns {Uint8Array}
@@ -133,6 +150,23 @@ export class EditorHandle {
         const ptr0 = passArray8ToWasm0(sv, wasm.__wbindgen_malloc);
         const len0 = WASM_VECTOR_LEN;
         const ret = wasm.editorhandle_encodeDiff(this.__wbg_ptr, ptr0, len0);
+        if (ret[3]) {
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v2;
+    }
+    /**
+     * Collects the tombstones every peer in `known` (the known-peers record) has seen;
+     * returns the collected record. Call it only when every listed peer is caught up.
+     * @param {Uint8Array} known
+     * @returns {Uint8Array}
+     */
+    gc(known) {
+        const ptr0 = passArray8ToWasm0(known, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.editorhandle_gc(this.__wbg_ptr, ptr0, len0);
         if (ret[3]) {
             throw takeFromExternrefTable0(ret[2]);
         }

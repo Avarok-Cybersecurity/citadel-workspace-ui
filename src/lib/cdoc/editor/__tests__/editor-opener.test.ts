@@ -1,14 +1,25 @@
 /**
  * Replicas: each open is a new CRDT client id drawn from the random source, read back from
- * the real engine's own awareness record. And garbage collection either runs in the engine or
- * says it cannot, never a silent success.
+ * the real engine's own awareness record; tombstone collection between two real replicas;
+ * images held by signature; and the file calls that are not in this binary failing by name.
  */
 import { describe, expect, it } from 'vitest';
 import { inProcessRuntime, type TestRuntime } from '../../__tests__/wasm-rig';
 import { createEditorOpener, newReplicaId } from '../editor-opener';
 import type { EditorSession } from '../editor-session';
-import type { EditorOrigin } from '../controller';
+import type { AddedImage, EditorOrigin } from '../controller';
+import { createHash } from 'node:crypto';
 import { decodeAwareness } from '../wire/decode-records';
+
+/** The smallest PNG: a 1x1 transparent pixel. */
+const PNG_1X1: Uint8Array = Uint8Array.from(Buffer.from(
+  '89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a49444154789c63000100000500010d0a2db40000000049454e44ae426082', 'hex',
+));
+
+async function opened(random: (bytes: Uint8Array) => Uint8Array, from: EditorOrigin): Promise<EditorSession> {
+  const runtime: TestRuntime = inProcessRuntime('worker');
+  return createEditorOpener({ client: runtime.client, renderer: runtime.renderer }, random)(from);
+}
 
 /** A deterministic source standing in for crypto.getRandomValues: the id it yields is known. */
 function counting(): (bytes: Uint8Array) => Uint8Array {
@@ -29,28 +40,43 @@ describe('the editor opener', () => {
   it('opens every replica with a fresh client id, which the engine then reports as its own', async () => {
     const runtime: TestRuntime = inProcessRuntime('worker');
     const open: (from: EditorOrigin) => Promise<EditorSession> = createEditorOpener({ client: runtime.client, renderer: runtime.renderer }, counting());
-    const first: EditorSession = await open({ blank: true });
+    const first: EditorSession = await open({ kind: 'blank' });
     const firstId: bigint = decodeAwareness(await first.awareness()).client;
-    const second: EditorSession = await open({ blank: true });
+    const second: EditorSession = await open({ kind: 'blank' });
     const secondId: bigint = decodeAwareness(await second.awareness()).client;
     expect(firstId).toBe(0x0102030405060708n);
     expect(secondId).toBe(0x090a0b0c0d0e0f10n);
   });
 
-  // The vendored cdoc-edit has no EditorHandle.gc yet (it arrives with the caret-state
-  // release); when it does, this turns red and becomes the test that gc ran.
-  it('fails, saying so, when the binary cannot collect garbage', async () => {
-    const runtime: TestRuntime = inProcessRuntime('worker');
-    const editor: EditorSession = await createEditorOpener({ client: runtime.client, renderer: runtime.renderer }, counting())({ blank: true });
-    await editor.execute({ name: 'insertText', text: 'tomb' });
-    await editor.execute({ name: 'deleteBackward', unit: 'word' });
-    await expect(editor.collectGarbage()).rejects.toThrow(/cannot collect garbage \(EditorHandle\.gc is missing\)/);
+  it('collects the tombstones a caught-up peer has seen, and refuses with no peers listed', async () => {
+    const a: EditorSession = await opened(counting(), { kind: 'blank' });
+    // The peer joins from A's snapshot, as a collaborator does: one document, two replicas.
+    const b: EditorSession = await opened((bytes: Uint8Array): Uint8Array => bytes.fill(0x22), { kind: 'snapshot', snapshot: await a.snapshot() });
+    await a.execute({ name: 'insertText', text: 'tomb stone' });
+    await b.applyRemote(await a.encodeDiff(await b.stateVector()));
+    await a.execute({ name: 'deleteBackward', unit: 'word' });
+    await b.applyRemote(await a.encodeDiff(await b.stateVector()));
+    await expect(a.collectGarbage([])).rejects.toThrow();
+    const collected: { readonly units: number; readonly deletes: number } = await a.collectGarbage([await b.stateVector()]);
+    expect(collected.units).toBeGreaterThan(0);
   });
 
-  // Likewise EditorHandle.addImage, from the same release.
-  it('fails, saying so, when the binary cannot store images', async () => {
+  it('holds a PNG, naming it by its sha256, and refuses a file over the limit', async () => {
+    const editor: EditorSession = await opened(counting(), { kind: 'blank' });
+    const image: AddedImage = await editor.addImage(PNG_1X1, 1024);
+    expect(image).toEqual({ contentId: `sha256-${createHash('sha256').update(PNG_1X1).digest('hex')}`, kind: 'png', width: 1, height: 1 });
+    await expect(editor.addImage(PNG_1X1, PNG_1X1.length - 1)).rejects.toThrow();
+    await expect(editor.addImage(Uint8Array.from([0x47, 0x49, 0x46, 0x38, 0x39, 0x61]), 1024)).rejects.toThrow(/unsupported image type: GIF/);
+  });
+
+  // cdoc-edit-io (EditorHandle.fromDocument / exportAs) is not vendored yet: both refuse by
+  // name, and these turn red when it is, to become the import and export tests.
+  it('refuses to open file bytes, and to export, saying which call is missing', async () => {
     const runtime: TestRuntime = inProcessRuntime('worker');
-    const editor: EditorSession = await createEditorOpener({ client: runtime.client, renderer: runtime.renderer }, counting())({ blank: true });
-    await expect(editor.addImage(Uint8Array.from([0x89, 0x50, 0x4e, 0x47]), 'image/png')).rejects.toThrow(/cannot store images \(EditorHandle\.addImage is missing\)/);
+    const open: (from: EditorOrigin) => Promise<EditorSession> = createEditorOpener({ client: runtime.client, renderer: runtime.renderer }, counting());
+    await expect(open({ kind: 'bytes', bytes: Uint8Array.from([1, 2, 3]), format: 'docx' })).rejects.toThrow(/cannot open docx files \(EditorHandle\.fromDocument is missing\)/);
+    const editor: EditorSession = await open({ kind: 'blank' });
+    await expect(editor.exportAs('pdf')).rejects.toThrow(/cannot export pdf \(EditorHandle\.exportAs is missing\)/);
+    expect(editor.importReport).toBeNull();
   });
 });

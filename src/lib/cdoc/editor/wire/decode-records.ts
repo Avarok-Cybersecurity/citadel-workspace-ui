@@ -1,11 +1,15 @@
 /**
- * Reads the editor's records (docs/edit-commands.md v1): the "CDE" result, the "CDA" awareness
- * record, the "CDP" peer view and a bare position. Positions are kept as the exact bytes they
+ * Reads the editor's records (docs/edit-commands.md v2): the "CDE" result, the "CDA" awareness
+ * record, the "CDP" peer view, the "CDI" added image, the "CDG" collection and a bare position. Positions are kept as the exact bytes they
  * were written as (EditorPosition), so they go back into requests unchanged. Every record is
  * read to its end; a short, long or mis-tagged record throws.
  */
-import type { EditorPosition, PageRect, PeerView } from '../controller';
+import type { AddedImage, EditorPosition, PageRect, PeerView } from '../controller';
 import { RecordError } from './record-writer';
+import type { KnownFormatting } from '../caret-formatting';
+import { readFormatting } from './decode-formatting';
+
+const utf8: TextDecoder = new TextDecoder('utf-8', { fatal: true });
 
 export interface EditorResult {
   /** The CRDT update to relay; empty when nothing changed (always, for a remote update). */
@@ -16,6 +20,7 @@ export interface EditorResult {
   readonly head: EditorPosition;
   readonly caret: PageRect | null;
   readonly selectionRects: readonly PageRect[];
+  readonly formatting: KnownFormatting;
 }
 
 export interface Awareness {
@@ -24,20 +29,27 @@ export interface Awareness {
   readonly head: EditorPosition;
 }
 
-class RecordReader {
+export class RecordReader {
   private at: number = 0;
 
   constructor(private readonly bytes: Uint8Array) {}
+
+  u8(): number {
+    return this.byte();
+  }
 
   private byte(): number {
     if (this.at >= this.bytes.length) throw new RecordError('truncated');
     return this.bytes[this.at++];
   }
 
-  magic(tag: string): void {
-    for (const ch of `${tag}\u0001`) {
-      if (this.byte() !== ch.charCodeAt(0)) throw new RecordError(`not a ${tag} v1 record`);
+  /** The three-letter tag, then the version byte, which must be `version`: any other is refused by name. */
+  magic(tag: string, version: number): void {
+    for (const ch of tag) {
+      if (this.byte() !== ch.charCodeAt(0)) throw new RecordError(`not a ${tag} record`);
     }
+    const v: number = this.byte();
+    if (v !== version) throw new RecordError(`${tag} version ${v}; this UI reads version ${version}`);
   }
 
   uvBig(): bigint {
@@ -63,6 +75,10 @@ class RecordReader {
     const v: bigint = (u & 1n) === 0n ? u >> 1n : -(u >> 1n) - 1n;
     if (v < -0x8000_0000n || v > 0x7fff_ffffn) throw new RecordError(`coordinate ${v} does not fit an i32`);
     return Number(v);
+  }
+
+  str(): string {
+    return utf8.decode(this.bytesField());
   }
 
   bytesField(): Uint8Array {
@@ -103,7 +119,7 @@ class RecordReader {
 
 export function decodeResult(bytes: Uint8Array): EditorResult {
   const r: RecordReader = new RecordReader(bytes);
-  r.magic('CDE');
+  r.magic('CDE', 2);
   const update: Uint8Array = r.bytesField();
   const dirtyPages: number[] = Array.from({ length: r.uv() }, (): number => r.uv());
   const pageCount: number = r.uv();
@@ -111,13 +127,14 @@ export function decodeResult(bytes: Uint8Array): EditorResult {
   const head: EditorPosition = r.position();
   const caret: PageRect | null = r.caret();
   const selectionRects: PageRect[] = r.rects();
+  const formatting: KnownFormatting = readFormatting(r);
   r.end();
-  return { update, dirtyPages, pageCount, anchor, head, caret, selectionRects };
+  return { update, dirtyPages, pageCount, anchor, head, caret, selectionRects, formatting };
 }
 
 export function decodeAwareness(bytes: Uint8Array): Awareness {
   const r: RecordReader = new RecordReader(bytes);
-  r.magic('CDA');
+  r.magic('CDA', 1);
   const client: bigint = r.uvBig();
   const anchor: EditorPosition = r.position();
   const head: EditorPosition = r.position();
@@ -127,7 +144,7 @@ export function decodeAwareness(bytes: Uint8Array): Awareness {
 
 export function decodePeerView(bytes: Uint8Array): PeerView {
   const r: RecordReader = new RecordReader(bytes);
-  r.magic('CDP');
+  r.magic('CDP', 1);
   const client: bigint = r.uvBig();
   const caret: PageRect | null = r.caret();
   const selectionRects: PageRect[] = r.rects();
@@ -140,4 +157,27 @@ export function decodePosition(bytes: Uint8Array): EditorPosition {
   const position: EditorPosition = r.position();
   r.end();
   return position;
+}
+
+const IMAGE_KINDS: readonly AddedImage['kind'][] = ['png', 'jpeg'];
+
+export function decodeAddedImage(bytes: Uint8Array): AddedImage {
+  const r: RecordReader = new RecordReader(bytes);
+  r.magic('CDI', 1);
+  const contentId: string = r.str();
+  const kind: AddedImage['kind'] | undefined = IMAGE_KINDS[r.u8()];
+  if (kind === undefined) throw new RecordError('unknown image kind');
+  const width: number = r.uv();
+  const height: number = r.uv();
+  r.end();
+  return { contentId, kind, width, height };
+}
+
+export function decodeCollected(bytes: Uint8Array): { readonly units: number; readonly deletes: number } {
+  const r: RecordReader = new RecordReader(bytes);
+  r.magic('CDG', 1);
+  const units: number = r.uv();
+  const deletes: number = r.uv();
+  r.end();
+  return { units, deletes };
 }

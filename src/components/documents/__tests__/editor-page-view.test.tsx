@@ -33,7 +33,7 @@ interface Mounted {
 
 async function mount(mode: 'worker' | 'main-thread'): Promise<Mounted> {
   const runtime: TestRuntime = inProcessRuntime(mode);
-  const editor: EditorSession = await EditorSession.open({ client: runtime.client, renderer: runtime.renderer }, 11n, { blank: true });
+  const editor: EditorSession = await EditorSession.open({ client: runtime.client, renderer: runtime.renderer }, 11n, { kind: 'blank' });
   const errors: unknown[] = [];
   render(
     <EditorPageView

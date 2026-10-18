@@ -1,6 +1,6 @@
 /**
  * The editor contract the ribbons and collaboration build against. The opcode table below is
- * transcribed from citadel-docs docs/edit-commands.md (v1, PR #16) as the oracle, so a typo in
+ * transcribed from citadel-docs docs/edit-commands.md (v2, main 59d18eb) as the oracle, so a typo in
  * COMMAND_OPCODES, or a command added without its documented opcode, fails here rather than as
  * an engine error on a key press.
  */
@@ -12,7 +12,7 @@ const DOCUMENTED: ReadonlyArray<readonly [number, string]> = [
   [0x01, 'InsertText'], [0x02, 'DeleteBackward'], [0x03, 'DeleteForward'], [0x04, 'SplitParagraph'],
   [0x05, 'InsertBreak'], [0x06, 'InsertTab'], [0x07, 'ToggleMark'], [0x08, 'SetRunProperty'],
   [0x09, 'SetParagraphProperty'], [0x0a, 'SetParagraphStyle'], [0x0b, 'SetNumbering'], [0x0c, 'ClearNumbering'],
-  [0x0d, 'Indent'], [0x0e, 'Outdent'], [0x10, 'InsertTable'], [0x11, 'InsertRowAbove'], [0x12, 'InsertRowBelow'],
+  [0x0d, 'Indent'], [0x0e, 'Outdent'], [0x0f, 'SetSectionProperty'], [0x10, 'InsertTable'], [0x11, 'InsertRowAbove'], [0x12, 'InsertRowBelow'],
   [0x13, 'InsertColumnLeft'], [0x14, 'InsertColumnRight'], [0x15, 'DeleteRow'], [0x16, 'DeleteColumn'],
   [0x17, 'DeleteTable'], [0x18, 'MergeCells'], [0x20, 'InsertImage'], [0x21, 'InsertFootnote'], [0x22, 'InsertLink'],
   [0x23, 'RemoveLink'], [0x24, 'InsertComment'], [0x30, 'Replace'], [0x31, 'SelectAll'], [0x32, 'SetSelection'],
@@ -44,7 +44,7 @@ describe('the editor worker kinds', () => {
   // Exhaustive at compile time: a kind added to EditorRequestBody is a type error here.
   const EVERY: { readonly [K in EditorKind]: K } = {
     editorOpen: 'editorOpen', apply: 'apply', applyRemote: 'applyRemote', hitTest: 'hitTest',
-    snapshot: 'snapshot', awareness: 'awareness', peerView: 'peerView', pageSizes: 'pageSizes', invalidatePages: 'invalidatePages', gc: 'gc', addImage: 'addImage',
+    snapshot: 'snapshot', awareness: 'awareness', peerView: 'peerView', pageSizes: 'pageSizes', invalidatePages: 'invalidatePages', stateVector: 'stateVector', encodeDiff: 'encodeDiff', gc: 'gc', addImage: 'addImage', exportAs: 'exportAs',
   };
 
   it('lists each kind once', () => {
