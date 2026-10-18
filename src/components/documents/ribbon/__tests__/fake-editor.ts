@@ -9,18 +9,31 @@
  */
 import type { AddedImage, CaretFormatting, EditorCommand, EditorEventName, EditorEvents, EditorPosition, EditorState } from '@/lib/cdoc/editor/controller';
 import type { KnownFormatting, ParagraphKey, RunKey } from '@/lib/cdoc/editor/caret-formatting';
-import type { ParagraphProperties, RunPropertiesPatch } from '@/lib/cdoc/editor/model-values';
+import type { PageSetup, ParagraphProperties, RunPropertiesPatch } from '@/lib/cdoc/editor/model-values';
 import type { RibbonEditor } from '../editor-context';
+
+/**
+ * The section a test caret sits in unless it names one (rationale: the ribbon tests that use
+ * the default do not read Page Setup): A4 portrait, 1-inch margins, one column, as a blank
+ * document's section reads (editor-v4.test.ts pins the engine's own).
+ */
+const A4_SECTION: PageSetup = {
+  size: { width: 59530, height: 84190, orientation: 'portrait' },
+  margins: { top: 7200, bottom: 7200, left: 7200, right: 7200, header: 3600, footer: 3600, gutter: 0 },
+  columns: { count: 1, gap: 3600, separator: false },
+  pageNumbering: { format: 'decimal' },
+};
 
 /** Formatting the engine reports, with direct values equal to the effective ones and nothing mixed unless named. */
 export function knownCaret(
   run: RunPropertiesPatch,
   paragraph: ParagraphProperties,
   mixed: { readonly run?: readonly RunKey[]; readonly paragraph?: readonly ParagraphKey[] } = {},
+  section: PageSetup = A4_SECTION,
 ): KnownFormatting {
   return {
     known: true, run, runDirect: run, paragraph, paragraphDirect: paragraph,
-    runMixed: new Set<RunKey>(mixed.run ?? []), paragraphMixed: new Set<ParagraphKey>(mixed.paragraph ?? []),
+    runMixed: new Set<RunKey>(mixed.run ?? []), paragraphMixed: new Set<ParagraphKey>(mixed.paragraph ?? []), section,
   };
 }
 
@@ -28,7 +41,8 @@ const NOWHERE: EditorPosition = new Uint8Array([0, 0]) as EditorPosition;
 
 export function editorState(caretFormatting: CaretFormatting, overrides: Partial<EditorState> = {}): EditorState {
   return {
-    anchor: NOWHERE, head: NOWHERE, caret: null, selectionRects: [], caretPage: 0, pageCount: 1, composing: false, caretFormatting, ...overrides,
+    anchor: NOWHERE, head: NOWHERE, caret: null, selectionRects: [], caretPage: 0, pageCount: 1, composing: false, caretFormatting,
+    created: [], selectionText: { complete: true, text: '' }, ...overrides,
   };
 }
 
