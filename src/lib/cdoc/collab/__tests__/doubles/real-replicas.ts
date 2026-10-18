@@ -3,10 +3,10 @@
  * vendored cdoc wasm, in process (InProcessCdocClient: everything but the thread hop). Each
  * replica gets a runtime of its own, as each tab has a worker of its own.
  *
- * Every replica opens on one shared base. Two replicas opened `{ kind: 'blank' }` independently
- * do NOT converge on this binary: each blank's structure is authored by its own client id, so
- * one replica's edits name items the other never had. `baseSnapshot` is one blank replica's
- * snapshot, which tests store in the log (KernelLog.seedBase) before anyone opens.
+ * Most tests open on one shared base (`baseSnapshot`, stored in the log by KernelLog.seedBase),
+ * which exercises opening over a stored snapshot. The app opens a new document blank on each
+ * side; that converges because the engine's blank is deterministic (citadel-docs 791ffeb on),
+ * and two-sessions-converge.test.ts holds it to that.
  */
 import { inProcessRuntime, type TestRuntime } from '../../../__tests__/wasm-rig';
 import type { EditorOrigin } from '../../../editor/controller';

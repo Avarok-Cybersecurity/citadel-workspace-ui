@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { EditorSession } from '../../editor/editor-session';
-import { ALICE, BOB, converged, newDocument, openTab, type Tab } from './doubles/harness';
+import { ALICE, BOB, converged, newDocument, newKernel, openTab, type Tab } from './doubles/harness';
 import { realReplicas, snapshotText, typeInto } from './doubles/real-replicas';
 import type { ScriptedKernel } from './doubles/scripted-kernel';
 
@@ -26,6 +26,22 @@ const pullsOf = (kernel: ScriptedKernel, cid: bigint): bigint[] =>
   kernel.sentOf('Pull').filter((r: { cid: bigint }): boolean => r.cid === cid).map((r: { request: { Pull: { since_seq: bigint } } }): bigint => r.request.Pull.since_seq);
 
 describe('two sessions on one document', () => {
+  it('converge on a new document each opened blank on its own, as the app opens one', async () => {
+    const { kernel, clock } = newKernel({});
+    const alice: RealTab = openTab(kernel, clock, ALICE, {}, realReplicas(), null);
+    const bob: RealTab = openTab(kernel, clock, BOB, {}, realReplicas(), null);
+    await alice.session.open();
+    await bob.session.open();
+    await kernel.settle([alice.session, bob.session]);
+    expect([alice.sources, bob.sources]).toEqual([[{ kind: 'blank' }], [{ kind: 'blank' }]]);
+    await typeInto(alice.replica(), 'Hello');
+    await typeInto(bob.replica(), 'World');
+    await kernel.settle([alice.session, bob.session]);
+    expect(await converged([alice, bob])).toBe(true);
+    expect(await snapshotText(bob.replica())).toContain('Hello');
+    expect([...alice.problems, ...bob.problems]).toEqual([]);
+  });
+
   it('converge on interleaved typing through the relay', async () => {
     const { kernel, alice, bob } = await bothOpen();
     await typeInto(alice.replica(), 'Hello');
