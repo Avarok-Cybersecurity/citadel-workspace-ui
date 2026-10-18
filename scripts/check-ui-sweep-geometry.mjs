@@ -16,7 +16,7 @@ import { SIDEBAR_CHECKS } from './lib/polish-harness/checks-sidebar.mjs';
 import { PERMISSION_CHECKS } from './lib/polish-harness/checks-permissions.mjs';
 import { FILE_MANAGER_CHECKS } from './lib/polish-harness/checks-file-manager.mjs';
 import { BREADCRUMB_CHECKS } from './lib/polish-harness/checks-breadcrumbs.mjs';
-import { RIBBON_CHECKS } from './lib/polish-harness/checks-ribbons.mjs';
 import { SHARE_CHECKS } from './lib/polish-harness/checks-share.mjs';
+import { RIBBON_CHECKS } from './lib/polish-harness/checks-ribbons.mjs';
 
-process.exit(await runChecks({ ...PEOPLE_CHECKS, ...OVERLAY_CHECKS, ...CONTROL_CHECKS, ...SPACING_CHECKS, ...SIDEBAR_CHECKS, ...PERMISSION_CHECKS, ...FILE_MANAGER_CHECKS, ...BREADCRUMB_CHECKS, ...RIBBON_CHECKS, ...SHARE_CHECKS }, Number(process.env.SWEEP_PORT ?? 4198)));
+process.exit(await runChecks({ ...PEOPLE_CHECKS, ...OVERLAY_CHECKS, ...CONTROL_CHECKS, ...SPACING_CHECKS, ...SIDEBAR_CHECKS, ...PERMISSION_CHECKS, ...FILE_MANAGER_CHECKS, ...BREADCRUMB_CHECKS, ...SHARE_CHECKS, ...RIBBON_CHECKS }, Number(process.env.SWEEP_PORT ?? 4198)));

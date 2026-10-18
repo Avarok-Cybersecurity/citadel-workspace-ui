@@ -12,8 +12,8 @@ import {
   Settings,
   Star,
   FolderInput,
-  FileText,
   Share2,
+  FileText,
 } from 'lucide-react';
 import { documentPlacement, type DocumentPlacement } from '@/components/documents/document-placement';
 import { getEntityTypeString } from '@/lib/entity-type-registry';

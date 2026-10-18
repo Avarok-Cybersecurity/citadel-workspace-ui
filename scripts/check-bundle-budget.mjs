@@ -183,8 +183,16 @@ const dist = join(root, 'dist');
  * before any chat loads: whether a notifier is attached to the agent (`notices_heard`, its change
  * notification, the leader's relay to followers) and the announcement of every successful claim,
  * which the landing page's own claims make.
+ *
+ * 332 -> 334 (2026-10-18), for secure links (UI #166) meeting Citadel Docs on master: master measured
+ * 331.6, the merge 333.9. What did not have to be on the landing path was moved off it: resolving a
+ * link, its target rules and the secure-links client (3.7 KB raw by source map) now load only when a
+ * visitor arrived with one (lib/share/resolve-here.ts; listed in DEFERRED_MODULES). That took it to
+ * 332.7. What remains (+1.1 KB) is what must run before render: capturing `?redirect=&server=`
+ * before sign-in can drop it (pending-redirect.ts, 1,041 B), the no-link answer every ordinary
+ * sign-in takes (resolve-here.ts, 607 B) and the landing page's sign-in prompt for a link (141 B).
  */
-const BUDGET_KB = 332;
+const BUDGET_KB = 334;
 
 /**
  * Modules that must stay OFF the critical path, checked against the source
@@ -201,6 +209,11 @@ const DEFERRED_MODULES = [
   'src/components/documents/DocsCanvas.tsx',
   'src/lib/cdoc/worker/cdoc.worker.ts',
   'src/lib/cdoc/display-list/decoder.ts',
+  // Secure links: resolving one, its target rules and the client load only when a visitor
+  // arrived with a link (lib/share/resolve-here.ts); boot keeps just the capture.
+  'src/lib/share/resolve-pending-redirect.ts',
+  'src/lib/share/target-rules.ts',
+  'src/lib/workspace-service/secure-links-operations.ts',
 ];
 
 /**
