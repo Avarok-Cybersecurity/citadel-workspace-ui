@@ -6,11 +6,11 @@
  * Keyed by account AND node. Several accounts can be signed in to one browser, and one
  * account's copy of a document must never open in another's tab: that one may not be
  * allowed to read it. A value that is there but malformed is an error, never "no cache".
+ * Removal on sign-out and node deletion: lib/document-replica-cache.ts.
  */
 import { dbGet, dbPut } from '@/lib/storage-utils';
+import { documentCacheKey as keyOf, forgetNodeDocuments } from '@/lib/document-replica-cache';
 import type { CachedDocument, DocumentCache } from './ports';
-
-const keyOf = (account: bigint, nodeId: string): string => `cdoc-collab:${account.toString()}:${nodeId}`;
 
 /** A stored value read back; throws when it is not a CachedDocument. */
 export function readCached(value: unknown): CachedDocument | null {
@@ -27,5 +27,6 @@ export function indexedDbDocumentCache(account: bigint): DocumentCache {
     load: async (nodeId: string): Promise<CachedDocument | null> => readCached(await dbGet<unknown>('keyValue', keyOf(account, nodeId))),
     save: (nodeId: string, document: CachedDocument): Promise<void> =>
       dbPut('keyValue', keyOf(account, nodeId), { docVersion: document.docVersion, seq: document.seq, snapshot: document.snapshot.slice() }),
+    forget: (nodeId: string): Promise<void> => forgetNodeDocuments(account, [nodeId]),
   };
 }

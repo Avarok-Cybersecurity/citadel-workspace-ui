@@ -9,18 +9,16 @@ import type { EditorSession } from '@/lib/cdoc/editor/editor-session';
 import type { DocumentSessionError } from '@/lib/cdoc/collab/session-errors';
 import type { ReplicaKeeper } from './DocsCanvas';
 
-function showProblem(nodeId: string, error: DocumentSessionError): void {
-  toast.error(error.message, { id: `document-collab:${nodeId}:${error.problem.kind}` });
-}
-
 export function collaborationKeeper(nodeId: string): ReplicaKeeper {
   return (open, show, fail): (() => void) => {
     let live: boolean = true;
     let release: (() => void) | null = null;
-    import('@/lib/cdoc/collab/replica-keeper').then(
-      ({ workspaceReplicaKeeper }): void => {
+    Promise.all([import('@/lib/cdoc/collab/replica-keeper'), import('@/lib/cdoc/collab/session-errors')]).then(
+      ([{ workspaceReplicaKeeper }, { noticeKind }]): void => {
         if (!live) return;
-        const keep: ReplicaKeeper = workspaceReplicaKeeper<EditorSession>(nodeId, (error: DocumentSessionError): void => showProblem(nodeId, error));
+        // One notice per node and kind of problem (each refusal by its name): a repeat updates it.
+        const notify = (error: DocumentSessionError): void => { toast.error(error.message, { id: `document-collab:${nodeId}:${noticeKind(error.problem)}` }); };
+        const keep: ReplicaKeeper = workspaceReplicaKeeper<EditorSession>(nodeId, notify);
         release = keep(open, show, fail);
       },
       (error: unknown): void => {

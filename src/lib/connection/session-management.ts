@@ -190,11 +190,24 @@ export async function handleLogout(
   state: ConnectionState, io: ConnectionIO,
 ): Promise<void> {
   state.removeSession(username, serverAddress);
-  if (cid) await io.disconnect(cid);
+  try {
+    if (cid) await io.disconnect(cid);
+  } finally {
+    await forgetAccountDocuments(cid, io);
+  }
   try {
     await io.storeSessionsToLocalDB(state.storedSessions);
   } catch (error) {
     debugLog('ConnectionService', 'Could not persist sessions after logout', error);
+  }
+}
+
+/** The account's decrypted document copies leave this device, whether or not the disconnect worked. */
+async function forgetAccountDocuments(cid: bigint, io: ConnectionIO): Promise<void> {
+  try {
+    await io.forgetAccountDocuments(cid);
+  } catch (error) {
+    debugLog('ConnectionService', 'Could not remove the account\'s document copies after logout', error);
   }
 }
 

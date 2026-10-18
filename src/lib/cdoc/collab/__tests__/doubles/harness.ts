@@ -43,6 +43,8 @@ export function sessionConfig(clientSeqBase: bigint, overrides: Partial<Document
     pullTimeoutMs: 5_000,
     awarenessHeartbeatMs: 3_000,
     peerExpiryMs: 10_000,
+    // Room for the two-tabs-of-one-account tests; the cap itself is peer-book.test.ts's.
+    maxCaretsPerSession: 4,
     clientSeqBase,
     ...overrides,
   };

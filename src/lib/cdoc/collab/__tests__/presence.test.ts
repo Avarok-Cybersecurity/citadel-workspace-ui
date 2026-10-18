@@ -83,6 +83,22 @@ describe('awareness', () => {
     expect(bobOnAlice(alice)).toEqual([expect.objectContaining({ page: 0 })]);
   });
 
+  it('moves a peer\'s caret when this replica repaints the page under it, with no new record', async () => {
+    const { kernel, clock, alice, bob } = await pair();
+    await typeInto(bob.replica(), 'abc');
+    clock.advance(100);
+    await kernel.settle([alice.session, bob.session]);
+    const before: number | undefined = (bobOnAlice(alice)[0] as { rect: { x: number } } | null)?.rect.x;
+    // Bob hears nothing more, so he sends no newer record: only Alice's repaint can move him.
+    kernel.dropPushesTo(BOB, 100);
+    for (let i: number = 0; i < 5; i += 1) await alice.replica().execute({ name: 'moveCaret', granularity: 'char', forward: false, extend: false });
+    await typeInto(alice.replica(), 'zz');
+    await kernel.settle([alice.session, bob.session]);
+    const after: number | undefined = (bobOnAlice(alice)[0] as { rect: { x: number } } | null)?.rect.x;
+    expect(before).toBeDefined();
+    expect(after).toBeGreaterThan(before ?? Infinity);
+  });
+
   it('keeps a quiet peer alive by heartbeat, and forgets one whose session went away', async () => {
     const { kernel, clock, alice, bob } = await pair();
     await bob.replica().execute({ name: 'selectAll' });

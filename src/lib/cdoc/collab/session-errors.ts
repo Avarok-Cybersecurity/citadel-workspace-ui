@@ -15,8 +15,8 @@ export type DocumentSessionProblem =
   | { readonly kind: 'tooLarge'; readonly what: 'update' | 'snapshot' | 'awareness'; readonly sizeBytes: number; readonly maxBytes: number }
   /** An editor call failed (applyRemote of a peer's update, snapshot, peerView, opening). */
   | { readonly kind: 'editorFailed'; readonly operation: string; readonly cause: unknown }
-  /** The local cache could not be read (the document is pulled whole instead) or written. */
-  | { readonly kind: 'cacheFailed'; readonly operation: 'read' | 'write'; readonly cause: unknown }
+  /** The local cache could not be read (the document is pulled whole instead), written or cleared. */
+  | { readonly kind: 'cacheFailed'; readonly operation: 'read' | 'write' | 'forget'; readonly cause: unknown }
   /** A request could not be handed to the transport. */
   | { readonly kind: 'sendFailed'; readonly request: string; readonly cause: unknown };
 
@@ -33,7 +33,7 @@ export class DocumentSessionError extends Error {
 function describeProblem(problem: DocumentSessionProblem): string {
   switch (problem.kind) {
     case 'refused':
-      return `The server refused the document request: ${typeof problem.refusal === 'string' ? problem.refusal : Object.keys(problem.refusal)[0]}`;
+      return `The server refused the document request: ${refusalName(problem.refusal)}`;
     case 'permissionDenied':
       return problem.message;
     case 'docVersionMismatch':
@@ -43,11 +43,27 @@ function describeProblem(problem: DocumentSessionProblem): string {
     case 'editorFailed':
       return `The editor failed to ${problem.operation}: ${causeOf(problem.cause)}`;
     case 'cacheFailed':
-      return `The local copy of the document could not be ${problem.operation === 'read' ? 'read; it is fetched whole instead' : 'saved'}: ${causeOf(problem.cause)}`;
+      return `The local copy of the document could not be ${CACHE_OPERATION[problem.operation]}: ${causeOf(problem.cause)}`;
     case 'sendFailed':
       return `The ${problem.request} request could not be sent: ${causeOf(problem.cause)}`;
   }
 }
+
+/** The kernel's name for a refusal: the variant, whatever kinds the kernel adds later. */
+export function refusalName(refusal: DocumentRefusal): string {
+  return typeof refusal === 'string' ? refusal : Object.keys(refusal)[0];
+}
+
+/** What a notice of `problem` is about: its kind, and for a refusal, which one. */
+export function noticeKind(problem: DocumentSessionProblem): string {
+  return problem.kind === 'refused' ? `refused:${refusalName(problem.refusal)}` : problem.kind;
+}
+
+const CACHE_OPERATION: Readonly<Record<'read' | 'write' | 'forget', string>> = {
+  read: 'read; it is fetched whole instead',
+  write: 'saved',
+  forget: 'removed from this device',
+};
 
 function causeOf(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause);

@@ -82,6 +82,7 @@ describe('snapshot policy', () => {
     const cache: DocumentCache = {
       load: (nodeId: string): Promise<CachedDocument | null> => Promise.resolve(saved.get(nodeId) ?? null),
       save: (nodeId: string, document: CachedDocument): Promise<void> => { saved.set(nodeId, document); return Promise.resolve(); },
+      forget: (nodeId: string): Promise<void> => { saved.delete(nodeId); return Promise.resolve(); },
     };
     const alice: RealTab = openTab(kernel, clock, ALICE, { snapshotAfterLocalUpdates: 2 }, realReplicas(), cache);
     await alice.session.open();
@@ -105,6 +106,7 @@ describe('snapshot policy', () => {
     const broken: DocumentCache = {
       load: (): Promise<CachedDocument | null> => Promise.reject(new Error('storage unavailable')),
       save: (): Promise<void> => Promise.reject(new Error('storage unavailable')),
+      forget: (): Promise<void> => Promise.reject(new Error('storage unavailable')),
     };
     const alice: RealTab = openTab(kernel, clock, ALICE, { snapshotAfterLocalUpdates: 1 }, realReplicas(), broken);
     await alice.session.open();

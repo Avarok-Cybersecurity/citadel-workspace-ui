@@ -28,6 +28,8 @@ export const R1_COLLABORATION: Omit<DocumentSessionConfig, 'nodeId' | 'clientSeq
   // Three heartbeats per expiry: one lost record does not make a present peer vanish.
   awarenessHeartbeatMs: 5_000,
   peerExpiryMs: 15_000,
+  // One caret per tab of an account; more is a session drawing carets it does not have.
+  maxCaretsPerSession: 8,
 };
 
 /** DocsCanvas's ReplicaKeeper, for any replica type the runtime's opener returns. */

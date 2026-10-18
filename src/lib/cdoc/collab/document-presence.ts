@@ -30,7 +30,7 @@ export class DocumentPresence {
     private readonly queue: SerialQueue,
     private readonly host: PresenceHost,
   ) {
-    this.book = new PeerBook(ports.identify, config.peerExpiryMs);
+    this.book = new PeerBook(ports.identify, config.peerExpiryMs, config.maxCaretsPerSession);
     const sendFailed = (cause: unknown): void => host.report({ kind: 'sendFailed', request: 'Awareness', cause });
     // In the session's queue: the record is read after the updates before it are applied, and
     // the session is not settled while a record is still on its way out.
@@ -48,12 +48,13 @@ export class DocumentPresence {
     this.pacer.request();
   }
 
-  /** This replica repainted: every peer's rectangles are re-derived. */
-  repainted(): Promise<void> {
+  /** This replica repainted `dirtyPages` (none: only the page count changed). */
+  repainted(dirtyPages: readonly number[]): Promise<void> {
+    const fromPage: number | null = dirtyPages.length === 0 ? null : Math.min(...dirtyPages);
     return this.queue.run(async (): Promise<void> => {
       const editor: EditorController | null = this.host.editor();
       if (!editor || this.book.size === 0) return;
-      await this.book.remap((record: Uint8Array): Promise<PeerView> => editor.peerView(record));
+      await this.book.remap((record: Uint8Array): Promise<PeerView> => editor.peerView(record), fromPage);
       this.publish();
     });
   }

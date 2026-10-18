@@ -98,17 +98,18 @@ export class DocumentSync {
     else if ('DocumentUpdated' in response) await this.onUpdated(response.DocumentUpdated);
     else if ('Appended' in response) await this.onAppended(response.Appended);
     else if ('SnapshotStored' in response) await this.snapshots.stored(response.SnapshotStored.upto_seq);
-    else if ('Refused' in response) this.onRefused(response.Refused);
+    else if ('Refused' in response) await this.onRefused(response.Refused);
   }
 
   /** A protocol `Error` naming a permission; only ours when we have that kind of request out. */
-  onPermissionDenied(message: string): void {
+  async onPermissionDenied(message: string): Promise<void> {
     const writeDenied: boolean = message.includes('EditMdx') && (!this.outbox.empty || this.snapshots.inFlight);
     const readDenied: boolean = message.includes('ViewContent') && this.cancelPullTimer !== null;
     if (!writeDenied && !readDenied) return;
     if (writeDenied) this.writable = false;
     if (readDenied) { this.readable = false; this.stopPullTimer(); }
     this.host.report({ kind: 'permissionDenied', message });
+    if (readDenied) await this.forgetCached();
   }
 
   stop(): void {
@@ -150,10 +151,21 @@ export class DocumentSync {
     await this.snapshots.consider(this.editorNow, this.cursor.seq, this.caughtUp);
   }
 
-  private onRefused(refusal: Extract<DocumentsResponse, { Refused: unknown }>['Refused']): void {
+  private async onRefused(refusal: Extract<DocumentsResponse, { Refused: unknown }>['Refused']): Promise<void> {
     if (haltsWriting(refusal)) this.writable = false;
     if (typeof refusal !== 'string' && ('SnapshotBehind' in refusal || 'SnapshotAhead' in refusal || 'SnapshotTooLarge' in refusal)) this.snapshots.abandon();
     this.host.report({ kind: 'refused', refusal });
+    if (typeof refusal !== 'string' && 'NoSuchNode' in refusal) await this.forgetCached();
+  }
+
+  /** The node is gone or no longer ours to read: its decrypted copy leaves this device. */
+  private async forgetCached(): Promise<void> {
+    if (!this.ports.cache) return;
+    try {
+      await this.ports.cache.forget(this.config.nodeId);
+    } catch (cause: unknown) {
+      this.host.report({ kind: 'cacheFailed', operation: 'forget', cause });
+    }
   }
 
   private async applyNext(seq: bigint, update: readonly number[]): Promise<void> {

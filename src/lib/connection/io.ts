@@ -10,6 +10,7 @@ import type { SessionSecuritySettings } from '../p2p-registration-service';
 import type { ConnectionIntent, TabSelectionContext, PendingRequest } from './types';
 import { ConnectionIOWebSocket } from './io-websocket';
 import { ConnectionIOServices } from './io-services';
+import { forgetAccountDocuments } from '@/lib/document-replica-cache';
 
 export class ConnectionIO {
   private ws: ConnectionIOWebSocket = new ConnectionIOWebSocket();
@@ -55,6 +56,7 @@ export class ConnectionIO {
   async waitForWebSocketInit(): Promise<void> { return this.ws.waitForWebSocketInit(); }
   async connect(params: { requestId: string; username: string; password: string; sessionSecuritySettings?: SessionSecuritySettings }): Promise<void> { return this.ws.connect(params); }
   async disconnect(cid: bigint): Promise<void> { return this.ws.disconnect(cid); }
+  async forgetAccountDocuments(cid: bigint): Promise<void> { return forgetAccountDocuments(cid); }
   async claimSession(cid: bigint, onlyIfOrphaned: boolean): Promise<unknown> { return this.ws.claimSession(cid, onlyIfOrphaned); }
   async localDBSet(cid: bigint, key: string, value: number[]): Promise<void> { return this.ws.localDBSet(cid, key, value); }
   async localDBGet(cid: bigint, key: string): Promise<{ value: number[] } | null> { return this.ws.localDBGet(cid, key); }

@@ -61,7 +61,7 @@ export class DocumentSession {
     this.unsubscribe.push(
       transport.onResponse((response: DocumentsResponse): void => this.received(response)),
       transport.onError((message: string): void => {
-        if (message.startsWith('Permission denied')) void this.queue.run(async (): Promise<void> => this.sync.onPermissionDenied(message));
+        if (message.startsWith('Permission denied')) void this.queue.run((): Promise<void> => this.sync.onPermissionDenied(message));
       }),
       transport.onLink((state: LinkState): void => this.linkChanged(state)),
     );
@@ -124,7 +124,7 @@ export class DocumentSession {
     const bindings: (() => void)[] = [
       editor.on('change', ({ update }: { readonly update: Uint8Array }): void => { void this.queue.run((): Promise<void> => this.sync.local(update)); }),
       editor.on('selection', (): void => this.presence.moved()),
-      editor.on('pages', (): void => { void this.presence.repainted(); }),
+      editor.on('pages', ({ dirtyPages }: { readonly dirtyPages: readonly number[] }): void => { void this.presence.repainted(dirtyPages); }),
     ];
     this.unbindEditor = (): void => { for (const unbind of bindings) unbind(); };
     this.emit('editor', editor);

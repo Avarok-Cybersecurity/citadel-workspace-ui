@@ -42,6 +42,8 @@ export interface CachedDocument {
 export interface DocumentCache {
   load(nodeId: string): Promise<CachedDocument | null>;
   save(nodeId: string, document: CachedDocument): Promise<void>;
+  /** Removes the node's copy: the node is gone, or this account may no longer read it. */
+  forget(nodeId: string): Promise<void>;
 }
 
 /** Who a session is, for drawing their caret: the member list's name and a colour. */
@@ -70,6 +72,8 @@ export interface DocumentSessionConfig {
   readonly awarenessHeartbeatMs: number;
   /** A peer not heard from for this long is no longer drawn. */
   readonly peerExpiryMs: number;
+  /** The most carets one session's records may place (one per tab of that account). */
+  readonly maxCaretsPerSession: number;
   /**
    * The first `client_seq`; each Append takes the next. Unique per session instance (two tabs
    * of one account both see every `Appended`), e.g. a random 32-bit prefix shifted left 32.
