@@ -4,11 +4,12 @@
  * editor's `pages` events (only dirty pages repaint), the page sizes as they change, and the
  * overlay scene (local selection, caret, peers) for each page.
  */
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import type { EditorSession } from '@/lib/cdoc/editor/editor-session';
 import type { EditorEvents, EditorState, PageRect } from '@/lib/cdoc/editor/controller';
 import type { PeerPresence } from '@/lib/cdoc/editor/peer-overlay';
 import { attachImeBridge } from '@/lib/cdoc/editor/input/ime-bridge';
+import { viewportReporter } from '@/lib/cdoc/editor/viewport-reporter';
 import { attachPointer, type PagePoint } from '@/lib/cdoc/editor/input/pointer';
 import type { Platform } from '@/lib/cdoc/editor/input/keymap';
 import type { OverlayScene } from '@/lib/cdoc/paint/overlay-painter';
@@ -31,6 +32,7 @@ export interface EditorSurface {
   readonly revisionOf: (page: number) => number;
   readonly sceneOf: (page: number, scale: DeviceScale) => OverlayScene;
   readonly state: EditorState;
+  readonly onPaintedPages: (pages: readonly number[]) => void;
 }
 
 /** The page under a client point, in Pt100 page space, from the page element's box. */
@@ -88,6 +90,13 @@ export function useEditorSurface(editor: EditorSession, scroller: RefObject<HTML
     };
   }, [editor, scroller, platform, undoPauseMs, onError, writeClipboard]);
 
+  const onPaintedPages: (pages: readonly number[]) => void = useMemo(() => viewportReporter(
+    (pages: readonly number[]): void => { editor.setViewport(pages).catch(onError); },
+    (task: () => void): void => { requestAnimationFrame(task); },
+  ), [editor, onError]);
+
+  // Rects come only for the pages on screen; a selection with none here is off screen, and so
+  // is its caret's page, so treating it as collapsed draws nothing extra.
   const collapsed: boolean = state.selectionRects.length === 0;
   return {
     overlayContext: options.overlayContext,
@@ -95,6 +104,7 @@ export function useEditorSurface(editor: EditorSession, scroller: RefObject<HTML
     textarea,
     pageSizes,
     state,
+    onPaintedPages,
     revisionOf: (page: number): number => revisions.get(page) ?? 0,
     sceneOf: (page: number, s: DeviceScale): OverlayScene => ({
       page, scale: s, selection: state.selectionRects, caret: collapsed ? state.caret : null, peers,

@@ -31,6 +31,8 @@ export interface ColumnEditing {
   readonly overlayContext: OverlayContextOf;
   /** The local caret: the hidden textarea sits there, so an IME's candidate window does too. */
   readonly caret: PageRect | null;
+  /** The pages painted now (the visible ones and one each side), whenever that set changes. */
+  readonly onPaintedPages: (pages: readonly number[]) => void;
 }
 
 export interface PageColumnProps {
@@ -123,6 +125,11 @@ export function PageColumn({ renderer, sizes, zoom, dpr, onZoomChange, onPageSta
 
   const painted: readonly PageBox[] = layout === null ? [] : visiblePages(layout, viewport.top, viewport.height, OVERSCAN_PAGES).map((n: number) => layout.boxes[n]);
   const columnWidth: number = Math.max(layout?.width ?? 0, viewport.width);
+  const paintedKey: string = painted.map((box: PageBox): number => box.pageNumber).join(',');
+  const onPaintedPages: ((pages: readonly number[]) => void) | null = editing?.onPaintedPages ?? null;
+  useEffect((): void => {
+    if (onPaintedPages !== null && paintedKey !== '') onPaintedPages(paintedKey.split(',').map(Number));
+  }, [onPaintedPages, paintedKey]);
   return (
     <div
       ref={scroller}

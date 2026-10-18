@@ -11,6 +11,9 @@ import type { Call } from '@/lib/cdoc/paint/__tests__/recording-canvas';
 import type { PeerView } from '@/lib/cdoc/editor/controller';
 import { key, mount, settled, statedViewport, type } from './editor-harness';
 
+/** The pages the column has painted (on screen and one each side), from its canvases. */
+const painted = (): number[] => screen.getAllByTestId('document-page').map((el: HTMLElement): number => Number(el.dataset.page)).sort((a, b) => a - b);
+
 statedViewport();
 
 const fills = (calls: readonly Call[]): number => calls.filter((c) => c.name === 'fillRect').length;
@@ -123,4 +126,15 @@ describe.each(['worker', 'main-thread'] as const)('EditorPageView with the %s re
       expect(fills(calls)).toBeGreaterThanOrEqual(3);
     });
   });
+
+  it('tells the editor the pages on screen, so a long selection carries rects for those pages only', async () => {
+    const { editor } = await mount(mode);
+    await act(async () => { await editor.execute({ name: 'insertText', text: 'line\n'.repeat(300) }); });
+    await waitFor(() => expect(editor.state.pageCount).toBeGreaterThanOrEqual(5));
+    await act(async () => { await editor.execute({ name: 'selectAll' }); });
+    const pagesWithRects = (): number[] => [...new Set(editor.state.selectionRects.map((r) => r.page))].sort((a, b) => a - b);
+    await waitFor(() => expect(pagesWithRects()).toEqual(painted()));
+    expect(pagesWithRects().length).toBeLessThan(editor.state.pageCount);
+  });
 });
+
