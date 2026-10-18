@@ -10,7 +10,6 @@ import { connectionManager } from "@/lib/connection";
 import { eventEmitter } from "@/lib/event-emitter";
 import { postAuthSetup } from '@/lib/post-auth-setup';
 import { setSelectedUser } from "@/lib/tab-context";
-import { getWorkspacePath } from "@/lib/workspace-navigation";
 import { debugLog } from '@/lib/debug-config';
 import type { ToastOptions } from '@/hooks/use-toast';
 import type { StoredSessions } from '@/types/session-types';
@@ -23,9 +22,13 @@ interface SessionRedirectTarget {
 }
 
 interface SessionRedirectCallbacks {
-  navigate: (path: string) => void;
   /** The `toast` from useToast(); typed from its own options so the two cannot drift. */
   toast: (opts: ToastOptions) => unknown;
+  /**
+   * Finishes the sign-in, and so opens the pending secure link: the landing page resolves it,
+   * a takeover goes to the workspace whose loader does. Resolving it here as well consumed the
+   * link, and onNext's own resolve then found nothing and sent the visitor to /workspace.
+   */
   onNext: (connectionId: string) => void;
 }
 
@@ -37,7 +40,7 @@ export async function redirectToExistingSession(
   session: SessionRedirectTarget,
   callbacks: SessionRedirectCallbacks,
 ): Promise<void> {
-  const { navigate, toast, onNext } = callbacks;
+  const { toast, onNext } = callbacks;
   const notices: SessionSwitchToasts = sessionSwitchToasts(session.cid, `${session.username}'s workspace`);
 
   try {
@@ -79,8 +82,6 @@ export async function redirectToExistingSession(
       activationType: 'claim',
     });
     debugLog('Login', 'Emitted session:activated for redirect to existing session');
-
-    navigate(getWorkspacePath());
 
     toast(notices.connected);
 

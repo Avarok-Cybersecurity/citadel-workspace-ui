@@ -3,8 +3,12 @@ import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
+  LINK_PACK_ADDON,
+  MAX_LINK_PACKS,
   MAX_STORAGE_BLOCKS,
   STORAGE_ADDON,
+  addonOfferedOn,
+  clampLinkPacks,
   clampSeats,
   clampStorageBlocks,
   formatUsd,
@@ -65,11 +69,45 @@ function IntervalToggle({ interval, onChange }: { readonly interval: BillingInte
   );
 }
 
-/** Step 2: which plan, how many seats, how much extra storage -- and what that costs. */
+interface AddonStepper {
+  readonly field: 'storageBlocks' | 'linkPacks';
+  readonly testId: string;
+  readonly title: string;
+  readonly unitName: string;
+  readonly max: number;
+  readonly offeredOn: (tier: TierId) => boolean;
+  readonly hint: string;
+  /** The total's line for `n` units, and what they cost. */
+  readonly line: (n: number, q: Quote) => readonly [string, number];
+}
+
+/** The add-ons a paid plan may buy, each a stepper beside the seats and a line in the total. */
+function addonSteppers(interval: BillingInterval): readonly AddonStepper[] {
+  const per: string = INTERVAL_NAME[interval];
+  const gb: number = STORAGE_ADDON.gbPerBlock;
+  const links: number = LINK_PACK_ADDON.linksPerPack;
+  return [
+    {
+      field: 'storageBlocks', testId: 'plan-storage', title: 'Extra storage', unitName: `${gb} GB storage blocks`, max: MAX_STORAGE_BLOCKS,
+      offeredOn: (tier) => addonOfferedOn(STORAGE_ADDON, tier),
+      hint: `${gb} GB blocks, ${formatUsd(STORAGE_ADDON.unitAmount[interval])} each per ${per}.`,
+      line: (n, q) => [`${n} × ${gb} GB storage`, q.storageCents],
+    },
+    {
+      field: 'linkPacks', testId: 'plan-link-packs', title: 'Extra secure links', unitName: `${links}-link packs`, max: MAX_LINK_PACKS,
+      offeredOn: (tier) => addonOfferedOn(LINK_PACK_ADDON, tier),
+      hint: `${links}-link packs, ${formatUsd(LINK_PACK_ADDON.unitAmount[interval])} each per ${per}, shared by the whole workspace.`,
+      line: (n, q) => [`${n} × ${links}-link pack`, q.linkPacksCents],
+    },
+  ];
+}
+
+/** Step 2: which plan, how many seats, how much extra storage and links -- and what that costs. */
 export function PlanStep({ plan, onChange, onBack, onContinue }: PlanStepProps): JSX.Element {
   const paid: boolean = isPaid(plan.tier);
   const q: Quote = quote(plan);
   const per: string = INTERVAL_NAME[plan.interval];
+  const addons: readonly AddonStepper[] = addonSteppers(plan.interval).filter((a) => a.offeredOn(plan.tier));
 
   const selectTier = (tier: TierId): void =>
     onChange({
@@ -77,6 +115,7 @@ export function PlanStep({ plan, onChange, onBack, onContinue }: PlanStepProps):
       tier,
       seats: isPaid(tier) ? clampSeats(tier, plan.seats) : plan.seats,
       storageBlocks: clampStorageBlocks(tier, plan.storageBlocks),
+      linkPacks: clampLinkPacks(tier, plan.linkPacks),
     });
 
   return (
@@ -101,21 +140,21 @@ export function PlanStep({ plan, onChange, onBack, onContinue }: PlanStepProps):
             />
             <p className="text-xs text-muted-foreground">One per member. Up to {tierById(plan.tier).maxMembers.toLocaleString('en-US')}.</p>
           </div>
-          <div className="space-y-2">
-            <label htmlFor="plan-storage" className="block text-sm font-medium text-foreground">Extra storage</label>
-            <NumberStepper
-              id="plan-storage"
-              label={`${STORAGE_ADDON.gbPerBlock} GB storage blocks`}
-              testId="plan-storage"
-              value={plan.storageBlocks}
-              min={0}
-              max={MAX_STORAGE_BLOCKS}
-              onChange={(storageBlocks) => onChange({ ...plan, storageBlocks })}
-            />
-            <p className="text-xs text-muted-foreground">
-              {STORAGE_ADDON.gbPerBlock} GB blocks, {formatUsd(STORAGE_ADDON.unitAmount[plan.interval])} each per {per}.
-            </p>
-          </div>
+          {addons.map((a) => (
+            <div key={a.field} className="space-y-2">
+              <label htmlFor={a.testId} className="block text-sm font-medium text-foreground">{a.title}</label>
+              <NumberStepper
+                id={a.testId}
+                label={a.unitName}
+                testId={a.testId}
+                value={plan[a.field]}
+                min={0}
+                max={a.max}
+                onChange={(n) => onChange({ ...plan, [a.field]: n })}
+              />
+              <p className="text-xs text-muted-foreground">{a.hint}</p>
+            </div>
+          ))}
         </div>
       )}
 
@@ -126,12 +165,15 @@ export function PlanStep({ plan, onChange, onBack, onContinue }: PlanStepProps):
               <dt>{clampSeats(plan.tier, plan.seats)} × {tierById(plan.tier).name} seat</dt>
               <dd className="tabular-nums">{formatUsd(q.seatsCents)}</dd>
             </div>
-            {plan.storageBlocks > 0 && (
-              <div className="flex justify-between gap-4 text-muted-foreground">
-                <dt>{plan.storageBlocks} × {STORAGE_ADDON.gbPerBlock} GB storage</dt>
-                <dd className="tabular-nums">{formatUsd(q.storageCents)}</dd>
-              </div>
-            )}
+            {addons.filter((a) => plan[a.field] > 0).map((a) => {
+              const [what, cents] = a.line(plan[a.field], q);
+              return (
+                <div key={a.field} className="flex justify-between gap-4 text-muted-foreground" data-testid={`${a.testId}-line`}>
+                  <dt>{what}</dt>
+                  <dd className="tabular-nums">{formatUsd(cents)}</dd>
+                </div>
+              );
+            })}
             <div className="flex justify-between gap-4 border-t border-border pt-2 text-base font-semibold text-foreground">
               <dt>Total</dt>
               <dd className="tabular-nums" data-testid="plan-total-amount">{formatUsd(q.totalCents)} / {per}</dd>
@@ -144,7 +186,8 @@ export function PlanStep({ plan, onChange, onBack, onContinue }: PlanStepProps):
           </p>
         )}
         <p className="pt-1 text-xs text-muted-foreground">
-          {q.storageGb.toLocaleString('en-US')} GB storage in total.{paid && ' Paid securely through Stripe Checkout.'}
+          {q.storageGb.toLocaleString('en-US')} GB storage in total. {tierById(plan.tier).secureLinksPerMember} secure links per member
+          {q.sharedLinks > 0 && `, plus ${q.sharedLinks.toLocaleString('en-US')} shared`}.{paid && ' Paid securely through Stripe Checkout.'}
         </p>
       </div>
 

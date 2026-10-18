@@ -38,6 +38,8 @@ export enum Permission {
   ViewMembers = 'ViewMembers',
   EditContent = 'EditContent',
   EditMdx = 'EditMdx',
+  /** Make secure links: a link that hides where it points and opens only for the people named. */
+  ShareSecureLinks = 'ShareSecureLinks',
   // User management
   AddUsers = 'AddUsers',
   RemoveUsers = 'RemoveUsers',
@@ -100,6 +102,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   [Permission.ViewMembers]: 'See members',
   [Permission.EditContent]: 'Edit Content',
   [Permission.EditMdx]: 'Edit documents',
+  [Permission.ShareSecureLinks]: 'Share secure links',
   [Permission.AddUsers]: 'Add Users',
   [Permission.RemoveUsers]: 'Remove Users',
   [Permission.BanUser]: 'Ban User',
@@ -121,7 +124,7 @@ export const ALL_PERMISSIONS: Permission[] = Object.values(Permission);
 export const PERMISSION_CATEGORIES = {
   content: {
     label: 'Content',
-    permissions: [Permission.ViewContent, Permission.EditContent, Permission.EditMdx],
+    permissions: [Permission.ViewContent, Permission.EditContent, Permission.EditMdx, Permission.ShareSecureLinks],
   },
   messaging: {
     label: 'Messaging',

@@ -65,34 +65,34 @@ describe('slug shape (mirrors the control plane pattern)', () => {
 
 describe('the quote', () => {
   it('is nothing on Free, whatever seats and storage say', () => {
-    const q: Quote = quote({ tier: 'free', interval: 'month', seats: 40, storageBlocks: 9 });
+    const q: Quote = quote({ tier: 'free', interval: 'month', seats: 40, storageBlocks: 9, linkPacks: 0 });
     expect(q.totalCents).toBe(0);
     expect(q.storageGb).toBe(1);
   });
 
   it('charges Team per seat per month', () => {
-    const q: Quote = quote({ tier: 'team', interval: 'month', seats: 7, storageBlocks: 0 });
+    const q: Quote = quote({ tier: 'team', interval: 'month', seats: 7, storageBlocks: 0, linkPacks: 0 });
     expect(q.seatsCents).toBe(7 * 600);
     expect(q.totalCents).toBe(4200);
     expect(q.storageGb).toBe(70);
   });
 
   it('adds storage blocks at the interval price', () => {
-    const month: Quote = quote({ tier: 'business', interval: 'month', seats: 3, storageBlocks: 2 });
+    const month: Quote = quote({ tier: 'business', interval: 'month', seats: 3, storageBlocks: 2, linkPacks: 0 });
     expect(month.seatsCents).toBe(3 * 1200);
     expect(month.storageCents).toBe(2 * 200);
     expect(month.totalCents).toBe(4000);
     expect(month.storageGb).toBe(3 * 25 + 2 * 10);
 
-    const year: Quote = quote({ tier: 'business', interval: 'year', seats: 3, storageBlocks: 2 });
+    const year: Quote = quote({ tier: 'business', interval: 'year', seats: 3, storageBlocks: 2, linkPacks: 0 });
     expect(year.totalCents).toBe(3 * 12000 + 2 * 2000);
   });
 
   it('never quotes a selection that cannot be bought', () => {
-    expect(quote({ tier: 'team', interval: 'month', seats: 0, storageBlocks: -3 }).totalCents).toBe(600);
+    expect(quote({ tier: 'team', interval: 'month', seats: 0, storageBlocks: -3, linkPacks: 0 }).totalCents).toBe(600);
     expect(clampSeats('team', 5000)).toBe(100);
     expect(clampSeats('business', 5000)).toBe(1000);
-    expect(quote({ tier: 'team', interval: 'month', seats: 1, storageBlocks: 10_000 }).storageCents).toBe(
+    expect(quote({ tier: 'team', interval: 'month', seats: 1, storageBlocks: 10_000, linkPacks: 0 }).storageCents).toBe(
       MAX_STORAGE_BLOCKS * 200,
     );
   });
