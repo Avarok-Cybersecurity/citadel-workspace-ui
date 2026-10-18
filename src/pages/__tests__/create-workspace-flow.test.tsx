@@ -103,9 +103,9 @@ describe('a paid workspace', () => {
       fireEvent.click(screen.getByTestId('interval-year'));
       fireEvent.click(screen.getByTestId('plan-seats-increase'));
       fireEvent.click(screen.getByTestId('plan-storage-increase'));
-      expect(screen.getByTestId('plan-total-amount')).toHaveTextContent('$300 / year');
+      expect(screen.getByTestId('plan-total-amount')).toHaveTextContent('$260 / year');
     }, true);
-    expect(screen.getByTestId('review-total')).toHaveTextContent('$300 / year');
+    expect(screen.getByTestId('review-total')).toHaveTextContent('$260 / year');
     await submitWithTerms();
 
     await waitFor(() => expect(redirect).toHaveBeenCalledWith('https://checkout.stripe.com/c/pay/cs_test_9'));

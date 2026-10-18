@@ -74,18 +74,18 @@ describe('the quote', () => {
     const q: Quote = quote({ tier: 'team', interval: 'month', seats: 7, storageBlocks: 0 });
     expect(q.seatsCents).toBe(7 * 600);
     expect(q.totalCents).toBe(4200);
-    expect(q.storageGb).toBe(14);
+    expect(q.storageGb).toBe(70);
   });
 
   it('adds storage blocks at the interval price', () => {
     const month: Quote = quote({ tier: 'business', interval: 'month', seats: 3, storageBlocks: 2 });
     expect(month.seatsCents).toBe(3 * 1200);
-    expect(month.storageCents).toBe(2 * 600);
-    expect(month.totalCents).toBe(4800);
-    expect(month.storageGb).toBe(3 * 5 + 2 * 10);
+    expect(month.storageCents).toBe(2 * 200);
+    expect(month.totalCents).toBe(4000);
+    expect(month.storageGb).toBe(3 * 25 + 2 * 10);
 
     const year: Quote = quote({ tier: 'business', interval: 'year', seats: 3, storageBlocks: 2 });
-    expect(year.totalCents).toBe(3 * 12000 + 2 * 6000);
+    expect(year.totalCents).toBe(3 * 12000 + 2 * 2000);
   });
 
   it('never quotes a selection that cannot be bought', () => {
@@ -93,7 +93,7 @@ describe('the quote', () => {
     expect(clampSeats('team', 5000)).toBe(100);
     expect(clampSeats('business', 5000)).toBe(1000);
     expect(quote({ tier: 'team', interval: 'month', seats: 1, storageBlocks: 10_000 }).storageCents).toBe(
-      MAX_STORAGE_BLOCKS * 600,
+      MAX_STORAGE_BLOCKS * 200,
     );
   });
 
