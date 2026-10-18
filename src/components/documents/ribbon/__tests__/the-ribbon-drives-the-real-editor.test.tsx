@@ -10,6 +10,7 @@ import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { inProcessRuntime } from '@/lib/cdoc/__tests__/wasm-rig';
 import type { CdocRuntime } from '@/lib/cdoc/runtime';
 import { DocumentHost, type DocumentHostProps } from '../../DocumentHost';
+import { keepBlankReplica } from '../../blank-replica';
 
 const BLANK: DocumentHostProps = {
   nodeId: 'plan-1',
@@ -20,6 +21,8 @@ const BLANK: DocumentHostProps = {
   loadCdocRuntime: (): Promise<CdocRuntime> => Promise.resolve(inProcessRuntime('main-thread')),
   // Any signed-in name: this is about commands reaching the engine, not who signs.
   commentAuthor: 'Ada',
+  // A document nobody shares: the commands, not the collaboration, are under test here.
+  keepReplica: keepBlankReplica,
 };
 
 describe('the ribbon over the real editor', () => {
