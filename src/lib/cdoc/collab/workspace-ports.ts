@@ -1,7 +1,7 @@
 /**
  * The ports a DocumentSession takes in the app: this tab's workspace session, the browser's
  * clock, and the member roster for names and colours. The editor opener is the caller's (the
- * page view owns the worker). No local cache yet: every open pulls the document.
+ * page view owns the worker). The local cache is this account's, in IndexedDB.
  */
 import WorkspaceService from '@/lib/workspace-service';
 import { rosterPeerName, rosterPeerUsername } from '@/lib/roster-peer-name';
@@ -9,7 +9,8 @@ import { usernameAvatarColor } from '@/lib/avatar-color';
 import type { HexColor } from '../editor/model-values';
 import { workspaceDocumentsTransport } from './documents-transport';
 import type { EditorOpener } from '../editor/controller';
-import type { Clock, DocumentSessionPorts, PeerIdentity } from './ports';
+import type { Clock, DocumentSessionPorts, DocumentsTransport, PeerIdentity } from './ports';
+import { indexedDbDocumentCache } from './document-cache';
 
 export const browserClock: Clock = {
   now: (): number => performance.now(),
@@ -25,7 +26,8 @@ export const rosterIdentity: PeerIdentity = (cid: bigint): { readonly name: stri
 });
 
 export function workspaceCollabPorts(openEditor: EditorOpener): DocumentSessionPorts {
-  return { transport: workspaceDocumentsTransport(WorkspaceService), clock: browserClock, cache: null, openEditor, identify: rosterIdentity };
+  const transport: DocumentsTransport = workspaceDocumentsTransport(WorkspaceService);
+  return { transport, clock: browserClock, cache: indexedDbDocumentCache(transport.selfCid), openEditor, identify: rosterIdentity };
 }
 
 /** A `clientSeqBase` no other session instance will draw: a random 32-bit prefix. */

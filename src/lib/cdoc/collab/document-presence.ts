@@ -31,12 +31,15 @@ export class DocumentPresence {
     private readonly host: PresenceHost,
   ) {
     this.book = new PeerBook(ports.identify, config.peerExpiryMs);
+    const sendFailed = (cause: unknown): void => host.report({ kind: 'sendFailed', request: 'Awareness', cause });
+    // In the session's queue: the record is read after the updates before it are applied, and
+    // the session is not settled while a record is still on its way out.
     this.pacer = new AwarenessPacer(
       ports.clock,
       config.limits.awarenessPerSecond,
       config.awarenessHeartbeatMs,
-      (): Promise<void> => this.sendRecord(),
-      (cause: unknown): void => host.report({ kind: 'sendFailed', request: 'Awareness', cause }),
+      (): Promise<void> => queue.run((): Promise<void> => this.sendRecord().catch(sendFailed)),
+      sendFailed,
     );
   }
 

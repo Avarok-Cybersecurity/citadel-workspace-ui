@@ -1,69 +1,97 @@
 /**
  * Awareness out is paced under the kernel's relay limit and always carries the newest record;
  * peers' awareness in becomes named, coloured carets on the editor's PeerOverlay, re-derived
- * after every repaint, and forgotten once a peer goes quiet.
+ * after every repaint, and forgotten once a peer goes quiet. Real replicas and real records.
  */
 import { describe, expect, it } from 'vitest';
+import type { EditorSession } from '../../editor/editor-session';
 import { DOCUMENTS_RELAY_LIMITS } from '../relay-limits';
-import { ALICE, BOB, newKernel, openTab, type Tab } from './doubles/harness';
+import { ALICE, BOB, newDocument, openTab, type Tab } from './doubles/harness';
+import type { ManualClock } from './doubles/manual-clock';
+import { realReplicas, typeInto } from './doubles/real-replicas';
+import type { ScriptedKernel } from './doubles/scripted-kernel';
 
+type RealTab = Tab<EditorSession>;
 type Aware = { readonly cid: bigint; readonly request: { Awareness: { payload: number[] } } };
 
-async function pair(): Promise<{ kernel: ReturnType<typeof newKernel>['kernel']; clock: ReturnType<typeof newKernel>['clock']; alice: Tab; bob: Tab }> {
-  const { kernel, clock } = newKernel({});
-  const alice: Tab = openTab(kernel, clock, ALICE, {});
-  const bob: Tab = openTab(kernel, clock, BOB, {});
+async function pair(): Promise<{ kernel: ScriptedKernel; clock: ManualClock; alice: RealTab; bob: RealTab }> {
+  const { kernel, clock } = await newDocument({});
+  const alice: RealTab = openTab(kernel, clock, ALICE, {}, realReplicas(), null);
+  const bob: RealTab = openTab(kernel, clock, BOB, {}, realReplicas(), null);
   await alice.session.open();
   await bob.session.open();
   await kernel.settle([alice.session, bob.session]);
   return { kernel, clock, alice, bob };
 }
 
+const sentBy = (kernel: ScriptedKernel, cid: bigint): Aware[] => kernel.sentOf('Awareness').filter((r: { cid: bigint }): boolean => r.cid === cid) as Aware[];
+/** Bob's caret as Alice's page view draws it: null when his position is not in her replica. */
+const moveBack = async (replica: EditorSession): Promise<void> => { await replica.execute({ name: 'moveCaret', granularity: 'char', forward: false, extend: false }); };
+const bobOnAlice = (alice: RealTab): unknown[] => alice.replica().peers.current.map((p) => p.view.caret);
+
 describe('awareness', () => {
   it('a burst of caret moves never exceeds the relay limit, and the last record sent is the newest', async () => {
     const { kernel, clock, alice, bob } = await pair();
+    await typeInto(alice.replica(), 'abcdefghij');
+    await kernel.settle([alice.session, bob.session]);
     for (let move: number = 1; move <= 200; move += 1) {
-      alice.replica().moveCaret(move);
+      await alice.replica().execute({ name: 'moveCaret', granularity: 'char', forward: move % 3 !== 0, extend: false });
       clock.advance(5);
       await kernel.settle([alice.session, bob.session]);
     }
     clock.advance(1_000);
     await kernel.settle([alice.session, bob.session]);
+    // A move sent at once, then one inside the pacing interval: only a trailing send carries it.
+    // Backwards both times: the burst leaves the caret at the end, where forward moves nothing.
+    await moveBack(alice.replica());
+    await kernel.settle([alice.session, bob.session]);
+    clock.advance(5);
+    await moveBack(alice.replica());
+    await kernel.settle([alice.session, bob.session]);
+    clock.advance(1_000);
+    await kernel.settle([alice.session, bob.session]);
 
     expect(kernel.refusedAwareness).toEqual([]);
-    const sent: Aware[] = kernel.sentOf('Awareness').filter((r: { cid: bigint }): boolean => r.cid === ALICE) as Aware[];
-    // 1 s of moves at the limit, plus the opening record: never more than the limit allows.
+    const sent: Aware[] = sentBy(kernel, ALICE);
+    // 1 s of moves at the limit, plus the records sent while typing: never more than allowed.
     expect(sent.length).toBeGreaterThan(DOCUMENTS_RELAY_LIMITS.awarenessPerSecond / 2);
-    expect(sent.length).toBeLessThanOrEqual(DOCUMENTS_RELAY_LIMITS.awarenessPerSecond + 2);
-    const last: { caret: number } = JSON.parse(new TextDecoder().decode(Uint8Array.from(sent[sent.length - 1].request.Awareness.payload))) as { caret: number };
-    expect(last.caret).toBe(200);
+    expect(sent.length).toBeLessThanOrEqual(DOCUMENTS_RELAY_LIMITS.awarenessPerSecond + 4);
+    expect(sent[sent.length - 1].request.Awareness.payload).toEqual(Array.from(await alice.replica().awareness()));
   });
 
-  it('draws a peer with its member name and colour, and moves it after a repaint', async () => {
+  it('draws a peer with its member name and colour, and re-derives it when the page repaints', async () => {
     const { kernel, clock, alice, bob } = await pair();
-    bob.replica().moveCaret(3);
-    clock.advance(50);
+    await typeInto(bob.replica(), 'abc');
+    clock.advance(100);
     await kernel.settle([alice.session, bob.session]);
-    expect(alice.replica().peers.drawn.map((p) => ({ name: p.name, color: p.color, x: p.view.caret?.rect.x }))).toEqual([{ name: 'Bob', color: '#10B981', x: 0 }]);
+    expect(alice.peers.at(-1)?.map((p) => ({ name: p.name, color: p.color }))).toEqual([{ name: 'Bob', color: '#10B981' }]);
+    expect(bobOnAlice(alice)).toEqual([expect.objectContaining({ page: 0 })]);
 
-    // Bob's caret record is unchanged (the clock has not moved, so no new one is sent); only
-    // Alice's text grew under it, and her repaint re-derives where it is.
-    bob.replica().type('abc');
+    // Bob's next keystroke reaches Alice as awareness only (its push is dropped): his caret
+    // names a character her replica does not have, so it cannot be drawn.
+    kernel.dropPushesTo(ALICE, 1);
+    await typeInto(bob.replica(), 'd');
     await kernel.settle([alice.session, bob.session]);
-    expect(kernel.sentOf('Awareness').filter((r: { cid: bigint }): boolean => r.cid === BOB)).toHaveLength(2);
-    expect(alice.replica().peers.drawn.map((p) => p.view.caret?.rect.x)).toEqual([300]);
-    expect(alice.peers.at(-1)?.map((p) => p.name)).toEqual(['Bob']);
+    expect(bobOnAlice(alice)).toEqual([null]);
+
+    // The next keystroke sends no awareness (inside the pacing interval) but exposes the gap;
+    // the pulled updates repaint Alice's pages, and the SAME record now maps to a caret.
+    const recordsBefore: number = sentBy(kernel, BOB).length;
+    await typeInto(bob.replica(), 'e');
+    await kernel.settle([alice.session, bob.session]);
+    expect(sentBy(kernel, BOB)).toHaveLength(recordsBefore);
+    expect(bobOnAlice(alice)).toEqual([expect.objectContaining({ page: 0 })]);
   });
 
   it('keeps a quiet peer alive by heartbeat, and forgets one whose session went away', async () => {
     const { kernel, clock, alice, bob } = await pair();
-    bob.replica().moveCaret(1);
+    await bob.replica().execute({ name: 'selectAll' });
     await kernel.settle([alice.session, bob.session]);
     for (let s: number = 0; s < 30; s += 1) { clock.advance(1_000); await kernel.settle([alice.session, bob.session]); }
-    expect(alice.replica().peers.drawn.map((p) => p.name)).toEqual(['Bob']);
+    expect(alice.peers.at(-1)?.map((p) => p.name)).toEqual(['Bob']);
 
     bob.session.close();
     for (let s: number = 0; s < 30; s += 1) { clock.advance(1_000); await kernel.settle([alice.session]); }
-    expect(alice.replica().peers.drawn).toEqual([]);
+    expect(alice.replica().peers.current).toEqual([]);
   });
 });

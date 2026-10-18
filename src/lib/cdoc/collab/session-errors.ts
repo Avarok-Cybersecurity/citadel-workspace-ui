@@ -15,6 +15,8 @@ export type DocumentSessionProblem =
   | { readonly kind: 'tooLarge'; readonly what: 'update' | 'snapshot' | 'awareness'; readonly sizeBytes: number; readonly maxBytes: number }
   /** An editor call failed (applyRemote of a peer's update, snapshot, peerView, opening). */
   | { readonly kind: 'editorFailed'; readonly operation: string; readonly cause: unknown }
+  /** The local cache could not be read (the document is pulled whole instead) or written. */
+  | { readonly kind: 'cacheFailed'; readonly operation: 'read' | 'write'; readonly cause: unknown }
   /** A request could not be handed to the transport. */
   | { readonly kind: 'sendFailed'; readonly request: string; readonly cause: unknown };
 
@@ -40,6 +42,8 @@ function describeProblem(problem: DocumentSessionProblem): string {
       return `The ${problem.what} is ${problem.sizeBytes} bytes; the server accepts at most ${problem.maxBytes}`;
     case 'editorFailed':
       return `The editor failed to ${problem.operation}: ${causeOf(problem.cause)}`;
+    case 'cacheFailed':
+      return `The local copy of the document could not be ${problem.operation === 'read' ? 'read; it is fetched whole instead' : 'saved'}: ${causeOf(problem.cause)}`;
     case 'sendFailed':
       return `The ${problem.request} request could not be sent: ${causeOf(problem.cause)}`;
   }

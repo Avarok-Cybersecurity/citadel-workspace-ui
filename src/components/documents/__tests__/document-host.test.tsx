@@ -8,6 +8,7 @@ import { render, screen, within } from '@testing-library/react';
 import { inProcessRuntime } from '@/lib/cdoc/__tests__/wasm-rig';
 import type { CdocRuntime } from '@/lib/cdoc/runtime';
 import { DocumentHost, UnreadableDocument, type DocumentHostProps } from '../DocumentHost';
+import { keepBlankReplica } from '../blank-replica';
 
 const EDITABLE: DocumentHostProps = {
   nodeId: 'plan-1',
@@ -18,6 +19,7 @@ const EDITABLE: DocumentHostProps = {
   loadCdocRuntime: (): Promise<CdocRuntime> => Promise.resolve(inProcessRuntime('main-thread')),
   // Any signed-in name: these tests are about the host, not who signs a comment.
   commentAuthor: 'Ada',
+  keepReplica: keepBlankReplica,
 };
 
 describe('DocumentHost', () => {

@@ -62,6 +62,17 @@ export class KernelLog {
     return { SnapshotStored: { node_id: this.nodeId, upto_seq: uptoSeq } };
   }
 
+  /**
+   * A document whose first update has been compacted into a snapshot: the state a log reaches
+   * after `append` then `storeSnapshot(…, 1n)`, written in one step so every replica opens on
+   * one shared base (independent blank replicas share none; see real-replicas.ts).
+   */
+  seedBase(bytes: readonly number[], docVersion: number): void {
+    this.latestSeq = 1n;
+    this.snapshotUpto = 1n;
+    this.snapshot = { doc_version: docVersion, bytes: [...bytes], upto_seq: 1n };
+  }
+
   /** How many updates the log still holds (after compaction). */
   get held(): number {
     return this.updates.size;

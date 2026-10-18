@@ -4,12 +4,12 @@
 import type { HexColor } from '../../../editor/model-values';
 import type { PeerPresence } from '../../../editor/peer-overlay';
 import { DocumentSession } from '../../document-session';
-import type { EditorOrigin } from '../../../editor/controller';
+import type { EditorController, EditorOrigin } from '../../../editor/controller';
 import type { DocumentSessionConfig, DocumentCache } from '../../ports';
 import { CDOC_CRDT_DOC_VERSION, DOCUMENTS_RELAY_LIMITS } from '../../relay-limits';
 import type { DocumentSessionError } from '../../session-errors';
 import { ManualClock } from './manual-clock';
-import { replicaOpener, type ReplicaDouble } from './replica-double';
+import { baseSnapshot, type ReplicaSource } from './real-replicas';
 import { ScriptedKernel, type ScriptedKernelConfig } from './scripted-kernel';
 
 export const NODE: string = 'doc-node-1';
@@ -48,39 +48,39 @@ export function sessionConfig(clientSeqBase: bigint, overrides: Partial<Document
   };
 }
 
-export interface Tab {
+export interface Tab<R extends EditorController> {
   readonly session: DocumentSession;
-  readonly replicas: ReplicaDouble[];
+  readonly replicas: R[];
   /** What each replica was opened from, in order. */
   readonly sources: EditorOrigin[];
   readonly problems: DocumentSessionError[];
   readonly peers: (readonly PeerPresence[])[];
   /** The replica on screen: the latest one opened. */
-  replica(): ReplicaDouble;
+  replica(): R;
 }
 
 const COLORS: Record<string, HexColor> = { [ALICE.toString()]: '#4F46E5', [BOB.toString()]: '#10B981' };
 
 let tabs: number = 0;
 
-export function openTab(kernel: ScriptedKernel, clock: ManualClock, cid: bigint, config: Partial<DocumentSessionConfig>, cache: DocumentCache | null = null): Tab {
+/** A tab of session `cid`, its replicas from `replicas` (realReplicas(), or the stand-in). */
+export function openTab<R extends EditorController>(kernel: ScriptedKernel, clock: ManualClock, cid: bigint, config: Partial<DocumentSessionConfig>, replicas: ReplicaSource<R>, cache: DocumentCache | null): Tab<R> {
   tabs += 1;
-  const opener: ReturnType<typeof replicaOpener> = replicaOpener(BigInt(tabs) * 1000n);
   const session: DocumentSession = new DocumentSession(sessionConfig(BigInt(tabs) << 32n, config), {
     transport: kernel.connect(cid),
     clock,
     cache,
-    openEditor: opener.open,
+    openEditor: replicas.open,
     identify: (who: bigint): { readonly name: string; readonly color: HexColor } => ({ name: who === ALICE ? 'Alice' : 'Bob', color: COLORS[who.toString()] }),
   });
-  const tab: Tab = {
+  const tab: Tab<R> = {
     session,
-    replicas: opener.opened,
-    sources: opener.sources,
+    replicas: replicas.opened,
+    sources: replicas.sources,
     problems: [],
     peers: [],
-    replica: (): ReplicaDouble => {
-      const latest: ReplicaDouble | undefined = opener.opened[opener.opened.length - 1];
+    replica: (): R => {
+      const latest: R | undefined = replicas.opened[replicas.opened.length - 1];
       if (!latest) throw new Error('no replica opened yet');
       return latest;
     },
@@ -93,4 +93,21 @@ export function openTab(kernel: ScriptedKernel, clock: ManualClock, cid: bigint,
 export function newKernel(overrides: Partial<ScriptedKernelConfig>): { readonly kernel: ScriptedKernel; readonly clock: ManualClock } {
   const clock: ManualClock = new ManualClock();
   return { kernel: new ScriptedKernel(NODE, kernelConfig(overrides), clock), clock };
+}
+
+/**
+ * A kernel whose node already holds one shared base (see real-replicas.ts): seq 1, compacted
+ * into the snapshot. Every real replica opens on it, so every log seq here is one higher than
+ * the edits a test makes.
+ */
+export async function newDocument(overrides: Partial<ScriptedKernelConfig>): Promise<{ readonly kernel: ScriptedKernel; readonly clock: ManualClock }> {
+  const made: { readonly kernel: ScriptedKernel; readonly clock: ManualClock } = newKernel(overrides);
+  made.kernel.log.seedBase(Array.from(await baseSnapshot()), CDOC_CRDT_DOC_VERSION);
+  return made;
+}
+
+/** Whether every tab's replica holds exactly the same document (cdoc-crdt snapshots are canonical). */
+export async function converged(tabs: readonly Tab<EditorController>[]): Promise<boolean> {
+  const snapshots: string[] = await Promise.all(tabs.map(async (t: Tab<EditorController>): Promise<string> => Array.from(await t.replica().snapshot()).join(',')));
+  return snapshots.every((s: string): boolean => s === snapshots[0]);
 }

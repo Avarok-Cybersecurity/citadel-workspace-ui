@@ -69,7 +69,9 @@ export class SnapshotPolicy {
     if (!this.due || this.sent || !exact || !editor || seq === 0n || !this.host.writable() || !this.host.linkUp()) return;
     let bytes: Uint8Array;
     try {
-      if (this.config.gcBeforeSnapshot === 'whenAlone' && this.host.alone()) await editor.collectGarbage();
+      // Exactly the log's prefix: the log, which every later replica opens from, holds what this
+      // one holds, so this replica's own state vector is what is acknowledged.
+      if (this.config.gcBeforeSnapshot === 'whenAlone' && this.host.alone()) await editor.collectGarbage([await editor.stateVector()]);
       bytes = await editor.snapshot();
     } catch (cause: unknown) {
       this.host.report({ kind: 'editorFailed', operation: 'take a snapshot', cause });
@@ -90,6 +92,11 @@ export class SnapshotPolicy {
     const sent: { readonly bytes: Uint8Array; readonly upto: bigint } | null = this.sent;
     if (!sent || sent.upto !== upto) return;
     this.sent = null;
-    if (this.ports.cache) await this.ports.cache.save(this.config.nodeId, { docVersion: this.config.docVersion, snapshot: sent.bytes, seq: upto });
+    if (!this.ports.cache) return;
+    try {
+      await this.ports.cache.save(this.config.nodeId, { docVersion: this.config.docVersion, snapshot: sent.bytes, seq: upto });
+    } catch (cause: unknown) {
+      this.host.report({ kind: 'cacheFailed', operation: 'write', cause });
+    }
   }
 }

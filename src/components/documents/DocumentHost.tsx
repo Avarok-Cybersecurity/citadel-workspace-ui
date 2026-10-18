@@ -4,16 +4,15 @@
  * Citadel Docs mounts its page view in the editor region (lazily: neither the view nor cdoc
  * is in the shell's bundle) and fills the status bar the host reserves at the bottom. Apps
  * without an editor yet keep the placeholder. The host does no I/O: what the person may do
- * arrives in `permissions`, what to open in `documentSource`, and how to start cdoc in
- * `loadCdocRuntime`, all decided by the caller.
+ * arrives in `permissions`, what to open in `documentSource`, how to start cdoc in
+ * `loadCdocRuntime`, and who keeps the replica in `keepReplica`, all decided by the caller.
  */
 import { lazy, Suspense, useState, type LazyExoticComponent } from 'react';
 import { citadelApp, type CitadelApp, type CitadelAppId } from '@/lib/citadel-apps/registry';
 import type { ActionGate } from '@/hooks/use-permission-result';
 import type { DocumentSource } from '@/lib/cdoc/document-source';
 import type { CdocRuntimeFactory } from '@/lib/cdoc/runtime-loader';
-import type { DocsCanvasProps } from './DocsCanvas';
-import { keepBlankReplica } from './blank-replica';
+import type { DocsCanvasProps, ReplicaKeeper } from './DocsCanvas';
 
 const DocsCanvas: LazyExoticComponent<(props: DocsCanvasProps) => JSX.Element> = lazy(() => import('./DocsCanvas'));
 
@@ -33,9 +32,11 @@ export interface DocumentHostProps {
   loadCdocRuntime: CdocRuntimeFactory;
   /** The name new comments are signed with; null until the person's name has loaded. */
   commentAuthor: string | null;
+  /** Opens and keeps an editable document's replica; must keep its identity across renders. */
+  keepReplica: ReplicaKeeper;
 }
 
-export function DocumentHost({ nodeId, appId, title, permissions, documentSource, loadCdocRuntime, commentAuthor }: DocumentHostProps): JSX.Element {
+export function DocumentHost({ nodeId, appId, title, permissions, documentSource, loadCdocRuntime, commentAuthor, keepReplica }: DocumentHostProps): JSX.Element {
   const app: CitadelApp = citadelApp(appId);
   const Icon: CitadelApp['icon'] = app.icon;
   const [statusBar, setStatusBar] = useState<HTMLElement | null>(null);
@@ -56,7 +57,7 @@ export function DocumentHost({ nodeId, appId, title, permissions, documentSource
       {appId === 'docs' ? (
         <section aria-label={`${app.name} editor`} data-testid="document-editor-region" className="flex min-h-0 flex-1 flex-col">
           <Suspense fallback={<p role="status" className="m-auto text-sm text-muted-foreground">Loading {app.name}…</p>}>
-            <DocsCanvas documentSource={documentSource} loadRuntime={loadCdocRuntime} keepReplica={keepBlankReplica} statusBar={statusBar} edit={permissions.edit} commentAuthor={commentAuthor} />
+            <DocsCanvas documentSource={documentSource} loadRuntime={loadCdocRuntime} keepReplica={keepReplica} statusBar={statusBar} edit={permissions.edit} commentAuthor={commentAuthor} />
           </Suspense>
         </section>
       ) : (

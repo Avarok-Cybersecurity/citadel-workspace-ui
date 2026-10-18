@@ -2,6 +2,7 @@
  * The workspace view for a document node: decides what the person may do and hands the host
  * its props. Kept apart from DocumentHost so the host stays a pure contract for the editor.
  */
+import { useMemo } from 'react';
 import { usePermission } from '@/hooks/use-permission';
 import { useSelfName, type SelfName } from '@/hooks/use-self-name';
 import { Permission } from '@/contexts/PermissionsContext';
@@ -11,6 +12,8 @@ import type { NodeAppState } from '@/lib/citadel-apps/node-app-metadata';
 import type { DocumentSource } from '@/lib/cdoc/document-source';
 import { loadCdocRuntime } from '@/lib/cdoc/runtime-loader';
 import { DocumentHost, UnreadableDocument } from './DocumentHost';
+import { collaborationKeeper } from './collab-replica';
+import type { ReplicaKeeper } from './DocsCanvas';
 
 /** Until the document-content work item reads the node's stored document, every node opens blank. */
 const BLANK_DOCUMENT: DocumentSource = { kind: 'blank' };
@@ -23,6 +26,8 @@ interface DocumentViewProps {
 export function DocumentView({ node, app }: DocumentViewProps): JSX.Element {
   const edit: ReturnType<typeof usePermission> = usePermission(node.id, Permission.EditContent);
   const self: SelfName = useSelfName();
+  // One keeper per node: a new identity would re-open the document.
+  const keepReplica: ReplicaKeeper = useMemo((): ReplicaKeeper => collaborationKeeper(node.id), [node.id]);
   if (app.kind === 'unreadable') return <UnreadableDocument title={node.name} reason={app.reason} />;
   return (
     <DocumentHost
@@ -33,6 +38,7 @@ export function DocumentView({ node, app }: DocumentViewProps): JSX.Element {
       documentSource={BLANK_DOCUMENT}
       loadCdocRuntime={loadCdocRuntime}
       commentAuthor={self.name ?? self.username ?? null}
+      keepReplica={keepReplica}
     />
   );
 }

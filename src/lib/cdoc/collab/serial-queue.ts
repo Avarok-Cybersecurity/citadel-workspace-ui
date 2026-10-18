@@ -14,8 +14,12 @@ export class SerialQueue {
     return next;
   }
 
-  /** Resolves once every step queued so far has run. */
-  idle(): Promise<void> {
-    return this.tail;
+  /** Resolves once the queue is empty, including steps queued by the steps it waited for. */
+  async idle(): Promise<void> {
+    let seen: Promise<void>;
+    do {
+      seen = this.tail;
+      await seen;
+    } while (seen !== this.tail);
   }
 }

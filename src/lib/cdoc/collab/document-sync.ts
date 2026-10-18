@@ -9,7 +9,7 @@ import type { DocumentsRequest, DocumentsResponse, DocumentSnapshot } from 'cita
 import type { EditorController, EditorOrigin } from '../editor/controller';
 import { LogCursor } from './log-cursor';
 import { Outbox, type PendingUpdate } from './outbox';
-import type { DocumentSessionConfig, DocumentSessionPorts } from './ports';
+import type { CachedDocument, DocumentSessionConfig, DocumentSessionPorts } from './ports';
 import type { DocumentSessionProblem } from './session-errors';
 import { haltsWriting } from './session-errors';
 import { fromWire, toWire } from './wire-bytes';
@@ -55,11 +55,21 @@ export class DocumentSync {
   }
 
   async start(): Promise<void> {
-    const cached: Awaited<ReturnType<NonNullable<DocumentSessionPorts['cache']>['load']>> = this.ports.cache ? await this.ports.cache.load(this.config.nodeId) : null;
+    const cached: CachedDocument | null = await this.loadCached();
     if (cached && this.versionOk(cached.docVersion, 'the cached snapshot')) {
-      await this.open({ snapshot: cached.snapshot }, cached.seq);
+      await this.open({ kind: 'snapshot', snapshot: cached.snapshot }, cached.seq);
     }
     await this.pull();
+  }
+
+  private async loadCached(): Promise<CachedDocument | null> {
+    if (!this.ports.cache) return null;
+    try {
+      return await this.ports.cache.load(this.config.nodeId);
+    } catch (cause: unknown) {
+      this.host.report({ kind: 'cacheFailed', operation: 'read', cause });
+      return null;
+    }
   }
 
   async onLinkUp(): Promise<void> {
@@ -108,7 +118,7 @@ export class DocumentSync {
   private async onUpdates(page: Updates): Promise<void> {
     this.stopPullTimer();
     if (page.snapshot && page.snapshot.upto_seq > this.cursor.seq && !(await this.adoptSnapshot(page.snapshot))) return;
-    if (!this.editorNow) await this.open({ blank: true }, this.cursor.seq);
+    if (!this.editorNow) await this.open({ kind: 'blank' }, this.cursor.seq);
     let gap: boolean = false;
     for (const entry of page.updates) {
       if (!this.versionOk(entry.doc_version, `update ${entry.seq}`)) return;
@@ -163,7 +173,7 @@ export class DocumentSync {
   private async adoptSnapshot(snapshot: DocumentSnapshot): Promise<boolean> {
     if (!this.versionOk(snapshot.doc_version, `the snapshot to ${snapshot.upto_seq}`)) return false;
     const previous: EditorController | null = this.editorNow;
-    await this.open({ snapshot: fromWire(snapshot.bytes) }, snapshot.upto_seq);
+    await this.open({ kind: 'snapshot', snapshot: fromWire(snapshot.bytes) }, snapshot.upto_seq);
     // A re-open lost what the old replica held past the snapshot: our unacknowledged edits
     // go into the new one (the outbox still holds them), and the log's later updates follow.
     const reopened: EditorController | null = previous ? this.editorNow : null;
