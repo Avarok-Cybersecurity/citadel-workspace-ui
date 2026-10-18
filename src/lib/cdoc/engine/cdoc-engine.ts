@@ -5,14 +5,16 @@
  * R1 lays the document out once, at open, and keeps the whole display list: `paint(pages)`
  * answers from it, so scrolling never re-lays out. The reply holds every requested page and
  * may hold more (today, all of them); callers find pages by number through the page index.
- * When cdoc-edit lands, edits produce partial lists for the pages they changed, and this is
- * where `pm_to_display_list_pages` or the editor handle takes over.
+ * An editable document is an EditorEngine (openEditor) instead, which paints only the pages
+ * asked for; both share this engine's faces, and glyph outlines are asked for by face key, so
+ * they answer for either.
  */
 import { openDisplayList } from '../display-list/decoder';
 import { DisplayListError } from '../display-list/byte-reader';
-import type { DisplayList, Face, PageEntry } from '../display-list/types';
+import type { DisplayList, FaceKey, PageEntry } from '../display-list/types';
 import type { FontFaceEntry, FontManifest, FontSource } from '../fonts/font-manifest';
-import type { CdocWasm, RenderAssets } from './cdoc-wasm-api';
+import type { CdocWasm, EditorSealedFonts, RenderAssets } from './cdoc-wasm-api';
+import { EditorEngine, type EditorOrigin } from './editor-engine';
 import type { DocumentSource } from '../document-source';
 
 export interface OpenedDocument {
@@ -39,8 +41,14 @@ interface OpenDoc {
 
 const DISPLAY_LIST_HAS_NO_CLOCK: string = '1970-01-01T00:00:00Z';
 
+type LoadedFace = readonly [FontFaceEntry, Uint8Array];
+
 export class CdocEngine {
+  private faces: Promise<readonly LoadedFace[]> | null = null;
   private assets: Promise<RenderAssets> | null = null;
+  private editorFonts: Promise<EditorSealedFonts> | null = null;
+  /** Set once the faces are in: glyph outlines and metrics answer from it synchronously. */
+  private ready: RenderAssets | null = null;
   private doc: OpenDoc | null = null;
 
   constructor(
@@ -49,20 +57,50 @@ export class CdocEngine {
     private readonly fonts: FontSource,
   ) {}
 
-  /** Every face in the manifest, loaded once and in parallel, before the first layout. */
+  /** Every face in the manifest, fetched once and in parallel; a failed fetch is retried next time. */
+  private loadFaces(): Promise<readonly LoadedFace[]> {
+    this.faces ??= Promise.all(
+      this.manifest.faces.map(async (face: FontFaceEntry): Promise<LoadedFace> => [face, await this.fonts.load(face)]),
+    );
+    this.faces.catch((): void => {
+      this.faces = null;
+    });
+    return this.faces;
+  }
+
   private loadAssets(): Promise<RenderAssets> {
-    this.assets ??= Promise.all(
-      this.manifest.faces.map(async (face: FontFaceEntry): Promise<[FontFaceEntry, Uint8Array]> => [face, await this.fonts.load(face)]),
-    ).then((loaded: Array<[FontFaceEntry, Uint8Array]>): RenderAssets => {
+    this.assets ??= this.loadFaces().then((loaded: readonly LoadedFace[]): RenderAssets => {
       const assets: RenderAssets = new this.wasm.RenderAssets(this.manifest.fallback, DISPLAY_LIST_HAS_NO_CLOCK);
       for (const [face, bytes] of loaded) assets.addFont(face.family, face.bold, face.italic, bytes);
       for (const [name, target] of Object.entries(this.manifest.aliases)) assets.aliasFont(name, target);
+      this.ready = assets;
       return assets;
     });
     this.assets.catch((): void => {
       this.assets = null;
     });
     return this.assets;
+  }
+
+  /** The faces sealed for editing, once for the engine's life (cdoc-edit: seal once, reuse). */
+  private loadEditorFonts(): Promise<EditorSealedFonts> {
+    this.editorFonts ??= this.loadFaces().then((loaded: readonly LoadedFace[]): EditorSealedFonts => {
+      const fonts: InstanceType<CdocWasm['EditorFonts']> = new this.wasm.EditorFonts(this.manifest.fallback);
+      for (const [face, bytes] of loaded) fonts.addFont(face.family, face.bold, face.italic, bytes);
+      for (const [name, target] of Object.entries(this.manifest.aliases)) fonts.aliasFont(name, target);
+      return fonts.seal();
+    });
+    this.editorFonts.catch((): void => {
+      this.editorFonts = null;
+    });
+    return this.editorFonts;
+  }
+
+  /** Opens an editor as replica `client`; outlines for its pages come from this engine. */
+  async openEditor(client: bigint, origin: EditorOrigin): Promise<EditorEngine> {
+    const [fonts] = await Promise.all([this.loadEditorFonts(), this.loadAssets()]);
+    this.doc = null;
+    return EditorEngine.open(this.wasm, fonts, client, origin);
   }
 
   private pmJson(source: DocumentSource): string {
@@ -105,15 +143,13 @@ export class CdocEngine {
     return this.current().bytes.slice();
   }
 
-  private face(faceId: number): Face {
-    const face: Face | undefined = this.list.faces[faceId];
-    if (face === undefined) throw new DisplayListError(`face ${faceId} is not in the face table`);
-    return face;
+  private readyAssets(): RenderAssets {
+    if (this.ready === null) throw new DisplayListError('no document is open, so no faces are loaded');
+    return this.ready;
   }
 
-  glyphPaths(faceId: number, glyphIds: Uint16Array): GlyphPathBatch {
-    const face: Face = this.face(faceId);
-    const assets: RenderAssets = this.current().assets;
+  glyphPaths(face: FaceKey, glyphIds: Uint16Array): GlyphPathBatch {
+    const assets: RenderAssets = this.readyAssets();
     const parts: Uint8Array[] = Array.from(glyphIds, (gid: number): Uint8Array => this.wasm.glyph_path(assets, face.family, face.bold, face.italic, gid));
     const offsets: Uint32Array = new Uint32Array(parts.length + 1);
     parts.forEach((p: Uint8Array, i: number) => {
@@ -124,8 +160,7 @@ export class CdocEngine {
     return { records, offsets };
   }
 
-  faceMetrics(faceId: number): Uint8Array {
-    const face: Face = this.face(faceId);
-    return this.wasm.face_metrics(this.current().assets, face.family, face.bold, face.italic);
+  faceMetrics(face: FaceKey): Uint8Array {
+    return this.wasm.face_metrics(this.readyAssets(), face.family, face.bold, face.italic);
   }
 }

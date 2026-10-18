@@ -47,11 +47,11 @@ describe('InProcessCdocClient over the real wasm', () => {
     const face: DisplayList['faces'][number] = list.faces[0];
     expect(face.family).toBe('Carlito');
     const ids: Uint16Array = Uint16Array.from(face.glyphs.map((g) => g.glyphId));
-    const batch: GlyphPathBatch = await client.request({ kind: 'glyphPaths', faceId: 0, glyphIds: ids });
+    const batch: GlyphPathBatch = await client.request({ kind: 'glyphPaths', face, glyphIds: ids });
     expect(batch.offsets).toHaveLength(ids.length + 1);
     const outlines: GlyphOutline[] = Array.from(ids, (_: number, i: number) => parseGlyphPath(batch.records.subarray(batch.offsets[i], batch.offsets[i + 1])));
     expect(outlines.filter((o) => o.verbs.length > 0).length).toBe(ids.length - 1); // all but the space
-    const { metrics } = await client.request({ kind: 'faceMetrics', faceId: 0 });
+    const { metrics } = await client.request({ kind: 'faceMetrics', face });
     expect(parseFaceMetrics(metrics).unitsPerEm).toBe(2048);
   });
 
@@ -88,7 +88,7 @@ describe('WorkerCdocClient over a real MessageChannel', () => {
     const client: CdocClient = wired();
     await client.request({ kind: 'open', source: { kind: 'pm', pmJson: pmWithText(TEXT) } });
     const glyphIds: Uint16Array = Uint16Array.from([1, 2, 3]);
-    const reply: Promise<unknown> = client.request({ kind: 'glyphPaths', faceId: 0, glyphIds });
+    const reply: Promise<unknown> = client.request({ kind: 'glyphPaths', face: { family: 'Carlito', bold: false, italic: false }, glyphIds });
     expect(glyphIds.byteLength).toBe(0);
     await expect(reply).resolves.toBeTruthy();
   });

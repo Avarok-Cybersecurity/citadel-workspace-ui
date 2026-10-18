@@ -1,14 +1,23 @@
 /**
  * Citadel Docs inside DocumentHost: loads the cdoc runtime (worker + renderer) when it mounts,
- * shows the page view, and fills the host's status bar. DocumentHost imports this lazily, and
+ * shows the page view, and fills the host's status bar. A blank document opens in the editor
+ * (EditorPageView over an EditorSession, a fresh replica); a converted one (pm, model) opens
+ * read-only until document content arrives as a CRDT snapshot. DocumentHost imports this lazily, and
  * this reaches cdoc only through `loadRuntime`, so neither is in the shell's bundle.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { DocumentSource } from '@/lib/cdoc/document-source';
 import type { CdocRuntimeFactory } from '@/lib/cdoc/runtime-loader';
 import type { CdocRuntime } from '@/lib/cdoc/runtime';
 import { PageView, type PageStatus } from './PageView';
+import { EditorPageView } from './EditorPageView';
+import type { EditorSession } from '@/lib/cdoc/editor/editor-session';
+import { UNDO_PAUSE_MS, platformOf } from '@/lib/cdoc/editor/editor-config';
+import { createEditorOpener } from '@/lib/cdoc/editor/editor-opener';
+import type { EditorOrigin } from '@/lib/cdoc/editor/controller';
+import type { EditorSurfaceOptions } from './page-view/use-editor-surface';
+import type { Ctx2D } from '@/lib/cdoc/paint/canvas-port';
 import { DocsStatusBar } from './page-view/DocsStatusBar';
 import { useDevicePixelRatio } from './page-view/use-device-pixel-ratio';
 import { INITIAL_ZOOM } from './page-view/zoom';
@@ -20,7 +29,19 @@ export interface DocsCanvasProps {
   readonly statusBar: HTMLElement | null;
 }
 
-type Runtime = { readonly kind: 'loading' } | { readonly kind: 'ready'; readonly runtime: CdocRuntime } | { readonly kind: 'failed'; readonly message: string };
+type Runtime =
+  | { readonly kind: 'loading' }
+  | { readonly kind: 'ready'; readonly runtime: CdocRuntime; readonly editor: EditorSession | null }
+  | { readonly kind: 'failed'; readonly message: string };
+
+async function start(runtime: CdocRuntime, source: DocumentSource): Promise<EditorSession | null> {
+  if (source.kind !== 'blank') return null;
+  const open: (from: EditorOrigin) => Promise<EditorSession> = createEditorOpener(
+    { client: runtime.client, renderer: runtime.renderer },
+    (b: Uint8Array): Uint8Array => crypto.getRandomValues(b),
+  );
+  return open({ blank: true });
+}
 
 export default function DocsCanvas({ documentSource, loadRuntime, statusBar }: DocsCanvasProps): JSX.Element {
   const [state, setState] = useState<Runtime>({ kind: 'loading' });
@@ -28,29 +49,45 @@ export default function DocsCanvas({ documentSource, loadRuntime, statusBar }: D
   const [status, setStatus] = useState<PageStatus | null>(null);
   const dpr: number = useDevicePixelRatio();
   const onPageStatus: (next: PageStatus) => void = useCallback((next: PageStatus): void => setStatus(next), []);
+  const [editError, setEditError] = useState<string | null>(null);
+  const overlayContext: ((canvas: HTMLCanvasElement) => Ctx2D) | null = state.kind === 'ready' ? state.runtime.overlayContext : null;
+  const input: EditorSurfaceOptions | null = useMemo(() => (overlayContext === null ? null : {
+    overlayContext,
+    platform: platformOf(navigator.userAgent),
+    undoPauseMs: UNDO_PAUSE_MS,
+    onError: (error: unknown): void => setEditError(error instanceof Error ? error.message : String(error)),
+  }), [overlayContext]);
 
   useEffect((): (() => void) => {
     let live: boolean = true;
     let loaded: CdocRuntime | null = null;
-    loadRuntime().then(
-      (runtime: CdocRuntime): void => {
-        if (!live) return runtime.client.dispose();
-        loaded = runtime;
-        setState({ kind: 'ready', runtime });
-      },
+    let editor: EditorSession | null = null;
+    loadRuntime().then(async (runtime: CdocRuntime): Promise<void> => {
+      loaded = runtime;
+      if (!live) return runtime.client.dispose();
+      editor = await start(runtime, documentSource);
+      if (!live) return editor?.dispose();
+      setState({ kind: 'ready', runtime, editor });
+    }).then(
+      (): void => undefined,
       (error: unknown): void => {
         if (live) setState({ kind: 'failed', message: error instanceof Error ? error.message : String(error) });
       },
     );
     return (): void => {
       live = false;
+      editor?.dispose();
       loaded?.client.dispose();
     };
-  }, [loadRuntime]);
+  }, [loadRuntime, documentSource]);
 
   return (
     <>
-      {state.kind === 'ready' && (
+      {state.kind === 'ready' && state.editor !== null && input !== null && (
+        <EditorPageView editor={state.editor} renderer={state.runtime.renderer} zoom={zoom} dpr={dpr} onZoomChange={setZoom} onPageStatus={onPageStatus} input={input} />
+      )}
+      {editError !== null && <p role="alert" className="border-t p-2 text-sm text-destructive">That edit was not made. {editError}</p>}
+      {state.kind === 'ready' && state.editor === null && (
         <PageView client={state.runtime.client} renderer={state.runtime.renderer} source={documentSource} zoom={zoom} dpr={dpr} onZoomChange={setZoom} onPageStatus={onPageStatus} />
       )}
       {state.kind === 'loading' && <p role="status" className="m-auto text-sm text-muted-foreground">Loading Citadel Docs…</p>}

@@ -20,6 +20,13 @@ export interface GlyphMetric {
   readonly advance: number;
 }
 
+/** A face by what it is, not by its index in one display list's face table. */
+export interface FaceKey {
+  readonly family: string;
+  readonly bold: boolean;
+  readonly italic: boolean;
+}
+
 export interface Face {
   readonly faceId: number;
   readonly family: string;

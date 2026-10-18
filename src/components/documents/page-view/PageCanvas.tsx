@@ -1,6 +1,7 @@
 /**
- * One painted page: its canvas, its links as real anchors over the sheet, and the two overlay
- * canvases the editor draws selection and caret into (reserved; empty until the editor lands).
+ * One painted page: its canvas, its links as real anchors over the sheet, and, when the page
+ * is editable, the selection and caret overlays (PageOverlays). `revision` repaints the page:
+ * the page view bumps it for exactly the pages an edit dirtied.
  *
  * The page canvas is created per mount rather than rendered by React: a canvas whose control
  * moved to the worker can never be transferred again, so a remount (StrictMode, a key change)
@@ -11,6 +12,7 @@ import type { LinkArea } from '@/lib/cdoc/paint/page-painter';
 import type { PageRenderer } from '@/lib/cdoc/paint/page-renderer';
 import { RASTERIZER_OPTIONS } from '@/lib/cdoc/paint/paint-config';
 import type { PageBox } from './page-layout';
+import { PageOverlays, type PageOverlaysProps } from './PageOverlays';
 
 interface PageCanvasProps {
   readonly renderer: PageRenderer;
@@ -20,6 +22,9 @@ interface PageCanvasProps {
   readonly dpr: number;
   readonly pageCount: number;
   readonly onPaintError: (error: unknown) => void;
+  readonly revision: number;
+  /** Null for a page nobody edits: no overlays at all. */
+  readonly overlay: PageOverlaysProps | null;
 }
 
 interface Mounted {
@@ -29,7 +34,7 @@ interface Mounted {
 
 let nextSlot: number = 0;
 
-export function PageCanvas({ renderer, box, left, zoom, dpr, pageCount, onPaintError }: PageCanvasProps): JSX.Element {
+export function PageCanvas({ renderer, box, left, zoom, dpr, pageCount, onPaintError, revision, overlay }: PageCanvasProps): JSX.Element {
   const host: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
   const mounted: MutableRefObject<Mounted | null> = useRef<Mounted | null>(null);
   const [links, setLinks] = useState<readonly LinkArea[]>([]);
@@ -67,7 +72,7 @@ export function PageCanvas({ renderer, box, left, zoom, dpr, pageCount, onPaintE
     return (): void => {
       live = false;
     };
-  }, [renderer, pageNumber, zoom, dpr, onPaintError]);
+  }, [renderer, pageNumber, zoom, dpr, onPaintError, revision]);
 
   return (
     <div
@@ -79,8 +84,7 @@ export function PageCanvas({ renderer, box, left, zoom, dpr, pageCount, onPaintE
       className="absolute shadow-md ring-1 ring-border"
       style={{ top: box.top, left, width: box.width, height: box.height, backgroundColor: RASTERIZER_OPTIONS.paper }}
     >
-      <canvas data-layer="selection" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full" />
-      <canvas data-layer="caret" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full" />
+      {overlay !== null && <PageOverlays {...overlay} />}
       {links.map((link: LinkArea, i: number) => (
         <a
           key={`${i}:${link.target}`}

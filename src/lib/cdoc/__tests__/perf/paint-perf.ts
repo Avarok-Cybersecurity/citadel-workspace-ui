@@ -13,10 +13,10 @@ import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { openDisplayList } from '../../display-list/decoder';
 import { decodePage } from '../../display-list/page-ops';
-import type { DisplayList } from '../../display-list/types';
+import type { DisplayList, FaceKey } from '../../display-list/types';
 import { FONT_MANIFEST } from '../../generated/font-manifest';
 import { fileFontSource, realWasm } from '../wasm-rig';
-import type { CanvasPort, Ctx2D, PaintTarget } from '../../paint/canvas-port';
+import { nullPort, nullTarget } from './null-canvas';
 import type { AtlasStats } from '../../paint/glyph-atlas';
 import { PageRasterizer } from '../../paint/page-rasterizer';
 import { RASTERIZER_OPTIONS } from '../../paint/paint-config';
@@ -35,14 +35,6 @@ export interface PaintPerf {
   readonly atlas: AtlasStats;
   readonly hitRate: number;
 }
-
-const noop = (): void => undefined;
-const nullCtx: Ctx2D = new Proxy({}, { get: () => noop, set: () => true }) as unknown as Ctx2D;
-const nullPort: CanvasPort = {
-  createSurface: () => ({ ctx: nullCtx, image: {} as CanvasImageSource }),
-  createPath: () => new Proxy({}, { get: () => noop }) as unknown as Path2D,
-};
-const nullTarget: PaintTarget = { ctx: nullCtx, resize: noop };
 
 function median(runs: number[]): number {
   const sorted: number[] = [...runs].sort((a: number, b: number) => a - b);
@@ -74,7 +66,7 @@ export async function measurePaint(runs: number, zoom: number, dpr: number): Pro
   const t0: number = performance.now();
   for (const entry of list.pages) {
     for (const [faceId, ids] of painter.missingGlyphs(entry.number)) {
-      const face: DisplayList['faces'][number] = list.faces[faceId];
+      const face: FaceKey = painter.faceKey(faceId);
       const parts: Uint8Array[] = Array.from(ids, (id: number) => wasm.glyph_path(assets, face.family, face.bold, face.italic, id));
       const offsets: Uint32Array = new Uint32Array(parts.length + 1);
       parts.forEach((p: Uint8Array, i: number) => { offsets[i + 1] = offsets[i] + p.length; });
