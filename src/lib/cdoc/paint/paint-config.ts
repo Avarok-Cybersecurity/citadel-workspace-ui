@@ -6,8 +6,10 @@
  * filled from their path. At most 4 × 4 MB of surface, and only for the classes a document uses.
  *
  * Paper is the sheet's colour, the document's and not the theme's: a page is white in dark mode
- * as it is on paper, as in every word processor. The missing-image stroke marks an image whose
- * bytes this view does not have yet (images arrive with the document-content work item).
+ * as it is on paper, as in every word processor. The image placeholder is the box drawn for an
+ * image the canvas does not draw (anything but PNG and JPEG, as PDF and SVG draw them): a grey
+ * border and its MIME type. Decoded images are held up to 128 MiB of pixels (width × height ×
+ * 4): a hundred 1080p photos, a tab's worth, before the least recently drawn are dropped.
  */
 import type { RasterizerOptions } from './page-rasterizer';
 import type { OverlayStyle } from './overlay-painter';
@@ -15,7 +17,8 @@ import type { OverlayStyle } from './overlay-painter';
 export const RASTERIZER_OPTIONS: RasterizerOptions = {
   atlas: { cellSizes: [16, 32, 64, 128], surfaceSide: 1024 },
   paper: '#ffffff',
-  missingImageStroke: '#c8c8c8',
+  placeholder: { stroke: '#c8c8c8', labelColor: '#6b6b6b', labelCssPx: 11, labelFamily: 'system-ui, sans-serif' },
+  imageCacheBytes: 128 * 1024 * 1024,
 };
 
 /** How long a face fetch may take before the open fails instead of hanging. */

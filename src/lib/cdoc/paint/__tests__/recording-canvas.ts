@@ -5,6 +5,7 @@
  * the context (decoder, placement, rounding, atlas bookkeeping) is the production code.
  */
 import type { CanvasPort, Ctx2D, PaintTarget, Surface } from '../canvas-port';
+import { fakeImageDecoder, type FakeDecoder } from './fake-image-decoder';
 
 export interface Call {
   readonly name: string;
@@ -60,11 +61,14 @@ export interface RecordingPort {
   readonly port: CanvasPort;
   readonly surfaces: Array<Recorder & { readonly width: number; readonly height: number; readonly image: CanvasImageSource }>;
   readonly paths: RecordingPath[];
+  /** The images the port decoded (a stand-in for createImageBitmap). */
+  readonly images: FakeDecoder;
 }
 
 export function recordingPort(): RecordingPort {
   const surfaces: RecordingPort['surfaces'] = [];
   const paths: RecordingPath[] = [];
+  const images: FakeDecoder = fakeImageDecoder();
   const port: CanvasPort = {
     createSurface(width: number, height: number): Surface {
       const rec: Recorder = recordingContext(`atlas#${surfaces.length}`);
@@ -77,8 +81,9 @@ export function recordingPort(): RecordingPort {
       paths.push(path);
       return path as unknown as Path2D;
     },
+    decodeImage: images.decode,
   };
-  return { port, surfaces, paths };
+  return { port, surfaces, paths, images };
 }
 
 export interface RecordingTarget extends PaintTarget {

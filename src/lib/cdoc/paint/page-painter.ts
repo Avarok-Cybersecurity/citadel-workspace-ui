@@ -12,6 +12,7 @@ import type { Face, Op, PageOps, PathData, Rect } from '../display-list/types';
 import type { Ctx2D } from './canvas-port';
 import { cssColor } from './color';
 import type { GlyphAtlas } from './glyph-atlas';
+import type { PaintableImage } from './image-cache';
 import type { OutlineStore } from './glyph-outlines';
 import { crisp, px, quarterPx, rectPx, strokePx, type DeviceScale, type PixelRect } from './units';
 
@@ -32,8 +33,35 @@ export interface PagePaintEnv {
   readonly outlines: OutlineStore;
   /** The sheet's colour, painted under every op. */
   readonly paper: string;
-  /** Stroke for an image whose bytes this paint does not have. */
-  readonly missingImageStroke: string;
+  /** The image an op names, decoded or a placeholder; undefined until it has been resolved. */
+  readonly images: (contentId: string) => PaintableImage | undefined;
+  readonly placeholder: ImagePlaceholderStyle;
+}
+
+/** The box drawn for an image the canvas does not draw: a border and a label, in CSS px. */
+export interface ImagePlaceholderStyle {
+  readonly stroke: string;
+  readonly labelColor: string;
+  readonly labelCssPx: number;
+  readonly labelFamily: string;
+}
+
+function placeholder(env: PagePaintEnv, r: PixelRect, label: string | null): void {
+  const { ctx } = env;
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = env.placeholder.stroke;
+  ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+  if (label === null) return;
+  const size: number = Math.round(env.placeholder.labelCssPx * env.scale.dpr);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(r.x, r.y, r.w, r.h);
+  ctx.clip();
+  ctx.font = `${size}px ${env.placeholder.labelFamily}`;
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = env.placeholder.labelColor;
+  ctx.fillText(label, r.x + size / 2, r.y + size / 2);
+  ctx.restore();
 }
 
 /** `cdoc_paint::allowed_link`: http, https and mailto only, case-insensitive, leading space ignored. */
@@ -135,10 +163,11 @@ export function paintPage(env: PagePaintEnv, page: PageOps): LinkArea[] {
       case 'textRun':
       case 'glyphRun': text(env, op); break;
       case 'image': {
+        // The same rounding as every rect, so the picture lands where PDF and SVG put it.
         const r: PixelRect = rectPx(op.rect, k);
-        ctx.lineWidth = 1;
-        ctx.strokeStyle = env.missingImageStroke;
-        ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+        const image: PaintableImage | undefined = env.images(op.contentId);
+        if (image?.kind === 'drawn') ctx.drawImage(image.image.source, r.x, r.y, r.w, r.h);
+        else placeholder(env, r, image?.label ?? null);
         break;
       }
       case 'link':

@@ -21,7 +21,8 @@ const list = (file: string): DisplayList => openDisplayList(new Uint8Array(readF
 const OPTIONS: RasterizerOptions = {
   atlas: { cellSizes: [16, 32, 64, 128], surfaceSide: 1024 },
   paper: 'rgb(255,255,255)',
-  missingImageStroke: 'rgb(200,200,200)',
+  placeholder: { stroke: 'rgb(200,200,200)', labelColor: 'rgb(100,100,100)', labelCssPx: 11, labelFamily: 'sans-serif' },
+  imageCacheBytes: 1024 * 1024,
 };
 
 function rasterizer(dl: DisplayList, options: RasterizerOptions = OPTIONS): PageRasterizer {

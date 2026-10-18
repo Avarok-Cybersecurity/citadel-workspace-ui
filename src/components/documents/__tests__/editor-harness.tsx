@@ -8,6 +8,7 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import { inProcessRuntime, type TestRuntime } from '@/lib/cdoc/__tests__/wasm-rig';
 import { EditorSession } from '@/lib/cdoc/editor/editor-session';
 import { EditorPageView } from '../EditorPageView';
+import type { EditorOrigin } from '@/lib/cdoc/editor/controller';
 
 const VIEWPORT_PX: number = 800;
 
@@ -33,13 +34,19 @@ export interface Mounted {
   readonly input: HTMLTextAreaElement;
 }
 
-/**
- * `clipboard: 'refuses'` makes the system clipboard reject every write, as a browser without
- * the permission does; the usual case records them (the default here is the test's, not the app's).
- */
-export async function mount(mode: 'worker' | 'main-thread', clipboardPolicy: 'records' | 'refuses' = 'records'): Promise<Mounted> {
+export interface MountOptions {
+  /** 'refuses': the system clipboard rejects every write, as a browser without the permission does. */
+  readonly clipboard: 'records' | 'refuses';
+  readonly from: EditorOrigin;
+}
+
+/** The test's usual case, not the app's: a blank document and a clipboard that records writes. */
+const USUAL: MountOptions = { clipboard: 'records', from: { kind: 'blank' } };
+
+export async function mount(mode: 'worker' | 'main-thread', options: Partial<MountOptions> = {}): Promise<Mounted> {
+  const { clipboard: clipboardPolicy, from }: MountOptions = { ...USUAL, ...options };
   const runtime: TestRuntime = inProcessRuntime(mode);
-  const editor: EditorSession = await EditorSession.open({ client: runtime.client, renderer: runtime.renderer }, 11n, { kind: 'blank' });
+  const editor: EditorSession = await EditorSession.open({ client: runtime.client, renderer: runtime.renderer }, 11n, from);
   const errors: unknown[] = [];
   const clipboard: string[] = [];
   render(

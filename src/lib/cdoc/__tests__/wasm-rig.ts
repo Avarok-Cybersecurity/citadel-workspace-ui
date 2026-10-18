@@ -17,7 +17,8 @@ import type { CanvasPort, PaintTarget } from '../paint/canvas-port';
 import { MainThreadPageRenderer, WorkerPageRenderer, type PageRenderer } from '../paint/page-renderer';
 import type { CdocRuntime } from '../runtime';
 import { InProcessCdocClient } from '../worker/clients';
-import { recordingContext, recordingPort, recordingTarget, type Recorder, type RecordingTarget } from '../paint/__tests__/recording-canvas';
+import { recordingContext, recordingPort, recordingTarget, type Recorder, type RecordingPort, type RecordingTarget } from '../paint/__tests__/recording-canvas';
+import type { FakeDecoder } from '../paint/__tests__/fake-image-decoder';
 import type { Ctx2D } from '../paint/canvas-port';
 
 const UI: string = process.cwd();
@@ -69,6 +70,8 @@ export interface TestRuntime extends CdocRuntime {
   readonly painted: RecordingTarget[];
   /** Each overlay canvas's recorded context, created on its first paint. */
   readonly overlays: Map<HTMLCanvasElement, Recorder>;
+  /** The decodes of the renderer that paints (the host's in worker mode, the page's otherwise). */
+  readonly images: FakeDecoder;
 }
 
 /**
@@ -82,15 +85,17 @@ export function inProcessRuntime(renderer: 'worker' | 'main-thread'): TestRuntim
     painted.push(t);
     return t;
   };
-  const client: InProcessCdocClient = new InProcessCdocClient(realHost(recordingPort().port, record));
+  const hostPort: RecordingPort = recordingPort();
+  const pagePort: RecordingPort = recordingPort();
+  const client: InProcessCdocClient = new InProcessCdocClient(realHost(hostPort.port, record));
   const pages: PageRenderer = renderer === 'worker'
     ? new WorkerPageRenderer(client, (): OffscreenCanvas => ({}) as OffscreenCanvas)
-    : new MainThreadPageRenderer(client, recordingPort().port, RASTERIZER_OPTIONS, record);
+    : new MainThreadPageRenderer(client, pagePort.port, RASTERIZER_OPTIONS, record);
   const overlays: Map<HTMLCanvasElement, Recorder> = new Map<HTMLCanvasElement, Recorder>();
   const overlayContext = (canvas: HTMLCanvasElement): Ctx2D => {
     let rec: Recorder | undefined = overlays.get(canvas);
     if (rec === undefined) overlays.set(canvas, (rec = recordingContext(canvas.dataset.layer ?? 'overlay')));
     return rec.ctx;
   };
-  return { client, renderer: pages, painted, overlays, overlayContext };
+  return { client, renderer: pages, painted, overlays, overlayContext, images: (renderer === 'worker' ? hostPort : pagePort).images };
 }

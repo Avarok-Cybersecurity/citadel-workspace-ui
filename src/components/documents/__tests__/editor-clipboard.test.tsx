@@ -143,7 +143,7 @@ describe('copying and cutting from the editor', () => {
   });
 
   it('says so when the browser refuses the clipboard write', async () => {
-    const m: Mounted = await mount('worker', 'refuses');
+    const m: Mounted = await mount('worker', { clipboard: 'refuses' });
     await act(async () => { await m.editor.execute({ name: 'insertText', text: 'y'.repeat(70_000) }); });
     key(m.input, 'a', { ctrlKey: true });
     await settled(m.editor);

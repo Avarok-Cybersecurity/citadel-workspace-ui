@@ -2,7 +2,9 @@
 import { describe, expect, it } from 'vitest';
 import { viewportReporter } from '../viewport-reporter';
 
-function frames(): { readonly schedule: (task: () => void) => void; readonly flush: () => void } {
+interface Frames { readonly schedule: (task: () => void) => void; readonly flush: () => void }
+
+function frames(): Frames {
   const queued: Array<() => void> = [];
   return {
     schedule: (task: () => void): void => { queued.push(task); },
@@ -13,7 +15,7 @@ function frames(): { readonly schedule: (task: () => void) => void; readonly flu
 describe('the viewport reporter', () => {
   it('sends the latest pages once per frame', () => {
     const sent: number[][] = [];
-    const f = frames();
+    const f: Frames = frames();
     const report: (pages: readonly number[]) => void = viewportReporter((p: readonly number[]) => sent.push([...p]), f.schedule);
     report([0, 1]);
     report([1, 2]);
@@ -25,7 +27,7 @@ describe('the viewport reporter', () => {
 
   it('does not resend a set the editor already has', () => {
     const sent: number[][] = [];
-    const f = frames();
+    const f: Frames = frames();
     const report: (pages: readonly number[]) => void = viewportReporter((p: readonly number[]) => sent.push([...p]), f.schedule);
     report([0, 1]);
     f.flush();

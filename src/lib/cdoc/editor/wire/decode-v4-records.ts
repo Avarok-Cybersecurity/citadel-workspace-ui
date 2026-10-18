@@ -1,6 +1,7 @@
 /**
  * The records cdoc-edit's v4 session calls return (docs/edit-commands.md): the "CDK" chunks of
- * encodeDiffChunked and the "CDS" style sheet. Each is read to its end, and
+ * encodeDiffChunked, the "CDS" style sheet and the "CDB" image the canvas painter draws. Each is
+ * read to its end, and
  * every count is checked against the bytes left before anything is sized by it.
  */
 import type { ParagraphProperties, RunPropertiesPatch } from '../model-values';
@@ -16,6 +17,11 @@ export interface DocumentStyle {
   /** What the style resolves to through its based-on chain and the document defaults. */
   readonly run: RunPropertiesPatch;
   readonly paragraph: ParagraphProperties;
+}
+
+export interface HeldImage {
+  readonly mime: string;
+  readonly bytes: Uint8Array;
 }
 
 /** Updates to apply in order, each a complete cdoc-crdt update of at most the requested size. */
@@ -47,4 +53,13 @@ export function decodeStyles(bytes: Uint8Array): DocumentStyle[] {
   });
   r.end();
   return styles;
+}
+
+export function decodeImage(bytes: Uint8Array): HeldImage {
+  const r: RecordReader = new RecordReader(bytes);
+  r.magic('CDB', 1);
+  const mime: string = r.str();
+  const image: Uint8Array = r.bytesField();
+  r.end();
+  return { mime, bytes: image };
 }

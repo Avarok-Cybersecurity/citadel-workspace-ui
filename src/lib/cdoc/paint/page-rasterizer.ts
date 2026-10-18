@@ -3,7 +3,9 @@
  * from it, the glyph outlines and the atlas. The main-thread renderer and the worker's
  * OffscreenCanvas renderer both own one; they differ only in where outlines come from (a
  * worker round trip, or cdoc-wasm in the same thread), which is why `missingGlyphs` and
- * `addOutlines` are separate from `paint`, which never waits.
+ * `addOutlines` are separate from `paint`, which never waits. Images likewise: `missingImages`
+ * names the ids a page draws that are not decoded yet, the renderer resolves them, and the
+ * cache keeps them across repaints and lists, so each id is decoded once.
  */
 import { slotOfPage } from '../display-list/decoder';
 import { decodePage } from '../display-list/page-ops';
@@ -13,13 +15,16 @@ import { DisplayListError } from '../display-list/byte-reader';
 import type { CanvasPort, PaintTarget } from './canvas-port';
 import { GlyphAtlas, type AtlasConfig, type AtlasStats } from './glyph-atlas';
 import { OutlineStore } from './glyph-outlines';
-import { paintPage, type LinkArea } from './page-painter';
+import { paintPage, type ImagePlaceholderStyle, type LinkArea } from './page-painter';
+import { ImageCache, type PaintableImage } from './image-cache';
 import { pageSizePx, type DeviceScale } from './units';
 
 export interface RasterizerOptions {
   readonly atlas: AtlasConfig;
   readonly paper: string;
-  readonly missingImageStroke: string;
+  readonly placeholder: ImagePlaceholderStyle;
+  /** Decoded pixels the image cache may hold, in bytes. */
+  readonly imageCacheBytes: number;
 }
 
 export interface PaintOutcome {
@@ -45,10 +50,30 @@ export class PageRasterizer {
   private readonly faceKeys: FaceKey[] = [];
   private readonly outlines: OutlineStore;
   private readonly atlas: GlyphAtlas;
+  private readonly images: ImageCache;
 
   constructor(port: CanvasPort, private readonly options: RasterizerOptions) {
     this.outlines = new OutlineStore(port);
     this.atlas = new GlyphAtlas(port, options.atlas);
+    this.images = new ImageCache(options.imageCacheBytes);
+  }
+
+  /** The image ids `pageNumber` draws that this painter has not resolved yet. */
+  missingImages(pageNumber: number): string[] {
+    const ids: Set<string> = new Set<string>();
+    for (const op of this.page(pageNumber).ops) {
+      if (op.kind === 'image' && !this.images.has(op.contentId)) ids.add(op.contentId);
+    }
+    return [...ids];
+  }
+
+  addImage(contentId: string, image: PaintableImage): void {
+    this.images.set(contentId, image);
+  }
+
+  /** Frees every decoded image (the document closed). */
+  dispose(): void {
+    this.images.clear();
   }
 
   private stableId(face: Face): number {
@@ -138,7 +163,8 @@ export class PageRasterizer {
     target.resize(size.w, size.h);
     const links: LinkArea[] = paintPage({
       ctx: target.ctx, scale, faces: this.heldPage(pageNumber).faces, atlas: this.atlas, outlines: this.outlines,
-      paper: this.options.paper, missingImageStroke: this.options.missingImageStroke,
+      paper: this.options.paper, placeholder: this.options.placeholder,
+      images: (contentId: string): PaintableImage | undefined => this.images.get(contentId),
     }, page);
     return { links, atlas: this.atlas.stats() };
   }
