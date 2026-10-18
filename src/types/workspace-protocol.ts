@@ -6,7 +6,7 @@
  * communication between the TypeScript frontend and Rust backend.
  */
 
-import type { MemberRole, MessagingTrustRequest, RolesRequest, SignInSettings, TelemetryRequest, WorkspaceLogoChange } from 'citadel-workspace-client-ts';
+import type { DocumentsRequest, MemberRole, MessagingTrustRequest, RolesRequest, SignInSettings, TelemetryRequest, WorkspaceLogoChange } from 'citadel-workspace-client-ts';
 
 /**
  * The main protocol payload that wraps either a request or response
@@ -159,11 +159,11 @@ export interface WorkspaceProtocolRequestTS {
     is_default?: boolean;
   };
   SetMembersVisible?: { node_id: string; visible: boolean };
-  // The sign-in settings (lib/workspace-service/sign-in-settings.ts).
   Telemetry?: TelemetryRequest; // Terms, consent and the diagnostic-log service.
   MessagingTrust?: MessagingTrustRequest; // Who connects without asking (messaging-trust-operations.ts).
   Roles?: RolesRequest; // The workspace role table (roles-operations.ts).
-  GetSignInSettings?: null;
+  Documents?: DocumentsRequest; // A document node's CRDT log and awareness (cdoc/collab/documents-transport.ts).
+  GetSignInSettings?: null; // The sign-in settings (lib/workspace-service/sign-in-settings.ts).
   UpdateSignInSettings?: { settings: SignInSettings };
   DeleteNode?: { node_id: string; cascade: boolean };
   MoveNode?: { node_id: string; new_parent_id: string | null };
