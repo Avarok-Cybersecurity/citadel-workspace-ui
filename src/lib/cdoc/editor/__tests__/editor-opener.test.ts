@@ -83,10 +83,11 @@ describe('the editor opener', () => {
 
   // The crdt sync work adds EditorHandle.encodeDiffChunked; until it is vendored the call refuses
   // by name (this turns red then, to become the chunking test), and a bad limit never reaches it.
-  it('refuses to chunk a diff, saying which call is missing', async () => {
+  it('refuses to chunk a diff or read the selection text, saying which call is missing', async () => {
     const runtime: TestRuntime = inProcessRuntime('worker');
     const editor: EditorSession = await createEditorOpener({ client: runtime.client, renderer: runtime.renderer }, counting())({ kind: 'blank' });
     await expect(editor.encodeDiffChunked(null, 65_536)).rejects.toThrow(/cannot chunk a diff \(EditorHandle\.encodeDiffChunked is missing\)/);
+    await expect(editor.selectionText()).rejects.toThrow(/cannot read the selection's text \(EditorHandle\.selectionText is missing\)/);
     await expect(editor.encodeDiffChunked(await editor.stateVector(), 0)).rejects.toThrow(/maxBytes 0 is not a positive u32/);
   });
 });

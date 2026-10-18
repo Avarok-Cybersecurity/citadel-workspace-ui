@@ -28,6 +28,7 @@ export type EditorRequestBody =
   | { readonly kind: 'gc'; readonly known: Uint8Array }
   /** Holds an image file of at most `maxBytes` bytes. */
   | { readonly kind: 'addImage'; readonly bytes: Uint8Array; readonly maxBytes: number }
+  | { readonly kind: 'selectionText' }
   | { readonly kind: 'exportAs'; readonly target: ExportTarget }
   /** Drops the worker painter's copy of `pages` (an edit changed them) before they repaint. */
   | { readonly kind: 'invalidatePages'; readonly pages: readonly number[] };
@@ -59,9 +60,10 @@ export interface EditorResults {
   gc: { readonly record: Uint8Array };
   /** A "CDI" added-image record. */
   addImage: { readonly record: Uint8Array };
+  selectionText: { readonly text: string };
   exportAs: { readonly file: ExportedFile };
 }
 
 export type EditorKind = EditorRequestBody['kind'];
 
-export const EDITOR_KINDS: readonly EditorKind[] = ['editorOpen', 'apply', 'applyRemote', 'hitTest', 'snapshot', 'awareness', 'peerView', 'pageSizes', 'invalidatePages', 'stateVector', 'encodeDiff', 'encodeDiffChunked', 'gc', 'addImage', 'exportAs'];
+export const EDITOR_KINDS: readonly EditorKind[] = ['editorOpen', 'apply', 'applyRemote', 'hitTest', 'snapshot', 'awareness', 'peerView', 'pageSizes', 'invalidatePages', 'stateVector', 'encodeDiff', 'encodeDiffChunked', 'gc', 'addImage', 'selectionText', 'exportAs'];

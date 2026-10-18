@@ -157,6 +157,10 @@ export class EditorSession implements EditorController, EditorView {
     return this.serial(async () => decodeCollected((await this.deps.client.request({ kind: 'gc', known: w.finish() })).record));
   }
 
+  selectionText(): Promise<string> {
+    return this.serial(async (): Promise<string> => (await this.deps.client.request({ kind: 'selectionText' })).text);
+  }
+
   exportAs(target: ExportTarget): Promise<ExportedFile> {
     return this.serial(async (): Promise<ExportedFile> => (await this.deps.client.request({ kind: 'exportAs', target })).file);
   }

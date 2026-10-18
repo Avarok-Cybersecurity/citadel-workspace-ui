@@ -117,6 +117,15 @@ export class EditorEngine {
     return this.handle.addImage(bytes, maxBytes);
   }
 
+  /** The selection's plain text. The engine call comes after cdoc-edit #28; until then it fails by name. */
+  selectionText(): string {
+    const textFn: unknown = (this.handle as unknown as { readonly selectionText?: unknown }).selectionText;
+    if (typeof textFn !== 'function') throw new Error("this cdoc-wasm build cannot read the selection's text (EditorHandle.selectionText is missing)");
+    const text: unknown = (textFn as () => unknown).call(this.handle);
+    if (typeof text !== 'string') throw new Error('EditorHandle.selectionText returned no text');
+    return text;
+  }
+
   /**
    * The live document as a file. cdoc-edit-io adds the engine call; until it is vendored this
    * fails by name rather than exporting something else.
