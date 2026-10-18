@@ -23,7 +23,8 @@ function readFace(r: ByteReader, faceId: number): Face {
   const family: string = r.str();
   const unitsPerEm: number = r.uv();
   if (unitsPerEm === 0 || unitsPerEm > MAX_U16) throw new DisplayListError(`face ${faceId} has units_per_em ${unitsPerEm}`);
-  const count: number = r.uv();
+  // A glyph metric is two varints: glyph id and advance.
+  const count: number = r.count(2, `face ${faceId}'s glyph table`);
   const glyphs: GlyphMetric[] = new Array<GlyphMetric>(count);
   for (let i: number = 0; i < count; i++) {
     const glyphId: number = r.uv();
@@ -57,13 +58,13 @@ export function openDisplayList(bytes: ArrayBuffer | Uint8Array): DisplayList {
   if (indexEnd > view.byteLength) throw new DisplayListError(`truncated at byte ${view.byteLength}`);
 
   const fr: ByteReader = new ByteReader(view, facesAt, stringsAt);
-  const faceCount: number = fr.uv();
+  const faceCount: number = fr.count(1, 'the face table');
   const faces: Face[] = [];
   for (let id: number = 0; id < faceCount; id++) faces.push(readFace(fr, id));
   if (!fr.done) throw new DisplayListError('face table does not end where the string table begins');
 
   const sr: ByteReader = new ByteReader(view, stringsAt, indexAt);
-  const stringCount: number = sr.uv();
+  const stringCount: number = sr.count(1, 'the string table');
   const strings: string[] = [];
   for (let i: number = 0; i < stringCount; i++) strings.push(sr.str());
   if (!sr.done) throw new DisplayListError('string table does not end where the page index begins');

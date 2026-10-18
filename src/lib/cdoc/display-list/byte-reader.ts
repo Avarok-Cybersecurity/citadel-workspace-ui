@@ -104,6 +104,18 @@ export class ByteReader {
     throw new DisplayListError('varint longer than five bytes');
   }
 
+  /**
+   * A `uv` element count, checked against the bytes left before anything is sized by it: each
+   * element takes at least `minBytes`, so a count the remaining bytes cannot hold is refused
+   * rather than allocated (CWE-789).
+   */
+  count(minBytes: number, what: string): number {
+    const n: number = this.uv();
+    const left: number = this.end - this.pos;
+    if (n * minBytes > left) throw new DisplayListError(`${what} claims ${n} entries, but only ${left} bytes remain`);
+    return n;
+  }
+
   zz(): number {
     return unzigzag(this.uv() >>> 0);
   }

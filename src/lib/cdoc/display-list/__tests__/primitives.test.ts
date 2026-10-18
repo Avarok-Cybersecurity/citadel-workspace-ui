@@ -7,6 +7,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ByteReader, unzigzag } from '../byte-reader';
 import { openDisplayList } from '../decoder';
+import { decodePage } from '../page-ops';
+import type { DisplayList } from '../types';
 
 function reader(bytes: number[]): ByteReader {
   return new ByteReader(new DataView(new Uint8Array(bytes).buffer), 0, bytes.length);
@@ -84,5 +86,34 @@ describe('the header', () => {
 
   it('refuses a buffer shorter than the header', () => {
     expect(() => openDisplayList(golden.subarray(0, 23))).toThrow(/truncated/);
+  });
+});
+
+describe('element counts', () => {
+  it('reads a count the remaining bytes can hold', () => {
+    const r: ByteReader = reader([0x02, 0xaa, 0xbb]);
+    expect(r.count(1, 'a list')).toBe(2);
+  });
+
+  it('refuses a count the remaining bytes cannot hold, naming it, before sizing anything by it', () => {
+    expect(() => reader([0x03, 0xaa, 0xbb]).count(1, 'a list')).toThrow(/a list claims 3 entries, but only 2 bytes remain/);
+    expect(() => reader([0x01, 0xaa, 0xbb, 0xcc]).count(4, 'a glyph run')).toThrow(/a glyph run claims 1 entries, but only 3 bytes remain/);
+  });
+});
+
+describe('a crafted page body', () => {
+  // A fill path (opcode, length 11, rgba) whose path claims 2^28 verbs with two bytes left: the
+  // count must be refused before a 256 MB array is allocated for it (a crafted list can claim 4 GB).
+  const body: number[] = [0x04, 0x0b, 0, 0, 0, 0xff, 0x80, 0x80, 0x80, 0x80, 0x01, 0x00, 0x00];
+  const list: DisplayList = {
+    view: new DataView(new Uint8Array(body).buffer),
+    faces: [],
+    strings: [],
+    pages: [{ number: 0, offset: 0, length: body.length, width: 59530, height: 84190 }],
+    indexEnd: 0,
+  };
+
+  it('refuses a path count larger than its payload, without allocating it', () => {
+    expect(() => decodePage(list, 0)).toThrow(/a path claims 268435456 entries, but only 2 bytes remain/);
   });
 });

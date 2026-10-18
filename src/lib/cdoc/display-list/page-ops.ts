@@ -20,7 +20,7 @@ function rect(r: ByteReader): Rect {
 }
 
 function path(r: ByteReader): PathData {
-  const count: number = r.uv();
+  const count: number = r.count(1, 'a path');
   const verbs: Uint8Array = new Uint8Array(count);
   const coords: number[] = [];
   for (let i: number = 0; i < count; i++) {
@@ -56,7 +56,7 @@ function op(code: number, r: ByteReader, list: DisplayList): Op {
     case OP_TEXT_RUN: {
       const head: RunHead = runHead(r, list);
       const tableLen: number = list.faces[head.faceId].glyphs.length;
-      const indices: Uint32Array = new Uint32Array(r.uv());
+      const indices: Uint32Array = new Uint32Array(r.count(1, 'a text run'));
       for (let i: number = 0; i < indices.length; i++) {
         const index: number = r.uv();
         if (index >= tableLen) throw new DisplayListError(`glyph-table index ${index} is past face ${head.faceId}'s table`);
@@ -66,7 +66,8 @@ function op(code: number, r: ByteReader, list: DisplayList): Op {
     }
     case OP_GLYPH_RUN: {
       const head: RunHead = runHead(r, list);
-      const n: number = r.uv();
+      // A glyph is four varints: id, advance, dx, dy.
+      const n: number = r.count(4, 'a glyph run');
       const glyphIds: Uint16Array = new Uint16Array(n);
       const advances: Int32Array = new Int32Array(n);
       const dx: Int32Array = new Int32Array(n);
