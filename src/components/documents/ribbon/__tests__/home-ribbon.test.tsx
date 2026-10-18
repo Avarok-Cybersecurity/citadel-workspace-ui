@@ -17,7 +17,7 @@ const BOLD_12PT_CENTRED: CaretFormatting = {
 };
 
 function setUp(caret: CaretFormatting): { editor: FakeEditor; user: UserEvent } {
-  const editor: FakeEditor = new FakeEditor(caret, false);
+  const editor: FakeEditor = new FakeEditor(caret);
   renderRibbon({ editor, edit: MAY_EDIT, commentAuthor: 'Ada' });
   return { editor, user: userEvent.setup() };
 }

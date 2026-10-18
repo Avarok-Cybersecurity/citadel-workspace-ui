@@ -1,12 +1,11 @@
 /**
- * The Insert tab: Table, Pictures (once the editor can take image bytes), Links, Comments,
+ * The Insert tab: Table, Pictures, Links, Comments,
  * Footnotes, Breaks and Symbols.
  */
 import { Asterisk, Image, Link, MessageSquarePlus, Omega, SeparatorHorizontal, Table } from 'lucide-react';
 import { BreakButtons, FootnoteButton, SymbolPicker } from './BreaksAndSymbols';
 import { CommentControl, LinkControls } from './LinkAndComment';
 import { PictureControl } from './PictureControl';
-import { useRibbon } from './ribbon-context';
 import { RibbonGroup, RibbonToolbar } from './RibbonToolbar';
 import { TablePicker } from './TablePicker';
 
@@ -14,7 +13,7 @@ export function InsertRibbon({ commentAuthor }: { commentAuthor: string | null }
   return (
     <RibbonToolbar label="Insert" testId="ribbon-insert-toolbar">
       <RibbonGroup label="Tables" testId="ribbon-tables" collapses={false} icon={Table}><TablePicker /></RibbonGroup>
-      {useRibbon().addImage !== null && <RibbonGroup label="Pictures" testId="ribbon-pictures" collapses={false} icon={Image}><PictureControl /></RibbonGroup>}
+      <RibbonGroup label="Pictures" testId="ribbon-pictures" collapses={false} icon={Image}><PictureControl /></RibbonGroup>
       <RibbonGroup label="Links" testId="ribbon-links" collapses={false} icon={Link}><LinkControls /></RibbonGroup>
       <RibbonGroup label="Comments" testId="ribbon-comments" collapses={false} icon={MessageSquarePlus}><CommentControl author={commentAuthor} /></RibbonGroup>
       <RibbonGroup label="Footnotes" testId="ribbon-footnotes" collapses={false} icon={Asterisk}><FootnoteButton /></RibbonGroup>

@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import type { CaretFormatting, EditorCommand, EditorState } from '@/lib/cdoc/editor/controller';
 import type { ActionGate } from '@/hooks/use-permission-result';
 import { describeError } from '@/lib/describe-error';
-import type { ImageInsertion, RibbonEditor } from './editor-context';
+import type { RibbonEditor } from './editor-context';
 import type { RibbonEnvironment } from './ribbon-environment';
 
 export interface Ribbon {
@@ -22,8 +22,8 @@ export interface Ribbon {
   run(command: EditorCommand, what: string): Promise<void>;
   /** Runs `work` the way `run` runs a command: a failure is shown, and focus returns after. */
   attempt(what: string, work: () => Promise<unknown>): Promise<void>;
-  /** The editor's image store, or null while the editor cannot take image bytes. */
-  readonly addImage: ImageInsertion['addImage'] | null;
+  /** Stores an image's bytes in the document and answers the content id InsertImage takes. */
+  addImage(bytes: Uint8Array, mime: string): Promise<string>;
   /** Hands keyboard focus back to the document, e.g. after a dialog closes with nothing done. */
   returnFocus(): void;
 }
@@ -66,7 +66,10 @@ export function useRibbonValue(editor: RibbonEditor | null, state: EditorState |
       compact,
       run: (command: EditorCommand, what: string): Promise<void> => attempt(what, (live: RibbonEditor): Promise<EditorState> => live.execute(command)),
       attempt: (what: string, work: () => Promise<unknown>): Promise<void> => attempt(what, work),
-      addImage: editor?.addImage === undefined ? null : editor.addImage.bind(editor),
+      addImage: (bytes: Uint8Array, mime: string): Promise<string> => {
+        if (editor === null) return Promise.reject(new Error('the editor has not opened'));
+        return editor.addImage(bytes, mime);
+      },
       returnFocus: (): void => editor?.focus(),
     };
   }, [editor, state, edit, environment, compact]);

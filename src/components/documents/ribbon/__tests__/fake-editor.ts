@@ -26,19 +26,16 @@ export class FakeEditor implements RibbonEditor {
   focused: number = 0;
   private readonly listeners: Map<EditorEventName, Set<Listener>> = new Map<EditorEventName, Set<Listener>>();
   private refusal: string | null = null;
-  /** The images handed over, when this editor takes image bytes. */
+  /** The images handed to addImage, in order; each is answered `image-<n>`. */
   readonly images: { readonly bytes: Uint8Array; readonly mime: string }[] = [];
-  addImage?: (bytes: Uint8Array, mime: string) => Promise<string>;
 
-  /** `takesImages`: whether it offers addImage, as the controller will once the engine can. */
-  constructor(caretFormatting: CaretFormatting, takesImages: boolean) {
+  constructor(caretFormatting: CaretFormatting) {
     this.state = editorState(caretFormatting);
-    if (takesImages) {
-      this.addImage = (bytes: Uint8Array, mime: string): Promise<string> => {
-        this.images.push({ bytes, mime });
-        return Promise.resolve(`image-${this.images.length}`);
-      };
-    }
+  }
+
+  addImage(bytes: Uint8Array, mime: string): Promise<string> {
+    this.images.push({ bytes, mime });
+    return Promise.resolve(`image-${this.images.length}`);
   }
 
   execute(command: EditorCommand): Promise<EditorState> {

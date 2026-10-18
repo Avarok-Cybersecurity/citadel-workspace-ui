@@ -12,9 +12,8 @@ import { FIXED_ENVIRONMENT, MAY_EDIT, renderRibbon } from './render-ribbon';
 /** A paragraph the engine reports with no direct spacing or indent, so Layout's fields can be set. */
 const PLAIN: CaretFormatting = { known: true, run: {}, paragraph: {} };
 
-function setUp(commentAuthor: string | null, takesImages: boolean = false): { editor: FakeEditor; user: UserEvent } {
-  // Default false: only the picture tests need an editor that takes image bytes.
-  const editor: FakeEditor = new FakeEditor(PLAIN, takesImages);
+function setUp(commentAuthor: string | null): { editor: FakeEditor; user: UserEvent } {
+  const editor: FakeEditor = new FakeEditor(PLAIN);
   renderRibbon({ editor, edit: MAY_EDIT, commentAuthor });
   return { editor, user: userEvent.setup() };
 }
@@ -87,14 +86,8 @@ describe('the Insert ribbon', () => {
     expect(screen.getByTestId('ribbon-link-address')).toHaveAttribute('aria-invalid', 'true');
   });
 
-  it('offers no Picture while the editor cannot take image bytes', async () => {
-    const { user } = setUp('Ada');
-    await openTab(user, 'insert');
-    expect(screen.queryByTestId('ribbon-insert-picture')).toBeNull();
-  });
-
   it('hands a picture’s bytes to the editor, then inserts its content id at its size, fitted to the column', async () => {
-    const { editor, user } = setUp('Ada', true);
+    const { editor, user } = setUp('Ada');
     await openTab(user, 'insert');
     const png: File = new File([new Uint8Array([137, 80, 78, 71])], 'chart.png', { type: 'image/png' });
     await user.upload(screen.getByTestId('ribbon-picture-file'), png);
@@ -103,7 +96,7 @@ describe('the Insert ribbon', () => {
   });
 
   it('refuses a picture type the outputs cannot draw, and says so', async () => {
-    const { editor } = setUp('Ada', true);
+    const { editor } = setUp('Ada');
     // The picker's accept filter would hide the SVG; a drag-drop or an old browser need not.
     const user: UserEvent = userEvent.setup({ applyAccept: false });
     await openTab(user, 'insert');
