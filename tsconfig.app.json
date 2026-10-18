@@ -27,5 +27,5 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src", "scripts/lib/docs-harness"]
+  "include": ["src", "scripts/lib/docs-harness", "scripts/lib/bench-harness"]
 }
