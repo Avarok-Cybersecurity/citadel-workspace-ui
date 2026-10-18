@@ -6,7 +6,7 @@
  * communication between the TypeScript frontend and Rust backend.
  */
 
-import type { DocumentsRequest, MemberRole, MessagingTrustRequest, RolesRequest, SignInSettings, TelemetryRequest, WorkspaceLogoChange } from 'citadel-workspace-client-ts';
+import type { DocumentsRequest, MemberRole, MessagingTrustRequest, RolesRequest, SecureLinksRequest, SignInSettings, TelemetryRequest, WorkspaceLogoChange } from 'citadel-workspace-client-ts';
 
 /**
  * The main protocol payload that wraps either a request or response
@@ -163,6 +163,7 @@ export interface WorkspaceProtocolRequestTS {
   MessagingTrust?: MessagingTrustRequest; // Who connects without asking (messaging-trust-operations.ts).
   Roles?: RolesRequest; // The workspace role table (roles-operations.ts).
   Documents?: DocumentsRequest; // A document node's CRDT log and awareness (cdoc/collab/documents-transport.ts).
+  SecureLinks?: SecureLinksRequest; // Secure deep links (secure-links-operations.ts).
   GetSignInSettings?: null; // The sign-in settings (lib/workspace-service/sign-in-settings.ts).
   UpdateSignInSettings?: { settings: SignInSettings };
   DeleteNode?: { node_id: string; cascade: boolean };
@@ -185,7 +186,6 @@ export interface WorkspaceProtocolRequestTS {
   };
 }
 
-// Group message type enum
 export enum GroupMessageTypeTS {
   Text = 'Text',
   Markdown = 'Markdown',

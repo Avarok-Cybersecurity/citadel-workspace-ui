@@ -161,11 +161,17 @@ test('message actions are reachable on a touch device', async ({ browser }) => {
 
         // The sidebar is collapsed at this width; opening it is part of the
         // journey, as it is for the node tree.
+        // Waited for, not sampled: a one-shot isVisible() ran before the toggle
+        // mounted, never tapped it, and the tree stayed in the closed drawer.
         const sidebarToggle = page.getByTestId('sidebar-toggle');
-        if (await sidebarToggle.isVisible().catch(() => false)) {
-            await sidebarToggle.tap();
-            await page.waitForTimeout(1000);
-        }
+        await expect(sidebarToggle, 'the sidebar toggle should be present at phone width').toBeVisible({
+            timeout: 30_000,
+        });
+        await sidebarToggle.tap();
+        await expect(
+            page.getByTestId('tree-search-toggle').or(page.getByTestId('tree-empty')).first(),
+            'the tree should be on screen once the sidebar is open',
+        ).toBeVisible({ timeout: 30_000 });
 
         expect(await navigateToOffice(page, user, 'General'), 'should reach the General office').toBe(true);
         expect(await switchToChatTab(page, user), 'should open the office Chat tab').toBe(true);

@@ -91,7 +91,7 @@ export async function loginWithPassword(
     return { kind: 'redirected' };
   }
   if (outcome.kind === 'failed') {
-    if (outcome.reasonCode !== null) throw new AdmissionRefusal(outcome.reasonCode, outcome.message);
+    if (outcome.reasonCode !== null) throw new AdmissionRefusal(outcome.reasonCode, outcome.message, outcome.challenge);
     if (!isConnectAlreadyInProgress(outcome.message)) throw new Error(outcome.message);
     if (outcome.cid && outcome.cid !== 0n) {
       const { serverAddress } = await labelFor(outcome.cid);

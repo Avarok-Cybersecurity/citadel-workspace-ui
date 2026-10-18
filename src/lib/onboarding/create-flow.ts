@@ -72,8 +72,20 @@ function isDraft(value: unknown): value is FlowDraft {
     INTERVALS.includes(p.interval as BillingInterval) &&
     typeof p.seats === 'number' &&
     typeof p.storageBlocks === 'number' &&
+    typeof p.linkPacks === 'number' &&
     (draft.reservationToken === undefined || typeof draft.reservationToken === 'string')
   );
+}
+
+/**
+ * A draft saved before link packs were sold has no `linkPacks`: that visitor bought none. Upgraded
+ * on read so a Checkout that spans the deploy does not come back to a blank form.
+ */
+function withLinkPacks(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null) return value;
+  const plan: unknown = (value as { plan?: unknown }).plan;
+  if (typeof plan !== 'object' || plan === null || 'linkPacks' in plan) return value;
+  return { ...value, plan: { ...plan, linkPacks: 0 } };
 }
 
 /**
@@ -90,7 +102,7 @@ export function loadDraft(slug: string): FlowDraft | undefined {
   const raw: string | null = sessionGet(DRAFT_KEY);
   if (!raw) return undefined;
   try {
-    const parsed: unknown = JSON.parse(raw);
+    const parsed: unknown = withLinkPacks(JSON.parse(raw));
     return isDraft(parsed) && parsed.slug === slug ? parsed : undefined;
   } catch {
     return undefined;
@@ -105,4 +117,4 @@ export function clearDraft(): void {
  * A fresh plan: Free, so nothing is charged unless the visitor chooses to be.
  * The seat count is what a paid tier starts at when they switch to one.
  */
-export const INITIAL_PLAN: PlanSelection = { tier: 'free', interval: 'month', seats: 3, storageBlocks: 0 };
+export const INITIAL_PLAN: PlanSelection = { tier: 'free', interval: 'month', seats: 3, storageBlocks: 0, linkPacks: 0 };

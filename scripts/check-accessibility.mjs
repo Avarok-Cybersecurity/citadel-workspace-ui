@@ -164,7 +164,7 @@ async function main() {
       // `<Label htmlFor>` beside it named nothing, and the Font Size control had
       // no accessible name at all. Four surfaces were being scanned while this
       // one sat one click away.
-      // Three tabs, not five.
+      // Four tabs of six: Security opens without a session, and says it needs one.
       //
       // Connect and Perms carry `disabled` with "Connect to a workspace first"
       // when there is no session. The click here used to be forced, so it went
@@ -174,7 +174,7 @@ async function main() {
       // authenticated Playwright spec, which has a session. What is asserted
       // here instead is the property that matters when they are out of reach:
       // that they say why.
-      ...['General', 'Theme', 'Privacy'].map((tab) => [
+      ...['General', 'Theme', 'Privacy', 'Security'].map((tab) => [
         `settings/${tab}`,
         async () => {
           // From a fresh load every time, and waiting rather than sleeping.
@@ -295,6 +295,7 @@ async function main() {
       'settings/General': 'Settings',
       'settings/Theme': 'Settings',
       'settings/Privacy': 'Settings',
+      'settings/Security': 'Settings',
       'settings/session-gated tabs': 'Settings',
       'join/security': 'Security Settings',
       'join/profile': 'Create Your Profile',

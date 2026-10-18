@@ -66,7 +66,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "npx eslint . --max-warnings 0",
     "clean": "rm -rf dist",
-    "test:onboarding": "playwright test src/tests-pw/onboarding.spec.ts"
+    "test:onboarding": "playwright test src/tests-pw/onboarding.spec.ts",
+    "test:secure-links": "playwright test src/tests-pw/secure-links.spec.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",

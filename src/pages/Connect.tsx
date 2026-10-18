@@ -6,6 +6,7 @@ import { Shield, Server, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { listKnownServers, getRecentServers, StoredServer } from "@/lib/server-utils";
 import { getWorkspacePath } from "@/lib/workspace-navigation";
+import { resolvePendingRedirect } from '@/lib/share/resolve-here';
 import { connectToServer } from "./connect/use-connect-to-server";
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
@@ -104,7 +105,7 @@ export const Connect: () => JSX.Element = (): JSX.Element => {
         return;
       }
 
-      navigate(getWorkspacePath());
+      await resolvePendingRedirect(navigate, getWorkspacePath());
     } catch (error: unknown) {
       const errorMessage: string = error instanceof Error ? error.message : String(error);
       debugLog('Connect', 'Error connecting to server:', error);

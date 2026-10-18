@@ -20,7 +20,7 @@ import { useSignInKeys, type SignInKeys } from './useSignInKeys';
 
 const POLICIES: readonly SignInPolicy[] = ['Password', 'PasswordAndKey', 'KeyOnly'];
 
-/** Settings -> Privacy -> Sign-in keys: the account's factors, as the server holds them. */
+/** Settings -> Security -> Sign-in keys: the account's factors, as the server holds them. */
 export function SignInKeysSection(): JSX.Element | null {
   const stepUp: StepUpPrompt = useStepUpPrompt();
   const k: SignInKeys = useSignInKeys(stepUp.request);

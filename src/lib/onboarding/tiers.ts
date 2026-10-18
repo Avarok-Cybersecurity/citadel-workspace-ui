@@ -32,6 +32,8 @@ export interface Tier {
   readonly maxMembers: number;
   readonly storage: TierStorage;
   readonly prioritySupport: boolean;
+  /** Live secure links each member may hold; packs add a pool the workspace shares. */
+  readonly secureLinksPerMember: number;
   /** Cents per seat for each interval, or `null` for the free tier. */
   readonly unitAmount: Readonly<Record<BillingInterval, number>> | null;
 }
@@ -45,6 +47,7 @@ export const TIERS: readonly Tier[] = [
     maxMembers: 5,
     storage: { kind: 'total', gb: 1 },
     prioritySupport: false,
+    secureLinksPerMember: 5,
     unitAmount: null,
   },
   {
@@ -55,6 +58,7 @@ export const TIERS: readonly Tier[] = [
     maxMembers: 100,
     storage: { kind: 'per-seat', gb: 10 },
     prioritySupport: false,
+    secureLinksPerMember: 50,
     unitAmount: { month: 600, year: 6000 },
   },
   {
@@ -65,6 +69,7 @@ export const TIERS: readonly Tier[] = [
     maxMembers: 1000,
     storage: { kind: 'per-seat', gb: 25 },
     prioritySupport: true,
+    secureLinksPerMember: 50,
     unitAmount: { month: 1200, year: 12000 },
   },
 ];
@@ -89,11 +94,28 @@ export const STORAGE_ADDON: StorageAddon = {
  */
 export const MAX_STORAGE_BLOCKS: number = 100;
 
+export interface LinkPackAddon {
+  readonly linksPerPack: number;
+  readonly availableOn: readonly PaidTierId[];
+  readonly unitAmount: Readonly<Record<BillingInterval, number>>;
+}
+
+/** Secure-link packs: 50 links each, into one pool the whole workspace shares; paid tiers only. */
+export const LINK_PACK_ADDON: LinkPackAddon = {
+  linksPerPack: 50,
+  availableOn: ['team', 'business'],
+  unitAmount: { month: 200, year: 2000 },
+};
+
+/** The most packs the stepper offers. A UI bound only, like MAX_STORAGE_BLOCKS. */
+export const MAX_LINK_PACKS: number = 100;
+
 export interface PlanSelection {
   readonly tier: TierId;
   readonly interval: BillingInterval;
   readonly seats: number;
   readonly storageBlocks: number;
+  readonly linkPacks: number;
 }
 
 export function tierById(id: TierId): Tier {
@@ -106,6 +128,11 @@ export function isPaid(id: TierId): id is PaidTierId {
   return tierById(id).unitAmount !== null;
 }
 
+/** Whether an add-on (`STORAGE_ADDON`, `LINK_PACK_ADDON`) is sold on `id`. */
+export function addonOfferedOn(addon: { readonly availableOn: readonly PaidTierId[] }, id: TierId): boolean {
+  return isPaid(id) && addon.availableOn.includes(id);
+}
+
 /** Clamp a seat count into what the tier allows. Free has exactly one "seat": the workspace. */
 export function clampSeats(id: TierId, seats: number): number {
   if (!isPaid(id)) return 1;
@@ -113,23 +140,35 @@ export function clampSeats(id: TierId, seats: number): number {
   return Math.min(Math.max(whole, 1), tierById(id).maxMembers);
 }
 
+/** An add-on quantity a tier can actually buy: none where it is not sold, otherwise whole units up to `max`. */
+function clampUnits(addon: { readonly availableOn: readonly PaidTierId[] }, id: TierId, units: number, max: number): number {
+  if (!addonOfferedOn(addon, id)) return 0;
+  const whole: number = Number.isFinite(units) ? Math.round(units) : 0;
+  return Math.min(Math.max(whole, 0), max);
+}
+
 export function clampStorageBlocks(id: TierId, blocks: number): number {
-  if (!isPaid(id)) return 0;
-  const whole: number = Number.isFinite(blocks) ? Math.round(blocks) : 0;
-  return Math.min(Math.max(whole, 0), MAX_STORAGE_BLOCKS);
+  return clampUnits(STORAGE_ADDON, id, blocks, MAX_STORAGE_BLOCKS);
+}
+
+export function clampLinkPacks(id: TierId, packs: number): number {
+  return clampUnits(LINK_PACK_ADDON, id, packs, MAX_LINK_PACKS);
 }
 
 export interface Quote {
   readonly seatsCents: number;
   readonly storageCents: number;
+  readonly linkPacksCents: number;
   readonly totalCents: number;
   readonly storageGb: number;
+  /** Links the packs add to the workspace's shared pool, beyond each member's own allowance. */
+  readonly sharedLinks: number;
 }
 
 /**
  * What a selection costs per interval, in cents.
  *
- * Seats and storage blocks are clamped first, so the quote is always for a
+ * Seats, storage blocks and link packs are clamped first, so the quote is always for a
  * selection that could actually be bought.
  */
 export function quote(selection: PlanSelection): Quote {
@@ -139,12 +178,16 @@ export function quote(selection: PlanSelection): Quote {
   const perSeat: number = tier.unitAmount ? tier.unitAmount[selection.interval] : 0;
   const seatsCents: number = perSeat * seats;
   const storageCents: number = blocks * STORAGE_ADDON.unitAmount[selection.interval];
+  const packs: number = clampLinkPacks(tier.id, selection.linkPacks);
+  const linkPacksCents: number = packs * LINK_PACK_ADDON.unitAmount[selection.interval];
   const baseGb: number = tier.storage.kind === 'total' ? tier.storage.gb : tier.storage.gb * seats;
   return {
     seatsCents,
     storageCents,
-    totalCents: seatsCents + storageCents,
+    linkPacksCents,
+    totalCents: seatsCents + storageCents + linkPacksCents,
     storageGb: baseGb + blocks * STORAGE_ADDON.gbPerBlock,
+    sharedLinks: packs * LINK_PACK_ADDON.linksPerPack,
   };
 }
 

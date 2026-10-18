@@ -6,10 +6,12 @@
  * token is taken once and the widget is reset for the next attempt whatever
  * the outcome. A server refusal overrides discovery in both directions --
  * `admission_required` reveals the check even if discovery said no (or could
- * not answer), `admission_failed` resets it with a retry message.
+ * not answer), `admission_failed` resets it with a retry message. When the
+ * refusal publishes its check (a self-hosted server, which has no discovery),
+ * the widget is rendered with that site key and bound to that identity.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { browserDiscoverAdmission, isAdmissionRefusal, type Admission } from '@/lib/admission';
+import { browserDiscoverAdmission, isAdmissionRefusal, type Admission, type AdmissionChallenge } from '@/lib/admission';
 import { ADMISSION_COPY } from '@/lib/admission/copy';
 import { hostedWorkspaceSlug } from '@/lib/onboarding/billing-portal';
 
@@ -47,6 +49,8 @@ export interface AdmissionGate {
 
 export function useAdmissionGate(action: string, context: AdmissionContext): AdmissionGate {
   const [admission, setAdmission] = useState<Admission | null>(null);
+  /** The check the server's last `admission_required` refusal published: it outranks discovery. */
+  const [published, setPublished] = useState<AdmissionChallenge | null>(null);
   const [forced, setForced] = useState<boolean>(false);
   const [resetSignal, setResetSignal] = useState<number>(0);
   const [message, setMessage] = useState<string | null>(null);
@@ -66,7 +70,8 @@ export function useAdmissionGate(action: string, context: AdmissionContext): Adm
   useEffect(() => { discover((): void => undefined); }, [discover]);
 
   const visible: boolean = forced || admission?.required === true;
-  const siteKey: string | null = admission?.siteKey || null;
+  const siteKey: string | null = published?.siteKey ?? (admission?.siteKey || null);
+  const cData: string | null = published?.identity ?? hostedWorkspaceSlug(serverAddress) ?? null;
 
   // An account the server signed out is told plainly, above anything else the check would say.
   const shown: string | null = context.reauth && visible && (message === null || message === ADMISSION_COPY.required)
@@ -77,7 +82,7 @@ export function useAdmissionGate(action: string, context: AdmissionContext): Adm
     if (siteKey === null) discover((): void => setMessage(ADMISSION_COPY.unavailable));
   }, [siteKey, discover]);
   // Only a workspace nobody knows: a self-hosted server's address is known and binds nothing.
-  const needsWorkspace: boolean = visible && context.accountNamed && context.serverAddress === undefined;
+  const needsWorkspace: boolean = visible && context.accountNamed && context.serverAddress === undefined && (published?.identity ?? null) === null;
   const unbound: boolean = needsWorkspace && named === undefined;
   return {
     require, needsWorkspace,
@@ -86,7 +91,7 @@ export function useAdmissionGate(action: string, context: AdmissionContext): Adm
       error: typedWorkspace.trim() !== '' && named === undefined ? ADMISSION_COPY.workspaceInvalid : null,
       set: setTypedWorkspace,
     },
-    visible, siteKey, action, cData: hostedWorkspaceSlug(serverAddress) ?? null, resetSignal, message: shown,
+    visible, siteKey, action, cData, resetSignal, message: shown,
     onToken: (next: string | undefined): void => {
       token.current = next ?? null;
       if (next) setMessage(null);
@@ -105,7 +110,8 @@ export function useAdmissionGate(action: string, context: AdmissionContext): Adm
     settle: (error: unknown): boolean => {
       if (!isAdmissionRefusal(error)) return false;
       if (error.reason === 'admission_required') {
-        require();
+        // A published check needs no discovery: asking would only race it with "unavailable".
+        if (error.challenge) { setPublished(error.challenge); setForced(true); } else require();
         setMessage(ADMISSION_COPY.required);
       } else {
         // The widget was already reset when this attempt took its token (take above).

@@ -74,7 +74,7 @@ function FileItems({ node, actions, onStartRename }: { node: RevfsNode; actions:
           <Hint s={VFS_SHORTCUTS.download} />
         </ContextMenuItem>
       )}
-      <ContextMenuItem onSelect={() => actions.share([node])} className={ITEM}>
+      <ContextMenuItem onSelect={() => actions.share([node])} className={ITEM} data-testid="vfs-share">
         <Share2 className="mr-2 h-4 w-4" aria-hidden="true" />Share…
       </ContextMenuItem>
       <ContextMenuSeparator />
@@ -103,7 +103,7 @@ function FolderItems({ node, actions, onStartRename }: { node: RevfsNode; action
       <ContextMenuItem onSelect={() => actions.openFolder(node.path)} className={ITEM}>
         <FolderOpen className="mr-2 h-4 w-4" aria-hidden="true" />Open
       </ContextMenuItem>
-      <ContextMenuItem onSelect={() => actions.share([node])} className={ITEM}>
+      <ContextMenuItem onSelect={() => actions.share([node])} className={ITEM} data-testid="vfs-share">
         <Share2 className="mr-2 h-4 w-4" aria-hidden="true" />Share folder
       </ContextMenuItem>
       {modifiable && (

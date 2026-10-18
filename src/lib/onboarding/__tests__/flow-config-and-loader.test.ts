@@ -29,13 +29,13 @@ describe('the draft kept across Checkout', () => {
   beforeEach(() => clearDraft());
 
   it('keeps the reservation token for the retry after a cancelled Checkout', () => {
-    saveDraft({ displayName: 'Acme', slug: 'acme', plan: { tier: 'team', interval: 'month', seats: 2, storageBlocks: 0 }, reservationToken: 'rt_1' });
+    saveDraft({ displayName: 'Acme', slug: 'acme', plan: { tier: 'team', interval: 'month', seats: 2, storageBlocks: 0, linkPacks: 0 }, reservationToken: 'rt_1' });
     expect(loadDraft('acme')?.reservationToken).toBe('rt_1');
   });
 
   it('comes back for the same slug and not another', () => {
-    saveDraft({ displayName: 'Acme', slug: 'acme', plan: { tier: 'team', interval: 'year', seats: 4, storageBlocks: 2 } });
-    expect(loadDraft('acme')?.plan).toEqual({ tier: 'team', interval: 'year', seats: 4, storageBlocks: 2 });
+    saveDraft({ displayName: 'Acme', slug: 'acme', plan: { tier: 'team', interval: 'year', seats: 4, storageBlocks: 2, linkPacks: 0 } });
+    expect(loadDraft('acme')?.plan).toEqual({ tier: 'team', interval: 'year', seats: 4, storageBlocks: 2, linkPacks: 0 });
     expect(loadDraft('other')).toBeUndefined();
   });
 
@@ -43,6 +43,16 @@ describe('the draft kept across Checkout', () => {
     sessionStorage.setItem(DRAFT_KEY, '{"displayName":"x","slug":"acme","plan":{"tier":"gold"}}');
     expect(loadDraft('acme')).toBeUndefined();
     sessionStorage.setItem(DRAFT_KEY, 'not json');
+    expect(loadDraft('acme')).toBeUndefined();
+  });
+
+  it('reads a draft saved before link packs were sold as having bought none', () => {
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ displayName: 'Acme', slug: 'acme', plan: { tier: 'team', interval: 'month', seats: 2, storageBlocks: 0 } }));
+    expect(loadDraft('acme')?.plan.linkPacks).toBe(0);
+  });
+
+  it('ignores a plan whose link packs are not a number', () => {
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ displayName: 'Acme', slug: 'acme', plan: { tier: 'team', interval: 'month', seats: 2, storageBlocks: 0, linkPacks: 'many' } }));
     expect(loadDraft('acme')).toBeUndefined();
   });
 });

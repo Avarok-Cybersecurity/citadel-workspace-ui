@@ -33,4 +33,6 @@ export async function browserAccountServers(): Promise<ReadonlyMap<string, strin
 }
 
 export type { Admission } from './discovery';
-export { AdmissionRefusal, admissionReasonOf, isAdmissionRefusal, type AdmissionReason } from './refusal';
+export {
+  AdmissionRefusal, admissionChallengeOf, admissionReasonOf, isAdmissionRefusal, type AdmissionChallenge, type AdmissionReason,
+} from './refusal';
