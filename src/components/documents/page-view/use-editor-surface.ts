@@ -20,6 +20,7 @@ export interface EditorSurfaceOptions {
   readonly overlayContext: OverlayContextOf;
   readonly undoPauseMs: number;
   readonly onError: (error: unknown) => void;
+  readonly writeClipboard: (text: string) => Promise<void>;
 }
 
 export interface EditorSurface {
@@ -52,7 +53,7 @@ export function useEditorSurface(editor: EditorSession, scroller: RefObject<HTML
   const [peers, setPeers] = useState<readonly PeerPresence[]>(editor.peers.current);
   const scaleRef: { current: DeviceScale } = useRef<DeviceScale>(scale);
   scaleRef.current = scale;
-  const { platform, undoPauseMs, onError } = options;
+  const { platform, undoPauseMs, onError, writeClipboard } = options;
 
   useEffect((): (() => void) => {
     const offPages: () => void = editor.on('pages', (e: EditorEvents['pages']): void => {
@@ -78,14 +79,14 @@ export function useEditorSurface(editor: EditorSession, scroller: RefObject<HTML
     if (sink === null || surface === null) return undefined;
     const focus = (): void => sink.focus({ preventScroll: true });
     editor.attachFocus(focus);
-    const detachIme: () => void = attachImeBridge(sink, editor, { platform, pauseMs: undoPauseMs, onError });
+    const detachIme: () => void = attachImeBridge(sink, editor, { platform, pauseMs: undoPauseMs, onError, writeClipboard });
     const detachPointer: () => void = attachPointer(surface, editor, { locate: locator(() => scaleRef.current), onError, focus });
     return (): void => {
       detachIme();
       detachPointer();
       editor.attachFocus(null);
     };
-  }, [editor, scroller, platform, undoPauseMs, onError]);
+  }, [editor, scroller, platform, undoPauseMs, onError, writeClipboard]);
 
   const collapsed: boolean = state.selectionRects.length === 0;
   return {

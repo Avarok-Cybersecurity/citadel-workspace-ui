@@ -25,25 +25,38 @@ export function statedViewport(): void {
 }
 
 export interface Mounted {
+  /** What reached the system clipboard outside a copy event, in order. */
+  readonly clipboard: string[];
   readonly runtime: TestRuntime;
   readonly editor: EditorSession;
   readonly errors: unknown[];
   readonly input: HTMLTextAreaElement;
 }
 
-export async function mount(mode: 'worker' | 'main-thread'): Promise<Mounted> {
+/**
+ * `clipboard: 'refuses'` makes the system clipboard reject every write, as a browser without
+ * the permission does; the usual case records them (the default here is the test's, not the app's).
+ */
+export async function mount(mode: 'worker' | 'main-thread', clipboardPolicy: 'records' | 'refuses' = 'records'): Promise<Mounted> {
   const runtime: TestRuntime = inProcessRuntime(mode);
   const editor: EditorSession = await EditorSession.open({ client: runtime.client, renderer: runtime.renderer }, 11n, { kind: 'blank' });
   const errors: unknown[] = [];
+  const clipboard: string[] = [];
   render(
     <EditorPageView
       editor={editor} renderer={runtime.renderer} zoom={1} dpr={1} onZoomChange={() => undefined} onPageStatus={() => undefined}
-      input={{ platform: 'other', undoPauseMs: 60_000, onError: (e: unknown) => errors.push(e), overlayContext: runtime.overlayContext }}
+      input={{
+        platform: 'other', undoPauseMs: 60_000, onError: (e: unknown) => errors.push(e), overlayContext: runtime.overlayContext,
+        writeClipboard: async (text: string): Promise<void> => {
+          if (clipboardPolicy === 'refuses') throw new Error('NotAllowedError: Write permission denied.');
+          clipboard.push(text);
+        },
+      }}
     />,
   );
   const input: HTMLTextAreaElement = await screen.findByTestId('editor-input') as HTMLTextAreaElement;
   await waitFor(() => expect(runtime.painted.some((t) => t.sizes.length > 0)).toBe(true));
-  return { runtime, editor, errors, input };
+  return { clipboard, runtime, editor, errors, input };
 }
 
 export function type(input: HTMLElement, text: string): void {

@@ -3,13 +3,15 @@
  * become commands; text arrives through `beforeinput` (typing, paste, dictation, mobile
  * keyboards) and composition events (IMEs, dead keys) become 0x50-0x53, so the editor sees
  * one path for every way text is entered. A paste is the clipboard's text/plain (R1 has no
- * HTML clipboard), entered as one undo step. The textarea's own value is emptied after each
+ * HTML clipboard), entered as one undo step. Copy and Cut set text/plain from the result
+ * record's selection text, synchronously inside the event; past its 64 KiB cap the text is
+ * fetched and written through `writeClipboard` instead. The textarea's own value is emptied after each
  * input: the document is the editor's, never the textarea's.
  *
  * An undo step ends on blur and after `pauseMs` without input (BreakUndoGroup), so a pause in
  * typing is a place Undo stops.
  */
-import type { EditorCommand, EditorController } from '../controller';
+import type { EditorCommand, EditorController, SelectionText } from '../controller';
 import { commandForKey, type Platform } from './keymap';
 
 export interface ImeBridgeOptions {
@@ -18,6 +20,8 @@ export interface ImeBridgeOptions {
   readonly pauseMs: number;
   /** A command the editor refused (one that does not apply where the selection is). */
   readonly onError: (error: unknown) => void;
+  /** Writes text to the system clipboard outside a copy event (navigator.clipboard.writeText). */
+  readonly writeClipboard: (text: string) => Promise<void>;
 }
 
 /** What the bridge needs of a <textarea>. */
@@ -58,6 +62,37 @@ export function attachImeBridge(sink: TextSink, editor: EditorController, option
     const e: ClipboardEvent = event as ClipboardEvent;
     e.preventDefault();
     insertBlock(e.clipboardData?.getData('text/plain') ?? '');
+  };
+
+  /** A caret has nothing to copy: the event is left to the browser. */
+  const atCaret = (): boolean => {
+    const selected: SelectionText = editor.state.selectionText;
+    return selected.complete && selected.text === '';
+  };
+
+  /** Puts the selection's text on the clipboard: inside the event, or past the cap through the port. */
+  const copyOut = (e: ClipboardEvent): void => {
+    const selected: SelectionText = editor.state.selectionText;
+    e.preventDefault();
+    if (selected.complete && e.clipboardData !== null) {
+      e.clipboardData.setData('text/plain', selected.text);
+      return;
+    }
+    editor.selectionText().then(options.writeClipboard).catch((error: unknown): void => {
+      const reason: string = error instanceof Error ? error.message : String(error);
+      options.onError(new Error(`The selection could not be copied: the browser refused to write the clipboard (${reason}).`));
+    });
+  };
+
+  const onCopy = (event: Event): void => {
+    if (!atCaret()) copyOut(event as ClipboardEvent);
+  };
+
+  // Cut is its own undo step in the engine, and a selection change has already ended typing's.
+  const onCut = (event: Event): void => {
+    if (atCaret()) return;
+    copyOut(event as ClipboardEvent);
+    run({ name: 'cut' });
   };
 
   const onKeyDown = (event: Event): void => {
@@ -129,7 +164,7 @@ export function attachImeBridge(sink: TextSink, editor: EditorController, option
   const listeners: ReadonlyArray<readonly [string, (event: Event) => void]> = [
     ['keydown', onKeyDown], ['beforeinput', onBeforeInput], ['compositionstart', onCompositionStart],
     ['compositionupdate', onCompositionUpdate], ['compositionend', onCompositionEnd], ['input', onInput], ['blur', onBlur],
-    ['paste', onPaste],
+    ['paste', onPaste], ['copy', onCopy], ['cut', onCut],
   ];
   for (const [type, listener] of listeners) sink.addEventListener(type, listener);
   return (): void => {

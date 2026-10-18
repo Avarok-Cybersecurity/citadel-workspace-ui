@@ -51,11 +51,14 @@ function created(r: RecordReader): Created[] {
   });
 }
 
+/** `complete:u8 text:str`: the text, or complete 0 and an empty text past the cap. */
 function selectionText(r: RecordReader): SelectionText {
   const complete: number = r.u8();
-  if (complete === 1) return { complete: true, text: r.str() };
-  if (complete === 0) return { complete: false };
-  throw new RecordError(`selection text flag ${complete}`);
+  const text: string = r.str();
+  if (complete === 1) return { complete: true, text };
+  if (complete !== 0) throw new RecordError(`selection text flag ${complete}`);
+  if (text !== '') throw new RecordError('an incomplete selection text carries text');
+  return { complete: false };
 }
 
 export function decodeResult(bytes: Uint8Array): EditorResult {

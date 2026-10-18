@@ -71,6 +71,7 @@ export default function DocsCanvas({ documentSource, loadRuntime, keepReplica, s
     platform: platformOf(navigator.userAgent),
     undoPauseMs: UNDO_PAUSE_MS,
     onError: (error: unknown): void => setEditError(error instanceof Error ? error.message : String(error)),
+    writeClipboard: (text: string): Promise<void> => navigator.clipboard.writeText(text),
   }), [overlayContext]);
 
   /**
