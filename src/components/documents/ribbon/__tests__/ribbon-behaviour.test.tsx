@@ -58,7 +58,7 @@ describe('a refused command', () => {
     await user.click(screen.getByTestId('ribbon-insert-footnote'));
     await waitFor((): void => expect(editor.focused).toBe(2));
     await waitFor((): void => expect(screen.getByTestId('docs-ribbon-status')).not.toHaveTextContent(refusal));
-    expect(editor.sent.map((c: { name: string }): string => c.name)).toEqual(['removeLink', 'insertFootnote']);
+    expect(editor.sent.map((c: { name: string }): string => c.name)).toEqual(['removeLink', 'insertNewFootnote']);
   });
 });
 
@@ -83,7 +83,7 @@ describe('keyboard', () => {
     await user.keyboard('{ArrowRight}');
     expect(screen.getByTestId('ribbon-redo')).toHaveFocus();
     await user.keyboard('{ArrowRight}');
-    expect(screen.getByTestId('ribbon-font-family')).toHaveFocus();
+    expect(screen.getByTestId('ribbon-paste')).toHaveFocus();
     await user.keyboard('{ArrowLeft}{ArrowLeft}{ArrowLeft}');
     expect(screen.getByTestId('ribbon-styles-open')).toHaveFocus();
     await user.keyboard('{Home}');

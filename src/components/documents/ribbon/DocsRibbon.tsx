@@ -10,6 +10,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import type { EditorState } from '@/lib/cdoc/editor/controller';
 import type { ActionGate } from '@/hooks/use-permission-result';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils';
 import { CdocFontFaces } from './CdocFontFaces';
 import { HomeRibbon } from './HomeRibbon';
 import { InsertRibbon } from './InsertRibbon';
@@ -43,6 +44,14 @@ export function DocsRibbon({ edit, commentAuthor, environment }: DocsRibbonProps
   const [tab, setTab] = useState<RibbonTab>('home');
   // No ribbon until the editor has opened: controls with nothing to drive would only say so.
   if (editor === null) return null;
+  // Where it never moves the toolbar: beside the tabs, or on a phone under the toolbar, where it
+  // wraps to its whole text. Mounted empty, so what it says later is announced.
+  const status: JSX.Element = (
+    <p role="status" data-testid="docs-ribbon-status"
+      className={cn('min-w-0 text-[12px] leading-tight text-muted-foreground', compact ? 'min-h-[19px] pt-1' : 'ml-auto text-right')}>
+      {ribbon.failure ?? ribbon.notice ?? ribbon.disabledReason ?? (ribbon.caret.known ? '' : UNKNOWN_CARET)}
+    </p>
+  );
   return (
     <RibbonContext.Provider value={ribbon}>
       <TooltipProvider delayDuration={400}>
@@ -58,14 +67,12 @@ export function DocsRibbon({ edit, commentAuthor, environment }: DocsRibbonProps
               </TabsTrigger>
             ))}
           </TabsList>
-          {/* In the tab row, so it appearing or going never moves the toolbar. Mounted empty, so it is announced. */}
-          <p role="status" data-testid="docs-ribbon-status" className="ml-auto min-w-0 text-right text-[12px] leading-tight text-muted-foreground">
-            {ribbon.disabledReason ?? ribbon.failure ?? (ribbon.caret.known ? '' : UNKNOWN_CARET)}
-          </p>
+          {!compact && status}
           </div>
           <TabsContent value="home" tabIndex={-1} className="mt-1"><HomeRibbon /></TabsContent>
           <TabsContent value="insert" tabIndex={-1} className="mt-1"><InsertRibbon commentAuthor={commentAuthor} /></TabsContent>
           <TabsContent value="layout" tabIndex={-1} className="mt-1"><LayoutRibbon /></TabsContent>
+          {compact && status}
         </Tabs>
       </TooltipProvider>
     </RibbonContext.Provider>

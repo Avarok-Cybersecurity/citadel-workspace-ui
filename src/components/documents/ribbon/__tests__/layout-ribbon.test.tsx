@@ -6,8 +6,8 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import type { EditorCommand } from '@/lib/cdoc/editor/controller';
-import type { PageSetupPatch } from '@/lib/cdoc/editor/model-values';
-import { FakeEditor, knownCaret } from './fake-editor';
+import type { PageSetup, PageSetupPatch } from '@/lib/cdoc/editor/model-values';
+import { A4_NORMAL, FakeEditor, knownCaret } from './fake-editor';
 import { MAY_EDIT, renderRibbon } from './render-ribbon';
 
 function setUp(): { editor: FakeEditor; user: UserEvent } {
@@ -62,14 +62,52 @@ describe('the Layout ribbon', () => {
       section({ margins: { top: 7200, bottom: 7200, left: 14400, right: 14400, ...HALF_INCH_HEADERS } }),
       section({ orientation: 'landscape' }),
       section({ orientation: 'portrait' }),
-      section({ size: { width: 61200, height: 79200, orientation: 'portrait' } }),
-      section({ size: { width: 61200, height: 100800, orientation: 'portrait' } }),
-      section({ size: { width: 59528, height: 84189, orientation: 'portrait' } }),
-      section({ size: { width: 41953, height: 59528, orientation: 'portrait' } }),
+      section({ size: { width: 61200, height: 79200, orientation: 'portrait' }, orientation: 'portrait' }),
+      section({ size: { width: 61200, height: 100800, orientation: 'portrait' }, orientation: 'portrait' }),
+      section({ size: { width: 59530, height: 84190, orientation: 'portrait' }, orientation: 'portrait' }),
+      section({ size: { width: 41955, height: 59530, orientation: 'portrait' }, orientation: 'portrait' }),
       section({ columns: { count: 1, gap: 3600, separator: false } }),
       section({ columns: { count: 3, gap: 3600, separator: false } }),
     ]));
     expect(screen.queryByTestId('ribbon-page-columns')).toBeNull();
+  });
+
+  it('presses the section’s current setup in each menu, and keeps a landscape page landscape when its size changes', async () => {
+    const landscape: PageSetup = { ...A4_NORMAL, size: { width: 84190, height: 59530, orientation: 'landscape' }, columns: { count: 2, gap: 3600, separator: false } };
+    const editor: FakeEditor = new FakeEditor(knownCaret({}, {}, {}, landscape));
+    renderRibbon({ editor, edit: MAY_EDIT, commentAuthor: 'Ada' });
+    const user: UserEvent = userEvent.setup();
+    await user.click(screen.getByTestId('docs-ribbon-tab-layout'));
+    const pressedIn = async (menu: string): Promise<string[]> => {
+      await user.click(screen.getByTestId(`ribbon-page-${menu}-open`));
+      await screen.findByTestId(`ribbon-page-${menu}`);
+      const on: string[] = [...screen.getByTestId(`ribbon-page-${menu}`).querySelectorAll('[aria-pressed="true"]')].map((el: Element): string => el.getAttribute('data-testid') ?? '');
+      await user.keyboard('{Escape}');
+      await waitFor((): void => expect(screen.queryByTestId(`ribbon-page-${menu}`)).toBeNull());
+      return on;
+    };
+    expect(await pressedIn('margins')).toEqual(['ribbon-page-margins-normal']);
+    expect(await pressedIn('orientation')).toEqual(['ribbon-page-orientation-landscape']);
+    expect(await pressedIn('size')).toEqual(['ribbon-page-size-a4']);
+    expect(await pressedIn('columns')).toEqual(['ribbon-page-columns-2']);
+    await choose(user, 'size', 'letter');
+    await waitFor((): void => expect(editor.sent).toEqual([section({ size: { width: 61200, height: 79200, orientation: 'portrait' }, orientation: 'landscape' })]));
+  });
+
+  it('shows no current setup before the editor reports one, and holds Size back until it does', async () => {
+    const editor: FakeEditor = new FakeEditor({ known: false });
+    renderRibbon({ editor, edit: MAY_EDIT, commentAuthor: 'Ada' });
+    const user: UserEvent = userEvent.setup();
+    await user.click(screen.getByTestId('docs-ribbon-tab-layout'));
+    expect(screen.getByTestId('ribbon-page-size-open')).toHaveAttribute('aria-disabled', 'true');
+    await user.click(screen.getByTestId('ribbon-page-size-open'));
+    expect(screen.queryByTestId('ribbon-page-size')).toBeNull();
+    await waitFor((): void => expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent('The page’s setup shows once you click or type in the document.'));
+    await user.click(screen.getByTestId('ribbon-page-margins-open'));
+    // Unknown is not "half pressed": the options say nothing until the section is reported.
+    expect(await screen.findByTestId('ribbon-page-margins-normal')).not.toHaveAttribute('aria-pressed');
+    await user.click(screen.getByTestId('ribbon-page-margins-narrow'));
+    await waitFor((): void => expect(editor.sent).toEqual([section({ margins: { top: 3600, bottom: 3600, left: 3600, right: 3600, ...HALF_INCH_HEADERS } })]));
   });
 
   it('opens a menu and chooses from it by keyboard alone, then gives focus back to the document', async () => {

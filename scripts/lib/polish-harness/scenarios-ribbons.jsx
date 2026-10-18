@@ -16,8 +16,15 @@ const KNOWN = knownCaret(
   { style: 'Heading1', alignment: 'left', spacing: { before: 1200, after: 0 } },
 );
 
-function Ribbon({ caret }) {
-  const [editor] = useState(() => new FakeEditor(caret));
+/** A refusal as long as the engine's longest, for the phone layout to hold in one line. */
+const LONG_REFUSAL = 'the selection spans a table and the text around it, and this command applies to one or the other but not both at once';
+
+function Ribbon({ caret, refusing = false }) {
+  const [editor] = useState(() => {
+    const fake = new FakeEditor(caret);
+    if (refusing) fake.refuseNext(LONG_REFUSAL);
+    return fake;
+  });
   return (
     <EditorControllerContext.Provider value={editor}>
       <div className="flex h-screen flex-col bg-background">
@@ -32,4 +39,6 @@ function Ribbon({ caret }) {
 export const RIBBON_SCENARIOS = {
   'docs-ribbon': () => <Ribbon caret={KNOWN} />,
   'docs-ribbon-unknown': () => <Ribbon caret={{ known: false }} />,
+  // The first command is refused with a long reason (statusNeverMovesTheToolbar).
+  'docs-ribbon-refusing': () => <Ribbon caret={KNOWN} refusing />,
 };

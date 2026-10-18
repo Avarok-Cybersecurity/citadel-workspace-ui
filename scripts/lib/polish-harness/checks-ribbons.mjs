@@ -31,7 +31,8 @@ const eachTabPassesAxe = (scenario) => async ({ page, url }) => {
     await showTab(page, tab);
     const found = await axeViolations(page, '[data-testid="docs-ribbon"]');
     assert.equal(found.length, 0, `${tab}: ${found.slice(0, 5).join(' | ')}`);
-    const groups = page.locator(`[data-testid="ribbon-${tab}-toolbar"] [data-testid$="-open"]`);
+    // A refused opener (Size before the section is known) opens nothing, by design.
+    const groups = page.locator(`[data-testid="ribbon-${tab}-toolbar"] [data-testid$="-open"]:not([aria-disabled="true"])`);
     for (let i = 0; i < await groups.count(); i += 1) {
       const opener = await groups.nth(i).getAttribute('data-testid');
       await groups.nth(i).click();
@@ -99,9 +100,61 @@ async function popoversStayOnScreen({ page, url, viewport }) {
   await assertPopoversOnScreen(page, viewport, 'the page-size menu');
 }
 
+/** A long refusal in the status line never pushes the toolbar down (on a phone the line sits under it). */
+async function statusNeverMovesTheToolbar({ page, url }) {
+  await openRibbon(page, url, 'docs-ribbon-refusing');
+  const toolbar = page.getByTestId('ribbon-home-toolbar');
+  const before = await toolbar.evaluate((el) => el.getBoundingClientRect().top);
+  await page.getByTestId('docs-ribbon-tab-home').focus();
+  // Undo is a command at every width (its group never collapses); this one is refused.
+  await page.getByTestId('ribbon-undo').click();
+  const status = page.getByTestId('docs-ribbon-status');
+  await status.filter({ hasText: 'Could not undo.' }).waitFor({ state: 'visible', timeout: 3000 });
+  await page.keyboard.press('Escape');
+  await settled(page);
+  const after = await toolbar.evaluate((el) => el.getBoundingClientRect().top);
+  assert.equal(after, before, `the refusal moved the toolbar from ${before} to ${after}`);
+  const clipped = await status.evaluate((el) => el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1);
+  assert.ok(!clipped, 'the status line clips the refusal');
+}
+
+/** Why a control is refused, wherever it is read (the status line a tap writes, the tooltip), fits the viewport whole. */
+async function reasonsFitTheScreen({ page, url, viewport }) {
+  await openRibbon(page, url, 'docs-ribbon-unknown');
+  await showTab(page, 'layout');
+  const group = page.getByTestId('ribbon-page-setup-open');
+  if (await group.isVisible()) await group.click();
+  const size = page.getByTestId('ribbon-page-size-open');
+  await size.waitFor({ state: 'visible' });
+  await settled(page);
+  // A tap on a refused control. Playwright will not click an aria-disabled element, a finger will:
+  // press where it is drawn, after checking it is what is there (what a forced click would skip).
+  const centre = await size.evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    const x = r.x + r.width / 2;
+    const y = r.y + r.height / 2;
+    return { x, y, hit: el.contains(document.elementFromPoint(x, y)) };
+  });
+  assert.ok(centre.hit, 'something covers the Size control, so a tap would not reach it');
+  await page.mouse.click(centre.x, centre.y);
+  const status = page.getByTestId('docs-ribbon-status');
+  await status.filter({ hasText: 'The page’s setup shows once you click or type in the document.' }).waitFor({ state: 'visible', timeout: 3000 });
+  const line = await status.evaluate((el) => ({ clipped: el.scrollWidth > el.clientWidth + 1, ...el.getBoundingClientRect().toJSON() }));
+  assert.ok(!line.clipped && line.x >= 0 && line.x + line.width <= viewport.width, `the status line clips its reason: ${JSON.stringify(line)}`);
+  await size.hover();
+  const tip = page.locator('[role="tooltip"]').first();
+  await tip.waitFor({ state: 'attached', timeout: 3000 });
+  await settled(page);
+  // The role=tooltip node is Radix's hidden copy for assistive tech; its parent is the tip people see.
+  const box = await tip.evaluate((el) => el.parentElement.getBoundingClientRect().toJSON());
+  assert.ok(box.x >= 0 && box.x + box.width <= viewport.width, `the tooltip ${JSON.stringify(box)} leaves the ${viewport.width}px viewport`);
+}
+
 export const RIBBON_CHECKS = {
   ribbonPassesAxe: eachTabPassesAxe('docs-ribbon'),
   ribbonPassesAxeWithAnUnknownCaret: eachTabPassesAxe('docs-ribbon-unknown'),
   ribbonTargetsAndWidth,
   popoversStayOnScreen,
+  statusNeverMovesTheToolbar,
+  reasonsFitTheScreen,
 };

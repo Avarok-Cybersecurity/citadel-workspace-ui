@@ -7,17 +7,16 @@
  * engine for the paths it can reach. The polish harness uses it too, to give the real ribbon
  * an editor in a browser page with no cdoc worker.
  */
-import type { AddedImage, CaretFormatting, EditorCommand, EditorEventName, EditorEvents, EditorPosition, EditorState } from '@/lib/cdoc/editor/controller';
+import type { AddedImage, CaretFormatting, DocumentStyle, EditorCommand, EditorEventName, EditorEvents, EditorPosition, EditorState } from '@/lib/cdoc/editor/controller';
 import type { KnownFormatting, ParagraphKey, RunKey } from '@/lib/cdoc/editor/caret-formatting';
 import type { PageSetup, ParagraphProperties, RunPropertiesPatch } from '@/lib/cdoc/editor/model-values';
 import type { RibbonEditor } from '../editor-context';
 
 /**
- * The section a test caret sits in unless it names one (rationale: the ribbon tests that use
- * the default do not read Page Setup): A4 portrait, 1-inch margins, one column, as a blank
- * document's section reads (editor-v4.test.ts pins the engine's own).
+ * The section a test caret sits in unless it names one: A4 portrait, Word's Normal margins, one
+ * column, as a blank document's section reads (editor-v4.test.ts pins the engine's own).
  */
-const A4_SECTION: PageSetup = {
+export const A4_NORMAL: PageSetup = {
   size: { width: 59530, height: 84190, orientation: 'portrait' },
   margins: { top: 7200, bottom: 7200, left: 7200, right: 7200, header: 3600, footer: 3600, gutter: 0 },
   columns: { count: 1, gap: 3600, separator: false },
@@ -29,13 +28,21 @@ export function knownCaret(
   run: RunPropertiesPatch,
   paragraph: ParagraphProperties,
   mixed: { readonly run?: readonly RunKey[]; readonly paragraph?: readonly ParagraphKey[] } = {},
-  section: PageSetup = A4_SECTION,
+  section: PageSetup = A4_NORMAL,
 ): KnownFormatting {
   return {
     known: true, run, runDirect: run, paragraph, paragraphDirect: paragraph,
     runMixed: new Set<RunKey>(mixed.run ?? []), paragraphMixed: new Set<ParagraphKey>(mixed.paragraph ?? []), section,
   };
 }
+
+/** A test sheet: Word's Normal and Heading 1 (lower-case stored names, as the engine has them) and a character style the gallery must leave out. */
+export const TEST_STYLES: readonly DocumentStyle[] = [
+  { id: 'Normal', name: 'Normal', kind: 'paragraph', basedOn: null, run: { font: 'Calibri', size: 22 }, paragraph: {} },
+  { id: 'Heading1', name: 'heading 1', kind: 'paragraph', basedOn: 'Normal', run: { font: 'Calibri Light', size: 32, color: '#2F5496' }, paragraph: {} },
+  { id: 'Title', name: 'Title', kind: 'paragraph', basedOn: 'Normal', run: { font: 'Calibri Light', size: 56 }, paragraph: {} },
+  { id: 'Hyperlink', name: 'Hyperlink', kind: 'character', basedOn: null, run: { color: '#0563C1' }, paragraph: {} },
+];
 
 const NOWHERE: EditorPosition = new Uint8Array([0, 0]) as EditorPosition;
 
@@ -56,9 +63,15 @@ export class FakeEditor implements RibbonEditor {
   private refusal: string | null = null;
   /** The images handed to addImage, in order; each is answered `image-<n>`. */
   readonly images: { readonly bytes: Uint8Array; readonly maxBytes: number }[] = [];
-  /** The pixel size addImage reports: a 4:3 picture wider than a column, so sizing scales it. */
+  /** The pixel size addImage reports (the ribbon leaves sizing to the editor). */
   imagePixels: { readonly width: number; readonly height: number } = { width: 800, height: 600 };
   private imageRefusal: string | null = null;
+  /** What styles() answers; a test replaces it to model a document with its own sheet. */
+  styleSheet: readonly DocumentStyle[] = TEST_STYLES;
+  /** How many times styles() was asked. */
+  styleReads: number = 0;
+  /** What selectionText() reads out past the record's cap. */
+  fullSelectionText: string = '';
   private imageHeld: Promise<void> | null = null;
 
   constructor(caretFormatting: CaretFormatting) {
@@ -82,6 +95,15 @@ export class FakeEditor implements RibbonEditor {
   /** addImage waits for `until`, so a test can see the picture control while it works. */
   holdImages(until: Promise<void>): void {
     this.imageHeld = until;
+  }
+
+  styles(): Promise<DocumentStyle[]> {
+    this.styleReads += 1;
+    return Promise.resolve([...this.styleSheet]);
+  }
+
+  selectionText(): Promise<string> {
+    return Promise.resolve(this.fullSelectionText);
   }
 
   execute(command: EditorCommand): Promise<EditorState> {

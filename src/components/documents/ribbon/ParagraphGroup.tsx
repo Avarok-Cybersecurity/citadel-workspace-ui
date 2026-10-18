@@ -1,5 +1,5 @@
 /**
- * Home › Paragraph: indent and outdent (list level for a list item, a tab stop otherwise, as
+ * Home › Paragraph: bullets and numbering (ListControls), indent and outdent (list level for a list item, a tab stop otherwise, as
  * the engine does), alignment, line spacing (Multiple, Word's list) and spacing before/after.
  */
 import { AlignCenter, AlignJustify, AlignLeft, AlignRight, IndentDecrease, IndentIncrease, Pilcrow, type LucideIcon } from 'lucide-react';
@@ -8,6 +8,7 @@ import { WORD_LINE_SPACINGS, alignmentState, caretParagraph, lineSpacingLabel } 
 import { RibbonButton, type Shortcut } from './RibbonButton';
 import { RibbonPicker, type PickerOption } from './RibbonFields';
 import { RibbonGroup } from './RibbonToolbar';
+import { ListControls } from './ListControls';
 import { SpacingFields } from './ParagraphFields';
 import { useRibbon, type Ribbon } from './ribbon-context';
 
@@ -35,6 +36,7 @@ export function ParagraphGroup(): JSX.Element {
   const { caret, run }: Ribbon = useRibbon();
   return (
     <RibbonGroup label="Paragraph" testId="ribbon-paragraph" collapses={true} icon={Pilcrow}>
+      <ListControls />
       <RibbonButton testId="ribbon-outdent" label="Decrease indent" icon={IndentDecrease} shortcut={{ key: 'M', shift: true }}
         onPress={(): void => { void run({ name: 'outdent' }, 'decrease the indent'); }} />
       <RibbonButton testId="ribbon-indent" label="Increase indent" icon={IndentIncrease} shortcut={{ key: 'M' }}

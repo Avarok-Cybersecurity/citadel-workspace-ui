@@ -1,9 +1,8 @@
 /**
- * The Home tab: Undo and Redo, Font, Paragraph and Styles. Clipboard is absent on purpose:
- * the editor contract has no copy (no selected-content export) and no paste path beyond
- * plain InsertText, so Cut, Copy and Paste buttons would operate on nothing.
+ * The Home tab: Undo and Redo, Clipboard, Font, Paragraph and Styles.
  */
 import { Redo2, Undo2 } from 'lucide-react';
+import { ClipboardGroup } from './ClipboardGroup';
 import { FontGroup } from './FontGroup';
 import { ParagraphGroup } from './ParagraphGroup';
 import { RibbonButton } from './RibbonButton';
@@ -25,6 +24,7 @@ export function HomeRibbon(): JSX.Element {
   return (
     <RibbonToolbar label="Home" testId="ribbon-home-toolbar">
       <UndoGroup />
+      <ClipboardGroup />
       <FontGroup />
       <ParagraphGroup />
       <StylesGroup />

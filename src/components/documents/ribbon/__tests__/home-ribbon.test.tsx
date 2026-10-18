@@ -40,8 +40,11 @@ describe('the Home ribbon', () => {
     ['ribbon-mark-superscript', { name: 'toggleMark', mark: 'superscript' }],
     ['ribbon-clear-formatting', {
       name: 'setRunProperty',
-      patch: { bold: false, italic: false, underline: { style: 'none' }, strike: false, verticalAlign: 'baseline', smallCaps: false, allCaps: false },
+      patch: { style: null, font: null, size: null, bold: null, italic: null, underline: null, strike: null, verticalAlign: null, color: null, highlight: null, smallCaps: null, allCaps: null, kern: null, ligatures: null, lang: null },
     }],
+    ['ribbon-text-color-auto', { name: 'setRunProperty', patch: { color: null } }],
+    ['ribbon-highlight-none', { name: 'setRunProperty', patch: { highlight: null } }],
+    ['ribbon-bullets', { name: 'setNumberingKind', kind: 'bullet', level: 0 }],
     ['ribbon-indent', { name: 'indent' }],
     ['ribbon-outdent', { name: 'outdent' }],
     ['ribbon-align-left', { name: 'setParagraphProperty', patch: { alignment: 'left' } }],
@@ -167,6 +170,12 @@ describe('the Home ribbon', () => {
     ]);
   });
 
+  it('names the colour resets in words, not only by their look-alike icons', () => {
+    setUp(UNKNOWN);
+    expect(screen.getByTestId('ribbon-text-color-auto')).toHaveTextContent('Automatic');
+    expect(screen.getByTestId('ribbon-highlight-none')).toHaveTextContent('No highlight');
+  });
+
   it('applies a colour when the picker commits it', () => {
     const { editor } = setUp(UNKNOWN);
     const input: HTMLElement = screen.getByTestId('ribbon-highlight');
@@ -178,7 +187,8 @@ describe('the Home ribbon', () => {
 
   it('applies a style from the gallery, previewed in the style’s own look', async () => {
     const { editor, user } = setUp(BOLD_12PT_CENTRED);
-    expect(screen.getByTestId('ribbon-styles-open')).toHaveTextContent('Heading 1');
+    // The button names the caret's style from the document's own sheet, once it has been read.
+    await waitFor((): void => expect(screen.getByTestId('ribbon-styles-open')).toHaveTextContent('Heading 1'));
     await user.click(screen.getByTestId('ribbon-styles-open'));
     const title: HTMLElement = await screen.findByTestId('ribbon-style-Title');
     expect(title.firstElementChild).toHaveStyle({ fontFamily: '"cdoc Carlito", sans-serif' });

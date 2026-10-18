@@ -35,7 +35,8 @@ export function RibbonTip({ label, shortcut, reason, suppressed, children }: { l
     <Tooltip open={open && suppressed !== true} onOpenChange={setOpen}>
       {/* Activating the control closes its tip, so the dialog it opens gets the next Escape. */}
       <TooltipTrigger asChild onKeyDown={(e: KeyboardEvent<HTMLElement>): void => { if (isEnterCommit(e) || e.key === ' ') setOpen(false); }}>{children}</TooltipTrigger>
-      <TooltipContent side="bottom">{text}</TooltipContent>
+      {/* Never wider than a phone: a refusal's reason wraps instead of running off the screen. */}
+      <TooltipContent side="bottom" collisionPadding={16} className="max-w-[calc(100vw-32px)] whitespace-normal">{text}</TooltipContent>
     </Tooltip>
   );
 }
@@ -52,14 +53,16 @@ export interface RibbonButtonProps extends Omit<ComponentPropsWithoutRef<'button
   readonly text?: string;
   /** What a press does; a trigger (popover, dialog) leaves it out and its `onClick` opens it. */
   readonly onPress?: () => void;
+  /** It only reads the document (Copy), so it stays usable where editing is not allowed. */
+  readonly reads?: boolean;
 }
 
 function RibbonButtonImpl(
-  { testId, label, icon: Icon, shortcut, pressed, unavailable, text, onPress, onClick, className, ...rest }: RibbonButtonProps,
+  { testId, label, icon: Icon, shortcut, pressed, unavailable, text, onPress, reads, onClick, className, ...rest }: RibbonButtonProps,
   ref: ForwardedRef<HTMLButtonElement>,
 ): JSX.Element {
-  const { disabledReason } = useRibbon();
-  const reason: string | null = disabledReason ?? unavailable ?? null;
+  const { disabledReason, readReason, explain } = useRibbon();
+  const reason: string | null = (reads === true ? readReason : disabledReason) ?? unavailable ?? null;
   return (
     <RibbonTip label={label} shortcut={shortcut} reason={reason}>
       <button
@@ -73,7 +76,10 @@ function RibbonButtonImpl(
         aria-disabled={reason !== null}
         className={cn(RIBBON_CONTROL, className)}
         onClick={(event: MouseEvent<HTMLButtonElement>): void => {
-          if (reason !== null) return event.preventDefault();
+          if (reason !== null) {
+            event.preventDefault();
+            return explain(reason);
+          }
           onPress?.();
           onClick?.(event);
         }}

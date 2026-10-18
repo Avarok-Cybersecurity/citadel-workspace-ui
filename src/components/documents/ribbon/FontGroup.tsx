@@ -1,12 +1,14 @@
 /**
  * Home › Font: family (the faces the engine is served), size (Word's list, half-points),
- * grow and shrink, the six marks, text colour, highlight and Clear Formatting.
+ * grow and shrink, the six marks, text colour (or automatic), highlight (or none) and Clear
+ * Formatting, which returns every run property to what the styles give.
  */
-import { AArrowDown, AArrowUp, Baseline, Bold, Highlighter, Italic, RemoveFormatting, Strikethrough, Subscript, Superscript, Type, Underline, type LucideIcon } from 'lucide-react';
+import { AArrowDown, AArrowUp, Ban, Baseline, Bold, CircleSlash, Highlighter, Italic, RemoveFormatting, Strikethrough, Subscript, Superscript, Type, Underline, type LucideIcon } from 'lucide-react';
 import type { Mark } from '@/lib/cdoc/editor/controller';
+import { CLEAR_FORMATTING } from '@/lib/cdoc/editor/caret-formatting';
 import type { HexColor } from '@/lib/cdoc/editor/model-values';
 import { FONT_MANIFEST } from '@/lib/cdoc/generated/font-manifest';
-import { CLEAR_RUN_PATCH, WORD_FONT_SIZES, caretRun, fontFamilies, grownSize, halfPointsLabel, markState, shrunkSize } from './formatting';
+import { WORD_FONT_SIZES, caretRun, fontFamilies, grownSize, halfPointsLabel, markState, shrunkSize } from './formatting';
 import { ColorControl } from './ColorControl';
 import { RibbonButton, type Shortcut } from './RibbonButton';
 import { RibbonPicker, type PickerOption } from './RibbonFields';
@@ -59,10 +61,14 @@ export function FontGroup(): JSX.Element {
       ))}
       <ColorControl testId="ribbon-text-color" label="Font colour" icon={Baseline} value={caretRun(caret, 'color')}
         onPick={(color: HexColor): void => { void run({ name: 'setRunProperty', patch: { color } }, 'change the font colour'); }} />
+      <RibbonButton testId="ribbon-text-color-auto" label="Automatic font colour" icon={CircleSlash} text="Automatic"
+        onPress={(): void => { void run({ name: 'setRunProperty', patch: { color: null } }, 'set the font colour to automatic'); }} />
       <ColorControl testId="ribbon-highlight" label="Text highlight colour" icon={Highlighter} value={caretRun(caret, 'highlight')}
         onPick={(highlight: HexColor): void => { void run({ name: 'setRunProperty', patch: { highlight } }, 'highlight the text'); }} />
+      <RibbonButton testId="ribbon-highlight-none" label="No highlight" icon={Ban} text="No highlight"
+        onPress={(): void => { void run({ name: 'setRunProperty', patch: { highlight: null } }, 'remove the highlight'); }} />
       <RibbonButton testId="ribbon-clear-formatting" label="Clear formatting" icon={RemoveFormatting} shortcut={{ key: 'Space' }}
-        onPress={(): void => { void run({ name: 'setRunProperty', patch: CLEAR_RUN_PATCH }, 'clear the formatting'); }} />
+        onPress={(): void => { void run({ name: 'setRunProperty', patch: CLEAR_FORMATTING }, 'clear the formatting'); }} />
     </RibbonGroup>
   );
 }
