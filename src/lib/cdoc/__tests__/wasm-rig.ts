@@ -17,7 +17,8 @@ import type { CanvasPort, PaintTarget } from '../paint/canvas-port';
 import { MainThreadPageRenderer, WorkerPageRenderer, type PageRenderer } from '../paint/page-renderer';
 import type { CdocRuntime } from '../runtime';
 import { InProcessCdocClient } from '../worker/clients';
-import { recordingPort, recordingTarget, type RecordingTarget } from '../paint/__tests__/recording-canvas';
+import { recordingContext, recordingPort, recordingTarget, type Recorder, type RecordingTarget } from '../paint/__tests__/recording-canvas';
+import type { Ctx2D } from '../paint/canvas-port';
 
 const UI: string = process.cwd();
 let initialised: boolean = false;
@@ -66,6 +67,8 @@ export function pmWithText(text: string): string {
 export interface TestRuntime extends CdocRuntime {
   /** Every page canvas the runtime painted, in mount order, with its recorded calls. */
   readonly painted: RecordingTarget[];
+  /** Each overlay canvas's recorded context, created on its first paint. */
+  readonly overlays: Map<HTMLCanvasElement, Recorder>;
 }
 
 /**
@@ -83,5 +86,11 @@ export function inProcessRuntime(renderer: 'worker' | 'main-thread'): TestRuntim
   const pages: PageRenderer = renderer === 'worker'
     ? new WorkerPageRenderer(client, (): OffscreenCanvas => ({}) as OffscreenCanvas)
     : new MainThreadPageRenderer(client, recordingPort().port, RASTERIZER_OPTIONS, record);
-  return { client, renderer: pages, painted };
+  const overlays: Map<HTMLCanvasElement, Recorder> = new Map<HTMLCanvasElement, Recorder>();
+  const overlayContext = (canvas: HTMLCanvasElement): Ctx2D => {
+    let rec: Recorder | undefined = overlays.get(canvas);
+    if (rec === undefined) overlays.set(canvas, (rec = recordingContext(canvas.dataset.layer ?? 'overlay')));
+    return rec.ctx;
+  };
+  return { client, renderer: pages, painted, overlays, overlayContext };
 }

@@ -65,10 +65,11 @@ describe('the WASM binary', () => {
   });
 
   it('fits under the per-file precache cap', () => {
-    const cap: RegExpMatchArray | null = code.match(/maximumFileSizeToCacheInBytes:\s*(\d+)\s*\*\s*1024\s*\*\s*1024/);
+    // A byte count, written as an integer literal (digit separators allowed).
+    const cap: RegExpMatchArray | null = code.match(/maximumFileSizeToCacheInBytes:\s*(\d[\d_]*),/);
     expect(cap, 'no maximumFileSizeToCacheInBytes — the binary would be dropped').not.toBeNull();
 
-    const capBytes: number = Number(cap![1]) * 1024 * 1024;
+    const capBytes: number = Number(cap![1].replace(/_/g, ''));
 
     // The cap has to clear the binary, and workbox drops an over-cap file from
     // the precache SILENTLY — which reinstates the glue/binary split without

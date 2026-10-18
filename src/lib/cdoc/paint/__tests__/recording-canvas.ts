@@ -11,7 +11,9 @@ export interface Call {
   readonly args: readonly unknown[];
 }
 
-const PROPERTIES: ReadonlySet<string> = new Set<string>(['fillStyle', 'strokeStyle', 'lineWidth', 'lineCap', 'lineJoin']);
+const PROPERTIES: ReadonlySet<string> = new Set<string>(['fillStyle', 'strokeStyle', 'lineWidth', 'lineCap', 'lineJoin', 'globalAlpha', 'font', 'textBaseline']);
+/** measureText's stand-in advance: no font engine here, so a fixed width per character. */
+export const RECORDED_CHAR_WIDTH: number = 6;
 
 export interface Recorder {
   readonly ctx: Ctx2D;
@@ -25,6 +27,12 @@ export function recordingContext(label: string): Recorder {
     get(target: Record<string, unknown>, name: string | symbol): unknown {
       if (typeof name !== 'string') return undefined;
       if (PROPERTIES.has(name) || name === 'label') return target[name];
+      if (name === 'measureText') {
+        return (text: string): { width: number } => {
+          calls.push({ name, args: [text] });
+          return { width: text.length * RECORDED_CHAR_WIDTH };
+        };
+      }
       return (...args: unknown[]): void => {
         calls.push({ name, args });
       };

@@ -1,14 +1,17 @@
 /**
  * The worker side of the protocol: answers each request from the engine, and paints attached
- * OffscreenCanvases itself (outlines come straight from cdoc-wasm here, no round trip). The
- * worker entry and InProcessCdocClient both run exactly this class.
+ * OffscreenCanvases itself (outlines come straight from cdoc-wasm here, no round trip). One
+ * document is open at a time, static or editable. The worker entry and InProcessCdocClient
+ * both run exactly this class.
  */
-import type { CdocEngine } from '../engine/cdoc-engine';
-import type { DisplayList } from '../display-list/types';
+import type { CdocEngine, GlyphPathBatch, OpenedDocument } from '../engine/cdoc-engine';
+import type { EditorEngine } from '../engine/editor-engine';
+import { openDisplayList } from '../display-list/decoder';
 import type { CanvasPort, PaintTarget } from '../paint/canvas-port';
-import { PageRasterizer, type RasterizerOptions } from '../paint/page-rasterizer';
+import { PageRasterizer, type PaintOutcome, type RasterizerOptions } from '../paint/page-rasterizer';
 import { deviceScale } from '../paint/units';
-import { transferablesOf, type CdocKind, type CdocRequest, type CdocResponse, type CdocResults } from './protocol';
+import { transferablesOf, type CdocKind, type CdocRequest, type CdocResponse, type CdocResults, type RequestOf } from './protocol';
+import { openEditor, serveEditor } from './editor-host';
 
 export interface CdocHostDeps {
   /** Called once, on the first request that needs the engine. */
@@ -23,11 +26,17 @@ export interface HostReply {
   readonly transfer: Transferable[];
 }
 
+/** What paints: the static document (CdocEngine) or the editor's replica (EditorEngine). */
+interface PaintSource {
+  paint(pages: readonly number[]): Uint8Array;
+}
+
 export class CdocHost {
   private engine: Promise<CdocEngine> | null = null;
   private readonly canvases: Map<number, PaintTarget> = new Map<number, PaintTarget>();
   private painter: PageRasterizer;
-  private paintedList: DisplayList | null = null;
+  private source: PaintSource | null = null;
+  private editor: EditorEngine | null = null;
 
   constructor(private readonly deps: CdocHostDeps) {
     this.painter = new PageRasterizer(deps.port, deps.rasterizer);
@@ -38,33 +47,67 @@ export class CdocHost {
     return this.engine;
   }
 
+  /** A new document: the last one's pages, outlines and editor do not carry over. */
+  private replace(source: PaintSource, editor: EditorEngine | null): void {
+    this.editor?.dispose();
+    this.editor = editor;
+    this.source = source;
+    this.painter = new PageRasterizer(this.deps.port, this.deps.rasterizer);
+  }
+
+  private requireSource(): PaintSource {
+    if (this.source === null) throw new Error('no document is open');
+    return this.source;
+  }
+
+  private requireEditor(): EditorEngine {
+    if (this.editor === null) throw new Error('no editor is open');
+    return this.editor;
+  }
+
+  private paintCanvas(engine: CdocEngine, req: RequestOf<'paintCanvas'>): PaintOutcome {
+    const target: PaintTarget | undefined = this.canvases.get(req.slot);
+    if (target === undefined) throw new Error(`no canvas is attached in slot ${req.slot}`);
+    if (!this.painter.holds(req.pageNumber)) this.painter.setList(openDisplayList(this.requireSource().paint([req.pageNumber])));
+    for (const [faceId, glyphIds] of this.painter.missingGlyphs(req.pageNumber)) {
+      const batch: GlyphPathBatch = engine.glyphPaths(this.painter.faceKey(faceId), glyphIds);
+      this.painter.addOutlines(faceId, glyphIds, batch.records, batch.offsets);
+    }
+    return this.painter.paint(target, req.pageNumber, deviceScale(req.zoom, req.dpr));
+  }
+
   private async result(req: CdocRequest): Promise<CdocResults[CdocKind]> {
     const engine: CdocEngine = await this.getEngine();
     switch (req.kind) {
-      case 'open': return engine.open(req.source);
-      case 'paint': return { displayList: engine.paint(req.pages) };
-      case 'glyphPaths': return engine.glyphPaths(req.faceId, req.glyphIds);
-      case 'faceMetrics': return { metrics: engine.faceMetrics(req.faceId) };
+      case 'open': {
+        const opened: OpenedDocument = await engine.open(req.source);
+        this.replace(engine, null);
+        return opened;
+      }
+      case 'editorOpen': {
+        const { editor, result } = await openEditor(engine, req);
+        this.replace(editor, editor);
+        return result;
+      }
+      case 'paint': return { displayList: this.requireSource().paint(req.pages) };
+      case 'glyphPaths': return engine.glyphPaths(req.face, req.glyphIds);
+      case 'faceMetrics': return { metrics: engine.faceMetrics(req.face) };
       case 'attachCanvas':
         this.canvases.set(req.slot, this.deps.target(req.canvas));
         return { slot: req.slot };
       case 'detachCanvas':
         this.canvases.delete(req.slot);
         return { slot: req.slot };
-      case 'paintCanvas': {
-        const target: PaintTarget | undefined = this.canvases.get(req.slot);
-        if (target === undefined) throw new Error(`no canvas is attached in slot ${req.slot}`);
-        if (this.paintedList !== engine.list) {
-          // Face ids are per document: outlines and atlas cells of the last one do not carry over.
-          this.paintedList = engine.list;
-          this.painter = new PageRasterizer(this.deps.port, this.deps.rasterizer);
-          this.painter.setList(engine.list);
-        }
-        for (const [faceId, glyphIds] of this.painter.missingGlyphs(req.pageNumber)) {
-          const batch: ReturnType<CdocEngine['glyphPaths']> = engine.glyphPaths(faceId, glyphIds);
-          this.painter.addOutlines(faceId, glyphIds, batch.records, batch.offsets);
-        }
-        return this.painter.paint(target, req.pageNumber, deviceScale(req.zoom, req.dpr));
+      case 'paintCanvas': return this.paintCanvas(engine, req);
+      case 'invalidatePages':
+        this.painter.invalidate(req.pages);
+        return { pages: req.pages };
+      case 'apply': case 'applyRemote': case 'hitTest': case 'snapshot': case 'awareness': case 'peerView': case 'pageSizes':
+      case 'stateVector': case 'encodeDiff': case 'encodeDiffChunked': case 'gc': case 'addImage': case 'exportAs':
+        return serveEditor(this.requireEditor(), req);
+      default: {
+        const unrouted: never = req;
+        throw new Error(`no route for request ${(unrouted as { readonly kind: string }).kind}`);
       }
     }
   }

@@ -4,24 +4,28 @@
  * a buffer of its own and travels as a Transferable, never as JSON: a 100-page display list is
  * moved, not copied or parsed.
  *
- * Open for the editor: cdoc-edit's EditorHandle (apply(cmdBytes), hit_test, apply_remote,
- * snapshot) adds request kinds here and results in CdocResults; nothing else changes shape.
+ * The editor's kinds (cdoc-edit's EditorHandle) are declared in editor-protocol.ts and joined
+ * in here. Glyph outlines and metrics are asked for by face key, not by a face index of one
+ * display list, because an editor's partial lists each number their faces afresh.
  */
 import type { GlyphPathBatch, OpenedDocument } from '../engine/cdoc-engine';
 import type { DocumentSource } from '../document-source';
 import type { PaintOutcome } from '../paint/page-rasterizer';
+import type { FaceKey } from '../display-list/types';
+import { EDITOR_KINDS, type EditorRequestBody, type EditorResults } from './editor-protocol';
 
 export type CdocRequestBody =
   | { readonly kind: 'open'; readonly source: DocumentSource }
   | { readonly kind: 'paint'; readonly pages: readonly number[] }
-  | { readonly kind: 'glyphPaths'; readonly faceId: number; readonly glyphIds: Uint16Array }
-  | { readonly kind: 'faceMetrics'; readonly faceId: number }
+  | { readonly kind: 'glyphPaths'; readonly face: FaceKey; readonly glyphIds: Uint16Array }
+  | { readonly kind: 'faceMetrics'; readonly face: FaceKey }
   /** Hands the worker a page canvas (transferred); `slot` names it in later requests. */
   | { readonly kind: 'attachCanvas'; readonly slot: number; readonly canvas: OffscreenCanvas }
   | { readonly kind: 'paintCanvas'; readonly slot: number; readonly pageNumber: number; readonly zoom: number; readonly dpr: number }
-  | { readonly kind: 'detachCanvas'; readonly slot: number };
+  | { readonly kind: 'detachCanvas'; readonly slot: number }
+  | EditorRequestBody;
 
-export interface CdocResults {
+export interface CdocResults extends EditorResults {
   open: OpenedDocument;
   paint: { readonly displayList: Uint8Array };
   glyphPaths: GlyphPathBatch;
@@ -39,7 +43,7 @@ export type CdocResponse =
   | { readonly id: number; readonly ok: true; readonly result: CdocResults[CdocKind] }
   | { readonly id: number; readonly ok: false; readonly error: string };
 
-const KINDS: ReadonlySet<string> = new Set<CdocKind>(['open', 'paint', 'glyphPaths', 'faceMetrics', 'attachCanvas', 'paintCanvas', 'detachCanvas']);
+const KINDS: ReadonlySet<string> = new Set<CdocKind>(['open', 'paint', 'glyphPaths', 'faceMetrics', 'attachCanvas', 'paintCanvas', 'detachCanvas', ...EDITOR_KINDS]);
 
 export function isCdocRequest(value: unknown): value is CdocRequest {
   if (typeof value !== 'object' || value === null) return false;
@@ -68,7 +72,7 @@ export function transferablesOf(message: object): Transferable[] {
       if (!out.includes(value.buffer as ArrayBuffer)) out.push(value.buffer as ArrayBuffer);
     } else if (typeof OffscreenCanvas === 'function' && value instanceof OffscreenCanvas) {
       out.push(value);
-    } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+    } else if (typeof value === 'object' && value !== null) {
       out.push(...transferablesOf(value).filter((t: Transferable) => !out.includes(t)));
     }
   }

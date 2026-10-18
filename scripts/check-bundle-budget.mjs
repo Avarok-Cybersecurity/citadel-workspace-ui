@@ -207,14 +207,20 @@ const DEFERRED_MODULES = [
  * The Citadel Docs binary (public/cdoc, vendored by scripts/sync-cdoc-wasm.sh), in bytes.
  * Never on the critical path -- the worker fetches it when a document opens -- but precached
  * with its glue, so it is part of every install and must stay under workbox's per-file cap
- * (vite.config.ts, 4 MB), above which workbox drops it from the precache SILENTLY.
+ * (vite.config.ts, maximumFileSizeToCacheInBytes), above which workbox drops it from the
+ * precache SILENTLY.
  *
  * 3,000,000 (2026-10-17): introduced at 2,679,138 bytes (1.0 MB gzipped; wasm-opt -Oz over
  * citadel-docs 84182f3: model, ProseMirror mapping, layout, shaping, display list, DOCX, MD,
- * TXT and PDF). The headroom is for the editor (cdoc-edit) arriving next; raise it on purpose,
- * with the reason here, and the precache cap with it if it ever nears 4 MB.
+ * TXT and PDF).
+ * 4,400,000 (2026-10-18): the editor arrived. citadel-docs aff63f9 (cdoc-edit, cdoc-crdt with
+ * its codec, the faster DOCX reader) is 4,222,829 bytes (1.5 MB gzipped); measured plus ~4%,
+ * with the precache cap raised to 4,500,000 beside it. It comes back down with the per-app
+ * wasm split (formats, editing and PDF loaded lazily); raise it on purpose, with the reason here.
+ *   Re-measured at citadel-docs 59d18eb (EditorHandle gc and addImage, result v2 with caret
+ *   formatting): 4,323,294 bytes, 1.8% under; held, not raised.
  */
-const CDOC_WASM_BUDGET_BYTES = 3_000_000;
+const CDOC_WASM_BUDGET_BYTES = 4_400_000;
 const CDOC_WASM = join(dist, 'cdoc', 'cdoc_wasm_bg.wasm');
 
 /**

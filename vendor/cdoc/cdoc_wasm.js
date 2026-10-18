@@ -1,31 +1,354 @@
 /* @ts-self-types="./cdoc_wasm.d.ts" */
 
 /**
- * A written `.docx` and the report of what it could not carry.
+ * Faces being gathered for editing.
  */
-export class DocxExport {
+export class EditorFonts {
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        EditorFontsFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_editorfonts_free(ptr, 0);
+    }
+    /**
+     * Adds a face (TrueType or OpenType bytes).
+     * @param {string} family
+     * @param {boolean} bold
+     * @param {boolean} italic
+     * @param {Uint8Array} bytes
+     */
+    addFont(family, bold, italic, bytes) {
+        const ptr0 = passStringToWasm0(family, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+        const len1 = WASM_VECTOR_LEN;
+        wasm.editorfonts_addFont(this.__wbg_ptr, ptr0, len0, bold, italic, ptr1, len1);
+    }
+    /**
+     * Serves `target` whenever a document asks for `name`.
+     * @param {string} name
+     * @param {string} target
+     */
+    aliasFont(name, target) {
+        const ptr0 = passStringToWasm0(name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(target, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        wasm.editorfonts_aliasFont(this.__wbg_ptr, ptr0, len0, ptr1, len1);
+    }
+    /**
+     * No faces yet; `fallback_family` serves any family not added or aliased.
+     * @param {string} fallback_family
+     */
+    constructor(fallback_family) {
+        const ptr0 = passStringToWasm0(fallback_family, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.editorfonts_new(ptr0, len0);
+        this.__wbg_ptr = ret;
+        EditorFontsFinalization.register(this, this.__wbg_ptr, this);
+        return this;
+    }
+    /**
+     * Seals the faces; they are kept for the page's life (seal once, reuse).
+     * @returns {EditorSealedFonts}
+     */
+    seal() {
+        const ptr = this.__destroy_into_raw();
+        const ret = wasm.editorfonts_seal(ptr);
+        return EditorSealedFonts.__wrap(ret);
+    }
+}
+if (Symbol.dispose) EditorFonts.prototype[Symbol.dispose] = EditorFonts.prototype.free;
+
+/**
+ * An editing session over one document.
+ */
+export class EditorHandle {
     static __wrap(ptr) {
-        const obj = Object.create(DocxExport.prototype);
+        const obj = Object.create(EditorHandle.prototype);
         obj.__wbg_ptr = ptr;
-        DocxExportFinalization.register(obj, obj.__wbg_ptr, obj);
+        EditorHandleFinalization.register(obj, obj.__wbg_ptr, obj);
         return obj;
     }
     __destroy_into_raw() {
         const ptr = this.__wbg_ptr;
         this.__wbg_ptr = 0;
-        DocxExportFinalization.unregister(this);
+        EditorHandleFinalization.unregister(this);
         return ptr;
     }
     free() {
         const ptr = this.__destroy_into_raw();
-        wasm.__wbg_docxexport_free(ptr, 0);
+        wasm.__wbg_editorhandle_free(ptr, 0);
+    }
+    /**
+     * Holds an image file of at most `max_bytes` bytes; returns the added-image record.
+     * @param {Uint8Array} bytes
+     * @param {number} max_bytes
+     * @returns {Uint8Array}
+     */
+    addImage(bytes, max_bytes) {
+        const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.editorhandle_addImage(this.__wbg_ptr, ptr0, len0, max_bytes);
+        if (ret[3]) {
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v2;
+    }
+    /**
+     * Applies a peer's update; returns the result record.
+     * @param {Uint8Array} update
+     * @returns {Uint8Array}
+     */
+    applyRemote(update) {
+        const ptr0 = passArray8ToWasm0(update, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.editorhandle_applyRemote(this.__wbg_ptr, ptr0, len0);
+        if (ret[3]) {
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v2;
+    }
+    /**
+     * This replica's awareness record.
+     * @returns {Uint8Array}
+     */
+    awareness() {
+        const ret = wasm.editorhandle_awareness(this.__wbg_ptr);
+        var v1 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v1;
+    }
+    /**
+     * A new blank document as client `client` (a `BigInt`).
+     * @param {bigint} client
+     * @param {EditorSealedFonts} fonts
+     * @returns {EditorHandle}
+     */
+    static blank(client, fonts) {
+        _assertClass(fonts, EditorSealedFonts);
+        const ret = wasm.editorhandle_blank(client, fonts.__wbg_ptr);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return EditorHandle.__wrap(ret[0]);
+    }
+    /**
+     * What a peer at state vector `sv` lacks.
+     * @param {Uint8Array} sv
+     * @returns {Uint8Array}
+     */
+    encodeDiff(sv) {
+        const ptr0 = passArray8ToWasm0(sv, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.editorhandle_encodeDiff(this.__wbg_ptr, ptr0, len0);
+        if (ret[3]) {
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v2;
+    }
+    /**
+     * Collects the tombstones every peer in `known` (the known-peers record) has seen;
+     * returns the collected record. Call it only when every listed peer is caught up.
+     * @param {Uint8Array} known
+     * @returns {Uint8Array}
+     */
+    gc(known) {
+        const ptr0 = passArray8ToWasm0(known, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.editorhandle_gc(this.__wbg_ptr, ptr0, len0);
+        if (ret[3]) {
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v2;
+    }
+    /**
+     * The position record nearest `(x, y)` on `page`.
+     * @param {number} page
+     * @param {number} x
+     * @param {number} y
+     * @returns {Uint8Array}
+     */
+    hitTest(page, x, y) {
+        const ret = wasm.editorhandle_hitTest(this.__wbg_ptr, page, x, y);
+        if (ret[3]) {
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        var v1 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v1;
+    }
+    /**
+     * Opens a replica from a CRDT snapshot as client `client` (a `BigInt`).
+     * @param {Uint8Array} snapshot
+     * @param {bigint} client
+     * @param {EditorSealedFonts} fonts
+     * @returns {EditorHandle}
+     */
+    static open(snapshot, client, fonts) {
+        const ptr0 = passArray8ToWasm0(snapshot, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        _assertClass(fonts, EditorSealedFonts);
+        const ret = wasm.editorhandle_open(ptr0, len0, client, fonts.__wbg_ptr);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return EditorHandle.__wrap(ret[0]);
+    }
+    /**
+     * Pages in the document.
+     * @returns {number}
+     */
+    pageCount() {
+        const ret = wasm.editorhandle_pageCount(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * Page `page`'s `[width, height]`, or nothing past the last page.
+     * @param {number} page
+     * @returns {Int32Array | undefined}
+     */
+    pageSize(page) {
+        const ret = wasm.editorhandle_pageSize(this.__wbg_ptr, page);
+        let v1;
+        if (ret[0] !== 0) {
+            v1 = getArrayI32FromWasm0(ret[0], ret[1]).slice();
+            wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+        }
+        return v1;
+    }
+    /**
+     * The display list of `pages` (zero-based).
+     * @param {Uint32Array} pages
+     * @returns {Uint8Array}
+     */
+    paint(pages) {
+        const ptr0 = passArray32ToWasm0(pages, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.editorhandle_paint(this.__wbg_ptr, ptr0, len0);
+        if (ret[3]) {
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v2;
+    }
+    /**
+     * A peer's awareness record as a peer-view record.
+     * @param {Uint8Array} record
+     * @returns {Uint8Array}
+     */
+    peerView(record) {
+        const ptr0 = passArray8ToWasm0(record, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.editorhandle_peerView(this.__wbg_ptr, ptr0, len0);
+        if (ret[3]) {
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v2;
+    }
+    /**
+     * Runs a request record; returns the result record.
+     * @param {Uint8Array} request
+     * @returns {Uint8Array}
+     */
+    request(request) {
+        const ptr0 = passArray8ToWasm0(request, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.editorhandle_request(this.__wbg_ptr, ptr0, len0);
+        if (ret[3]) {
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v2;
+    }
+    /**
+     * The full CRDT snapshot.
+     * @returns {Uint8Array}
+     */
+    snapshot() {
+        const ret = wasm.editorhandle_snapshot(this.__wbg_ptr);
+        var v1 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v1;
+    }
+    /**
+     * The replica's state vector.
+     * @returns {Uint8Array}
+     */
+    stateVector() {
+        const ret = wasm.editorhandle_stateVector(this.__wbg_ptr);
+        var v1 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v1;
+    }
+}
+if (Symbol.dispose) EditorHandle.prototype[Symbol.dispose] = EditorHandle.prototype.free;
+
+/**
+ * Faces sealed for the page's lifetime; open every editor on one of these.
+ */
+export class EditorSealedFonts {
+    static __wrap(ptr) {
+        const obj = Object.create(EditorSealedFonts.prototype);
+        obj.__wbg_ptr = ptr;
+        EditorSealedFontsFinalization.register(obj, obj.__wbg_ptr, obj);
+        return obj;
+    }
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        EditorSealedFontsFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_editorsealedfonts_free(ptr, 0);
+    }
+}
+if (Symbol.dispose) EditorSealedFonts.prototype[Symbol.dispose] = EditorSealedFonts.prototype.free;
+
+/**
+ * A written file (`.docx`, `.dotx`, `.odt`, `.ott`) and the report of what it could not carry.
+ */
+export class FileExport {
+    static __wrap(ptr) {
+        const obj = Object.create(FileExport.prototype);
+        obj.__wbg_ptr = ptr;
+        FileExportFinalization.register(obj, obj.__wbg_ptr, obj);
+        return obj;
+    }
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        FileExportFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_fileexport_free(ptr, 0);
     }
     /**
      * The file.
      * @returns {Uint8Array}
      */
     bytes() {
-        const ret = wasm.docxexport_bytes(this.__wbg_ptr);
+        const ret = wasm.fileexport_bytes(this.__wbg_ptr);
         var v1 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
         wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
         return v1;
@@ -38,7 +361,7 @@ export class DocxExport {
         let deferred1_0;
         let deferred1_1;
         try {
-            const ret = wasm.docxexport_reportJson(this.__wbg_ptr);
+            const ret = wasm.fileexport_reportJson(this.__wbg_ptr);
             deferred1_0 = ret[0];
             deferred1_1 = ret[1];
             return getStringFromWasm0(ret[0], ret[1]);
@@ -47,11 +370,12 @@ export class DocxExport {
         }
     }
 }
-if (Symbol.dispose) DocxExport.prototype[Symbol.dispose] = DocxExport.prototype.free;
+if (Symbol.dispose) FileExport.prototype[Symbol.dispose] = FileExport.prototype.free;
 
 /**
- * Images moving across the boundary: embedded images found by `docx_to_pm` (under
- * provisional ids), and the bytes `pm_to_docx` needs for the ids a document names.
+ * Images moving across the boundary: embedded images found by `docx_to_pm` / `odt_to_pm`
+ * (under provisional ids), and the bytes `pm_to_docx` / `pm_to_odt` need for the ids a
+ * document names.
  */
 export class ImageStore {
     __destroy_into_raw() {
@@ -271,7 +595,8 @@ export function check_pm(pm_json) {
 }
 
 /**
- * A `.docx` to JSON `{"pm", "report", "problems"}`; images go into `images`.
+ * A `.docx`, `.dotx`, `.docm` or `.dotm` to JSON `{"pm", "report", "problems", "kind"}`;
+ * images go into `images`, macros are refused and reported.
  * @param {Uint8Array} bytes
  * @param {ImageStore} images
  * @returns {string}
@@ -426,6 +751,35 @@ export function model_to_pm(model_json) {
 }
 
 /**
+ * A `.odt` or `.ott` to JSON `{"pm", "report", "problems", "kind"}`; images go into
+ * `images`.
+ * @param {Uint8Array} bytes
+ * @param {ImageStore} images
+ * @returns {string}
+ */
+export function odt_to_pm(bytes, images) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        _assertClass(images, ImageStore);
+        const ret = wasm.odt_to_pm(ptr0, len0, images.__wbg_ptr);
+        var ptr2 = ret[0];
+        var len2 = ret[1];
+        if (ret[3]) {
+            ptr2 = 0; len2 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred3_0 = ptr2;
+        deferred3_1 = len2;
+        return getStringFromWasm0(ptr2, len2);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
  * ProseMirror JSON → the display list of every page: the binary format of
  * `docs/display-list.md`, returned as a `Uint8Array` the caller can transfer to the painter.
  * @param {string} pm_json
@@ -469,20 +823,24 @@ export function pm_to_display_list_pages(pm_json, assets, pages) {
 }
 
 /**
- * ProseMirror JSON to a `.docx`; image bytes come from `images`.
+ * ProseMirror JSON to a `.docx` or `.dotx`; image bytes come from `images`. Options JSON:
+ * `{"kind": "document" | "template"}`.
  * @param {string} pm_json
  * @param {ImageStore} images
- * @returns {DocxExport}
+ * @param {string} options_json
+ * @returns {FileExport}
  */
-export function pm_to_docx(pm_json, images) {
+export function pm_to_docx(pm_json, images, options_json) {
     const ptr0 = passStringToWasm0(pm_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len0 = WASM_VECTOR_LEN;
     _assertClass(images, ImageStore);
-    const ret = wasm.pm_to_docx(ptr0, len0, images.__wbg_ptr);
+    const ptr1 = passStringToWasm0(options_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.pm_to_docx(ptr0, len0, images.__wbg_ptr, ptr1, len1);
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }
-    return DocxExport.__wrap(ret[0]);
+    return FileExport.__wrap(ret[0]);
 }
 
 /**
@@ -535,6 +893,27 @@ export function pm_to_model(pm_json) {
     } finally {
         wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
     }
+}
+
+/**
+ * ProseMirror JSON to a `.odt` or `.ott`; image bytes come from `images`. Options JSON:
+ * `{"kind": "document" | "template"}`.
+ * @param {string} pm_json
+ * @param {ImageStore} images
+ * @param {string} options_json
+ * @returns {FileExport}
+ */
+export function pm_to_odt(pm_json, images, options_json) {
+    const ptr0 = passStringToWasm0(pm_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    _assertClass(images, ImageStore);
+    const ptr1 = passStringToWasm0(options_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.pm_to_odt(ptr0, len0, images.__wbg_ptr, ptr1, len1);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return FileExport.__wrap(ret[0]);
 }
 
 /**
@@ -740,9 +1119,18 @@ function __wbg_get_imports() {
     };
 }
 
-const DocxExportFinalization = (typeof FinalizationRegistry === 'undefined')
+const EditorFontsFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_docxexport_free(ptr, 1));
+    : new FinalizationRegistry(ptr => wasm.__wbg_editorfonts_free(ptr, 1));
+const EditorHandleFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_editorhandle_free(ptr, 1));
+const EditorSealedFontsFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_editorsealedfonts_free(ptr, 1));
+const FileExportFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_fileexport_free(ptr, 1));
 const ImageStoreFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_imagestore_free(ptr, 1));
@@ -756,9 +1144,22 @@ function _assertClass(instance, klass) {
     }
 }
 
+function getArrayI32FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getInt32ArrayMemory0().subarray(ptr / 4, ptr / 4 + len);
+}
+
 function getArrayU8FromWasm0(ptr, len) {
     ptr = ptr >>> 0;
     return getUint8ArrayMemory0().subarray(ptr / 1, ptr / 1 + len);
+}
+
+let cachedInt32ArrayMemory0 = null;
+function getInt32ArrayMemory0() {
+    if (cachedInt32ArrayMemory0 === null || cachedInt32ArrayMemory0.byteLength === 0) {
+        cachedInt32ArrayMemory0 = new Int32Array(wasm.memory.buffer);
+    }
+    return cachedInt32ArrayMemory0;
 }
 
 function getStringFromWasm0(ptr, len) {
@@ -872,6 +1273,7 @@ function __wbg_finalize_init(instance, module) {
     wasmInstance = instance;
     wasm = instance.exports;
     wasmModule = module;
+    cachedInt32ArrayMemory0 = null;
     cachedUint32ArrayMemory0 = null;
     cachedUint8ArrayMemory0 = null;
     wasm.__wbindgen_start();

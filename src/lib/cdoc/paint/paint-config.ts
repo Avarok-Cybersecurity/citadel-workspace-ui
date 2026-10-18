@@ -10,6 +10,7 @@
  * bytes this view does not have yet (images arrive with the document-content work item).
  */
 import type { RasterizerOptions } from './page-rasterizer';
+import type { OverlayStyle } from './overlay-painter';
 
 export const RASTERIZER_OPTIONS: RasterizerOptions = {
   atlas: { cellSizes: [16, 32, 64, 128], surfaceSide: 1024 },
@@ -19,3 +20,17 @@ export const RASTERIZER_OPTIONS: RasterizerOptions = {
 
 /** How long a face fetch may take before the open fails instead of hanging. */
 export const FONT_FETCH_TIMEOUT_MS: number = 30_000;
+
+/**
+ * The selection and caret overlays. Concrete colours, because a canvas cannot read CSS
+ * variables, and the sheet is white in both themes: Word's selection blue at 30%, a black caret.
+ */
+export const OVERLAY_STYLE: OverlayStyle = {
+  selection: 'rgba(38, 132, 255, 0.3)',
+  caret: '#000000',
+  caretCssPx: 1,
+  peerSelectionAlpha: 0.25,
+  labelCssPx: 11,
+  labelFamily: 'system-ui, sans-serif',
+  labelText: '#ffffff',
+};

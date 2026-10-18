@@ -13,6 +13,7 @@ import type { ActionGate } from '@/hooks/use-permission-result';
 import type { DocumentSource } from '@/lib/cdoc/document-source';
 import type { CdocRuntimeFactory } from '@/lib/cdoc/runtime-loader';
 import type { DocsCanvasProps } from './DocsCanvas';
+import { keepBlankReplica } from './blank-replica';
 
 const DocsCanvas: LazyExoticComponent<(props: DocsCanvasProps) => JSX.Element> = lazy(() => import('./DocsCanvas'));
 
@@ -53,7 +54,7 @@ export function DocumentHost({ nodeId, appId, title, permissions, documentSource
       {appId === 'docs' ? (
         <section aria-label={`${app.name} editor`} data-testid="document-editor-region" className="flex min-h-0 flex-1 flex-col">
           <Suspense fallback={<p role="status" className="m-auto text-sm text-muted-foreground">Loading {app.name}…</p>}>
-            <DocsCanvas documentSource={documentSource} loadRuntime={loadCdocRuntime} statusBar={statusBar} />
+            <DocsCanvas documentSource={documentSource} loadRuntime={loadCdocRuntime} keepReplica={keepBlankReplica} statusBar={statusBar} />
           </Suspense>
         </section>
       ) : (

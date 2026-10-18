@@ -21,6 +21,8 @@ export interface PageRenderer {
   unmount(slot: number): void;
   /** Forget what was painted from the previous document (a new one was opened). */
   reset(): void;
+  /** Forget `pages` (an edit changed them); resolves once the next paint of each re-fetches it. */
+  invalidate(pages: readonly number[]): Promise<void>;
 }
 
 class SlotQueue {
@@ -62,6 +64,10 @@ export class WorkerPageRenderer implements PageRenderer {
   }
 
   reset(): void {}
+
+  async invalidate(pages: readonly number[]): Promise<void> {
+    await this.client.request({ kind: 'invalidatePages', pages: [...pages] });
+  }
 }
 
 export class MainThreadPageRenderer implements PageRenderer {
@@ -93,7 +99,7 @@ export class MainThreadPageRenderer implements PageRenderer {
         rasterizer.setList(openDisplayList(displayList));
       }
       for (const [faceId, glyphIds] of rasterizer.missingGlyphs(pageNumber)) {
-        const batch: GlyphPathBatch = await this.client.request({ kind: 'glyphPaths', faceId, glyphIds: glyphIds.slice() });
+        const batch: GlyphPathBatch = await this.client.request({ kind: 'glyphPaths', face: rasterizer.faceKey(faceId), glyphIds: glyphIds.slice() });
         rasterizer.addOutlines(faceId, glyphIds, batch.records, batch.offsets);
       }
       return rasterizer.paint(target, pageNumber, deviceScale(zoom, dpr));
@@ -107,5 +113,10 @@ export class MainThreadPageRenderer implements PageRenderer {
 
   reset(): void {
     this.rasterizer = new PageRasterizer(this.port, this.options);
+  }
+
+  invalidate(pages: readonly number[]): Promise<void> {
+    this.rasterizer.invalidate(pages);
+    return Promise.resolve();
   }
 }
