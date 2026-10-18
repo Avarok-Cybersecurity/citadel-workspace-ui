@@ -9,6 +9,7 @@
  * command added there is a type error until it has an opcode and both surfaces carry it.
  */
 import type { CommentValue, ParagraphPropertiesPatch, Pt100, RunPropertiesPatch } from './model-values';
+import type { PeerOverlay } from './peer-overlay';
 
 /**
  * A CRDT position (`client:uv clock:uv`), opaque: copied out of a result or a hit test and
@@ -132,7 +133,8 @@ export const COMMAND_OPCODES: { readonly [N in EditorCommandName]: number } = {
  * Formatting at the caret, for the ribbons' toggle and picker states. The v1 result record
  * carries none of it (no run or paragraph properties, style or numbering at the caret), so
  * today it is always `{ known: false }`; ribbons must render an indeterminate state for that,
- * never guess. It becomes `known: true` when cdoc-edit reports it.
+ * never guess. It becomes `known: true` when cdoc-edit reports it (a caret-formatting result
+ * is scheduled there); the `known: true` shape is the model's, so ribbons can be written now.
  */
 export type CaretFormatting =
   | { readonly known: false }
@@ -183,6 +185,8 @@ export type EditorCommands = {
 export interface EditorController {
   readonly state: EditorState;
   readonly commands: EditorCommands;
+  /** Other people's carets and selections over the pages (peer-overlay.ts). */
+  readonly peers: PeerOverlay;
   /**
    * Runs one command; resolves with the state after it. Rejects (and changes nothing) when the
    * command does not apply where the selection is, e.g. mergeCells outside a table.
