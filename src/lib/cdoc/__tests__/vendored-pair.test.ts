@@ -37,7 +37,7 @@ describe('the vendored cdoc-wasm pair', () => {
 
   it('has the binary PROVENANCE recorded', () => {
     const binary: string = publicPath(CDOC_WASM_URL);
-    expect(sha256(binary), 'public/wasm/cdoc changed without re-running scripts/sync-cdoc-wasm.sh').toBe(provenance.wasm_sha256);
+    expect(sha256(binary), 'public/cdoc changed without re-running scripts/sync-cdoc-wasm.sh').toBe(provenance.wasm_sha256);
     expect(statSync(binary).size).toBe(provenance.wasm_bytes);
   });
 
@@ -46,9 +46,9 @@ describe('the vendored cdoc-wasm pair', () => {
     expect(sha256(join(GENERATED, 'cdoc_wasm.d.ts'))).toBe(provenance.dts_sha256);
   });
 
-  it('loads the binary from its stable /wasm/cdoc/ URL, never relative to the glue', () => {
+  it('loads the binary from its stable /cdoc/ URL, never relative to the glue', () => {
     const glue: string = readFileSync(join(GENERATED, 'cdoc_wasm.js'), 'utf8');
-    expect(CDOC_WASM_URL.startsWith('/wasm/cdoc/')).toBe(true);
+    expect(CDOC_WASM_URL.startsWith('/cdoc/')).toBe(true);
     expect(glue).toContain(`module_or_path = ${JSON.stringify(CDOC_WASM_URL)};`);
     expect(glue).not.toContain('import.meta.url');
   });

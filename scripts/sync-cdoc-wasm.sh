@@ -26,12 +26,14 @@ command -v wasm-opt >/dev/null || die "wasm-opt not found (binaryen)"
 command -v node >/dev/null || die "node not found"
 
 UI="$(cd "$(dirname "$0")/.." && pwd)"
-WASM_OUT="$UI/public/wasm/cdoc"
+# Not under public/wasm/: that directory is build output, which the parent's sync-wasm-clients.sh
+# empties before every build, and this binary is vendored and committed.
+WASM_OUT="$UI/public/cdoc"
 GLUE_OUT="$UI/src/lib/cdoc/generated"
 FONT_OUT="$UI/public/fonts/cdoc"
 # The URL the glue loads its binary from; src/lib/cdoc/asset-urls.ts holds the same string and
 # the vendored-pair test asserts the two agree.
-WASM_URL="/wasm/cdoc/cdoc_wasm_bg.wasm"
+WASM_URL="/cdoc/cdoc_wasm_bg.wasm"
 
 [ -z "$(git -C "$DOCS" status --porcelain)" ] || die "$DOCS has uncommitted changes; PROVENANCE would not name what was built"
 COMMIT="$(git -C "$DOCS" rev-parse HEAD)"

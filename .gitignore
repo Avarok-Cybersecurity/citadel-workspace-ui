@@ -28,9 +28,6 @@ dist-ssr
 /screenshots/*
 integration-tests/screenshots/*
 public/wasm/*
-# Except cdoc: the Citadel Docs binary is VENDORED (scripts/sync-cdoc-wasm.sh) with its glue in
-# src/lib/cdoc/generated, and PROVENANCE.json pins both halves, so it is committed, not built.
-!public/wasm/cdoc/
 # Test artifacts (never commit — regenerated on every run)
 test-screenshots/
 /screenshots/

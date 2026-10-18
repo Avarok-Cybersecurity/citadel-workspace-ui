@@ -24,7 +24,7 @@ let initialised: boolean = false;
 
 export function realWasm(): CdocWasm {
   if (!initialised) {
-    glue.initSync({ module: readFileSync(join(UI, 'public/wasm/cdoc/cdoc_wasm_bg.wasm')) });
+    glue.initSync({ module: readFileSync(join(UI, 'public/cdoc/cdoc_wasm_bg.wasm')) });
     initialised = true;
   }
   return glue;

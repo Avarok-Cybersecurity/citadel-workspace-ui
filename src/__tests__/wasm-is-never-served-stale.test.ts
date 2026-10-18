@@ -87,7 +87,7 @@ describe('the WASM binary', () => {
     // The Citadel Docs binary is vendored and committed, so its size is checked everywhere, CI
     // included, with no existence escape.
     expect(
-      statSync(join(process.cwd(), 'public/wasm/cdoc/cdoc_wasm_bg.wasm')).size,
+      statSync(join(process.cwd(), 'public/cdoc/cdoc_wasm_bg.wasm')).size,
       'the Citadel Docs binary is larger than the precache cap, so workbox will drop it',
     ).toBeLessThan(capBytes);
 

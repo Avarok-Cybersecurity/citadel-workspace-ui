@@ -950,7 +950,7 @@ async function __wbg_init(module_or_path) {
     }
 
     if (module_or_path === undefined) {
-        module_or_path = "/wasm/cdoc/cdoc_wasm_bg.wasm";
+        module_or_path = "/cdoc/cdoc_wasm_bg.wasm";
     }
     const imports = __wbg_get_imports();
 

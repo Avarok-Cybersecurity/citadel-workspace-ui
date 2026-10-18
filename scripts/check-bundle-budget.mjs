@@ -204,7 +204,7 @@ const DEFERRED_MODULES = [
 ];
 
 /**
- * The Citadel Docs binary (public/wasm/cdoc, vendored by scripts/sync-cdoc-wasm.sh), in bytes.
+ * The Citadel Docs binary (public/cdoc, vendored by scripts/sync-cdoc-wasm.sh), in bytes.
  * Never on the critical path -- the worker fetches it when a document opens -- but precached
  * with its glue, so it is part of every install and must stay under workbox's per-file cap
  * (vite.config.ts, 4 MB), above which workbox drops it from the precache SILENTLY.
@@ -215,7 +215,7 @@ const DEFERRED_MODULES = [
  * with the reason here, and the precache cap with it if it ever nears 4 MB.
  */
 const CDOC_WASM_BUDGET_BYTES = 3_000_000;
-const CDOC_WASM = join(dist, 'wasm', 'cdoc', 'cdoc_wasm_bg.wasm');
+const CDOC_WASM = join(dist, 'cdoc', 'cdoc_wasm_bg.wasm');
 
 /**
  * This measures dist/ and does not build it, so a dist/ older than the source
@@ -317,7 +317,7 @@ if (cdocBytes > CDOC_WASM_BUDGET_BYTES) {
   console.error(`The Citadel Docs binary is ${cdocBytes} bytes, over its ${CDOC_WASM_BUDGET_BYTES}-byte budget. Find what grew, or raise the budget on purpose.`);
   process.exit(1);
 }
-if (!readFileSync(join(dist, 'sw.js'), 'utf8').includes('wasm/cdoc/cdoc_wasm_bg.wasm')) {
+if (!readFileSync(join(dist, 'sw.js'), 'utf8').includes('"cdoc/cdoc_wasm_bg.wasm"')) {
   console.error('The Citadel Docs binary is not in the service worker precache: its glue would be served without it.');
   process.exit(1);
 }
