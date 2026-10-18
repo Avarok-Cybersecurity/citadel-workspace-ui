@@ -11,7 +11,7 @@ import { dirname, join, relative, resolve } from 'node:path';
 
 const SRC: string = join(process.cwd(), 'src');
 const ALLOWED: ReadonlySet<string> = new Set<string>(['lib/cdoc/runtime-loader.ts', 'lib/cdoc/document-source.ts']);
-const FORBIDDEN: readonly RegExp[] = [/^lib\/cdoc\//, /^components\/documents\/(PageView|DocsCanvas)\.tsx$/, /^components\/documents\/page-view\//];
+const FORBIDDEN: readonly RegExp[] = [/^lib\/cdoc\//, /^\.\.\/vendor\/cdoc\//, /^components\/documents\/(PageView|DocsCanvas)\.tsx$/, /^components\/documents\/page-view\//];
 
 const EXTENSIONS: readonly string[] = ['', '.ts', '.tsx', '.js', '/index.ts', '/index.tsx'];
 

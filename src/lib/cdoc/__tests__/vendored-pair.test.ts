@@ -13,7 +13,7 @@ import { CDOC_FONT_BASE_URL, CDOC_WASM_URL } from '../asset-urls';
 import { FONT_MANIFEST } from '../generated/font-manifest';
 
 const UI: string = process.cwd();
-const GENERATED: string = join(UI, 'src/lib/cdoc/generated');
+const GENERATED: string = join(UI, 'vendor/cdoc');
 const sha256 = (path: string): string => createHash('sha256').update(readFileSync(path)).digest('hex');
 const publicPath = (url: string): string => join(UI, 'public', url);
 

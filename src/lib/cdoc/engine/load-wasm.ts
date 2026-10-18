@@ -7,7 +7,7 @@ import { CDOC_WASM_URL } from '../asset-urls';
 import type { CdocWasm } from './cdoc-wasm-api';
 
 export async function loadCdocWasm(): Promise<CdocWasm> {
-  const glue: typeof import('../generated/cdoc_wasm.js') = await import('../generated/cdoc_wasm.js');
+  const glue: typeof import('../../../../vendor/cdoc/cdoc_wasm.js') = await import('../../../../vendor/cdoc/cdoc_wasm.js');
   await glue.default({ module_or_path: CDOC_WASM_URL });
   return glue;
 }

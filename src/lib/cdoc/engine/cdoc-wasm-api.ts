@@ -3,7 +3,7 @@
  * engine is handed an initialised module rather than importing the glue, so loading it (fetch
  * in the browser, file bytes under node) stays in the adapters.
  */
-import type * as Glue from '../generated/cdoc_wasm.js';
+import type * as Glue from '../../../../vendor/cdoc/cdoc_wasm.js';
 
 export type CdocWasm = Pick<
   typeof Glue,

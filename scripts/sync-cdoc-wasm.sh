@@ -29,7 +29,10 @@ UI="$(cd "$(dirname "$0")/.." && pwd)"
 # Not under public/wasm/: that directory is build output, which the parent's sync-wasm-clients.sh
 # empties before every build, and this binary is vendored and committed.
 WASM_OUT="$UI/public/cdoc"
-GLUE_OUT="$UI/src/lib/cdoc/generated"
+# The glue sits outside src/ as well: it is tool output as long as the API it binds, which no
+# hand-written-module rule (the 250-line cap) should judge. Only the short typed manifest is in src.
+GLUE_OUT="$UI/vendor/cdoc"
+MANIFEST_OUT="$UI/src/lib/cdoc/generated/font-manifest.ts"
 FONT_OUT="$UI/public/fonts/cdoc"
 # The URL the glue loads its binary from; src/lib/cdoc/asset-urls.ts holds the same string and
 # the vendored-pair test asserts the two agree.
@@ -64,13 +67,13 @@ node -e '
   fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace(from, JSON.stringify(to)));
 ' "$STAGE/cdoc_wasm.js" "$DEFAULT_URL" "$WASM_URL"
 
-mkdir -p "$WASM_OUT" "$GLUE_OUT" "$FONT_OUT"
+mkdir -p "$WASM_OUT" "$GLUE_OUT" "$FONT_OUT" "$(dirname "$MANIFEST_OUT")"
 cp "$STAGE/cdoc_wasm_bg.opt.wasm" "$WASM_OUT/cdoc_wasm_bg.wasm"
 cp "$STAGE/cdoc_wasm.js" "$STAGE/cdoc_wasm.d.ts" "$GLUE_OUT/"
 
 # Fonts: the faces the manifest says the UI serves (not its test fixtures), its licence, and a
 # typed manifest reduced to what the font port reads. Each face's sha256 is checked on the way in.
-node - "$DOCS/fonts" "$FONT_OUT" "$GLUE_OUT/font-manifest.ts" <<'NODE'
+node - "$DOCS/fonts" "$FONT_OUT" "$MANIFEST_OUT" <<'NODE'
 const fs = require('node:fs');
 const path = require('node:path');
 const { createHash } = require('node:crypto');

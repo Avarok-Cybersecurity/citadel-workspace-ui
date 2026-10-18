@@ -6,7 +6,7 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import * as glue from '../generated/cdoc_wasm.js';
+import * as glue from '../../../../vendor/cdoc/cdoc_wasm.js';
 import { FONT_MANIFEST } from '../generated/font-manifest';
 import { CdocEngine } from '../engine/cdoc-engine';
 import type { CdocWasm } from '../engine/cdoc-wasm-api';
