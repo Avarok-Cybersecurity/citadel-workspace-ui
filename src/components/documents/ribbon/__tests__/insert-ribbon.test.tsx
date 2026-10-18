@@ -5,11 +5,16 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
+import type { CaretFormatting } from '@/lib/cdoc/editor/controller';
 import { FakeEditor } from './fake-editor';
 import { FIXED_ENVIRONMENT, MAY_EDIT, renderRibbon } from './render-ribbon';
 
-function setUp(commentAuthor: string | null): { editor: FakeEditor; user: UserEvent } {
-  const editor: FakeEditor = new FakeEditor({ known: false });
+/** A paragraph the engine reports with no direct spacing or indent, so Layout's fields can be set. */
+const PLAIN: CaretFormatting = { known: true, run: {}, paragraph: {} };
+
+function setUp(commentAuthor: string | null, takesImages: boolean = false): { editor: FakeEditor; user: UserEvent } {
+  // Default false: only the picture tests need an editor that takes image bytes.
+  const editor: FakeEditor = new FakeEditor(PLAIN, takesImages);
   renderRibbon({ editor, edit: MAY_EDIT, commentAuthor });
   return { editor, user: userEvent.setup() };
 }
@@ -55,6 +60,58 @@ describe('the Insert ribbon', () => {
     await openTab(user, 'insert');
     await user.click(screen.getByTestId('ribbon-remove-link'));
     await waitFor((): void => expect(editor.sent).toEqual([{ name: 'removeLink' }]));
+  });
+
+  it('keeps a written comment when the dialog is dismissed, and drops it only on Discard', async () => {
+    const { editor, user } = setUp('Ada');
+    await openTab(user, 'insert');
+    await user.click(screen.getByTestId('ribbon-insert-comment'));
+    await user.type(await screen.findByTestId('ribbon-comment-text'), 'Half a thought');
+    await user.keyboard('{Escape}');
+    await waitFor((): void => expect(screen.queryByTestId('ribbon-insert-comment-dialog')).toBeNull());
+    await user.click(screen.getByTestId('ribbon-insert-comment'));
+    expect(await screen.findByTestId('ribbon-comment-text')).toHaveValue('Half a thought');
+    await user.click(screen.getByTestId('ribbon-insert-comment-cancel'));
+    await user.click(screen.getByTestId('ribbon-insert-comment'));
+    expect(await screen.findByTestId('ribbon-comment-text')).toHaveValue('');
+    expect(editor.sent).toEqual([]);
+  });
+
+  it('ties a refused address’s message to its field', async () => {
+    const { user } = setUp('Ada');
+    await openTab(user, 'insert');
+    await user.click(screen.getByTestId('ribbon-insert-link'));
+    await user.type(await screen.findByTestId('ribbon-link-address'), 'data:x');
+    await user.click(screen.getByTestId('ribbon-insert-link-submit'));
+    expect(screen.getByTestId('ribbon-link-address')).toHaveAttribute('aria-describedby', 'ribbon-insert-link-invalid');
+    expect(screen.getByTestId('ribbon-link-address')).toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('offers no Picture while the editor cannot take image bytes', async () => {
+    const { user } = setUp('Ada');
+    await openTab(user, 'insert');
+    expect(screen.queryByTestId('ribbon-insert-picture')).toBeNull();
+  });
+
+  it('hands a picture’s bytes to the editor, then inserts its content id at its size, fitted to the column', async () => {
+    const { editor, user } = setUp('Ada', true);
+    await openTab(user, 'insert');
+    const png: File = new File([new Uint8Array([137, 80, 78, 71])], 'chart.png', { type: 'image/png' });
+    await user.upload(screen.getByTestId('ribbon-picture-file'), png);
+    await waitFor((): void => expect(editor.sent).toEqual([{ name: 'insertImage', contentId: 'image-1', width: 45130, height: 33848 }]));
+    expect(editor.images.map((i: { mime: string; bytes: Uint8Array }): [string, number[]] => [i.mime, [...i.bytes]])).toEqual([['image/png', [137, 80, 78, 71]]]);
+  });
+
+  it('refuses a picture type the outputs cannot draw, and says so', async () => {
+    const { editor } = setUp('Ada', true);
+    // The picker's accept filter would hide the SVG; a drag-drop or an old browser need not.
+    const user: UserEvent = userEvent.setup({ applyAccept: false });
+    await openTab(user, 'insert');
+    const svg: File = new File(['<svg/>'], 'logo.svg', { type: 'image/svg+xml' });
+    await user.upload(screen.getByTestId('ribbon-picture-file'), svg);
+    expect(await screen.findByText('Could not insert the picture. logo.svg is not a PNG or JPEG picture.')).toBeInTheDocument();
+    expect(editor.images).toEqual([]);
+    expect(editor.sent).toEqual([]);
   });
 
   it('signs a comment with the signed-in name, a fresh id and the time', async () => {

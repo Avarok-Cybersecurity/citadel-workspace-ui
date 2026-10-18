@@ -73,12 +73,11 @@ async function ribbonTargetsAndWidth({ page, url, viewport }) {
   }
 }
 
-/** A collapsed group's popover, the table grid and the symbol picker stay inside a phone's width. */
+/** The table grid stays inside a phone's width. */
 async function popoversStayOnScreen({ page, url, viewport }) {
   await openRibbon(page, url, 'docs-ribbon');
   await showTab(page, 'insert');
-  const openers = viewport.width < 768 ? ['ribbon-tables-open', 'ribbon-insert-table'] : ['ribbon-insert-table'];
-  for (const id of openers) await page.getByTestId(id).click();
+  await page.getByTestId('ribbon-insert-table').click();
   await page.getByTestId('ribbon-table-cell-7-7').waitFor({ state: 'visible' });
   await settled(page);
   const boxes = await page.locator('[data-radix-popper-content-wrapper]:has([role="dialog"])').evaluateAll((all) => all.map((el) => el.getBoundingClientRect().toJSON()));

@@ -22,7 +22,7 @@ export function shortcutLabel(shortcut: Shortcut, environment: RibbonEnvironment
   return environment.modifier === '⌘' ? parts.join('') : parts.join('+');
 }
 
-export const RIBBON_CONTROL: string = 'inline-flex h-[44px] min-w-[44px] shrink-0 items-center justify-center gap-1 rounded-md px-2 text-[14px] text-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-disabled:cursor-not-allowed aria-disabled:opacity-50 aria-[pressed=true]:bg-primary/15 aria-[pressed=true]:text-primary aria-[pressed=mixed]:bg-[repeating-linear-gradient(135deg,transparent_0_4px,hsl(var(--muted))_4px_8px)]';
+export const RIBBON_CONTROL: string = 'inline-flex h-[44px] min-w-[44px] shrink-0 items-center justify-center gap-1 rounded-md px-2 text-[14px] text-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-disabled:cursor-not-allowed aria-disabled:opacity-50 aria-[pressed=true]:bg-primary/15 aria-[pressed=true]:text-primary aria-[pressed=mixed]:border aria-[pressed=mixed]:border-dashed aria-[pressed=mixed]:border-muted-foreground';
 
 /** The tooltip around any ribbon control: what it does and its shortcut, or why it cannot. */
 export function RibbonTip({ label, shortcut, reason, children }: { label: string; shortcut?: Shortcut; reason: string | null; children: ReactNode }): JSX.Element {

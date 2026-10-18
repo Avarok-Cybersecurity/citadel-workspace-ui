@@ -13,16 +13,15 @@ const DESKTOP_WIDTH: number = window.innerWidth;
 afterEach((): void => { window.innerWidth = DESKTOP_WIDTH; });
 
 describe('a ribbon that cannot run commands', () => {
-  it('says the document is still opening before an editor exists', () => {
+  it('is not there at all before an editor exists, rather than a ribbon of dead controls', () => {
     renderRibbon({ editor: null, edit: MAY_EDIT, commentAuthor: 'Ada' });
-    expect(screen.getByTestId('docs-ribbon-unavailable')).toHaveTextContent('The document is still opening.');
-    expect(screen.getByTestId('ribbon-mark-bold')).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.queryByTestId('docs-ribbon')).toBeNull();
   });
 
   it('is read only, with the permission’s reason, for someone who may not edit', async () => {
-    const editor: FakeEditor = new FakeEditor({ known: false });
+    const editor: FakeEditor = new FakeEditor({ known: false }, false);
     renderRibbon({ editor, edit: { enabled: false, reason: 'You may only read this document.' }, commentAuthor: 'Ada' });
-    expect(screen.getByTestId('docs-ribbon-unavailable')).toHaveTextContent('You may only read this document.');
+    expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent('You may only read this document.');
     const user: UserEvent = userEvent.setup();
     await user.click(screen.getByTestId('ribbon-undo'));
     expect(editor.sent).toEqual([]);
@@ -33,7 +32,7 @@ describe('a ribbon that cannot run commands', () => {
   });
 
   it('waits while an IME composition is open', async () => {
-    const editor: FakeEditor = new FakeEditor({ known: false });
+    const editor: FakeEditor = new FakeEditor({ known: false }, false);
     renderRibbon({ editor, edit: MAY_EDIT, commentAuthor: 'Ada' });
     act((): void => editor.report(editorState({ known: false }, { composing: true })));
     await userEvent.setup().click(screen.getByTestId('ribbon-mark-italic'));
@@ -45,8 +44,8 @@ describe('a ribbon that cannot run commands', () => {
 });
 
 describe('a refused command', () => {
-  it('is shown to the person, focus still returns, and the next command runs', async () => {
-    const editor: FakeEditor = new FakeEditor({ known: false });
+  it('is shown to the person until dismissed, focus still returns, and the next command runs', async () => {
+    const editor: FakeEditor = new FakeEditor({ known: false }, false);
     renderRibbon({ editor, edit: MAY_EDIT, commentAuthor: 'Ada' });
     const user: UserEvent = userEvent.setup();
     editor.refuseNext('there is no link here');
@@ -60,9 +59,19 @@ describe('a refused command', () => {
   });
 });
 
+describe('the status line', () => {
+  it('says the caret’s formatting is not shown while the engine does not report it', () => {
+    const editor: FakeEditor = new FakeEditor({ known: false }, false);
+    renderRibbon({ editor, edit: MAY_EDIT, commentAuthor: 'Ada' });
+    expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent('Formatting at the cursor is not shown yet.');
+    act((): void => editor.report(editorState({ known: true, run: {}, paragraph: {} })));
+    expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent(/^$/);
+  });
+});
+
 describe('keyboard', () => {
   it('makes each tab’s toolbar one Tab stop that the arrows, Home and End move through', async () => {
-    renderRibbon({ editor: new FakeEditor({ known: false }), edit: MAY_EDIT, commentAuthor: 'Ada' });
+    renderRibbon({ editor: new FakeEditor({ known: false }, false), edit: MAY_EDIT, commentAuthor: 'Ada' });
     const user: UserEvent = userEvent.setup();
     const toolbar: HTMLElement = screen.getByTestId('ribbon-home-toolbar');
     const stops: Element[] = [...toolbar.querySelectorAll('[data-roving-item]')].filter((el: Element): boolean => (el as HTMLElement).tabIndex === 0);
@@ -83,7 +92,7 @@ describe('keyboard', () => {
   });
 
   it('lets a text field keep the arrows until its caret reaches an end', async () => {
-    renderRibbon({ editor: new FakeEditor({ known: false }), edit: MAY_EDIT, commentAuthor: 'Ada' });
+    renderRibbon({ editor: new FakeEditor({ known: true, run: {}, paragraph: {} }, false), edit: MAY_EDIT, commentAuthor: 'Ada' });
     const user: UserEvent = userEvent.setup();
     const before: HTMLInputElement = screen.getByTestId('ribbon-home-spacing-before') as HTMLInputElement;
     act((): void => before.focus());
@@ -93,8 +102,15 @@ describe('keyboard', () => {
     expect(screen.getByTestId('ribbon-line-spacing')).toHaveFocus();
   });
 
+  it('goes from the tab straight to its toolbar on Tab, with no stop on the panel between', async () => {
+    renderRibbon({ editor: new FakeEditor({ known: false }, false), edit: MAY_EDIT, commentAuthor: 'Ada' });
+    act((): void => screen.getByTestId('docs-ribbon-tab-home').focus());
+    await userEvent.setup().tab();
+    expect(screen.getByTestId('ribbon-undo')).toHaveFocus();
+  });
+
   it('switches tabs with the arrow keys', async () => {
-    renderRibbon({ editor: new FakeEditor({ known: false }), edit: MAY_EDIT, commentAuthor: 'Ada' });
+    renderRibbon({ editor: new FakeEditor({ known: false }, false), edit: MAY_EDIT, commentAuthor: 'Ada' });
     const user: UserEvent = userEvent.setup();
     act((): void => screen.getByTestId('docs-ribbon-tab-home').focus());
     await user.keyboard('{ArrowRight}');
@@ -103,7 +119,7 @@ describe('keyboard', () => {
   });
 
   it('gives every control a type="button" or a form role, never a submit by accident', () => {
-    renderRibbon({ editor: new FakeEditor({ known: false }), edit: MAY_EDIT, commentAuthor: 'Ada' });
+    renderRibbon({ editor: new FakeEditor({ known: false }, false), edit: MAY_EDIT, commentAuthor: 'Ada' });
     for (const button of screen.getByTestId('docs-ribbon').querySelectorAll('button')) expect(button).toHaveAttribute('type', 'button');
   });
 });
@@ -111,7 +127,7 @@ describe('keyboard', () => {
 describe('at phone width', () => {
   it('collapses each group into one button whose popover holds the same controls', async () => {
     window.innerWidth = 390;
-    const editor: FakeEditor = new FakeEditor({ known: false });
+    const editor: FakeEditor = new FakeEditor({ known: false }, false);
     renderRibbon({ editor, edit: MAY_EDIT, commentAuthor: 'Ada' });
     expect(screen.queryByTestId('ribbon-mark-bold')).toBeNull();
     const user: UserEvent = userEvent.setup();

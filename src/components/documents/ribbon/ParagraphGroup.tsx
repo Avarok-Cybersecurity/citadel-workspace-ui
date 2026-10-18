@@ -8,7 +8,7 @@ import { WORD_LINE_SPACINGS, alignmentState, lineSpacingLabel } from './formatti
 import { RibbonButton, type Shortcut } from './RibbonButton';
 import { RibbonPicker, type PickerOption } from './RibbonFields';
 import { RibbonGroup } from './RibbonToolbar';
-import { SpacingFields, spacingPatch } from './ParagraphFields';
+import { SIBLINGS_UNKNOWN, SpacingFields, spacingPatch } from './ParagraphFields';
 import { useRibbon, type Ribbon } from './ribbon-context';
 
 interface AlignControl {
@@ -34,7 +34,7 @@ function caretLines(line: LineSpacing | undefined): string | null {
 export function ParagraphGroup(): JSX.Element {
   const { caret, run }: Ribbon = useRibbon();
   return (
-    <RibbonGroup label="Paragraph" testId="ribbon-paragraph" icon={Pilcrow}>
+    <RibbonGroup label="Paragraph" testId="ribbon-paragraph" collapses={true} icon={Pilcrow}>
       <RibbonButton testId="ribbon-outdent" label="Decrease indent" icon={IndentDecrease} shortcut={{ key: 'M', shift: true }}
         onPress={(): void => { void run({ name: 'outdent' }, 'decrease the indent'); }} />
       <RibbonButton testId="ribbon-indent" label="Increase indent" icon={IndentIncrease} shortcut={{ key: 'M' }}
@@ -43,7 +43,7 @@ export function ParagraphGroup(): JSX.Element {
         <RibbonButton key={a.alignment} testId={`ribbon-align-${a.alignment}`} label={a.label} icon={a.icon} shortcut={a.shortcut} pressed={alignmentState(caret, a.alignment)}
           onPress={(): void => { void run({ name: 'setParagraphProperty', patch: { alignment: a.alignment } }, a.label.toLowerCase()); }} />
       ))}
-      <RibbonPicker testId="ribbon-line-spacing" label="Line spacing" options={LINE_OPTIONS} widthPx={72}
+      <RibbonPicker testId="ribbon-line-spacing" label="Line spacing" options={LINE_OPTIONS} widthPx={72} unavailable={caret.known ? null : SIBLINGS_UNKNOWN}
         value={caret.known ? caretLines(caret.paragraph.spacing?.line) : null}
         onPick={(lines: string): void => {
           void run({ name: 'setParagraphProperty', patch: spacingPatch(caret, { line: { rule: 'multiple', lines: Number(lines) } }) }, 'change the line spacing');

@@ -1,8 +1,8 @@
 /**
  * The Citadel Docs ribbon: Home, Insert and Layout, Word's commands in this app's design.
  * Every control sends one EditorCommand through the editor in EditorControllerContext and
- * hands focus back to the page; with no editor yet, or no right to edit, every control says
- * why it cannot run. Shortcuts are the editor's: the ribbon only names them.
+ * hands focus back to the page. There is no ribbon until an editor is provided; with no
+ * right to edit, or an IME composition open, every control says why it cannot run. Shortcuts are the editor's: the ribbon only names them.
  */
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -18,6 +18,9 @@ import { useEditorController, useEditorState, type RibbonEditor } from './editor
 import { RibbonContext, useRibbonValue, type Ribbon } from './ribbon-context';
 import type { RibbonEnvironment } from './ribbon-environment';
 
+/** Shown while the engine does not report the caret's formatting, which the toggles then cannot show. */
+const UNKNOWN_CARET: string = 'Formatting at the cursor is not shown yet.';
+
 export type RibbonTab = 'home' | 'insert' | 'layout';
 
 const TABS: readonly { readonly id: RibbonTab; readonly label: string }[] = [
@@ -32,19 +35,22 @@ export interface DocsRibbonProps {
   readonly environment: RibbonEnvironment;
 }
 
-export function DocsRibbon({ edit, commentAuthor, environment }: DocsRibbonProps): JSX.Element {
+export function DocsRibbon({ edit, commentAuthor, environment }: DocsRibbonProps): JSX.Element | null {
   const editor: RibbonEditor | null = useEditorController();
   const state: EditorState | null = useEditorState(editor);
   const compact: boolean = useIsMobile();
   const ribbon: Ribbon = useRibbonValue(editor, state, edit, environment, compact);
   const [tab, setTab] = useState<RibbonTab>('home');
+  // No ribbon until the editor has opened: controls with nothing to drive would only say so.
+  if (editor === null) return null;
   return (
     <RibbonContext.Provider value={ribbon}>
       <TooltipProvider delayDuration={400}>
         <CdocFontFaces />
         <Tabs value={tab} onValueChange={(next: string): void => setTab(next as RibbonTab)} data-testid="docs-ribbon"
           className="border-b border-border bg-card px-2 pb-1 sm:px-4">
-          <TabsList aria-label="Ribbon" className="h-auto gap-1 bg-transparent p-0 pt-1">
+          <div className="flex items-center gap-2">
+          <TabsList aria-label="Ribbon" className="h-auto shrink-0 gap-1 bg-transparent p-0 pt-1">
             {TABS.map((t: { id: RibbonTab; label: string }): JSX.Element => (
               <TabsTrigger key={t.id} value={t.id} data-testid={`docs-ribbon-tab-${t.id}`}
                 className="h-[44px] rounded-b-none border-b-2 border-transparent px-4 data-[state=active]:border-primary data-[state=active]:shadow-none">
@@ -52,12 +58,14 @@ export function DocsRibbon({ edit, commentAuthor, environment }: DocsRibbonProps
               </TabsTrigger>
             ))}
           </TabsList>
-          {ribbon.disabledReason !== null && (
-            <p role="status" data-testid="docs-ribbon-unavailable" className="py-1 text-[13px] text-muted-foreground">{ribbon.disabledReason}</p>
-          )}
-          <TabsContent value="home" className="mt-1"><HomeRibbon /></TabsContent>
-          <TabsContent value="insert" className="mt-1"><InsertRibbon commentAuthor={commentAuthor} /></TabsContent>
-          <TabsContent value="layout" className="mt-1"><LayoutRibbon /></TabsContent>
+          {/* In the tab row, so it appearing or going never moves the toolbar. Mounted empty, so it is announced. */}
+          <p role="status" data-testid="docs-ribbon-status" className="ml-auto min-w-0 text-right text-[12px] leading-tight text-muted-foreground">
+            {ribbon.disabledReason ?? (ribbon.caret.known ? '' : UNKNOWN_CARET)}
+          </p>
+          </div>
+          <TabsContent value="home" tabIndex={-1} className="mt-1"><HomeRibbon /></TabsContent>
+          <TabsContent value="insert" tabIndex={-1} className="mt-1"><InsertRibbon commentAuthor={commentAuthor} /></TabsContent>
+          <TabsContent value="layout" tabIndex={-1} className="mt-1"><LayoutRibbon /></TabsContent>
         </Tabs>
       </TooltipProvider>
     </RibbonContext.Provider>

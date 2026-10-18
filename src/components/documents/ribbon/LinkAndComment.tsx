@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import type { CommentValue } from '@/lib/cdoc/editor/model-values';
 import { linkTarget, type LinkTarget } from './link-target';
 import { RibbonButton } from './RibbonButton';
-import { RibbonDialog } from './RibbonDialog';
+import { RibbonDialog, type FieldState } from './RibbonDialog';
 import { useRibbon, type Ribbon } from './ribbon-context';
 
 export function LinkControls(): JSX.Element {
@@ -20,15 +20,18 @@ export function LinkControls(): JSX.Element {
   const target: LinkTarget = linkTarget(address);
   return (
     <>
-      <RibbonDialog testId="ribbon-insert-link" label="Link" icon={Link} shortcut={{ key: 'K' }} title="Insert link"
+      <RibbonDialog testId="ribbon-insert-link" label="Link" icon={Link} text="Link" shortcut={{ key: 'K' }} title="Insert link"
         description="Links the selected text, or inserts the address as a link at the cursor." submitLabel="Insert link"
-        invalid={target.ok ? null : target.reason} onOpen={(): void => setAddress('')}
-        onSubmit={(): void => { if (target.ok) void run({ name: 'insertLink', href: target.href }, 'insert the link'); }}>
-        <div className="space-y-2">
-          <Label htmlFor="ribbon-link-address">Address</Label>
-          <Input id="ribbon-link-address" data-testid="ribbon-link-address" type="url" inputMode="url" autoComplete="url" placeholder="https://example.com"
-            className="min-h-[44px]" value={address} onChange={(e: ChangeEvent<HTMLInputElement>): void => setAddress(e.target.value)} />
-        </div>
+        invalid={target.ok ? null : target.reason} dirty={address.trim() !== ''} onDiscard={(): void => setAddress('')}
+        onSubmit={(): void => { if (target.ok) { setAddress(''); void run({ name: 'insertLink', href: target.href }, 'insert the link'); } }}>
+        {(field: FieldState): JSX.Element => (
+          <div className="space-y-2">
+            <Label htmlFor="ribbon-link-address">Address</Label>
+            <Input id="ribbon-link-address" data-testid="ribbon-link-address" type="url" inputMode="url" autoComplete="url" placeholder="https://example.com"
+              aria-invalid={field.invalid} aria-describedby={field.describedBy}
+              className="min-h-[44px]" value={address} onChange={(e: ChangeEvent<HTMLInputElement>): void => setAddress(e.target.value)} />
+          </div>
+        )}
       </RibbonDialog>
       <RibbonButton testId="ribbon-remove-link" label="Remove link" icon={Unlink}
         onPress={(): void => { void run({ name: 'removeLink' }, 'remove the link'); }} />
@@ -40,22 +43,26 @@ export function CommentControl({ author }: { author: string | null }): JSX.Eleme
   const { run, environment }: Ribbon = useRibbon();
   const [text, setText] = useState<string>('');
   return (
-    <RibbonDialog testId="ribbon-insert-comment" label="New comment" icon={MessageSquarePlus} title="New comment"
+    <RibbonDialog testId="ribbon-insert-comment" label="New comment" icon={MessageSquarePlus} text="Comment" title="New comment"
       description={author === null ? 'On the selected text, or the word at the cursor.' : `On the selected text, or the word at the cursor, signed ${author}.`} submitLabel="Comment"
       unavailable={author === null ? 'Your name has not loaded yet, so a comment could not be signed.' : null}
-      invalid={text.trim() === '' ? 'Write the comment first.' : null} onOpen={(): void => setText('')}
+      invalid={text.trim() === '' ? 'Write the comment first.' : null} dirty={text.trim() !== ''} onDiscard={(): void => setText('')}
       onSubmit={(): void => {
         if (author === null) return;
+        setText('');
         const comment: CommentValue = {
           id: environment.newCommentId(), author, date: environment.now(), text: text.trim(), resolved: false,
         };
         void run({ name: 'insertComment', comment }, 'add the comment');
       }}>
-      <div className="space-y-2">
-        <Label htmlFor="ribbon-comment-text">Comment</Label>
-        <Textarea id="ribbon-comment-text" data-testid="ribbon-comment-text" rows={4} value={text}
-          onChange={(e: ChangeEvent<HTMLTextAreaElement>): void => setText(e.target.value)} />
-      </div>
+      {(field: FieldState): JSX.Element => (
+        <div className="space-y-2">
+          <Label htmlFor="ribbon-comment-text">Comment</Label>
+          <Textarea id="ribbon-comment-text" data-testid="ribbon-comment-text" rows={4} value={text}
+            aria-invalid={field.invalid} aria-describedby={field.describedBy}
+            onChange={(e: ChangeEvent<HTMLTextAreaElement>): void => setText(e.target.value)} />
+        </div>
+      )}
     </RibbonDialog>
   );
 }

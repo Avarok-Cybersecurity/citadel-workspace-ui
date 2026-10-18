@@ -14,7 +14,7 @@ import { useRibbon, type Ribbon } from './ribbon-context';
 function UndoGroup(): JSX.Element {
   const { run }: Ribbon = useRibbon();
   return (
-    <RibbonGroup label="Undo" testId="ribbon-undo-group" icon={Undo2}>
+    <RibbonGroup label="Undo" testId="ribbon-undo-group" collapses={false} icon={Undo2}>
       <RibbonButton testId="ribbon-undo" label="Undo" icon={Undo2} shortcut={{ key: 'Z' }} onPress={(): void => { void run({ name: 'undo' }, 'undo'); }} />
       <RibbonButton testId="ribbon-redo" label="Redo" icon={Redo2} shortcut={{ key: 'Y' }} onPress={(): void => { void run({ name: 'redo' }, 'redo'); }} />
     </RibbonGroup>

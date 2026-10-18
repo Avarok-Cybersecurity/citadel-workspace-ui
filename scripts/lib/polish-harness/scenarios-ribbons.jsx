@@ -18,7 +18,7 @@ const KNOWN = {
 };
 
 function Ribbon({ caret }) {
-  const [editor] = useState(() => new FakeEditor(caret));
+  const [editor] = useState(() => new FakeEditor(caret, true));
   return (
     <EditorControllerContext.Provider value={editor}>
       <div className="flex h-screen flex-col bg-background">

@@ -18,6 +18,12 @@ const SPACING_MAX_PT: number = 1584;
 const INDENT_MAX_PT: number = 1584;
 const INDENT_MIN_PT: number = -1584;
 
+/**
+ * While the caret's paragraph is not known, a member cannot be sent without clearing its
+ * siblings (the engine overlays these values whole), so the fields wait for the caret.
+ */
+export const SIBLINGS_UNKNOWN: string = 'Setting one spacing or indent would reset the others until the paragraph’s formatting is shown.';
+
 type Spacing = NonNullable<ParagraphPropertiesPatch['spacing']>;
 
 export function spacingPatch(caret: CaretFormatting, change: Spacing): ParagraphPropertiesPatch {
@@ -44,7 +50,7 @@ export function SpacingFields({ idPrefix }: { idPrefix: string }): JSX.Element {
   return (
     <>
       {(['before', 'after'] as const).map((key: SpacingKey): JSX.Element => (
-        <RibbonNumberField key={key} testId={`${idPrefix}-spacing-${key}`} label={`Spacing ${SPACING_LABELS[key].toLowerCase()}`} shortLabel={SPACING_LABELS[key]} unit="pt" min={0} max={SPACING_MAX_PT}
+        <RibbonNumberField key={key} testId={`${idPrefix}-spacing-${key}`} label={`Spacing ${SPACING_LABELS[key].toLowerCase()}`} shortLabel={SPACING_LABELS[key]} unit="pt" min={0} max={SPACING_MAX_PT} unavailable={caret.known ? null : SIBLINGS_UNKNOWN}
           value={caretPoints(caret.known ? caret.paragraph.spacing?.[key] : undefined, caret.known)}
           onCommit={(points: number): void => { void run({ name: 'setParagraphProperty', patch: spacingPatch(caret, { [key]: pointsToPt100(points) }) }, `change the spacing ${key}`); }} />
       ))}
@@ -57,7 +63,7 @@ export function IndentFields({ idPrefix }: { idPrefix: string }): JSX.Element {
   return (
     <>
       {(['left', 'right'] as const).map((key: IndentKey): JSX.Element => (
-        <RibbonNumberField key={key} testId={`${idPrefix}-indent-${key}`} label={`Indent ${INDENT_LABELS[key].toLowerCase()}`} shortLabel={INDENT_LABELS[key]} unit="pt" min={INDENT_MIN_PT} max={INDENT_MAX_PT}
+        <RibbonNumberField key={key} testId={`${idPrefix}-indent-${key}`} label={`Indent ${INDENT_LABELS[key].toLowerCase()}`} shortLabel={INDENT_LABELS[key]} unit="pt" min={INDENT_MIN_PT} max={INDENT_MAX_PT} unavailable={caret.known ? null : SIBLINGS_UNKNOWN}
           value={caretPoints(caret.known ? caret.paragraph.indent?.[key] : undefined, caret.known)}
           onCommit={(points: number): void => { void run({ name: 'setParagraphProperty', patch: indentPatch(caret, { [key]: pointsToPt100(points) }) }, `change the ${key} indent`); }} />
       ))}

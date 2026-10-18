@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import type { CaretFormatting, EditorCommand, EditorState } from '@/lib/cdoc/editor/controller';
 import type { ActionGate } from '@/hooks/use-permission-result';
 import { describeError } from '@/lib/describe-error';
-import type { RibbonEditor } from './editor-context';
+import type { ImageInsertion, RibbonEditor } from './editor-context';
 import type { RibbonEnvironment } from './ribbon-environment';
 
 export interface Ribbon {
@@ -20,6 +20,10 @@ export interface Ribbon {
   readonly compact: boolean;
   /** Sends `command`; `what` completes "Could not …" if the editor refuses it. */
   run(command: EditorCommand, what: string): Promise<void>;
+  /** Runs `work` the way `run` runs a command: a failure is shown, and focus returns after. */
+  attempt(what: string, work: () => Promise<unknown>): Promise<void>;
+  /** The editor's image store, or null while the editor cannot take image bytes. */
+  readonly addImage: ImageInsertion['addImage'] | null;
   /** Hands keyboard focus back to the document, e.g. after a dialog closes with nothing done. */
   returnFocus(): void;
 }
@@ -44,21 +48,25 @@ function reasonFor(editor: RibbonEditor | null, state: EditorState | null, edit:
 export function useRibbonValue(editor: RibbonEditor | null, state: EditorState | null, edit: ActionGate, environment: RibbonEnvironment, compact: boolean): Ribbon {
   return useMemo((): Ribbon => {
     const disabledReason: string | null = reasonFor(editor, state, edit);
+    const attempt: (what: string, work: (live: RibbonEditor) => Promise<unknown>) => Promise<void> = async (what: string, work: (live: RibbonEditor) => Promise<unknown>): Promise<void> => {
+      if (editor === null || disabledReason !== null) return;
+      try {
+        await work(editor);
+      } catch (error: unknown) {
+        // Kept until dismissed: the toast is the only place the reason is given.
+        toast.error(`Could not ${what}. ${describeError(error)}`, { duration: Infinity, closeButton: true });
+      } finally {
+        editor.focus();
+      }
+    };
     return {
       disabledReason,
       caret: state?.caretFormatting ?? UNKNOWN,
       environment,
       compact,
-      run: async (command: EditorCommand, what: string): Promise<void> => {
-        if (editor === null || disabledReason !== null) return;
-        try {
-          await editor.execute(command);
-        } catch (error: unknown) {
-          toast.error(`Could not ${what}. ${describeError(error)}`);
-        } finally {
-          editor.focus();
-        }
-      },
+      run: (command: EditorCommand, what: string): Promise<void> => attempt(what, (live: RibbonEditor): Promise<EditorState> => live.execute(command)),
+      attempt: (what: string, work: () => Promise<unknown>): Promise<void> => attempt(what, work),
+      addImage: editor?.addImage === undefined ? null : editor.addImage.bind(editor),
       returnFocus: (): void => editor?.focus(),
     };
   }, [editor, state, edit, environment, compact]);

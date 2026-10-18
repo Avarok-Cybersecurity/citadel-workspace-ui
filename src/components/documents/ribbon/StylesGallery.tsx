@@ -77,11 +77,8 @@ export function StylesGallery({ sheet }: { sheet: StyleSheet }): JSX.Element {
 }
 
 export function StylesGroup(): JSX.Element {
-  const { compact }: Ribbon = useRibbon();
-  // Already one button: collapsing it would put a popover behind a popover.
-  if (compact) return <StylesGallery sheet={BUILTIN_STYLE_SHEET} />;
   return (
-    <RibbonGroup label="Styles" testId="ribbon-styles-group" icon={Pilcrow}>
+    <RibbonGroup label="Styles" testId="ribbon-styles-group" collapses={false} icon={Pilcrow}>
       <StylesGallery sheet={BUILTIN_STYLE_SHEET} />
     </RibbonGroup>
   );

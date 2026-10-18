@@ -34,12 +34,14 @@ export interface RibbonGroupProps {
   readonly testId: string;
   /** The collapsed group's button icon. */
   readonly icon: LucideIcon;
+  /** Whether the group folds into one button at phone width; a group of one or two controls does not. */
+  readonly collapses: boolean;
   readonly children: ReactNode;
 }
 
-export function RibbonGroup({ label, testId, icon, children }: RibbonGroupProps): JSX.Element {
+export function RibbonGroup({ label, testId, icon, collapses, children }: RibbonGroupProps): JSX.Element {
   const { compact } = useRibbon();
-  if (!compact) {
+  if (!compact || !collapses) {
     return (
       <div role="group" aria-label={label} data-testid={testId} className="flex items-center gap-0.5 border-r border-border pr-1 last:border-r-0">
         {children}
@@ -51,7 +53,9 @@ export function RibbonGroup({ label, testId, icon, children }: RibbonGroupProps)
       <PopoverTrigger asChild>
         <RibbonButton testId={`${testId}-open`} label={label} icon={icon} text={label} />
       </PopoverTrigger>
-      <PopoverContent align="start" collisionPadding={16} className="w-auto max-w-[calc(100vw-32px)] p-2">
+      {/* Focus lands on the popover, not its first control, so that control's tooltip does not open over its neighbours. */}
+      <PopoverContent align="start" collisionPadding={16} className="w-auto max-w-[calc(100vw-32px)] p-2" tabIndex={-1}
+        onOpenAutoFocus={(e: Event): void => { e.preventDefault(); (e.currentTarget as HTMLElement | null)?.focus(); }}>
         <RibbonToolbar label={label} testId={testId}>
           {children}
         </RibbonToolbar>

@@ -10,6 +10,10 @@ export interface RibbonEnvironment {
   newFootnoteId(): number;
   /** Now, RFC 3339. */
   now(): string;
+  /** A chosen file's bytes. */
+  readBytes(file: Blob): Promise<Uint8Array>;
+  /** A picture's size in CSS px, decoded from its bytes. */
+  imageSize(image: Blob): Promise<{ readonly width: number; readonly height: number }>;
   /** How shortcut labels name the command key. */
   readonly modifier: 'Ctrl' | '⌘';
 }
@@ -23,6 +27,13 @@ export function browserRibbonEnvironment(): RibbonEnvironment {
     // 1 … 2^32-1: zero is left out so an id is never mistaken for "none".
     newFootnoteId: (): number => (crypto.getRandomValues(new Uint32Array(1))[0] % U32_RANGE) + 1,
     now: (): string => new Date().toISOString(),
+    readBytes: async (file: Blob): Promise<Uint8Array> => new Uint8Array(await file.arrayBuffer()),
+    imageSize: async (image: Blob): Promise<{ width: number; height: number }> => {
+      const bitmap: ImageBitmap = await createImageBitmap(image);
+      const size: { width: number; height: number } = { width: bitmap.width, height: bitmap.height };
+      bitmap.close();
+      return size;
+    },
     modifier: mac ? '⌘' : 'Ctrl',
   };
 }

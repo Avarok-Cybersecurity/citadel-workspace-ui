@@ -17,7 +17,7 @@ const BOLD_12PT_CENTRED: CaretFormatting = {
 };
 
 function setUp(caret: CaretFormatting): { editor: FakeEditor; user: UserEvent } {
-  const editor: FakeEditor = new FakeEditor(caret);
+  const editor: FakeEditor = new FakeEditor(caret, false);
   renderRibbon({ editor, edit: MAY_EDIT, commentAuthor: 'Ada' });
   return { editor, user: userEvent.setup() };
 }
@@ -113,9 +113,26 @@ describe('the Home ribbon', () => {
     ]);
   });
 
-  it('refuses a spacing out of range without sending anything', async () => {
+  it('keeps a spacing out of range in the field, says the range, and sends nothing', async () => {
+    const { editor, user } = setUp(BOLD_12PT_CENTRED);
+    const field: HTMLElement = screen.getByTestId('ribbon-home-spacing-before');
+    await user.clear(field);
+    await user.type(field, '2000{Enter}');
+    expect(field).toHaveValue('2000');
+    expect(field).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByTestId('ribbon-home-spacing-before-error')).toHaveTextContent('Enter 0 to 1584 pt.');
+    expect(field).toHaveAttribute('aria-describedby', 'ribbon-home-spacing-before-error');
+    await user.keyboard('{Escape}');
+    expect(field).toHaveValue('6');
+    expect(editor.sent).toEqual([]);
+  });
+
+  it('will not send one spacing while the others are unknown, since the engine would reset them', async () => {
     const { editor, user } = setUp(UNKNOWN);
-    await user.type(screen.getByTestId('ribbon-home-spacing-before'), '-3{Enter}');
+    expect(screen.getByTestId('ribbon-home-spacing-before')).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByTestId('ribbon-line-spacing')).toHaveAttribute('aria-disabled', 'true');
+    await user.type(screen.getByTestId('ribbon-home-spacing-before'), '3{Enter}');
+    await user.selectOptions(screen.getByTestId('ribbon-line-spacing'), '480');
     expect(editor.sent).toEqual([]);
   });
 

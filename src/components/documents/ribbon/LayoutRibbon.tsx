@@ -11,9 +11,9 @@ import { RibbonGroup, RibbonToolbar } from './RibbonToolbar';
 export function LayoutRibbon(): JSX.Element {
   return (
     <RibbonToolbar label="Layout" testId="ribbon-layout-toolbar">
-      <RibbonGroup label="Breaks" testId="ribbon-layout-breaks" icon={SeparatorHorizontal}><BreakButtons idPrefix="ribbon-layout" /></RibbonGroup>
-      <RibbonGroup label="Indent" testId="ribbon-layout-indent" icon={Pilcrow}><IndentFields idPrefix="ribbon-layout" /></RibbonGroup>
-      <RibbonGroup label="Spacing" testId="ribbon-layout-spacing" icon={Pilcrow}><SpacingFields idPrefix="ribbon-layout" /></RibbonGroup>
+      <RibbonGroup label="Breaks" testId="ribbon-layout-breaks" collapses={true} icon={SeparatorHorizontal}><BreakButtons idPrefix="ribbon-layout" /></RibbonGroup>
+      <RibbonGroup label="Indent" testId="ribbon-layout-indent" collapses={false} icon={Pilcrow}><IndentFields idPrefix="ribbon-layout" /></RibbonGroup>
+      <RibbonGroup label="Spacing" testId="ribbon-layout-spacing" collapses={false} icon={Pilcrow}><SpacingFields idPrefix="ribbon-layout" /></RibbonGroup>
     </RibbonToolbar>
   );
 }

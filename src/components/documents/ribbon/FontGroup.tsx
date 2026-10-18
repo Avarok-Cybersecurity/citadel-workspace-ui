@@ -42,10 +42,10 @@ export function FontGroup(): JSX.Element {
   const shrunk: number | null = size === null ? null : shrunkSize(size);
   const setSize: (halfPoints: number) => Promise<void> = (halfPoints: number): Promise<void> => run({ name: 'setRunProperty', patch: { size: halfPoints } }, 'change the font size');
   return (
-    <RibbonGroup label="Font" testId="ribbon-font" icon={Type}>
-      <RibbonPicker testId="ribbon-font-family" label="Font" options={FAMILY_OPTIONS} value={font} widthPx={148}
+    <RibbonGroup label="Font" testId="ribbon-font" collapses={true} icon={Type}>
+      <RibbonPicker testId="ribbon-font-family" label="Font" options={FAMILY_OPTIONS} value={font} widthPx={148} unavailable={null}
         onPick={(f: string): void => { void run({ name: 'setRunProperty', patch: { font: f } }, 'change the font'); }} />
-      <RibbonPicker testId="ribbon-font-size" label="Font size" options={SIZE_OPTIONS} value={size === null ? null : String(size)} widthPx={72}
+      <RibbonPicker testId="ribbon-font-size" label="Font size" options={SIZE_OPTIONS} value={size === null ? null : String(size)} widthPx={72} unavailable={null}
         onPick={(s: string): void => { void setSize(Number(s)); }} />
       <RibbonButton testId="ribbon-grow-font" label="Increase font size" icon={AArrowUp} shortcut={{ key: '>', shift: true }}
         unavailable={size === null ? SIZE_UNKNOWN : grown === null ? 'This is the largest size in the list.' : null}
