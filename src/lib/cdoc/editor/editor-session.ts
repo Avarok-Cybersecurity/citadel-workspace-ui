@@ -19,6 +19,7 @@ import {
   type EditorPosition,
   type EditorState,
   type PeerView,
+  type SelectAt,
 } from './controller';
 import { Emitter } from './emitter';
 import { encodeCommand } from './wire/encode-command';
@@ -97,12 +98,28 @@ export class EditorSession implements EditorController, EditorView {
   }
 
   execute(command: EditorCommand): Promise<EditorState> {
+    return this.serial((): Promise<EditorState> => this.apply(command));
+  }
+
+  /** Runs `command` now: only ever inside a serial task. */
+  private async apply(command: EditorCommand): Promise<EditorState> {
+    const { result } = await this.deps.client.request({ kind: 'apply', record: encodeCommand(command) });
+    const composing: boolean = command.name === 'compositionStart' || command.name === 'compositionUpdate'
+      ? true
+      : command.name === 'compositionCommit' || command.name === 'compositionCancel' ? false : this.current.composing;
+    return this.adopt(decodeResult(result), true, composing);
+  }
+
+  selectAt(page: number, x: number, y: number, how: SelectAt): Promise<EditorState> {
     return this.serial(async (): Promise<EditorState> => {
-      const { result } = await this.deps.client.request({ kind: 'apply', record: encodeCommand(command) });
-      const composing: boolean = command.name === 'compositionStart' || command.name === 'compositionUpdate'
-        ? true
-        : command.name === 'compositionCommit' || command.name === 'compositionCancel' ? false : this.current.composing;
-      return this.adopt(decodeResult(result), true, composing);
+      const at: EditorPosition = decodePosition((await this.deps.client.request({ kind: 'hitTest', page, x, y })).position);
+      switch (how.kind) {
+        case 'caret': return this.apply({ name: 'setSelection', anchor: at, head: at });
+        case 'extend': return this.apply({ name: 'setSelection', anchor: this.current.anchor, head: at });
+        case 'drag': return this.apply({ name: 'setSelection', anchor: how.anchor, head: at });
+        case 'word': return this.apply({ name: 'selectWord', at });
+        case 'paragraph': return this.apply({ name: 'selectParagraph', at });
+      }
     });
   }
 
@@ -179,8 +196,12 @@ export class EditorSession implements EditorController, EditorView {
   exportAs(target: ExportTarget): Promise<ExportedFile> {
     return this.serial(async (): Promise<ExportedFile> => {
       const { bytes, reportJson } = await this.deps.client.request({ kind: 'exportAs', target });
-      return { bytes, report: readExportReport(reportJson) };
+      return { bytes, report: reportJson === null ? null : readExportReport(reportJson) };
     });
+  }
+
+  missingPatterns(): Promise<readonly string[]> {
+    return this.serial(async (): Promise<readonly string[]> => (await this.deps.client.request({ kind: 'missingPatterns' })).tags);
   }
 
   styles(): Promise<DocumentStyle[]> {

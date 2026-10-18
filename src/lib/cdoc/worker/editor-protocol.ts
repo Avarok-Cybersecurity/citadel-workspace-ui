@@ -32,6 +32,8 @@ export type EditorRequestBody =
   | { readonly kind: 'styles' }
   | { readonly kind: 'image'; readonly contentId: string }
   | { readonly kind: 'exportAs'; readonly target: ExportTarget }
+  /** The languages the document now needs patterns for that the replica was not opened with. */
+  | { readonly kind: 'missingPatterns' }
   /** Drops the worker painter's copy of `pages` (an edit changed them) before they repaint. */
   | { readonly kind: 'invalidatePages'; readonly pages: readonly number[] };
 
@@ -68,10 +70,15 @@ export interface EditorResults {
   styles: { readonly record: Uint8Array };
   /** A "CDB" image record. */
   image: { readonly record: Uint8Array };
-  /** The file and its `{"losses"}` report as the engine wrote it. */
-  exportAs: { readonly bytes: Uint8Array; readonly reportJson: string };
+  /**
+   * The file and its `{"losses"}` report as the engine wrote it. Null for a PDF: the PDF
+   * writer reports no losses (pm_to_pdf returns only bytes).
+   */
+  exportAs: { readonly bytes: Uint8Array; readonly reportJson: string | null };
+  /** Pattern tags, as cdoc-wasm names them (`de-1996`). */
+  missingPatterns: { readonly tags: readonly string[] };
 }
 
 export type EditorKind = EditorRequestBody['kind'];
 
-export const EDITOR_KINDS: readonly EditorKind[] = ['editorOpen', 'apply', 'applyRemote', 'hitTest', 'snapshot', 'awareness', 'peerView', 'pageSizes', 'invalidatePages', 'stateVector', 'encodeDiff', 'encodeDiffChunked', 'gc', 'addImage', 'selectionText', 'styles', 'image', 'exportAs'];
+export const EDITOR_KINDS: readonly EditorKind[] = ['editorOpen', 'apply', 'applyRemote', 'hitTest', 'snapshot', 'awareness', 'peerView', 'pageSizes', 'invalidatePages', 'stateVector', 'encodeDiff', 'encodeDiffChunked', 'gc', 'addImage', 'selectionText', 'styles', 'image', 'exportAs', 'missingPatterns'];

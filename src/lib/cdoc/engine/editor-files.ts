@@ -42,14 +42,16 @@ export function openFromFile(wasm: CdocWasm, fonts: EditorSealedFonts, client: b
   return { handle: imported.editor(), reportJson };
 }
 
-function exportCall(target: ExportTarget): { readonly kind: string; readonly options: object } {
+/** The formats the editor artefact writes: all but PDF, which is the PDF artefact's. */
+export type DocumentExportTarget = Exclude<ExportTarget, { readonly format: 'pdf' }>;
+
+function exportCall(target: DocumentExportTarget): { readonly kind: string; readonly options: object } {
   switch (target.format) {
     case 'docx': return { kind: 'docx', options: { kind: 'document' } };
     case 'dotx': return { kind: 'docx', options: { kind: 'template' } };
     case 'odt': return { kind: 'odt', options: { kind: 'document' } };
     case 'md': return { kind: 'md', options: {} };
     case 'txt': return { kind: 'txt', options: {} };
-    case 'pdf': return { kind: 'pdf', options: { now: target.nowRfc3339 } };
   }
 }
 
@@ -58,7 +60,7 @@ function exportCall(target: ExportTarget): { readonly kind: string; readonly opt
  * that arrived from peers live in the workspace's content store, which this does not reach yet,
  * so they are not in `images` and export as the engine's placeholders.
  */
-export function writeFile(wasm: CdocWasm, handle: EditorHandle, target: ExportTarget): WrittenFile {
+export function writeFile(wasm: CdocWasm, handle: EditorHandle, target: DocumentExportTarget): WrittenFile {
   const { kind, options } = exportCall(target);
   const images: ImageStore = new wasm.ImageStore();
   try {

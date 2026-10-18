@@ -171,6 +171,8 @@ export function paintPage(env: PagePaintEnv, page: PageOps): LinkArea[] {
       case 'link':
         if (allowedLink(op.target)) links.push({ ...cssRect(op.rect, css), target: op.target });
         break;
+      // An unsigned signature field is the PDF's form field; the page shows nothing for it.
+      case 'sigField': break;
       case 'clipPush': {
         const r: PixelRect = rectPx(op.rect, k);
         ctx.save();

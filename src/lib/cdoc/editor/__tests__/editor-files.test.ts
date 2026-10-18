@@ -49,7 +49,9 @@ describe('files in and out of the editor', () => {
     const a: EditorSession = await opener()({ kind: 'blank' });
     const pdf: ExportedFile = await a.exportAs({ format: 'pdf', nowRfc3339: '2026-10-18T00:00:00Z' });
     expect(utf8.decode(pdf.bytes.subarray(0, 5))).toBe('%PDF-');
-    expect(pdf.report.losses).toEqual([]);
+    // The PDF writer reports no losses (pm_to_pdf returns only bytes), so there is no report to show.
+    expect(pdf.report).toBeNull();
+    expect(new TextDecoder('latin1').decode(pdf.bytes)).toContain('D:20261018000000');
     const dotx: ExportedFile = await a.exportAs({ format: 'dotx' });
     const reopened: EditorSession = await opener()({ kind: 'bytes', bytes: dotx.bytes, format: 'docx' });
     expect(reopened.importReport?.kind).toBe('template');

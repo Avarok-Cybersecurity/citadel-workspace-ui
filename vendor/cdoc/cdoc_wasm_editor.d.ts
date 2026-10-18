@@ -12,6 +12,11 @@ export class EditorFonts {
      */
     addFont(family: string, bold: boolean, italic: boolean, bytes: Uint8Array): void;
     /**
+     * Compiles a hyphenation pattern file by its manifest tag (`de-1996`); a language with no
+     * file registered is not hyphenated.
+     */
+    addPatterns(tag: string, text: string): void;
+    /**
      * Serves `target` whenever a document asks for `name`.
      */
     aliasFont(name: string, target: string): void;
@@ -48,6 +53,11 @@ export class EditorHandle {
      * A new blank document as client `client` (a `BigInt`).
      */
     static blank(client: bigint, fonts: EditorSealedFonts): EditorHandle;
+    /**
+     * Adds to `images` every image this editor holds that its pages draw, for the PDF
+     * artefact's `RenderAssets.addImage`.
+     */
+    drawnImages(images: ImageStore): void;
     /**
      * What a peer at `sv` (a `stateVector()`, or `null` for a peer holding nothing, such as
      * an empty log) lacks, as updates of at most `max_bytes` each: the chunks record.
@@ -90,6 +100,11 @@ export class EditorHandle {
      * a cache.
      */
     images(): Uint8Array;
+    /**
+     * The document as model JSON, for an artefact that does not edit (the PDF artefact:
+     * `model_to_pm`, then `pm_to_pdf`).
+     */
+    modelJson(): string;
     /**
      * Opens a replica from a CRDT snapshot as client `client` (a `BigInt`).
      */
@@ -252,6 +267,11 @@ export class RenderAssets {
      */
     addImage(content_id: string, mime: string, bytes: Uint8Array): void;
     /**
+     * Compiles a hyphenation pattern file by its manifest tag (`de-1996`); a language with no
+     * file registered is not hyphenated.
+     */
+    addPatterns(tag: string, text: string): void;
+    /**
      * Serves `target` whenever a document asks for `name` (e.g. Calibri → Carlito).
      */
     aliasFont(name: string, target: string): void;
@@ -293,6 +313,12 @@ export function face_metrics(assets: RenderAssets, family: string, bold: boolean
  * glyph-path record (font units, y up).
  */
 export function glyph_path(assets: RenderAssets, family: string, bold: boolean, italic: boolean, glyph_id: number): Uint8Array;
+
+/**
+ * The manifest tags (`crates/cdoc-para/patterns/manifest.json`) of the hyphenation pattern
+ * files a model document needs, as a JSON array: register these before laying it out.
+ */
+export function hyphenation_patterns_needed(model_json: string): string;
 
 /**
  * The list label of every paragraph, in ProseMirror paragraph order, as a JSON array of
@@ -358,16 +384,6 @@ export function pm_to_model(pm_json: string): string;
 export function pm_to_odt(pm_json: string, images: ImageStore, options_json: string): FileExport;
 
 /**
- * ProseMirror JSON → PDF bytes.
- */
-export function pm_to_pdf(pm_json: string, assets: RenderAssets): Uint8Array;
-
-/**
- * ProseMirror JSON → a JSON array of SVG page documents for the paged preview.
- */
-export function pm_to_svg_pages(pm_json: string, assets: RenderAssets): string;
-
-/**
  * ProseMirror JSON to JSON `{"text", "report"}` holding plain text.
  */
 export function pm_to_txt(pm_json: string): string;
@@ -415,6 +431,7 @@ export interface InitOutput {
     readonly check_pm: (a: number, b: number) => [number, number];
     readonly docx_to_pm: (a: number, b: number, c: number) => [number, number, number, number];
     readonly editorfonts_addFont: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
+    readonly editorfonts_addPatterns: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly editorfonts_aliasFont: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly editorfonts_new: (a: number, b: number) => number;
     readonly editorfonts_seal: (a: number) => number;
@@ -422,6 +439,7 @@ export interface InitOutput {
     readonly editorhandle_applyRemote: (a: number, b: number, c: number) => [number, number, number, number];
     readonly editorhandle_awareness: (a: number) => [number, number];
     readonly editorhandle_blank: (a: bigint, b: number) => [number, number, number];
+    readonly editorhandle_drawnImages: (a: number, b: number) => void;
     readonly editorhandle_encodeDiff: (a: number, b: number, c: number) => [number, number, number, number];
     readonly editorhandle_encodeDiffChunked: (a: number, b: number, c: number, d: number) => [number, number, number, number];
     readonly editorhandle_export: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number];
@@ -430,6 +448,7 @@ export interface InitOutput {
     readonly editorhandle_hitTest: (a: number, b: number, c: number, d: number) => [number, number, number, number];
     readonly editorhandle_image: (a: number, b: number, c: number) => [number, number, number, number];
     readonly editorhandle_images: (a: number) => [number, number];
+    readonly editorhandle_modelJson: (a: number) => [number, number];
     readonly editorhandle_open: (a: number, b: number, c: bigint, d: number) => [number, number, number];
     readonly editorhandle_pageCount: (a: number) => number;
     readonly editorhandle_pageSize: (a: number, b: number) => [number, number];
@@ -445,6 +464,7 @@ export interface InitOutput {
     readonly fileexport_bytes: (a: number) => [number, number];
     readonly fileexport_reportJson: (a: number) => [number, number];
     readonly glyph_path: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number, number];
+    readonly hyphenation_patterns_needed: (a: number, b: number) => [number, number, number, number];
     readonly imagestore_add: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
     readonly imagestore_bytes: (a: number, b: number) => [number, number];
     readonly imagestore_empty: () => number;
@@ -467,11 +487,10 @@ export interface InitOutput {
     readonly pm_to_md: (a: number, b: number) => [number, number, number, number];
     readonly pm_to_model: (a: number, b: number) => [number, number, number, number];
     readonly pm_to_odt: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
-    readonly pm_to_pdf: (a: number, b: number, c: number) => [number, number, number, number];
-    readonly pm_to_svg_pages: (a: number, b: number, c: number) => [number, number, number, number];
     readonly pm_to_txt: (a: number, b: number) => [number, number, number, number];
     readonly renderassets_addFont: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
     readonly renderassets_addImage: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
+    readonly renderassets_addPatterns: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly renderassets_aliasFont: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly renderassets_new: (a: number, b: number, c: number, d: number) => number;
     readonly schema_json: () => [number, number];

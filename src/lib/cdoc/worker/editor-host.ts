@@ -17,7 +17,7 @@ export async function openEditor(engine: CdocEngine, req: Extract<EditorRequestB
   return { editor, result: { pageSizes: editor.pageSizes(), awareness, view, importReportJson: editor.importReportJson } };
 }
 
-export function serveEditor(editor: EditorEngine, req: EditorSessionRequest): EditorResults[EditorSessionRequest['kind']] {
+export function serveEditor(engine: CdocEngine, editor: EditorEngine, req: EditorSessionRequest): EditorResults[EditorSessionRequest['kind']] | Promise<EditorResults['exportAs']> {
   switch (req.kind) {
     case 'apply': return { result: editor.request(req.record) };
     case 'applyRemote': return { result: editor.applyRemote(req.update) };
@@ -34,6 +34,12 @@ export function serveEditor(editor: EditorEngine, req: EditorSessionRequest): Ed
     case 'selectionText': return { text: editor.selectionText() };
     case 'styles': return { record: editor.styles() };
     case 'image': return { record: editor.image(req.contentId) };
-    case 'exportAs': return editor.exportAs(req.target);
+    case 'exportAs':
+      if (req.target.format === 'pdf') return engine.writePdf(editor, req.target.nowRfc3339).then((bytes: Uint8Array) => ({ bytes, reportJson: null }));
+      return editor.exportAs(req.target);
+    case 'missingPatterns': {
+      const registered: ReadonlySet<string> = new Set<string>(editor.patterns);
+      return { tags: engine.patternsNeeded(editor.modelJson()).filter((tag: string): boolean => !registered.has(tag)) };
+    }
   }
 }

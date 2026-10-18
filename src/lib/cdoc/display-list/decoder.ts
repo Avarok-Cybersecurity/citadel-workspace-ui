@@ -1,12 +1,13 @@
 /**
- * Opens a display list (`docs/display-list.md` v2): header, face table with per-face glyph
- * tables, string table and page index, checked once. Page bodies are decoded one at a time by
+ * Opens a display list (`docs/display-list.md` v3): header, face table with per-face glyph
+ * tables, string table, document table and page index, checked once. Page bodies are decoded one at a time by
  * offset (`decodePage` in page-ops.ts), so a buffer that ends after page N's body opens and
  * serves pages 0..=N. Reads in place over the caller's ArrayBuffer; nothing is copied.
  */
 import { HEADER_LEN, INDEX_ENTRY_LEN, MAGIC, STYLE_BOLD, STYLE_ITALIC, VERSION } from '../format';
 import { ByteReader, DisplayListError } from './byte-reader';
-import type { DisplayList, Face, GlyphMetric, PageEntry } from './types';
+import { stringAt } from './page-ops';
+import type { DisplayList, DocumentTable, Face, GlyphMetric, OutlineHeading, PageEntry } from './types';
 
 const MAX_U16: number = 0xffff;
 
@@ -33,6 +34,29 @@ function readFace(r: ByteReader, faceId: number): Face {
     glyphs[i] = { glyphId, advance };
   }
   return { faceId, family, bold: (style & STYLE_BOLD) !== 0, italic: (style & STYLE_ITALIC) !== 0, unitsPerEm, glyphs };
+}
+
+/** `0` none, else a string index + 1. */
+function optionalString(r: ByteReader, strings: readonly string[]): string | null {
+  const n: number = r.uv();
+  return n === 0 ? null : stringAt(strings, n - 1);
+}
+
+/** The document table, from where the last string ends to exactly the page index. */
+function readDocument(r: ByteReader, strings: readonly string[]): DocumentTable {
+  const title: string | null = optionalString(r, strings);
+  const language: string | null = optionalString(r, strings);
+  // A heading is at least four bytes: level, page, y and title index.
+  const count: number = r.count(4, 'the outline');
+  const outline: OutlineHeading[] = [];
+  for (let i: number = 0; i < count; i++) {
+    const level: number = r.u8();
+    const page: number = r.uv();
+    const y: number = r.zz();
+    outline.push({ level, page, y, title: stringAt(strings, r.uv()) });
+  }
+  if (!r.done) throw new DisplayListError('document table does not end where the page index begins');
+  return { title, language, outline };
 }
 
 export function openDisplayList(bytes: ArrayBuffer | Uint8Array): DisplayList {
@@ -67,7 +91,7 @@ export function openDisplayList(bytes: ArrayBuffer | Uint8Array): DisplayList {
   const stringCount: number = sr.count(1, 'the string table');
   const strings: string[] = [];
   for (let i: number = 0; i < stringCount; i++) strings.push(sr.str());
-  if (!sr.done) throw new DisplayListError('string table does not end where the page index begins');
+  const document: DocumentTable = readDocument(new ByteReader(view, sr.pos, indexAt), strings);
 
   const ir: ByteReader = new ByteReader(view, indexAt, indexEnd);
   const pages: PageEntry[] = [];
@@ -76,7 +100,7 @@ export function openDisplayList(bytes: ArrayBuffer | Uint8Array): DisplayList {
     if (entry.offset < indexEnd) throw new DisplayListError(`page slot ${slot} overlaps the tables`);
     pages.push(entry);
   }
-  return { view, faces, strings, pages, indexEnd };
+  return { view, faces, strings, document, pages, indexEnd };
 }
 
 /** The slot holding layout page `pageNumber`, or null when this (partial) list lacks it. */

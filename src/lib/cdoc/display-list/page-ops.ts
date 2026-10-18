@@ -1,12 +1,12 @@
 /**
- * Decodes one page body (`docs/display-list.md` v2 § Page body, § Operations), checking every
+ * Decodes one page body (`docs/display-list.md` v3 § Page body, § Operations), checking every
  * invariant the spec lists for a body: known opcodes, payloads consumed exactly, face indices
  * in range, glyph-run clusters non-decreasing on character boundaries, string indices in range,
  * clip pushes and pops balanced.
  */
 import {
   OP_CLIP_POP, OP_CLIP_PUSH, OP_FILL_PATH, OP_FILL_RECT, OP_GLYPH_RUN, OP_IMAGE, OP_LINE, OP_LINK,
-  OP_STROKE_PATH, OP_STROKE_RECT, SEG_CLOSE, SEG_CUBIC, SEG_LINE, SEG_MOVE,
+  OP_SIG_FIELD, OP_STROKE_PATH, OP_STROKE_RECT, SEG_CLOSE, SEG_CUBIC, SEG_LINE, SEG_MOVE,
 } from '../format';
 import { ByteReader, DisplayListError, type Utf8String } from './byte-reader';
 import type { DisplayList, Op, PageEntry, PageOps, PathData, Rect, RunHead } from './types';
@@ -34,11 +34,14 @@ function path(r: ByteReader): PathData {
   return { verbs, coords: Int32Array.from(coords) };
 }
 
-function string(r: ByteReader, list: DisplayList): string {
-  const index: number = r.uv();
-  const value: string | undefined = list.strings[index];
+export function stringAt(strings: readonly string[], index: number): string {
+  const value: string | undefined = strings[index];
   if (value === undefined) throw new DisplayListError(`string index ${index} is past the string table`);
   return value;
+}
+
+function string(r: ByteReader, list: DisplayList): string {
+  return stringAt(list.strings, r.uv());
 }
 
 /** Byte `at` of UTF-8 `bytes` starts a character, or is the end. */
@@ -86,6 +89,7 @@ function op(code: number, r: ByteReader, list: DisplayList): Op {
     }
     case OP_IMAGE: return { kind: 'image', rect: rect(r), contentId: string(r, list) };
     case OP_LINK: return { kind: 'link', rect: rect(r), target: string(r, list) };
+    case OP_SIG_FIELD: return { kind: 'sigField', rect: rect(r), fieldId: string(r, list), role: string(r, list) };
     case OP_CLIP_PUSH: return { kind: 'clipPush', rect: rect(r) };
     case OP_CLIP_POP: return { kind: 'clipPop' };
     default: throw new DisplayListError(`unknown opcode 0x${code.toString(16).padStart(2, '0')}`);

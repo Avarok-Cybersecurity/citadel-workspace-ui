@@ -13,3 +13,6 @@ export function platformOf(userAgent: string): Platform {
  * blinks at the system's rate), within a few ms of Chromium's own 500.
  */
 export const CARET_BLINK_MS: number = 530;
+
+/** Idle time after an edit before asking whether it brought in a language with no hyphenation patterns. */
+export const HYPHENATION_CHECK_IDLE_MS: number = 2000;

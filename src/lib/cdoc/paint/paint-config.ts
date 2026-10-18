@@ -21,8 +21,8 @@ export const RASTERIZER_OPTIONS: RasterizerOptions = {
   imageCacheBytes: 128 * 1024 * 1024,
 };
 
-/** How long a face fetch may take before the open fails instead of hanging. */
-export const FONT_FETCH_TIMEOUT_MS: number = 30_000;
+/** How long a face or pattern fetch may take before the open fails instead of hanging. */
+export const ASSET_FETCH_TIMEOUT_MS: number = 30_000;
 
 /**
  * The selection and caret overlays. Concrete colours, because a canvas cannot read CSS

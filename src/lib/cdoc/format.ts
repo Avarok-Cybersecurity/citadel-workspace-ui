@@ -1,13 +1,13 @@
 /**
- * The display-list format's constants, version 2: the one place the numbers live on this side.
+ * The display-list format's constants, version 3: the one place the numbers live on this side.
  *
- * Mirrors citadel-docs `docs/display-list.md` (format version 2) and its Rust twin
+ * Mirrors citadel-docs `docs/display-list.md` (format version 3) and its Rust twin
  * `crates/cdoc-paint/src/format.rs` and `glyph.rs`. A reader refuses any version it was not
  * written for, so bumping VERSION here without rewriting the decoder is a bug.
  */
 
 export const MAGIC: readonly number[] = [0x43, 0x44, 0x50, 0x4c]; // "CDPL"
-export const VERSION: number = 2;
+export const VERSION: number = 3;
 export const HEADER_LEN: number = 24;
 export const INDEX_ENTRY_LEN: number = 20;
 
@@ -22,6 +22,7 @@ export const OP_STROKE_PATH: number = 0x05;
 export const OP_GLYPH_RUN: number = 0x11;
 export const OP_IMAGE: number = 0x20;
 export const OP_LINK: number = 0x21;
+export const OP_SIG_FIELD: number = 0x22;
 export const OP_CLIP_PUSH: number = 0x30;
 export const OP_CLIP_POP: number = 0x31;
 

@@ -71,6 +71,17 @@ export type EditorCommands = {
 };
 
 /** What a replica opens from: a new blank document, a CRDT snapshot, or a file's bytes. */
+/** What a press at a point selects (EditorController.selectAt). */
+export type SelectAt =
+  /** A caret at the point. */
+  | { readonly kind: 'caret' }
+  /** From the selection's anchor to the point: Shift+click. */
+  | { readonly kind: 'extend' }
+  /** From `anchor` to the point: a drag from where it began. */
+  | { readonly kind: 'drag'; readonly anchor: EditorPosition }
+  | { readonly kind: 'word' }
+  | { readonly kind: 'paragraph' };
+
 export type EditorOrigin =
   | { readonly kind: 'blank' }
   | { readonly kind: 'snapshot'; readonly snapshot: Uint8Array }
@@ -103,6 +114,12 @@ export interface EditorController {
   execute(command: EditorCommand): Promise<EditorState>;
   /** The position nearest `(x, y)` on zero-based `page`, in Pt100 page space. */
   hitTest(page: number, x: Pt100, y: Pt100): Promise<EditorPosition>;
+  /**
+   * Hit-tests `(x, y)` on `page` and selects there, as one step of the command queue: a command
+   * queued after it (a keystroke after the click) always applies to the selection it made, never
+   * to one computed against the document before.
+   */
+  selectAt(page: number, x: Pt100, y: Pt100, how: SelectAt): Promise<EditorState>;
   /** Applies a peer's CRDT update; emits `pages` and `selection`, never `change`. */
   applyRemote(update: Uint8Array): Promise<EditorState>;
   /** The full CRDT snapshot, to persist or to seed a joining peer. */
@@ -137,6 +154,11 @@ export interface EditorController {
   styles(): Promise<DocumentStyle[]>;
   /** The live document as a file. */
   exportAs(target: ExportTarget): Promise<ExportedFile>;
+  /**
+   * Hyphenation pattern tags (`de-1996`) the document now needs that this replica was opened
+   * without: an edit brought in a language, and its hyphenation applies after reopening.
+   */
+  missingPatterns(): Promise<readonly string[]>;
   /** What the import lost, for a replica opened from file bytes; null otherwise. */
   readonly importReport: ImportReport | null;
   /** Returns keyboard focus to the editor, e.g. after a ribbon button took it. */

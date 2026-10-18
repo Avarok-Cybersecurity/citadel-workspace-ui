@@ -4,9 +4,9 @@
  * arguments the handle would otherwise read as something else. Every returned array is a copy
  * out of wasm memory, so it owns its buffer and can be transferred.
  */
-import type { CdocWasm, EditorHandle, EditorSealedFonts } from './cdoc-wasm-api';
+import type { CdocWasm, EditorHandle, EditorSealedFonts, ImageStore } from './cdoc-wasm-api';
 import type { EditorOrigin } from '../editor/controller';
-import type { ExportTarget } from '../editor/file-formats';
+import type { DocumentExportTarget } from './editor-files';
 import { openFromFile, writeFile, type OpenedFromFile, type WrittenFile } from './editor-files';
 
 export type { EditorOrigin } from '../editor/controller';
@@ -20,19 +20,38 @@ function checkPt(v: number, what: string): void {
 }
 
 export class EditorEngine {
-  /** `importReportJson`: the import's `{"report", "problems", "kind"}`, for a replica opened on a file. */
-  private constructor(private readonly wasm: CdocWasm, private readonly handle: EditorHandle, readonly importReportJson: string | null) {}
+  /**
+   * `patterns`: the hyphenation pattern set `fonts` were sealed with, which the PDF of this
+   * replica is laid out with too. `importReportJson`: the import's `{"report", "problems",
+   * "kind"}`, for a replica opened on a file.
+   */
+  private constructor(
+    private readonly wasm: CdocWasm,
+    private readonly handle: EditorHandle,
+    readonly patterns: readonly string[],
+    readonly importReportJson: string | null,
+  ) {}
 
-  static open(wasm: CdocWasm, fonts: EditorSealedFonts, client: bigint, origin: EditorOrigin): EditorEngine {
+  static open(wasm: CdocWasm, fonts: EditorSealedFonts, patterns: readonly string[], client: bigint, origin: EditorOrigin): EditorEngine {
     if (client < 0n || client > 0xffff_ffff_ffff_ffffn) throw new Error(`client ${client} is not a u64`);
     switch (origin.kind) {
-      case 'blank': return new EditorEngine(wasm, wasm.EditorHandle.blank(client, fonts), null);
-      case 'snapshot': return new EditorEngine(wasm, wasm.EditorHandle.open(origin.snapshot, client, fonts), null);
+      case 'blank': return new EditorEngine(wasm, wasm.EditorHandle.blank(client, fonts), patterns, null);
+      case 'snapshot': return new EditorEngine(wasm, wasm.EditorHandle.open(origin.snapshot, client, fonts), patterns, null);
       case 'bytes': {
         const opened: OpenedFromFile = openFromFile(wasm, fonts, client, origin.bytes, origin.format);
-        return new EditorEngine(wasm, opened.handle, opened.reportJson);
+        return new EditorEngine(wasm, opened.handle, patterns, opened.reportJson);
       }
     }
+  }
+
+  /** The live replica as model JSON. */
+  modelJson(): string {
+    return this.handle.modelJson();
+  }
+
+  /** Adds the images the document draws to `images`. */
+  drawnImages(images: ImageStore): void {
+    this.handle.drawnImages(images);
   }
 
   get pageCount(): number {
@@ -125,7 +144,8 @@ export class EditorEngine {
     return this.handle.image(contentId);
   }
 
-  exportAs(target: ExportTarget): WrittenFile {
+  /** Every format but PDF, which the editor artefact cannot write (CdocEngine.writePdf). */
+  exportAs(target: DocumentExportTarget): WrittenFile {
     return writeFile(this.wasm, this.handle, target);
   }
 

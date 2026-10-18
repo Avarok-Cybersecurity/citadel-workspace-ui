@@ -13,7 +13,7 @@ import type { CdocRuntime } from '@/lib/cdoc/runtime';
 import { PageView, type PageStatus } from './PageView';
 import { EditorPageView } from './EditorPageView';
 import type { EditorSession } from '@/lib/cdoc/editor/editor-session';
-import { CARET_BLINK_MS, UNDO_PAUSE_MS, platformOf } from '@/lib/cdoc/editor/editor-config';
+import { CARET_BLINK_MS, HYPHENATION_CHECK_IDLE_MS, UNDO_PAUSE_MS, platformOf } from '@/lib/cdoc/editor/editor-config';
 import { useMotionTier } from '@/hooks/use-motion-tier';
 import type { Repeat } from '@/lib/cdoc/editor/caret-blink';
 import { createEditorOpener } from '@/lib/cdoc/editor/editor-opener';
@@ -21,6 +21,7 @@ import type { EditorController, EditorOrigin } from '@/lib/cdoc/editor/controlle
 import type { EditorSurfaceOptions } from './page-view/use-editor-surface';
 import type { Ctx2D } from '@/lib/cdoc/paint/canvas-port';
 import { DocsStatusBar } from './page-view/DocsStatusBar';
+import { useHyphenationNotice, type Delay } from './page-view/use-hyphenation-notice';
 import { useDevicePixelRatio } from './page-view/use-device-pixel-ratio';
 import { INITIAL_ZOOM } from './page-view/zoom';
 import type { ActionGate } from '@/hooks/use-permission-result';
@@ -64,6 +65,11 @@ const browserRepeat: Repeat = (ms: number, tick: () => void): (() => void) => {
   return (): void => window.clearInterval(id);
 };
 
+const browserDelay: Delay = (ms: number, task: () => void): (() => void) => {
+  const id: number = window.setTimeout(task, ms);
+  return (): void => window.clearTimeout(id);
+};
+
 const browserFrame = (task: () => void): (() => void) => {
   const id: number = window.requestAnimationFrame(task);
   return (): void => window.cancelAnimationFrame(id);
@@ -99,6 +105,7 @@ export default function DocsCanvas({ documentSource, loadRuntime, keepReplica, s
   useEffect((): void => {
     controller?.focus();
   }, [controller]);
+  const notice: string | null = useHyphenationNotice(controller, HYPHENATION_CHECK_IDLE_MS, browserDelay);
 
   useEffect((): (() => void) => {
     let live: boolean = true;
@@ -145,7 +152,7 @@ export default function DocsCanvas({ documentSource, loadRuntime, keepReplica, s
       )}
       {state.kind === 'loading' && <p role="status" className="m-auto text-sm text-muted-foreground">Loading Citadel Docs…</p>}
       {state.kind === 'failed' && <p role="alert" className="m-auto p-6 text-sm text-destructive">Citadel Docs could not start. {state.message}</p>}
-      {statusBar !== null && createPortal(<DocsStatusBar status={status} zoom={zoom} onZoomChange={setZoom} />, statusBar)}
+      {statusBar !== null && createPortal(<DocsStatusBar status={status} notice={notice} zoom={zoom} onZoomChange={setZoom} />, statusBar)}
     </>
   );
 }

@@ -1,6 +1,6 @@
 /**
  * The goldens decode to what the Rust reader (cdoc_paint::decode) says they hold: per page,
- * every op kind's count, the glyph count, a checksum over each glyph's id, cluster, advance and
+ * every op kind's count, the document table, the glyph count, a checksum over each glyph's id, cluster, advance and
  * offsets, the bytes of run text, and the first run's pen positions and text. goldens.json was written by that reader, not by this one.
  */
 import { describe, expect, it } from 'vitest';
@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { openDisplayList } from '../decoder';
 import { decodePage } from '../page-ops';
-import type { DisplayList, Op, OpKind } from '../types';
+import type { DisplayList, DocumentTable, Op, OpKind } from '../types';
 
 interface ExpectedPage {
   number: number;
@@ -22,7 +22,7 @@ interface ExpectedPage {
   firstRunText: string;
   textBytes: number;
 }
-interface Golden { file: string; sha256: string; faces: number; pages: ExpectedPage[] }
+interface Golden { file: string; sha256: string; faces: number; document: DocumentTable; pages: ExpectedPage[] }
 
 const FIXTURES: string = join(__dirname, 'fixtures');
 const goldens: Golden[] = (JSON.parse(readFileSync(join(FIXTURES, 'goldens.json'), 'utf8')) as { goldens: Golden[] }).goldens;
@@ -65,6 +65,7 @@ describe.each(goldens)('golden $file', (golden: Golden) => {
   it('decodes, page by page, to what the Rust reader decoded', () => {
     const list: DisplayList = openDisplayList(bytes);
     expect(list.faces).toHaveLength(golden.faces);
+    expect(list.document, 'the document table').toEqual(golden.document);
     expect(list.pages.map((p) => [p.number, p.width, p.height])).toEqual(golden.pages.map((p) => [p.number, p.width, p.height]));
     golden.pages.forEach((page: ExpectedPage, slot: number) => {
       const seen: Seen = summarise(decodePage(list, slot).ops);

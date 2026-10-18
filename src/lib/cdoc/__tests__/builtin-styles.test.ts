@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { BUILTIN_STYLE_SHEET } from '../generated/builtin-styles';
 import { paragraphStyles, resolvedRun, styleDisplayName, type StyleDefinition } from '../editor/style-sheet';
-import * as glue from '../../../../vendor/cdoc/cdoc_wasm.js';
+import * as glue from '../../../../vendor/cdoc/cdoc_wasm_editor.js';
 import { realWasm } from './wasm-rig';
 
 describe('the built-in style sheet', () => {

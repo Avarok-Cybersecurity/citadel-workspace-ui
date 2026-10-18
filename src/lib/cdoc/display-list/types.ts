@@ -1,5 +1,5 @@
 /**
- * A decoded display list (`docs/display-list.md` v2). Every coordinate, length and size is
+ * A decoded display list (`docs/display-list.md` v3). Every coordinate, length and size is
  * Pt100 (hundredths of a point), page space, y down. Colours are packed `0xRRGGBBAA`, straight
  * alpha.
  */
@@ -45,10 +45,30 @@ export interface PageEntry {
   readonly height: number;
 }
 
+/** A heading of the document's outline (§ Document table). */
+export interface OutlineHeading {
+  /** 0 outermost. */
+  readonly level: number;
+  /** Its page number in the layout, which a partial list may not hold. */
+  readonly page: number;
+  /** Top of the heading's first line. */
+  readonly y: number;
+  readonly title: string;
+}
+
+/** The whole document's, in a partial list too. */
+export interface DocumentTable {
+  readonly title: string | null;
+  /** BCP 47. */
+  readonly language: string | null;
+  readonly outline: readonly OutlineHeading[];
+}
+
 export interface DisplayList {
   readonly view: DataView;
   readonly faces: readonly Face[];
   readonly strings: readonly string[];
+  readonly document: DocumentTable;
   /** In slot order; a partial list holds only some page numbers. */
   readonly pages: readonly PageEntry[];
   /** First byte after the page index: every body starts at or after it. */
@@ -99,6 +119,8 @@ export type Op =
     }
   | { readonly kind: 'image'; readonly rect: Rect; readonly contentId: string }
   | { readonly kind: 'link'; readonly rect: Rect; readonly target: string }
+  /** An unsigned signature field: the PDF writes a form field; a page painter draws nothing. */
+  | { readonly kind: 'sigField'; readonly rect: Rect; readonly fieldId: string; readonly role: string }
   | { readonly kind: 'clipPush'; readonly rect: Rect }
   | { readonly kind: 'clipPop' };
 

@@ -40,7 +40,7 @@ fn report(name: &str, bytes: &[u8]) -> String {
     let mut out = format!("{{\"name\":\"{name}\",\"faces\":{},\"pages\":[", view.faces().len());
     for slot in 0..view.page_count() {
         let page = view.page(slot).expect("page");
-        let mut c = [0u64; 10];
+        let mut c = [0u64; 11];
         let (mut text_sum, mut glyphs, mut first_pens, mut first_text, mut text_bytes) = (0i64, 0u64, String::new(), String::new(), 0usize);
         for op in page.ops() {
             let k = match op {
@@ -54,14 +54,21 @@ fn report(name: &str, bytes: &[u8]) -> String {
                     if record { let _ = write!(first_pens, "{pen}"); }
                     text_bytes += text.len();
                     5 }
-                OpView::Image { .. } => 6, OpView::Link { .. } => 7, OpView::ClipPush(_) => 8, OpView::ClipPop => 9,
+                OpView::Image { .. } => 6, OpView::Link { .. } => 7, OpView::ClipPush(_) => 8, OpView::ClipPop => 9, OpView::SigField { .. } => 10,
             };
             c[k] += 1;
         }
         if slot > 0 { out.push(','); }
         let _ = write!(out, "{{\"number\":{},\"width\":{},\"height\":{},\"counts\":{:?},\"glyphs\":{glyphs},\"textSum\":{text_sum},\"firstRunPens\":[{first_pens}],\"firstRunText\":{},\"textBytes\":{text_bytes}}}", page.number, page.width, page.height, c, json_str(&first_text));
     }
-    out.push_str("]}");
+    let doc = view.document();
+    let opt = |v: &Option<String>| v.as_ref().map_or_else(|| "null".to_owned(), |s| json_str(s));
+    let _ = write!(out, "],\"document\":{{\"title\":{},\"language\":{},\"outline\":[", opt(&doc.title), opt(&doc.language));
+    for (i, h) in doc.outline.iter().enumerate() {
+        if i > 0 { out.push(','); }
+        let _ = write!(out, "{{\"level\":{},\"page\":{},\"y\":{},\"title\":{}}}", h.level, h.page, i64::from(h.y), json_str(&h.title));
+    }
+    out.push_str("]}}");
     out
 }
 

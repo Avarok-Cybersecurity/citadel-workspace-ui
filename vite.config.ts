@@ -229,7 +229,11 @@ export default defineConfig(({ mode }) => {
           // webp included: the landing hero and the app backdrop are both .webp,
           // so without it every offline launch rendered the whole app with no
           // imagery at all — the one launch where it most wants to look normal.
-          globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2,wasm}'],
+          //
+          // tex: the Citadel Docs hyphenation patterns (public/cdoc/patterns), sha256-pinned
+          // by a manifest compiled into the precached JS. From the network, a deploy that
+          // changed one would fail every document open from the old generation.
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2,wasm,tex}'],
           // The install-card screenshots are fetched by the BROWSER from the
           // manifest, before there is an app to serve them, and are never
           // rendered by it afterwards. Precaching them added ~800 KB to the
@@ -239,16 +243,12 @@ export default defineConfig(({ mode }) => {
           // ever requests — WASM init passes the stable /wasm/ URL explicitly.
           // Precaching it would double the install for bytes no page fetches.
           globIgnores: ['assets/*.wasm', '**/screenshots/*'],
-          // Per file. 4,500,000 (2026-10-18): the Citadel Docs binary with the editor
-          // (cdoc-edit, citadel-docs aff63f9) is 4,222,829 bytes, over the old 4 MiB,
-          // and workbox drops an over-cap file from the precache SILENTLY. Measured
-          // size plus ~6%; it comes back down when the wasm is split per app.
-          // 59d18eb (gc, addImage, result v2) measures 4,323,294: 4% under, held.
-          // 4,700,000: b5cd990 (file open and export on the live replica) measures
-          // 4,429,022, 1.6% under 4.5 MB; raised to measured plus ~6% with the budget.
-          // 5,400,000: f8656c6 (every run shaped, display list v2) measures 5,086,603;
-          // measured plus ~6% with the budget, until the editor/pdf split lands.
-          maximumFileSizeToCacheInBytes: 5_400_000,
+          // Per file, 4 MiB: workbox drops an over-cap file from the precache SILENTLY.
+          // The Citadel Docs binary grew past it with the editor (4,222,829 bytes at
+          // citadel-docs aff63f9, 5,086,603 at f8656c6) and the cap followed it up to
+          // 5,400,000; the editor/pdf split (citadel-docs #39) brought it back: the editor
+          // artefact is 3,731,952 bytes at 791ffeb and the PDF artefact 2,248,236.
+          maximumFileSizeToCacheInBytes: 4_194_304,
           // SPA fallback, minus the endpoints that must always hit the network.
           // `/`, never `/index.html`: the Worker's asset handler answers /index.html with a
           // 307 to `/`. Workbox's precache normally hides that, but when the cached copy is

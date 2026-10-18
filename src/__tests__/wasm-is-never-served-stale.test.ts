@@ -85,12 +85,14 @@ describe('the WASM binary', () => {
       FLOOR_BYTES,
     );
 
-    // The Citadel Docs binary is vendored and committed, so its size is checked everywhere, CI
-    // included, with no existence escape.
-    expect(
-      statSync(join(process.cwd(), 'public/cdoc/cdoc_wasm_bg.wasm')).size,
-      'the Citadel Docs binary is larger than the precache cap, so workbox will drop it',
-    ).toBeLessThan(capBytes);
+    // The Citadel Docs binaries are vendored and committed, so their sizes are checked
+    // everywhere, CI included, with no existence escape.
+    for (const name of ['editor', 'pdf']) {
+      expect(
+        statSync(join(process.cwd(), `public/cdoc/cdoc_wasm_${name}_bg.wasm`)).size,
+        `the Citadel Docs ${name} binary is larger than the precache cap, so workbox will drop it`,
+      ).toBeLessThan(capBytes);
+    }
 
     const binary: string = join(process.cwd(), 'public/wasm/citadel_internal_service_wasm_client_bg.wasm');
     if (!existsSync(binary)) return;

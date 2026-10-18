@@ -1,4 +1,4 @@
-/* @ts-self-types="./cdoc_wasm.d.ts" */
+/* @ts-self-types="./cdoc_wasm_editor.d.ts" */
 
 /**
  * Faces being gathered for editing.
@@ -27,6 +27,22 @@ export class EditorFonts {
         const ptr1 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
         const len1 = WASM_VECTOR_LEN;
         wasm.editorfonts_addFont(this.__wbg_ptr, ptr0, len0, bold, italic, ptr1, len1);
+    }
+    /**
+     * Compiles a hyphenation pattern file by its manifest tag (`de-1996`); a language with no
+     * file registered is not hyphenated.
+     * @param {string} tag
+     * @param {string} text
+     */
+    addPatterns(tag, text) {
+        const ptr0 = passStringToWasm0(tag, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(text, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.editorfonts_addPatterns(this.__wbg_ptr, ptr0, len0, ptr1, len1);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
     }
     /**
      * Serves `target` whenever a document asks for `name`.
@@ -140,6 +156,15 @@ export class EditorHandle {
             throw takeFromExternrefTable0(ret[1]);
         }
         return EditorHandle.__wrap(ret[0]);
+    }
+    /**
+     * Adds to `images` every image this editor holds that its pages draw, for the PDF
+     * artefact's `RenderAssets.addImage`.
+     * @param {ImageStore} images
+     */
+    drawnImages(images) {
+        _assertClass(images, ImageStore);
+        wasm.editorhandle_drawnImages(this.__wbg_ptr, images.__wbg_ptr);
     }
     /**
      * What a peer at `sv` (a `stateVector()`, or `null` for a peer holding nothing, such as
@@ -284,6 +309,23 @@ export class EditorHandle {
         var v1 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
         wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
         return v1;
+    }
+    /**
+     * The document as model JSON, for an artefact that does not edit (the PDF artefact:
+     * `model_to_pm`, then `pm_to_pdf`).
+     * @returns {string}
+     */
+    modelJson() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const ret = wasm.editorhandle_modelJson(this.__wbg_ptr);
+            deferred1_0 = ret[0];
+            deferred1_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
     }
     /**
      * Opens a replica from a CRDT snapshot as client `client` (a `BigInt`).
@@ -761,6 +803,22 @@ export class RenderAssets {
         wasm.renderassets_addImage(this.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2);
     }
     /**
+     * Compiles a hyphenation pattern file by its manifest tag (`de-1996`); a language with no
+     * file registered is not hyphenated.
+     * @param {string} tag
+     * @param {string} text
+     */
+    addPatterns(tag, text) {
+        const ptr0 = passStringToWasm0(tag, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(text, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.renderassets_addPatterns(this.__wbg_ptr, ptr0, len0, ptr1, len1);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
      * Serves `target` whenever a document asks for `name` (e.g. Calibri → Carlito).
      * @param {string} name
      * @param {string} target
@@ -909,6 +967,33 @@ export function glyph_path(assets, family, bold, italic, glyph_id) {
     var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
     wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
     return v2;
+}
+
+/**
+ * The manifest tags (`crates/cdoc-para/patterns/manifest.json`) of the hyphenation pattern
+ * files a model document needs, as a JSON array: register these before laying it out.
+ * @param {string} model_json
+ * @returns {string}
+ */
+export function hyphenation_patterns_needed(model_json) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(model_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.hyphenation_patterns_needed(ptr0, len0);
+        var ptr2 = ret[0];
+        var len2 = ret[1];
+        if (ret[3]) {
+            ptr2 = 0; len2 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred3_0 = ptr2;
+        deferred3_1 = len2;
+        return getStringFromWasm0(ptr2, len2);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
 }
 
 /**
@@ -1178,53 +1263,6 @@ export function pm_to_odt(pm_json, images, options_json) {
 }
 
 /**
- * ProseMirror JSON → PDF bytes.
- * @param {string} pm_json
- * @param {RenderAssets} assets
- * @returns {Uint8Array}
- */
-export function pm_to_pdf(pm_json, assets) {
-    const ptr0 = passStringToWasm0(pm_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    const len0 = WASM_VECTOR_LEN;
-    _assertClass(assets, RenderAssets);
-    const ret = wasm.pm_to_pdf(ptr0, len0, assets.__wbg_ptr);
-    if (ret[3]) {
-        throw takeFromExternrefTable0(ret[2]);
-    }
-    var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
-    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
-    return v2;
-}
-
-/**
- * ProseMirror JSON → a JSON array of SVG page documents for the paged preview.
- * @param {string} pm_json
- * @param {RenderAssets} assets
- * @returns {string}
- */
-export function pm_to_svg_pages(pm_json, assets) {
-    let deferred3_0;
-    let deferred3_1;
-    try {
-        const ptr0 = passStringToWasm0(pm_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        _assertClass(assets, RenderAssets);
-        const ret = wasm.pm_to_svg_pages(ptr0, len0, assets.__wbg_ptr);
-        var ptr2 = ret[0];
-        var len2 = ret[1];
-        if (ret[3]) {
-            ptr2 = 0; len2 = 0;
-            throw takeFromExternrefTable0(ret[2]);
-        }
-        deferred3_0 = ptr2;
-        deferred3_1 = len2;
-        return getStringFromWasm0(ptr2, len2);
-    } finally {
-        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
-    }
-}
-
-/**
  * ProseMirror JSON to JSON `{"text", "report"}` holding plain text.
  * @param {string} pm_json
  * @returns {string}
@@ -1376,7 +1414,7 @@ function __wbg_get_imports() {
     };
     return {
         __proto__: null,
-        "./cdoc_wasm_bg.js": import0,
+        "./cdoc_wasm_editor_bg.js": import0,
     };
 }
 
@@ -1623,7 +1661,7 @@ async function __wbg_init(module_or_path) {
     }
 
     if (module_or_path === undefined) {
-        module_or_path = "/cdoc/cdoc_wasm_bg.wasm";
+        module_or_path = "/cdoc/cdoc_wasm_editor_bg.wasm";
     }
     const imports = __wbg_get_imports();
 

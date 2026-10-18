@@ -31,7 +31,8 @@ export type ExportTarget =
 export interface ExportedFile {
   /** A buffer of its own, transferable. */
   readonly bytes: Uint8Array;
-  readonly report: ConversionReport;
+  /** What the file could not carry; null for a PDF, whose writer reports no losses yet. */
+  readonly report: ConversionReport | null;
 }
 
 /** What an import could not carry, and whether the file was a document or a template. */

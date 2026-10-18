@@ -1,13 +1,14 @@
 /**
- * Mouse and pen on the pages -> selection. A press hit-tests to a position and collapses the
- * selection there (Shift extends from the anchor); a double press selects the word, a triple
- * press the paragraph; a drag extends from where it began. Hit tests are coalesced while one is
- * in flight, so a fast drag costs one round trip per frame-ish, the latest point winning.
+ * Mouse and pen on the pages -> selection. A press selects at its point (EditorController.selectAt:
+ * the hit test and the selection are one queued step, so a key typed right after the click lands
+ * where the click put the caret): a caret, Shift extending from the anchor, a double press the
+ * word, a triple press the paragraph; a drag extends from where it began. Drag steps are coalesced
+ * while one is in flight, so a fast drag costs one round trip per frame-ish, the latest point winning.
  *
  * A drag captures the pointer, so it keeps selecting outside the pages, and held near the
  * viewport's top or bottom edge it scrolls, faster the nearer the edge, extending as it goes.
  */
-import type { EditorController, EditorPosition } from '../controller';
+import type { EditorController, EditorPosition, EditorState, SelectAt } from '../controller';
 
 /** A point on a page in Pt100 page space. */
 export interface PagePoint {
@@ -63,10 +64,10 @@ export function attachPointer(surface: EventTarget, editor: EditorController, op
       queued = point;
       return;
     }
+    if (dragAnchor === null) return;
     inFlight = true;
     editor
-      .hitTest(point.page, point.x, point.y)
-      .then((head: EditorPosition) => (dragAnchor === null ? undefined : editor.execute({ name: 'setSelection', anchor: dragAnchor, head })))
+      .selectAt(point.page, point.x, point.y, { kind: 'drag', anchor: dragAnchor })
       .catch(options.onError)
       .finally((): void => {
         inFlight = false;
@@ -101,16 +102,12 @@ export function attachPointer(surface: EventTarget, editor: EditorController, op
       pressed = true;
       options.onDragChange(true);
     }
-    const anchorBefore: EditorPosition = editor.state.anchor;
+    const how: SelectAt = clicks >= 3 ? { kind: 'paragraph' } : clicks === 2 ? { kind: 'word' } : shift ? { kind: 'extend' } : { kind: 'caret' };
     editor
-      .hitTest(point.page, point.x, point.y)
-      .then((at: EditorPosition) => {
-        if (clicks >= 3) return editor.execute({ name: 'selectParagraph', at });
-        if (clicks === 2) return editor.execute({ name: 'selectWord', at });
-        const anchor: EditorPosition = shift ? anchorBefore : at;
-        // Released before the hit test answered: a click, with nothing left to drag.
-        dragAnchor = pressed ? anchor : null;
-        return editor.execute({ name: 'setSelection', anchor, head: at });
+      .selectAt(point.page, point.x, point.y, how)
+      .then((state: EditorState): void => {
+        // Released before the selection was made: a click, with nothing left to drag.
+        if (clicks < 2) dragAnchor = pressed ? state.anchor : null;
       })
       .catch(options.onError);
   };

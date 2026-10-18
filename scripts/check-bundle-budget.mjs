@@ -204,9 +204,10 @@ const DEFERRED_MODULES = [
 ];
 
 /**
- * The Citadel Docs binary (public/cdoc, vendored by scripts/sync-cdoc-wasm.sh), in bytes.
- * Never on the critical path -- the worker fetches it when a document opens -- but precached
- * with its glue, so it is part of every install and must stay under workbox's per-file cap
+ * The Citadel Docs binaries (public/cdoc, vendored by scripts/sync-cdoc-wasm.sh), in bytes:
+ * the editor artefact, which the worker fetches when a document opens, and the PDF artefact,
+ * fetched on the first PDF export. Never on the critical path, but each is precached with its
+ * glue, so it is part of every install and must stay under workbox's per-file cap
  * (vite.config.ts, maximumFileSizeToCacheInBytes), above which workbox drops it from the
  * precache SILENTLY.
  *
@@ -226,9 +227,14 @@ const DEFERRED_MODULES = [
  * 5,300,000 (2026-10-18): citadel-docs f8656c6 shapes every run (cdoc-shape, Knuth-Plass line
  *   breaking, display list v2): 5,086,603 bytes; measured plus ~4%, the cap raised to 5,400,000
  *   beside it. The editor/pdf split (citadel-docs #39) is what brings it back under 4 MiB.
+ * Split (2026-10-18, citadel-docs 791ffeb, #39 and #43 with the patterns out of the binary):
+ *   the editor artefact is 3,731,952 bytes, budget 3,900,000 (measured plus ~4.5%), under the
+ *   restored 4 MiB cap; the PDF artefact is 2,248,236, budget 2,350,000 (plus ~4.5%).
  */
-const CDOC_WASM_BUDGET_BYTES = 5_300_000;
-const CDOC_WASM = join(dist, 'cdoc', 'cdoc_wasm_bg.wasm');
+const CDOC_ARTEFACTS = [
+  { name: 'editor', budget: 3_900_000, loaded: 'loaded on document open' },
+  { name: 'pdf', budget: 2_350_000, loaded: 'loaded on the first PDF export' },
+];
 
 /**
  * This measures dist/ and does not build it, so a dist/ older than the source
@@ -320,20 +326,37 @@ if (deferralBroken) {
   process.exit(1);
 }
 
-if (!existsSync(CDOC_WASM)) {
-  console.error(`\n${CDOC_WASM} is not in dist/: the Citadel Docs binary was not served at all.`);
+const serviceWorker = readFileSync(join(dist, 'sw.js'), 'utf8');
+for (const { name, budget, loaded } of CDOC_ARTEFACTS) {
+  const file = `cdoc/cdoc_wasm_${name}_bg.wasm`;
+  if (!existsSync(join(dist, file))) {
+    console.error(`\n${file} is not in dist/: the Citadel Docs ${name} binary was not served at all.`);
+    process.exit(1);
+  }
+  const bytes = statSync(join(dist, file)).size;
+  console.log(`${name === CDOC_ARTEFACTS[0].name ? '\n' : ''}  ${(bytes / 1e6).toFixed(2).padStart(7)} MB  Citadel Docs ${name} binary, precached, ${loaded} (budget ${(budget / 1e6).toFixed(2)} MB)`);
+  if (bytes > budget) {
+    console.error(`The Citadel Docs ${name} binary is ${bytes} bytes, over its ${budget}-byte budget. Find what grew, or raise the budget on purpose.`);
+    process.exit(1);
+  }
+  if (!serviceWorker.includes(`"${file}"`)) {
+    console.error(`The Citadel Docs ${name} binary is not in the service worker precache: its glue would be served without it.`);
+    process.exit(1);
+  }
+}
+// The hyphenation patterns are pinned by a manifest in the precached JS: from the network, a
+// deploy that changed one would fail every document open from the old generation.
+const patternFiles = existsSync(join(dist, 'cdoc', 'patterns')) ? readdirSync(join(dist, 'cdoc', 'patterns')) : [];
+if (patternFiles.length === 0) {
+  console.error('\ndist/cdoc/patterns holds no hyphenation patterns: the Citadel Docs patterns were not served at all.');
   process.exit(1);
 }
-const cdocBytes = statSync(CDOC_WASM).size;
-console.log(`\n  ${(cdocBytes / 1e6).toFixed(2).padStart(7)} MB  Citadel Docs binary, precached, loaded on document open (budget ${(CDOC_WASM_BUDGET_BYTES / 1e6).toFixed(2)} MB)`);
-if (cdocBytes > CDOC_WASM_BUDGET_BYTES) {
-  console.error(`The Citadel Docs binary is ${cdocBytes} bytes, over its ${CDOC_WASM_BUDGET_BYTES}-byte budget. Find what grew, or raise the budget on purpose.`);
+const unprecached = patternFiles.filter((file) => !serviceWorker.includes(`"cdoc/patterns/${file}"`));
+if (unprecached.length > 0) {
+  console.error(`Hyphenation patterns missing from the service worker precache: ${unprecached.join(', ')}. vite.config.ts globPatterns must include tex.`);
   process.exit(1);
 }
-if (!readFileSync(join(dist, 'sw.js'), 'utf8').includes('"cdoc/cdoc_wasm_bg.wasm"')) {
-  console.error('The Citadel Docs binary is not in the service worker precache: its glue would be served without it.');
-  process.exit(1);
-}
+console.log(`  ${String(patternFiles.length).padStart(7)} hyphenation pattern files, precached with the manifest that pins them`);
 
 if (totalKb > BUDGET_KB) {
   console.error(

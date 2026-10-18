@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { ByteReader, unzigzag } from '../byte-reader';
 import { openDisplayList } from '../decoder';
 import { decodePage } from '../page-ops';
-import type { DisplayList, Op } from '../types';
+import type { DisplayList, DocumentTable, Op } from '../types';
 
 function reader(bytes: number[]): ByteReader {
   return new ByteReader(new DataView(new Uint8Array(bytes).buffer), 0, bytes.length);
@@ -76,9 +76,17 @@ describe('the header', () => {
     expect(() => openDisplayList(patched(0, 0x58))).toThrow(/bad magic/);
   });
 
-  it('refuses any version but 2, naming both: the retired 1 and a later 3 alike', () => {
-    expect(() => openDisplayList(patched(4, 1))).toThrow(/version 1 is not supported \(this decoder reads 2\)/);
-    expect(() => openDisplayList(patched(4, 3))).toThrow(/version 3 is not supported \(this decoder reads 2\)/);
+  it('refuses any version but 3, naming both: the retired 2 and a later 4 alike', () => {
+    expect(() => openDisplayList(patched(4, 2))).toThrow(/version 2 is not supported \(this decoder reads 3\)/);
+    expect(() => openDisplayList(patched(4, 4))).toThrow(/version 4 is not supported \(this decoder reads 3\)/);
+  });
+
+  it('refuses a document table longer than its entries', () => {
+    const indexAt: number = new DataView(golden.buffer, golden.byteOffset).getUint32(20, true);
+    // every-op.bin's outline: count 2, then (0, 0, zz -5, title) in 4 bytes and (3, 7, zz 70000, title) in 6.
+    const countAt: number = indexAt - 10 - 1;
+    expect(golden[countAt]).toBe(2);
+    expect(() => openDisplayList(patched(countAt, 1))).toThrow(/document table does not end where the page index begins/);
   });
 
   it('refuses reserved flags', () => {
@@ -102,11 +110,14 @@ describe('element counts', () => {
   });
 });
 
-function bodyList(body: number[]): DisplayList {
+const NO_DOCUMENT: DocumentTable = { title: null, language: null, outline: [] };
+
+function bodyList(body: number[], strings: readonly string[] = []): DisplayList {
   return {
     view: new DataView(new Uint8Array(body).buffer),
     faces: [{ faceId: 0, family: 'Carlito', bold: false, italic: false, unitsPerEm: 2048, glyphs: [] }],
-    strings: [],
+    strings,
+    document: NO_DOCUMENT,
     pages: [{ number: 0, offset: 0, length: body.length, width: 59530, height: 84190 }],
     indexEnd: 0,
   };
@@ -146,6 +157,19 @@ describe('a glyph run', () => {
   });
 });
 
+describe('a signature field', () => {
+  // Rect (1, 2, 3, 4) as zz, then the field id and the signer role by string index.
+  const body: number[] = [0x22, 6, 2, 4, 6, 8, 0, 1];
+
+  it('carries its rect, field id and role', () => {
+    expect(decodePage(bodyList(body, ['sig-1', 'Approver']), 0).ops).toEqual([{ kind: 'sigField', rect: { x: 1, y: 2, w: 3, h: 4 }, fieldId: 'sig-1', role: 'Approver' }]);
+  });
+
+  it('refuses a role past the string table', () => {
+    expect(() => decodePage(bodyList(body, ['sig-1']), 0)).toThrow(/string index 1 is past the string table/);
+  });
+});
+
 describe('a crafted page body', () => {
   // A fill path (opcode, length 11, rgba) whose path claims 2^28 verbs with two bytes left: the
   // count must be refused before a 256 MB array is allocated for it (a crafted list can claim 4 GB).
@@ -154,6 +178,7 @@ describe('a crafted page body', () => {
     view: new DataView(new Uint8Array(body).buffer),
     faces: [],
     strings: [],
+    document: NO_DOCUMENT,
     pages: [{ number: 0, offset: 0, length: body.length, width: 59530, height: 84190 }],
     indexEnd: 0,
   };
