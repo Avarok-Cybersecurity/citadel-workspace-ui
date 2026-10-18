@@ -7,7 +7,6 @@
 
 import { eventEmitter } from '@/lib/event-emitter';
 import { debugLog } from '@/lib/debug-config';
-import { forgetDeletedNodes } from '@/lib/document-replica-cache';
 import { isVariant , type WorkspaceProtocolResponse } from 'citadel-workspace-client-ts';
 import type { ConnectionInfo } from './workspace-handlers';
 
@@ -73,7 +72,7 @@ export function handleNodeVariants(
       nodeId: node_id, childrenDeleted: children_deleted, connection: connectionInfo,
     });
     // A deleted document's decrypted copy leaves this device (and its children's).
-    forgetDeletedNodes([node_id, ...children_deleted]).catch((error: unknown): void => {
+    import('@/lib/document-replica-cache').then(({ forgetDeletedNodes }) => forgetDeletedNodes([node_id, ...children_deleted])).catch((error: unknown): void => {
       debugLog('WorkspaceResponseHandler', 'Could not remove deleted documents\' local copies', error);
     });
     eventEmitter.emit('workspace:raw-response', response);
