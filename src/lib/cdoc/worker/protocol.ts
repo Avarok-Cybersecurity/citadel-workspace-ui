@@ -72,7 +72,7 @@ export function transferablesOf(message: object): Transferable[] {
       if (!out.includes(value.buffer as ArrayBuffer)) out.push(value.buffer as ArrayBuffer);
     } else if (typeof OffscreenCanvas === 'function' && value instanceof OffscreenCanvas) {
       out.push(value);
-    } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+    } else if (typeof value === 'object' && value !== null) {
       out.push(...transferablesOf(value).filter((t: Transferable) => !out.includes(t)));
     }
   }

@@ -146,6 +146,11 @@ export class EditorSession implements EditorController, EditorView {
     return this.serial(async (): Promise<Uint8Array> => (await this.deps.client.request({ kind: 'encodeDiff', sv: sv.slice() })).update);
   }
 
+  encodeDiffChunked(remoteStateVector: Uint8Array | null, maxBytes: number): Promise<Uint8Array[]> {
+    const sv: Uint8Array | null = remoteStateVector === null ? null : remoteStateVector.slice();
+    return this.serial(async (): Promise<Uint8Array[]> => [...(await this.deps.client.request({ kind: 'encodeDiffChunked', sv, maxBytes })).updates]);
+  }
+
   collectGarbage(known: readonly Uint8Array[]): Promise<{ readonly units: number; readonly deletes: number }> {
     const w: RecordWriter = new RecordWriter().uv(known.length);
     for (const sv of known) w.bytes(sv);

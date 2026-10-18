@@ -90,6 +90,22 @@ export class EditorEngine {
     return this.handle.encodeDiff(sv);
   }
 
+  /**
+   * cdoc-crdt's Doc::encode_diff_chunked: the diff as causally ordered updates of at most
+   * `maxBytes` each. The binding comes with the crdt sync work; until it is vendored this fails
+   * by name rather than sending one unbounded update.
+   */
+  encodeDiffChunked(sv: Uint8Array | null, maxBytes: number): Uint8Array[] {
+    if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > 0xffff_ffff) throw new Error(`maxBytes ${maxBytes} is not a positive u32`);
+    const chunkFn: unknown = (this.handle as unknown as { readonly encodeDiffChunked?: unknown }).encodeDiffChunked;
+    if (typeof chunkFn !== 'function') throw new Error('this cdoc-wasm build cannot chunk a diff (EditorHandle.encodeDiffChunked is missing)');
+    const updates: unknown = (chunkFn as (sv: Uint8Array | null, maxBytes: number) => unknown).call(this.handle, sv, maxBytes);
+    if (!Array.isArray(updates) || !updates.every((u: unknown): boolean => u instanceof Uint8Array)) {
+      throw new Error('EditorHandle.encodeDiffChunked returned something other than a list of updates');
+    }
+    return updates as Uint8Array[];
+  }
+
   /** cdoc-crdt's Doc::gc over the known-peers record; returns the "CDG" collected record. */
   collectGarbage(known: Uint8Array): Uint8Array {
     return this.handle.gc(known);

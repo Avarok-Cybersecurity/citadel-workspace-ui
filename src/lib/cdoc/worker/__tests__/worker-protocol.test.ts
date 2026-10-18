@@ -16,7 +16,7 @@ import { recordingPort, recordingTarget, type Call, type RecordingTarget } from 
 import type { CdocClient } from '../cdoc-client';
 import type { CdocHost } from '../cdoc-host';
 import { InProcessCdocClient, WorkerCdocClient, type WorkerLike } from '../clients';
-import { isCdocRequest } from '../protocol';
+import { isCdocRequest, transferablesOf } from '../protocol';
 
 const TEXT: string = 'Citadel Docs paints this line from a glyph atlas.';
 const targets: RecordingTarget[] = [];
@@ -91,6 +91,11 @@ describe('WorkerCdocClient over a real MessageChannel', () => {
     const reply: Promise<unknown> = client.request({ kind: 'glyphPaths', face: { family: 'Carlito', bold: false, italic: false }, glyphIds });
     expect(glyphIds.byteLength).toBe(0);
     await expect(reply).resolves.toBeTruthy();
+  });
+
+  it('lists every buffer of a payload for transfer, inside arrays too', () => {
+    const updates: readonly Uint8Array[] = [Uint8Array.from([1]), Uint8Array.from([2])];
+    expect(transferablesOf({ updates })).toEqual(updates.map((u: Uint8Array) => u.buffer));
   });
 
   it('receives the display list as bytes that decode', async () => {

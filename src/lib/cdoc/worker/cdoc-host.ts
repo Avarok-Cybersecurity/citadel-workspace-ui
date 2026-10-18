@@ -103,8 +103,12 @@ export class CdocHost {
         this.painter.invalidate(req.pages);
         return { pages: req.pages };
       case 'apply': case 'applyRemote': case 'hitTest': case 'snapshot': case 'awareness': case 'peerView': case 'pageSizes':
-      case 'stateVector': case 'encodeDiff': case 'gc': case 'addImage': case 'exportAs':
+      case 'stateVector': case 'encodeDiff': case 'encodeDiffChunked': case 'gc': case 'addImage': case 'exportAs':
         return serveEditor(this.requireEditor(), req);
+      default: {
+        const unrouted: never = req;
+        throw new Error(`no route for request ${(unrouted as { readonly kind: string }).kind}`);
+      }
     }
   }
 

@@ -223,6 +223,9 @@ export interface EditorController {
   stateVector(): Promise<Uint8Array>;
   /** The update a peer at state vector `sv` lacks, to send it. */
   encodeDiff(sv: Uint8Array): Promise<Uint8Array>;
+  /** The same diff as valid updates of at most `maxBytes` each, applied in order; null starts
+   * from the empty state vector (the whole replica, e.g. an import into an empty log). */
+  encodeDiffChunked(remoteStateVector: Uint8Array | null, maxBytes: number): Promise<Uint8Array[]>;
   /**
    * Collects this replica's tombstones (cdoc-crdt Doc::gc) that every peer in `known` (each
    * peer's acknowledged stateVector) has seen; resolves with what was removed. Valid only when

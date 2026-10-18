@@ -22,6 +22,8 @@ export type EditorRequestBody =
   | { readonly kind: 'pageSizes' }
   | { readonly kind: 'stateVector' }
   | { readonly kind: 'encodeDiff'; readonly sv: Uint8Array }
+  /** `sv` null: from the empty state vector (the replica's whole state). */
+  | { readonly kind: 'encodeDiffChunked'; readonly sv: Uint8Array | null; readonly maxBytes: number }
   /** Collects tombstones; `known` is the known-peers record (count, then each state vector). */
   | { readonly kind: 'gc'; readonly known: Uint8Array }
   /** Holds an image file of at most `maxBytes` bytes. */
@@ -51,6 +53,8 @@ export interface EditorResults {
   invalidatePages: { readonly pages: readonly number[] };
   stateVector: { readonly stateVector: Uint8Array };
   encodeDiff: { readonly update: Uint8Array };
+  /** Updates to apply in order, each at most the request's maxBytes. */
+  encodeDiffChunked: { readonly updates: readonly Uint8Array[] };
   /** A "CDG" collected record. */
   gc: { readonly record: Uint8Array };
   /** A "CDI" added-image record. */
@@ -60,4 +64,4 @@ export interface EditorResults {
 
 export type EditorKind = EditorRequestBody['kind'];
 
-export const EDITOR_KINDS: readonly EditorKind[] = ['editorOpen', 'apply', 'applyRemote', 'hitTest', 'snapshot', 'awareness', 'peerView', 'pageSizes', 'invalidatePages', 'stateVector', 'encodeDiff', 'gc', 'addImage', 'exportAs'];
+export const EDITOR_KINDS: readonly EditorKind[] = ['editorOpen', 'apply', 'applyRemote', 'hitTest', 'snapshot', 'awareness', 'peerView', 'pageSizes', 'invalidatePages', 'stateVector', 'encodeDiff', 'encodeDiffChunked', 'gc', 'addImage', 'exportAs'];
