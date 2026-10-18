@@ -244,7 +244,9 @@ export default defineConfig(({ mode }) => {
           // and workbox drops an over-cap file from the precache SILENTLY. Measured
           // size plus ~6%; it comes back down when the wasm is split per app.
           // 59d18eb (gc, addImage, result v2) measures 4,323,294: 4% under, held.
-          maximumFileSizeToCacheInBytes: 4_500_000,
+          // 4,700,000: b5cd990 (file open and export on the live replica) measures
+          // 4,429,022, 1.6% under 4.5 MB; raised to measured plus ~6% with the budget.
+          maximumFileSizeToCacheInBytes: 4_700_000,
           // SPA fallback, minus the endpoints that must always hit the network.
           // `/`, never `/index.html`: the Worker's asset handler answers /index.html with a
           // 307 to `/`. Workbox's precache normally hides that, but when the cached copy is

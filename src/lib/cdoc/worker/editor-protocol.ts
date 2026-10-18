@@ -5,7 +5,7 @@
  * decodes every result. Part of CdocRequestBody and CdocResults (protocol.ts).
  */
 import type { EditorOrigin } from '../editor/controller';
-import type { ExportedFile, ExportTarget } from '../editor/file-formats';
+import type { ExportTarget } from '../editor/file-formats';
 
 export type EditorRequestBody =
   /** Opens the editor as replica `client` from a blank document, a CRDT snapshot or file bytes. */
@@ -29,6 +29,8 @@ export type EditorRequestBody =
   /** Holds an image file of at most `maxBytes` bytes. */
   | { readonly kind: 'addImage'; readonly bytes: Uint8Array; readonly maxBytes: number }
   | { readonly kind: 'selectionText' }
+  | { readonly kind: 'styles' }
+  | { readonly kind: 'image'; readonly contentId: string }
   | { readonly kind: 'exportAs'; readonly target: ExportTarget }
   /** Drops the worker painter's copy of `pages` (an edit changed them) before they repaint. */
   | { readonly kind: 'invalidatePages'; readonly pages: readonly number[] };
@@ -38,7 +40,7 @@ export interface EditorResults {
    * EditorHandle.open returns no result record, so the opening state is its own awareness
    * ("CDA": anchor, head) and that record's peer view ("CDP": caret, selection rects).
    */
-  editorOpen: { readonly pageSizes: Int32Array; readonly awareness: Uint8Array; readonly view: Uint8Array };
+  editorOpen: { readonly pageSizes: Int32Array; readonly awareness: Uint8Array; readonly view: Uint8Array; readonly importReportJson: string | null };
   /** The "CDE" result record. */
   apply: { readonly result: Uint8Array };
   applyRemote: { readonly result: Uint8Array };
@@ -55,15 +57,21 @@ export interface EditorResults {
   stateVector: { readonly stateVector: Uint8Array };
   encodeDiff: { readonly update: Uint8Array };
   /** Updates to apply in order, each at most the request's maxBytes. */
-  encodeDiffChunked: { readonly updates: readonly Uint8Array[] };
+  /** The "CDK" chunks record. */
+  encodeDiffChunked: { readonly record: Uint8Array };
   /** A "CDG" collected record. */
   gc: { readonly record: Uint8Array };
   /** A "CDI" added-image record. */
   addImage: { readonly record: Uint8Array };
   selectionText: { readonly text: string };
-  exportAs: { readonly file: ExportedFile };
+  /** A "CDS" style sheet. */
+  styles: { readonly record: Uint8Array };
+  /** A "CDB" image record. */
+  image: { readonly record: Uint8Array };
+  /** The file and its `{"losses"}` report as the engine wrote it. */
+  exportAs: { readonly bytes: Uint8Array; readonly reportJson: string };
 }
 
 export type EditorKind = EditorRequestBody['kind'];
 
-export const EDITOR_KINDS: readonly EditorKind[] = ['editorOpen', 'apply', 'applyRemote', 'hitTest', 'snapshot', 'awareness', 'peerView', 'pageSizes', 'invalidatePages', 'stateVector', 'encodeDiff', 'encodeDiffChunked', 'gc', 'addImage', 'selectionText', 'exportAs'];
+export const EDITOR_KINDS: readonly EditorKind[] = ['editorOpen', 'apply', 'applyRemote', 'hitTest', 'snapshot', 'awareness', 'peerView', 'pageSizes', 'invalidatePages', 'stateVector', 'encodeDiff', 'encodeDiffChunked', 'gc', 'addImage', 'selectionText', 'styles', 'image', 'exportAs'];

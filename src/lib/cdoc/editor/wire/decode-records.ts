@@ -1,27 +1,14 @@
 /**
- * Reads the editor's records (docs/edit-commands.md v2): the "CDE" result, the "CDA" awareness
- * record, the "CDP" peer view, the "CDI" added image, the "CDG" collection and a bare position. Positions are kept as the exact bytes they
- * were written as (EditorPosition), so they go back into requests unchanged. Every record is
- * read to its end; a short, long or mis-tagged record throws.
+ * Reads the editor's small records (docs/edit-commands.md v4): the "CDA" awareness record, the
+ * "CDP" peer view, the "CDI" added image, the "CDG" collection and a bare position; the "CDE"
+ * result is decode-result.ts. Positions are kept as the exact bytes they were written as
+ * (EditorPosition), so they go back into requests unchanged. Every record is read to its end;
+ * a short, long or mis-tagged record throws.
  */
 import type { AddedImage, EditorPosition, PageRect, PeerView } from '../controller';
 import { RecordError } from './record-writer';
-import type { KnownFormatting } from '../caret-formatting';
-import { readFormatting } from './decode-formatting';
 
 const utf8: TextDecoder = new TextDecoder('utf-8', { fatal: true });
-
-export interface EditorResult {
-  /** The CRDT update to relay; empty when nothing changed (always, for a remote update). */
-  readonly update: Uint8Array;
-  readonly dirtyPages: readonly number[];
-  readonly pageCount: number;
-  readonly anchor: EditorPosition;
-  readonly head: EditorPosition;
-  readonly caret: PageRect | null;
-  readonly selectionRects: readonly PageRect[];
-  readonly formatting: KnownFormatting;
-}
 
 export interface Awareness {
   readonly client: bigint;
@@ -108,28 +95,25 @@ export class RecordReader {
     throw new RecordError(`caret tag ${tag}`);
   }
 
+  /**
+   * A count of elements of at least `minBytes` each, refused when the bytes left cannot hold
+   * them, before anything is sized by it (CWE-789).
+   */
+  count(minBytes: number, what: string): number {
+    const n: number = this.uv();
+    const left: number = this.bytes.length - this.at;
+    if (n * minBytes > left) throw new RecordError(`${what} claims ${n} entries, but only ${left} bytes remain`);
+    return n;
+  }
+
+  /** Rects of a page each: page:uv and four pt, five bytes at least. */
   rects(): PageRect[] {
-    return Array.from({ length: this.uv() }, (): PageRect => this.pageRect());
+    return Array.from({ length: this.count(5, 'a rect list') }, (): PageRect => this.pageRect());
   }
 
   end(): void {
     if (this.at !== this.bytes.length) throw new RecordError(`${this.bytes.length - this.at} trailing byte(s)`);
   }
-}
-
-export function decodeResult(bytes: Uint8Array): EditorResult {
-  const r: RecordReader = new RecordReader(bytes);
-  r.magic('CDE', 2);
-  const update: Uint8Array = r.bytesField();
-  const dirtyPages: number[] = Array.from({ length: r.uv() }, (): number => r.uv());
-  const pageCount: number = r.uv();
-  const anchor: EditorPosition = r.position();
-  const head: EditorPosition = r.position();
-  const caret: PageRect | null = r.caret();
-  const selectionRects: PageRect[] = r.rects();
-  const formatting: KnownFormatting = readFormatting(r);
-  r.end();
-  return { update, dirtyPages, pageCount, anchor, head, caret, selectionRects, formatting };
 }
 
 export function decodeAwareness(bytes: Uint8Array): Awareness {

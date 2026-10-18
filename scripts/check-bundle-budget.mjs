@@ -219,8 +219,12 @@ const DEFERRED_MODULES = [
  * wasm split (formats, editing and PDF loaded lazily); raise it on purpose, with the reason here.
  *   Re-measured at citadel-docs 59d18eb (EditorHandle gc and addImage, result v2 with caret
  *   formatting): 4,323,294 bytes, 1.8% under; held, not raised.
+ * 4,600,000 (2026-10-18): citadel-docs b5cd990 adds file open and export on the live replica
+ * (cdoc-edit-io with the DOCX, ODT, MD, TXT and PDF writers reachable from EditorHandle), the
+ * chunked diff, styles and the clipboard text: 4,429,022 bytes; measured plus ~4%, the cap
+ * raised to 4,700,000 beside it. Still down with the per-app wasm split.
  */
-const CDOC_WASM_BUDGET_BYTES = 4_400_000;
+const CDOC_WASM_BUDGET_BYTES = 4_600_000;
 const CDOC_WASM = join(dist, 'cdoc', 'cdoc_wasm_bg.wasm');
 
 /**

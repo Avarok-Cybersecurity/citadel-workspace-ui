@@ -1,12 +1,13 @@
 /**
  * One editing session in the worker: cdoc-edit's EditorHandle over sealed faces. Records in,
- * records out (docs/edit-commands.md v1); this class decodes none of them, it only checks the
+ * records out (docs/edit-commands.md v4); this class decodes none of them, it only checks the
  * arguments the handle would otherwise read as something else. Every returned array is a copy
  * out of wasm memory, so it owns its buffer and can be transferred.
  */
 import type { CdocWasm, EditorHandle, EditorSealedFonts } from './cdoc-wasm-api';
 import type { EditorOrigin } from '../editor/controller';
-import type { ExportedFile, ExportTarget } from '../editor/file-formats';
+import type { ExportTarget } from '../editor/file-formats';
+import { openFromFile, writeFile, type OpenedFromFile, type WrittenFile } from './editor-files';
 
 export type { EditorOrigin } from '../editor/controller';
 
@@ -19,16 +20,18 @@ function checkPt(v: number, what: string): void {
 }
 
 export class EditorEngine {
-  private constructor(private readonly handle: EditorHandle) {}
+  /** `importReportJson`: the import's `{"report", "problems", "kind"}`, for a replica opened on a file. */
+  private constructor(private readonly wasm: CdocWasm, private readonly handle: EditorHandle, readonly importReportJson: string | null) {}
 
   static open(wasm: CdocWasm, fonts: EditorSealedFonts, client: bigint, origin: EditorOrigin): EditorEngine {
     if (client < 0n || client > 0xffff_ffff_ffff_ffffn) throw new Error(`client ${client} is not a u64`);
     switch (origin.kind) {
-      case 'blank': return new EditorEngine(wasm.EditorHandle.blank(client, fonts));
-      case 'snapshot': return new EditorEngine(wasm.EditorHandle.open(origin.snapshot, client, fonts));
-      case 'bytes':
-        // cdoc-edit-io adds the engine call (EditorHandle.fromDocument); until then, refused by name.
-        throw new Error(`this cdoc-wasm build cannot open ${origin.format} files (EditorHandle.fromDocument is missing)`);
+      case 'blank': return new EditorEngine(wasm, wasm.EditorHandle.blank(client, fonts), null);
+      case 'snapshot': return new EditorEngine(wasm, wasm.EditorHandle.open(origin.snapshot, client, fonts), null);
+      case 'bytes': {
+        const opened: OpenedFromFile = openFromFile(wasm, fonts, client, origin.bytes, origin.format);
+        return new EditorEngine(wasm, opened.handle, opened.reportJson);
+      }
     }
   }
 
@@ -90,20 +93,10 @@ export class EditorEngine {
     return this.handle.encodeDiff(sv);
   }
 
-  /**
-   * cdoc-crdt's Doc::encode_diff_chunked: the diff as causally ordered updates of at most
-   * `maxBytes` each. The binding comes with the crdt sync work; until it is vendored this fails
-   * by name rather than sending one unbounded update.
-   */
-  encodeDiffChunked(sv: Uint8Array | null, maxBytes: number): Uint8Array[] {
+  /** cdoc-crdt's Doc::encode_diff_chunked: the "CDK" record of updates of at most `maxBytes` each. */
+  encodeDiffChunked(sv: Uint8Array | null, maxBytes: number): Uint8Array {
     if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > 0xffff_ffff) throw new Error(`maxBytes ${maxBytes} is not a positive u32`);
-    const chunkFn: unknown = (this.handle as unknown as { readonly encodeDiffChunked?: unknown }).encodeDiffChunked;
-    if (typeof chunkFn !== 'function') throw new Error('this cdoc-wasm build cannot chunk a diff (EditorHandle.encodeDiffChunked is missing)');
-    const updates: unknown = (chunkFn as (sv: Uint8Array | null, maxBytes: number) => unknown).call(this.handle, sv, maxBytes);
-    if (!Array.isArray(updates) || !updates.every((u: unknown): boolean => u instanceof Uint8Array)) {
-      throw new Error('EditorHandle.encodeDiffChunked returned something other than a list of updates');
-    }
-    return updates as Uint8Array[];
+    return this.handle.encodeDiffChunked(sv, maxBytes);
   }
 
   /** cdoc-crdt's Doc::gc over the known-peers record; returns the "CDG" collected record. */
@@ -117,23 +110,23 @@ export class EditorEngine {
     return this.handle.addImage(bytes, maxBytes);
   }
 
-  /** The selection's plain text. The engine call comes after cdoc-edit #28; until then it fails by name. */
+  /** The selection's plain text, uncapped: Copy past the result record's 64 KiB. */
   selectionText(): string {
-    const textFn: unknown = (this.handle as unknown as { readonly selectionText?: unknown }).selectionText;
-    if (typeof textFn !== 'function') throw new Error("this cdoc-wasm build cannot read the selection's text (EditorHandle.selectionText is missing)");
-    const text: unknown = (textFn as () => unknown).call(this.handle);
-    if (typeof text !== 'string') throw new Error('EditorHandle.selectionText returned no text');
-    return text;
+    return this.handle.selectionText();
   }
 
-  /**
-   * The live document as a file. cdoc-edit-io adds the engine call; until it is vendored this
-   * fails by name rather than exporting something else.
-   */
-  exportAs(target: ExportTarget): ExportedFile {
-    const exportFn: unknown = (this.handle as unknown as { readonly export?: unknown }).export;
-    if (typeof exportFn !== 'function') throw new Error(`this cdoc-wasm build cannot export ${target.format} (EditorHandle.export is missing)`);
-    throw new Error(`exporting ${target.format} through EditorHandle.export is not wired yet`);
+  /** The "CDS" style sheet. */
+  styles(): Uint8Array {
+    return this.handle.styles();
+  }
+
+  /** The "CDB" record of a held image; an unknown id fails by name. */
+  image(contentId: string): Uint8Array {
+    return this.handle.image(contentId);
+  }
+
+  exportAs(target: ExportTarget): WrittenFile {
+    return writeFile(this.wasm, this.handle, target);
   }
 
   dispose(): void {

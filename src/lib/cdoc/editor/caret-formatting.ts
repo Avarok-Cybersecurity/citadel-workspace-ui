@@ -1,10 +1,10 @@
 /**
- * Formatting where the selection starts, from the v2 result record (docs/edit-commands.md):
+ * Formatting where the selection starts, from the result record (v4) (docs/edit-commands.md):
  * for a collapsed selection what the next typed text gets, for a range its first character's.
  * The ribbons render pressed states from the effective (cascaded) values and the
  * indeterminate state (aria-pressed="mixed") from the mixed sets.
  */
-import type { ParagraphProperties, RunPropertiesPatch } from './model-values';
+import type { PageSetup, ParagraphProperties, RunPatch, RunPropertiesPatch } from './model-values';
 
 /** Bit order of the run_mixed set: bit i is RUN_KEYS[i]. */
 export const RUN_KEYS = [
@@ -16,6 +16,13 @@ export const PARAGRAPH_KEYS = [
 ] as const;
 
 export type RunKey = (typeof RUN_KEYS)[number];
+
+/** RUN_KEYS is exactly RunProperties' fields: a key added to one and not the other is a type error. */
+const RUN_KEYS_ARE_THE_FIELDS: [RunKey, keyof RunPropertiesPatch] extends [keyof RunPropertiesPatch, RunKey] ? true : never = true;
+void RUN_KEYS_ARE_THE_FIELDS;
+
+/** Clear Formatting: every run property null, back to what the styles give (RunPatch::clear_all). */
+export const CLEAR_FORMATTING: RunPatch = Object.fromEntries(RUN_KEYS.map((key: RunKey): [RunKey, null] => [key, null]));
 export type ParagraphKey = (typeof PARAGRAPH_KEYS)[number];
 
 export interface KnownFormatting {
@@ -31,6 +38,8 @@ export interface KnownFormatting {
   readonly runMixed: ReadonlySet<RunKey>;
   /** Keys whose effective value differs between the selected paragraphs; empty when collapsed. */
   readonly paragraphMixed: ReadonlySet<ParagraphKey>;
+  /** The caret's section: what Page Setup shows (result record v4). */
+  readonly section: PageSetup;
 }
 
 /**

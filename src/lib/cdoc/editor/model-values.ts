@@ -59,8 +59,15 @@ export interface ParagraphProperties {
   readonly outlineLevel?: number;
 }
 
-/** A field of a patch: absent keeps the paragraph's value, a value sets it, null clears it. */
+/** A field of a patch: absent keeps the current value, a value sets it, null clears it. */
 type Patched<T> = T | null;
+
+/**
+ * `RunPatch` (docs/edit-commands.md v3), what SetRunProperty takes: each field absent (keep), a
+ * value (set) or null (clear the direct property, back to what the styles give). Clear
+ * Formatting is CLEAR_ALL_RUN_PROPERTIES.
+ */
+export type RunPatch = { readonly [K in keyof RunPropertiesPatch]?: Patched<NonNullable<RunPropertiesPatch[K]>> };
 
 /**
  * `ParagraphPatch` (docs/edit-commands.md v2): each field absent (keep), a value (set) or null
@@ -79,17 +86,30 @@ export interface ParagraphPatch {
 }
 
 export type Orientation = 'portrait' | 'landscape';
+export interface PageSize { readonly width: Pt100; readonly height: Pt100; readonly orientation: Orientation }
+export interface Margins {
+  readonly top: Pt100; readonly bottom: Pt100; readonly left: Pt100; readonly right: Pt100;
+  readonly header: Pt100; readonly footer: Pt100; readonly gutter: Pt100;
+}
+export interface Columns { readonly count: number; readonly gap: Pt100; readonly separator: boolean }
+export type NumberFormat = 'decimal' | 'lowerLetter' | 'upperLetter' | 'lowerRoman' | 'upperRoman' | 'bullet' | 'none';
+
+/** cdoc-model's PageSetup: the caret's section, what Page Setup shows (result record v4). */
+export interface PageSetup {
+  readonly size: PageSize;
+  readonly margins: Margins;
+  readonly columns: Columns;
+  /** `start` absent: numbering continues from the previous section. */
+  readonly pageNumbering: { readonly format: NumberFormat; readonly start?: number };
+}
 
 /** `PageSetupPatch`: an absent field keeps the section's value, a present one replaces it whole. */
 export interface PageSetupPatch {
-  readonly size?: { readonly width: Pt100; readonly height: Pt100; readonly orientation: Orientation };
+  readonly size?: PageSize;
   /** Applied after `size`: swaps width and height when the paper has the other orientation. */
   readonly orientation?: Orientation;
-  readonly margins?: {
-    readonly top: Pt100; readonly bottom: Pt100; readonly left: Pt100; readonly right: Pt100;
-    readonly header: Pt100; readonly footer: Pt100; readonly gutter: Pt100;
-  };
-  readonly columns?: { readonly count: number; readonly gap: Pt100; readonly separator: boolean };
+  readonly margins?: Margins;
+  readonly columns?: Columns;
 }
 
 /** A comment or reply; `date` is RFC 3339, `parent` names the comment replied to. */

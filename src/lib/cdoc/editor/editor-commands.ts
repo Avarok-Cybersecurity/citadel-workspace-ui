@@ -3,7 +3,7 @@
  * docs/edit-commands.md's table. EditorCommand is the single source the controller's
  * `commands` and `execute` are derived from.
  */
-import type { CommentValue, PageSetupPatch, ParagraphPatch, Pt100, RunPropertiesPatch } from './model-values';
+import type { CommentValue, PageSetupPatch, ParagraphPatch, Pt100, RunPatch } from './model-values';
 
 /**
  * A CRDT position (`client:uv clock:uv`), opaque: copied out of a result or a hit test and
@@ -29,6 +29,8 @@ export type DeleteUnit = 'char' | 'word';
 export type BreakKind = 'line' | 'page' | 'column';
 export type Mark = 'bold' | 'italic' | 'underline' | 'strike' | 'subscript' | 'superscript';
 export type CaretGranularity = 'char' | 'word' | 'lineBoundary' | 'line' | 'paragraph' | 'document';
+/** Word's built-in list templates (SetNumberingKind). */
+export type ListKind = 'bullet' | 'decimal' | 'lowerLetter' | 'upperLetter' | 'lowerRoman' | 'upperRoman';
 
 export type EditorCommand =
   | { readonly name: 'insertText'; readonly text: string }
@@ -38,11 +40,14 @@ export type EditorCommand =
   | { readonly name: 'insertBreak'; readonly kind: BreakKind }
   | { readonly name: 'insertTab' }
   | { readonly name: 'toggleMark'; readonly mark: Mark }
-  | { readonly name: 'setRunProperty'; readonly patch: RunPropertiesPatch }
+  /** Clear Formatting is `setRunProperty({ patch: CLEAR_FORMATTING })`. */
+  | { readonly name: 'setRunProperty'; readonly patch: RunPatch }
   | { readonly name: 'setParagraphProperty'; readonly patch: ParagraphPatch }
   | { readonly name: 'setParagraphStyle'; readonly style: string }
   | { readonly name: 'setNumbering'; readonly numId: number; readonly level: number }
   | { readonly name: 'clearNumbering' }
+  /** A built-in list at `level` (0..=8); a new numbering instance comes back in `created`. */
+  | { readonly name: 'setNumberingKind'; readonly kind: ListKind; readonly level: number }
   | { readonly name: 'indent' }
   | { readonly name: 'outdent' }
   /** Page setup of every section from the anchor's to the head's. */
@@ -58,12 +63,18 @@ export type EditorCommand =
   | { readonly name: 'mergeCells' }
   | { readonly name: 'insertImage'; readonly contentId: string; readonly width: Pt100; readonly height: Pt100 }
   | { readonly name: 'insertFootnote'; readonly id: number }
+  /** A footnote under an id the editor picks, reported in `created`. */
+  | { readonly name: 'insertNewFootnote' }
+  /** An image the editor holds at its own size, scaled down to fit one column, never up. */
+  | { readonly name: 'insertImageFitted'; readonly contentId: string }
   | { readonly name: 'insertLink'; readonly href: string }
   | { readonly name: 'removeLink' }
   | { readonly name: 'insertComment'; readonly comment: CommentValue }
   | { readonly name: 'replace'; readonly from: EditorPosition; readonly to: EditorPosition; readonly text: string }
   | { readonly name: 'selectAll' }
   | { readonly name: 'setSelection'; readonly anchor: EditorPosition; readonly head: EditorPosition }
+  /** Deletes the selection as one undo step (copy its text first); a caret fails. */
+  | { readonly name: 'cut' }
   | { readonly name: 'undo' }
   | { readonly name: 'redo' }
   /** Ends the current undo step: on blur, after a typing pause, before a paste. */
@@ -94,6 +105,7 @@ export const COMMAND_OPCODES: { readonly [N in EditorCommandName]: number } = {
   setParagraphStyle: 0x0a,
   setNumbering: 0x0b,
   clearNumbering: 0x0c,
+  setNumberingKind: 0x19,
   indent: 0x0d,
   outdent: 0x0e,
   setSectionProperty: 0x0f,
@@ -108,12 +120,15 @@ export const COMMAND_OPCODES: { readonly [N in EditorCommandName]: number } = {
   mergeCells: 0x18,
   insertImage: 0x20,
   insertFootnote: 0x21,
+  insertNewFootnote: 0x25,
+  insertImageFitted: 0x26,
   insertLink: 0x22,
   removeLink: 0x23,
   insertComment: 0x24,
   replace: 0x30,
   selectAll: 0x31,
   setSelection: 0x32,
+  cut: 0x33,
   undo: 0x40,
   redo: 0x41,
   breakUndoGroup: 0x42,
@@ -125,3 +140,10 @@ export const COMMAND_OPCODES: { readonly [N in EditorCommandName]: number } = {
   compositionCommit: 0x52,
   compositionCancel: 0x53,
 };
+
+/**
+ * SetViewport (0x60): the pages on screen, so results carry selection rectangles for those
+ * and the repainted pages only. Not a document command (no undo step), so not an EditorCommand:
+ * the page view sends it, never a ribbon.
+ */
+export const SET_VIEWPORT_OPCODE: number = 0x60;

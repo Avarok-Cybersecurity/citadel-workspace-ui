@@ -49,9 +49,28 @@ export class EditorHandle {
      */
     static blank(client: bigint, fonts: EditorSealedFonts): EditorHandle;
     /**
+     * What a peer at `sv` (a `stateVector()`, or `null` for a peer holding nothing, such as
+     * an empty log) lacks, as updates of at most `max_bytes` each: the chunks record.
+     */
+    encodeDiffChunked(sv: Uint8Array | null | undefined, max_bytes: number): Uint8Array;
+    /**
      * What a peer at state vector `sv` lacks.
      */
     encodeDiff(sv: Uint8Array): Uint8Array;
+    /**
+     * The document as a file of `kind` (`docx`, `odt`, `md`, `txt` or `pdf`) with the loss
+     * report; image bytes come from the images added here, then from `images`. Options JSON:
+     * `{"kind": "document" | "template"}` for `docx` and `odt`, `{}` for `md` and `txt`,
+     * `{"now": <RFC 3339>}` for `pdf`.
+     */
+    export(kind: string, options_json: string, images: ImageStore): FileExport;
+    /**
+     * A new document from a file of `kind` (`docx`, `odt`, `md` or `txt`) as client
+     * `client` (a `BigInt`); embedded images of at most `max_image_bytes` each are held by
+     * their content ids. Options JSON: `{}` for `docx` and `odt`, the `md_to_pm` and
+     * `txt_to_pm` options for `md` and `txt`.
+     */
+    static fromDocument(bytes: Uint8Array, kind: string, options_json: string, client: bigint, fonts: EditorSealedFonts, max_image_bytes: number): ImportedEditor;
     /**
      * Collects the tombstones every peer in `known` (the known-peers record) has seen;
      * returns the collected record. Call it only when every listed peer is caught up.
@@ -61,6 +80,16 @@ export class EditorHandle {
      * The position record nearest `(x, y)` on `page`.
      */
     hitTest(page: number, x: number, y: number): Uint8Array;
+    /**
+     * The image record (`"CDB" 0x01 mime:str bytes:bytes`) of an image the editor holds, for
+     * the canvas painter; an unknown id fails by name.
+     */
+    image(content_id: string): Uint8Array;
+    /**
+     * The list record of every image the editor holds (id, MIME type, size), for warming
+     * a cache.
+     */
+    images(): Uint8Array;
     /**
      * Opens a replica from a CRDT snapshot as client `client` (a `BigInt`).
      */
@@ -86,6 +115,16 @@ export class EditorHandle {
      */
     request(request: Uint8Array): Uint8Array;
     /**
+     * The selection's rectangles record (`"CDR" 0x01`) on `page`: for a page scrolled into
+     * view, since results carry them for the viewport and the dirty pages only.
+     */
+    selectionRects(page: number): Uint8Array;
+    /**
+     * The selection's plain text, however long: what Copy puts on the clipboard when the
+     * result record's text was past its cap.
+     */
+    selectionText(): string;
+    /**
      * The full CRDT snapshot.
      */
     snapshot(): Uint8Array;
@@ -93,6 +132,11 @@ export class EditorHandle {
      * The replica's state vector.
      */
     stateVector(): Uint8Array;
+    /**
+     * The document's styles record: every style of the document with the properties it
+     * resolves to, for the styles gallery.
+     */
+    styles(): Uint8Array;
 }
 
 /**
@@ -157,6 +201,40 @@ export class ImageStore {
      * The MIME type of image `index`.
      */
     mime(index: number): string | undefined;
+}
+
+/**
+ * A session opened on an imported file, and the import report.
+ */
+export class ImportedEditor {
+    private constructor();
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * The session; this object is spent.
+     */
+    editor(): EditorHandle;
+    /**
+     * `{"report", "problems", "kind"}` as JSON.
+     */
+    reportJson(): string;
+}
+
+/**
+ * A CRDT snapshot made from a stored document, and `{"report", "problems"}` as JSON.
+ */
+export class Migrated {
+    private constructor();
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * `{"report", "problems"}` as JSON.
+     */
+    reportJson(): string;
+    /**
+     * The snapshot, to open with `EditorHandle`.
+     */
+    snapshot(): Uint8Array;
 }
 
 /**
@@ -238,6 +316,12 @@ export function model_to_pm(model_json: string): string;
  * `images`.
  */
 export function odt_to_pm(bytes: Uint8Array, images: ImageStore): string;
+
+/**
+ * ProseMirror JSON to a CRDT snapshot written as `client`, for moving a stored document onto
+ * collaborative editing; the report JSON is `{"report", "problems"}`.
+ */
+export function pm_to_crdt_snapshot(pm_json: string, client: bigint): Migrated;
 
 /**
  * ProseMirror JSON → the display list of every page: the binary format of
@@ -323,6 +407,8 @@ export interface InitOutput {
     readonly __wbg_editorsealedfonts_free: (a: number, b: number) => void;
     readonly __wbg_fileexport_free: (a: number, b: number) => void;
     readonly __wbg_imagestore_free: (a: number, b: number) => void;
+    readonly __wbg_importededitor_free: (a: number, b: number) => void;
+    readonly __wbg_migrated_free: (a: number, b: number) => void;
     readonly __wbg_renderassets_free: (a: number, b: number) => void;
     readonly blank_model_json: () => [number, number];
     readonly blank_pm_json: () => [number, number];
@@ -337,16 +423,24 @@ export interface InitOutput {
     readonly editorhandle_awareness: (a: number) => [number, number];
     readonly editorhandle_blank: (a: bigint, b: number) => [number, number, number];
     readonly editorhandle_encodeDiff: (a: number, b: number, c: number) => [number, number, number, number];
+    readonly editorhandle_encodeDiffChunked: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+    readonly editorhandle_export: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number];
+    readonly editorhandle_fromDocument: (a: number, b: number, c: number, d: number, e: number, f: number, g: bigint, h: number, i: number) => [number, number, number];
     readonly editorhandle_gc: (a: number, b: number, c: number) => [number, number, number, number];
     readonly editorhandle_hitTest: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+    readonly editorhandle_image: (a: number, b: number, c: number) => [number, number, number, number];
+    readonly editorhandle_images: (a: number) => [number, number];
     readonly editorhandle_open: (a: number, b: number, c: bigint, d: number) => [number, number, number];
     readonly editorhandle_pageCount: (a: number) => number;
     readonly editorhandle_pageSize: (a: number, b: number) => [number, number];
     readonly editorhandle_paint: (a: number, b: number, c: number) => [number, number, number, number];
     readonly editorhandle_peerView: (a: number, b: number, c: number) => [number, number, number, number];
     readonly editorhandle_request: (a: number, b: number, c: number) => [number, number, number, number];
+    readonly editorhandle_selectionRects: (a: number, b: number) => [number, number, number, number];
+    readonly editorhandle_selectionText: (a: number) => [number, number, number, number];
     readonly editorhandle_snapshot: (a: number) => [number, number];
     readonly editorhandle_stateVector: (a: number) => [number, number];
+    readonly editorhandle_styles: (a: number) => [number, number, number, number];
     readonly face_metrics: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
     readonly fileexport_bytes: (a: number) => [number, number];
     readonly fileexport_reportJson: (a: number) => [number, number];
@@ -358,10 +452,15 @@ export interface InitOutput {
     readonly imagestore_isEmpty: (a: number) => number;
     readonly imagestore_len: (a: number) => number;
     readonly imagestore_mime: (a: number, b: number) => [number, number];
+    readonly importededitor_editor: (a: number) => number;
+    readonly importededitor_reportJson: (a: number) => [number, number];
     readonly list_labels: (a: number, b: number) => [number, number, number, number];
     readonly md_to_pm: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+    readonly migrated_reportJson: (a: number) => [number, number];
+    readonly migrated_snapshot: (a: number) => [number, number];
     readonly model_to_pm: (a: number, b: number) => [number, number, number, number];
     readonly odt_to_pm: (a: number, b: number, c: number) => [number, number, number, number];
+    readonly pm_to_crdt_snapshot: (a: number, b: number, c: bigint) => [number, number, number];
     readonly pm_to_display_list: (a: number, b: number, c: number) => [number, number, number, number];
     readonly pm_to_display_list_pages: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
     readonly pm_to_docx: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];

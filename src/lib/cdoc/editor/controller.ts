@@ -13,6 +13,12 @@ import type { CommandOf, EditorCommand, EditorCommandName, EditorPosition, PageR
 import type { CaretFormatting } from './caret-formatting';
 import type { ExportedFile, ExportTarget, ImportFormat, ImportReport } from './file-formats';
 import type { PeerOverlay } from './peer-overlay';
+import type { Created, SelectionText } from './wire/decode-result';
+import type { DocumentStyle } from './wire/decode-v4-records';
+
+export type { DocumentStyle } from './wire/decode-v4-records';
+
+export type { Created, SelectionText } from './wire/decode-result';
 
 export * from './editor-commands';
 
@@ -31,6 +37,10 @@ export interface EditorState {
   /** An IME composition is open; its provisional text is drawn at the caret. */
   readonly composing: boolean;
   readonly caretFormatting: CaretFormatting;
+  /** What the last command made under ids the editor picked (a footnote, a list instance). */
+  readonly created: readonly Created[];
+  /** The selection's plain text, for Copy and Cut; empty for a caret. */
+  readonly selectionText: SelectionText;
 }
 
 /** A peer's caret and selection mapped onto this replica's pages. */
@@ -123,6 +133,8 @@ export interface EditorController {
   addImage(bytes: Uint8Array, maxBytes: number): Promise<AddedImage>;
   /** The selection as plain text, empty when it is collapsed: what copy and cut put on the clipboard. */
   selectionText(): Promise<string>;
+  /** The document's style sheet, each style as it resolves, for the styles gallery. */
+  styles(): Promise<DocumentStyle[]>;
   /** The live document as a file. */
   exportAs(target: ExportTarget): Promise<ExportedFile>;
   /** What the import lost, for a replica opened from file bytes; null otherwise. */
