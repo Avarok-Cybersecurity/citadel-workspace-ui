@@ -17,6 +17,7 @@ import { ClaimStep } from '@/components/create-workspace/ClaimStep';
 import { contractFake, type ContractFake } from '@/lib/onboarding/__tests__/contract-fake';
 import { chooseOverage, nameIt, renderFlow, resets, submitWithTerms, throughToReview, installFlowHooks } from './create-flow-harness';
 import { POLICY_BODY } from '@/lib/billing/__tests__/billing-fixtures';
+import { SHOWN_CUSTOMER_TERMS_VERSION } from '@/lib/terms/customer-terms';
 
 installFlowHooks();
 
@@ -60,7 +61,7 @@ describe('a free workspace', () => {
     await submitWithTerms();
 
     await waitFor(() => expect(screen.getByTestId('claim-code')).toHaveTextContent('CLAIM-7Q2'));
-    expect(fake.requests.at(-1)?.body).toEqual({ slug: 'acme', display_name: 'Acme', tier: 'free', turnstile_token: 'token-1', accepted_customer_terms_version: 1 });
+    expect(fake.requests.at(-1)?.body).toEqual({ slug: 'acme', display_name: 'Acme', tier: 'free', turnstile_token: 'token-1', accepted_customer_terms_version: SHOWN_CUSTOMER_TERMS_VERSION });
     expect(screen.getByText(/becomes the owner/)).toBeInTheDocument();
 
     expect(screen.getByTestId('claim-continue')).toBeDisabled();
@@ -109,7 +110,7 @@ describe('a paid workspace', () => {
 
     await waitFor(() => expect(redirect).toHaveBeenCalledWith('https://checkout.stripe.com/c/pay/cs_test_9'));
     expect(fake.requests.at(-1)?.body).toEqual({
-      slug: 'acme', display_name: 'Acme', tier: 'team', interval: 'year', seats: 4, storage_blocks: 1, turnstile_token: 'token-1', accepted_customer_terms_version: 1,
+      slug: 'acme', display_name: 'Acme', tier: 'team', interval: 'year', seats: 4, storage_blocks: 1, turnstile_token: 'token-1', accepted_customer_terms_version: SHOWN_CUSTOMER_TERMS_VERSION,
       overage_billing: true,
     });
     expect(loadDraft('acme')?.plan.seats).toBe(4);

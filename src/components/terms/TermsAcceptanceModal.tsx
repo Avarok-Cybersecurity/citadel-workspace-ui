@@ -18,7 +18,7 @@ export interface TermsAcceptanceModalProps {
   readonly onCancel: () => void;
 }
 
-/** "Version 1 · Effective October 14, 2026", or without the version for documents that have none. */
+/** "Version N · Effective <date>", or without the version for documents that have none. */
 export function documentFacts(doc: LegalDocument): string {
   return `${doc.version === null ? '' : `Version ${doc.version} · `}Effective ${doc.effective}`;
 }
