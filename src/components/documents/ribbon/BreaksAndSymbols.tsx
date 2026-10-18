@@ -1,5 +1,5 @@
 /**
- * Breaks (page, column, line: InsertBreak), Footnote (InsertFootnote with a fresh id) and
+ * Breaks (page, column, line: InsertBreak), Footnote (InsertNewFootnote: the editor picks its id) and
  * Symbol (a small picker that types the character with InsertText).
  */
 import { useState } from 'react';
@@ -39,10 +39,10 @@ export function BreakButtons({ idPrefix }: { idPrefix: string }): JSX.Element {
 }
 
 export function FootnoteButton(): JSX.Element {
-  const { run, environment }: Ribbon = useRibbon();
+  const { run }: Ribbon = useRibbon();
   return (
     <RibbonButton testId="ribbon-insert-footnote" label="Insert footnote" icon={Asterisk} text="Footnote"
-      onPress={(): void => { void run({ name: 'insertFootnote', id: environment.newFootnoteId() }, 'insert the footnote'); }} />
+      onPress={(): void => { void run({ name: 'insertNewFootnote' }, 'insert the footnote'); }} />
   );
 }
 

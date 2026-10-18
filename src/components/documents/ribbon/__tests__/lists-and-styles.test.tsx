@@ -1,0 +1,76 @@
+/**
+ * Home › Paragraph's lists (SetNumberingKind at the caret's list level) and Home › Styles,
+ * which offers the document's own paragraph styles, read from the editor each time it opens.
+ */
+import { screen, waitFor } from '@testing-library/react';
+import userEvent, { type UserEvent } from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
+import type { CaretFormatting } from '@/lib/cdoc/editor/controller';
+import { FakeEditor, knownCaret } from './fake-editor';
+import { MAY_EDIT, renderRibbon } from './render-ribbon';
+
+function setUp(caret: CaretFormatting): { editor: FakeEditor; user: UserEvent } {
+  const editor: FakeEditor = new FakeEditor(caret);
+  renderRibbon({ editor, edit: MAY_EDIT, commentAuthor: 'Ada' });
+  return { editor, user: userEvent.setup() };
+}
+
+async function number(user: UserEvent, kind: string): Promise<void> {
+  await user.click(screen.getByTestId('ribbon-numbering-open'));
+  await user.click(await screen.findByTestId(`ribbon-numbering-${kind}`));
+}
+
+describe('lists', () => {
+  it('keeps the list level of a paragraph already in a list, and starts at the first level otherwise', async () => {
+    const { editor, user } = setUp(knownCaret({}, { numbering: { numId: 3, level: 2 } }));
+    await user.click(screen.getByTestId('ribbon-bullets'));
+    await number(user, 'upperRoman');
+    await waitFor((): void => expect(editor.sent).toEqual([
+      { name: 'setNumberingKind', kind: 'bullet', level: 2 },
+      { name: 'setNumberingKind', kind: 'upperRoman', level: 2 },
+    ]));
+  });
+
+  it('offers Word’s five numbering formats and None, which ends the list', async () => {
+    const { editor, user } = setUp(knownCaret({}, {}));
+    for (const kind of ['decimal', 'lowerLetter', 'upperLetter', 'lowerRoman', 'upperRoman', 'none']) await number(user, kind);
+    await waitFor((): void => expect(editor.sent).toEqual([
+      { name: 'setNumberingKind', kind: 'decimal', level: 0 },
+      { name: 'setNumberingKind', kind: 'lowerLetter', level: 0 },
+      { name: 'setNumberingKind', kind: 'upperLetter', level: 0 },
+      { name: 'setNumberingKind', kind: 'lowerRoman', level: 0 },
+      { name: 'setNumberingKind', kind: 'upperRoman', level: 0 },
+      { name: 'clearNumbering' },
+    ]));
+  });
+});
+
+describe('the styles gallery', () => {
+  it('offers the document’s own paragraph styles, re-read each time it opens', async () => {
+    const editor: FakeEditor = new FakeEditor(knownCaret({}, { style: 'Quote' }));
+    editor.styleSheet = [
+      { id: 'Quote', name: 'Quote', kind: 'paragraph', basedOn: null, run: { italic: true }, paragraph: {} },
+      { id: 'Strong', name: 'Strong', kind: 'character', basedOn: null, run: { bold: true }, paragraph: {} },
+    ];
+    renderRibbon({ editor, edit: MAY_EDIT, commentAuthor: 'Ada' });
+    const user: UserEvent = userEvent.setup();
+    await waitFor((): void => expect(screen.getByTestId('ribbon-styles-open')).toHaveTextContent('Quote'));
+    const reads: number = editor.styleReads;
+    await user.click(screen.getByTestId('ribbon-styles-open'));
+    const quote: HTMLElement = await screen.findByTestId('ribbon-style-Quote');
+    expect(quote).toHaveAttribute('aria-pressed', 'true');
+    expect(quote.firstElementChild).toHaveStyle({ fontStyle: 'italic' });
+    expect(screen.queryByTestId('ribbon-style-Strong')).toBeNull();
+    expect(screen.queryByTestId('ribbon-style-Normal')).toBeNull();
+    expect(editor.styleReads).toBe(reads + 1);
+  });
+
+  it('says so when the styles cannot be read', async () => {
+    const editor: FakeEditor = new FakeEditor(knownCaret({}, {}));
+    editor.styles = (): Promise<never> => Promise.reject(new Error('the sheet is unreadable'));
+    renderRibbon({ editor, edit: MAY_EDIT, commentAuthor: 'Ada' });
+    const user: UserEvent = userEvent.setup();
+    await user.click(screen.getByTestId('ribbon-styles-open'));
+    expect(await screen.findByTestId('ribbon-styles-status')).toHaveTextContent('The document’s styles could not be read. the sheet is unreadable');
+  });
+});

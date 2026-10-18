@@ -1,13 +1,13 @@
 /**
  * Layout › Page Setup: Margins, Orientation, Size and Columns, each a menu of choices that
- * sends one SetSectionProperty for the sections the selection spans. The editor does not
- * report a section's setup, so no choice is shown as the current one.
+ * sends one SetSectionProperty for the sections the selection spans. The caret section's
+ * current setup is the pressed choice; before the editor reports it every choice is mixed,
+ * and Size waits for it, since a size keeps the section's orientation.
  */
 import { Columns2, FileText, RectangleHorizontal, Ruler, type LucideIcon } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import type { PageSetup, PageSetupPatch } from '@/lib/cdoc/editor/model-values';
 import { COLUMN_CHOICES, MARGIN_CHOICES, ORIENTATION_CHOICES, SIZE_CHOICES, type PageSetupChoice } from './page-setup';
-import { RIBBON_CONTROL } from './RibbonButton';
-import { RibbonMenu } from './RibbonMenu';
+import { MenuOption, RibbonMenu } from './RibbonMenu';
 import { RibbonGroup } from './RibbonToolbar';
 import { useRibbon, type Ribbon } from './ribbon-context';
 
@@ -25,30 +25,32 @@ const MENUS: readonly SetupMenu[] = [
   { id: 'columns', label: 'Columns', icon: Columns2, choices: COLUMN_CHOICES },
 ];
 
-function SetupOption({ menu, choice, onChoose }: { menu: SetupMenu; choice: PageSetupChoice; onChoose: () => void }): JSX.Element {
-  const { disabledReason }: Ribbon = useRibbon();
+export const SECTION_UNKNOWN: string = 'The page’s setup shows once you click or type in the document.';
+
+function SetupMenuButton({ menu, section }: { menu: SetupMenu; section: PageSetup | null }): JSX.Element {
+  const { run }: Ribbon = useRibbon();
+  const blocked: boolean = menu.choices.some((c: PageSetupChoice): boolean => c.patch(section) === null);
   return (
-    <button type="button" data-roving-item="" data-testid={`ribbon-page-${menu.id}-${choice.id}`} aria-disabled={disabledReason !== null}
-      onClick={(): void => { if (disabledReason === null) onChoose(); }}
-      className={cn(RIBBON_CONTROL, 'h-auto min-h-[44px] w-full flex-col items-start justify-center px-3 py-1 text-left')}>
-      <span>{choice.label}</span>
-      <span className="text-[12px] text-muted-foreground">{choice.detail}</span>
-    </button>
+    <RibbonMenu testId={`ribbon-page-${menu.id}`} label={menu.label} icon={menu.icon} text={menu.label} widthPx={240} unavailable={blocked ? SECTION_UNKNOWN : null}>
+      {(close: () => void): JSX.Element[] => menu.choices.map((choice: PageSetupChoice): JSX.Element => (
+        <MenuOption key={choice.id} testId={`ribbon-page-${menu.id}-${choice.id}`} label={choice.label} detail={choice.detail}
+          pressed={section === null ? 'mixed' : choice.current(section)}
+          onChoose={(): void => {
+            const patch: PageSetupPatch | null = choice.patch(section);
+            close();
+            if (patch !== null) void run({ name: 'setSectionProperty', patch }, `set the ${menu.label.toLowerCase()} to ${choice.label}`);
+          }} />
+      ))}
+    </RibbonMenu>
   );
 }
 
 export function PageSetupGroup(): JSX.Element {
-  const { run }: Ribbon = useRibbon();
+  const { caret }: Ribbon = useRibbon();
+  const section: PageSetup | null = caret.known ? caret.section : null;
   return (
     <RibbonGroup label="Page Setup" testId="ribbon-page-setup" collapses={true} icon={FileText}>
-      {MENUS.map((menu: SetupMenu): JSX.Element => (
-        <RibbonMenu key={menu.id} testId={`ribbon-page-${menu.id}`} label={menu.label} icon={menu.icon} text={menu.label} widthPx={240}>
-          {(close: () => void): JSX.Element[] => menu.choices.map((choice: PageSetupChoice): JSX.Element => (
-            <SetupOption key={choice.id} menu={menu} choice={choice}
-              onChoose={(): void => { close(); void run({ name: 'setSectionProperty', patch: choice.patch }, `set the ${menu.label.toLowerCase()} to ${choice.label}`); }} />
-          ))}
-        </RibbonMenu>
-      ))}
+      {MENUS.map((menu: SetupMenu): JSX.Element => <SetupMenuButton key={menu.id} menu={menu} section={section} />)}
     </RibbonGroup>
   );
 }

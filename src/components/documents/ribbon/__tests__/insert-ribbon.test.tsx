@@ -87,12 +87,12 @@ describe('the Insert ribbon', () => {
     expect(screen.getByTestId('ribbon-link-address')).toHaveAttribute('aria-invalid', 'true');
   });
 
-  it('hands a picture’s bytes to the editor, then inserts its content id at its size, fitted to the column', async () => {
+  it('hands a picture’s bytes to the editor under the size cap, then has the editor fit its content id to the column', async () => {
     const { editor, user } = setUp('Ada');
     await openTab(user, 'insert');
     const png: File = new File([new Uint8Array([137, 80, 78, 71])], 'chart.png', { type: 'image/png' });
     await user.upload(screen.getByTestId('ribbon-picture-file'), png);
-    await waitFor((): void => expect(editor.sent).toEqual([{ name: 'insertImage', contentId: 'image-1', width: 45130, height: 33848 }]));
+    await waitFor((): void => expect(editor.sent).toEqual([{ name: 'insertImageFitted', contentId: 'image-1' }]));
     expect(editor.images.map((i: { maxBytes: number; bytes: Uint8Array }): [number, number[]] => [i.maxBytes, [...i.bytes]])).toEqual([[MAX_PICTURE_BYTES, [137, 80, 78, 71]]]);
   });
 
@@ -136,7 +136,7 @@ describe('the Insert ribbon', () => {
     expect(screen.getByTestId('ribbon-insert-picture')).toHaveAttribute('aria-disabled', 'true');
     act((): void => finish());
     await waitFor((): void => expect(screen.getByTestId('ribbon-insert-picture')).toHaveAttribute('aria-disabled', 'false'));
-    expect(editor.sent).toEqual([{ name: 'insertImage', contentId: 'image-1', width: 750, height: 750 }]);
+    expect(editor.sent).toEqual([{ name: 'insertImageFitted', contentId: 'image-1' }]);
   });
 
   it('signs a comment with the signed-in name, a fresh id and the time', async () => {
@@ -162,7 +162,7 @@ describe('the Insert ribbon', () => {
     expect(editor.sent).toEqual([]);
   });
 
-  it('inserts a footnote with a fresh id, each break kind, and a symbol', async () => {
+  it('inserts a footnote under an id the editor picks, each break kind, and a symbol', async () => {
     const { editor, user } = setUp('Ada');
     await openTab(user, 'insert');
     await user.click(screen.getByTestId('ribbon-insert-footnote'));
@@ -170,7 +170,7 @@ describe('the Insert ribbon', () => {
     await user.click(screen.getByTestId('ribbon-insert-symbol'));
     await user.click(await screen.findByTestId('ribbon-symbol-a9'));
     await waitFor((): void => expect(editor.sent).toEqual([
-      { name: 'insertFootnote', id: 7 },
+      { name: 'insertNewFootnote' },
       { name: 'insertBreak', kind: 'page' },
       { name: 'insertBreak', kind: 'column' },
       { name: 'insertBreak', kind: 'line' },

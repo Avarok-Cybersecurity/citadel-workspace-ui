@@ -59,7 +59,7 @@ describe('the ribbon over the real editor', () => {
     expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent(/^$/);
   }, 30_000);
 
-  it('takes a page setup: landscape, then Narrow margins, with nothing refused', async () => {
+  it('takes a page setup, and the section the engine reports back shows it: landscape, Narrow margins', async () => {
     render(<DocumentHost {...BLANK} />);
     const user: UserEvent = userEvent.setup();
     await user.click(await screen.findByTestId('docs-ribbon-tab-layout', {}, { timeout: 10_000 }));
@@ -67,9 +67,49 @@ describe('the ribbon over the real editor', () => {
     await user.click(await screen.findByTestId('ribbon-page-orientation-landscape'));
     await user.click(screen.getByTestId('ribbon-page-margins-open'));
     await user.click(await screen.findByTestId('ribbon-page-margins-narrow'));
-    // Focus goes back to the document once the command has settled, accepted or refused.
     await waitFor((): void => expect(screen.getByTestId('editor-input')).toHaveFocus(), { timeout: 10_000 });
-    await act(async (): Promise<void> => { await Promise.resolve(); });
+    await user.click(screen.getByTestId('ribbon-page-margins-open'));
+    await waitFor((): void => expect(screen.getByTestId('ribbon-page-margins-narrow')).toHaveAttribute('aria-pressed', 'true'), { timeout: 10_000 });
+    await user.keyboard('{Escape}');
+    await user.click(screen.getByTestId('ribbon-page-orientation-open'));
+    expect(await screen.findByTestId('ribbon-page-orientation-landscape')).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent(/^$/);
+  }, 30_000);
+
+  it('offers the engine’s own styles, and takes a bulleted list and a footnote', async () => {
+    render(<DocumentHost {...BLANK} />);
+    const user: UserEvent = userEvent.setup();
+    await user.click(await screen.findByTestId('ribbon-styles-open', {}, { timeout: 10_000 }));
+    expect(await screen.findByTestId('ribbon-style-Heading1', {}, { timeout: 10_000 })).toHaveTextContent('Heading 1');
+    await user.keyboard('{Escape}');
+    await user.click(screen.getByTestId('ribbon-bullets'));
+    await user.click(screen.getByTestId('docs-ribbon-tab-insert'));
+    await user.click(screen.getByTestId('ribbon-insert-footnote'));
+    await waitFor((): void => expect(screen.getByTestId('editor-input')).toHaveFocus(), { timeout: 10_000 });
+    await act(async (): Promise<void> => { await new Promise((r: (v: unknown) => void): void => { setTimeout(r, 200); }); });
+    expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent(/^$/);
+  }, 30_000);
+
+  it('pastes the clipboard’s text into the document and copies it back out', async () => {
+    render(<DocumentHost {...BLANK} />);
+    const user: UserEvent = userEvent.setup();
+    // The system clipboard is the browser's: jsdom has none and user-event installs a stub at
+    // setup, so the page is given this one after it.
+    let clipboard: string = 'Hello from the clipboard';
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { readText: (): Promise<string> => Promise.resolve(clipboard), writeText: (t: string): Promise<void> => { clipboard = t; return Promise.resolve(); } },
+    });
+    try {
+      await user.click(await screen.findByTestId('ribbon-paste', {}, { timeout: 10_000 }));
+      await waitFor((): void => expect(screen.getByTestId('editor-input')).toHaveFocus(), { timeout: 10_000 });
+      clipboard = '';
+      await user.keyboard('{Control>}a{/Control}');
+      await waitFor((): void => expect(screen.getByTestId('ribbon-copy')).toHaveAttribute('aria-disabled', 'false'), { timeout: 10_000 });
+      await user.click(screen.getByTestId('ribbon-copy'));
+      await waitFor((): void => expect(clipboard).toBe('Hello from the clipboard'), { timeout: 10_000 });
+    } finally {
+      Reflect.deleteProperty(navigator, 'clipboard');
+    }
   }, 30_000);
 });

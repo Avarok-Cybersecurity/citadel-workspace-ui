@@ -1,19 +1,20 @@
 /**
  * Insert › Pictures: a file picker for a PNG or JPEG, whose bytes go to the editor (addImage,
- * which reads the type from the signature and the pixel size), and whose content id
- * InsertImage then places at the caret, sized by picture.ts.
+ * which reads the type from the signature), and whose content id InsertImageFitted then places
+ * at the caret, at its own size scaled down to the column.
  */
 import { useRef, useState, type ChangeEvent, type RefObject } from 'react';
 import { Image } from 'lucide-react';
 import type { AddedImage } from '@/lib/cdoc/editor/controller';
-import { MAX_PICTURE_BYTES, PICTURE_TYPES, pictureSize } from './picture';
+import type { RibbonEditor } from './editor-context';
+import { MAX_PICTURE_BYTES, PICTURE_TYPES } from './picture';
 import { RibbonButton } from './RibbonButton';
 import { useRibbon, type Ribbon } from './ribbon-context';
 
-async function added(file: File, ribbon: Ribbon): Promise<AddedImage> {
+async function added(file: File, editor: RibbonEditor, ribbon: Ribbon): Promise<AddedImage> {
   const bytes: Uint8Array = await ribbon.environment.readBytes(file);
   try {
-    return await ribbon.addImage(bytes, MAX_PICTURE_BYTES);
+    return await editor.addImage(bytes, MAX_PICTURE_BYTES);
   } catch (error: unknown) {
     // The engine's decode message is not addressed to anyone; the cause is the file.
     console.warn('[PictureControl] the editor did not take', file.name, error);
@@ -21,12 +22,11 @@ async function added(file: File, ribbon: Ribbon): Promise<AddedImage> {
   }
 }
 
-async function insertPicture(file: File, ribbon: Ribbon): Promise<void> {
+async function insertPicture(file: File, editor: RibbonEditor, ribbon: Ribbon): Promise<void> {
   if (!PICTURE_TYPES.includes(file.type)) throw new Error(`${file.name} is not a PNG or JPEG picture.`);
   if (file.size > MAX_PICTURE_BYTES) throw new Error(`${file.name} is larger than ${MAX_PICTURE_BYTES / 1_048_576} MB.`);
-  const image: AddedImage = await added(file, ribbon);
-  const size: { width: number; height: number } = pictureSize(image);
-  await ribbon.run({ name: 'insertImage', contentId: image.contentId, width: size.width, height: size.height }, 'insert the picture');
+  const image: AddedImage = await added(file, editor, ribbon);
+  await editor.execute({ name: 'insertImageFitted', contentId: image.contentId });
 }
 
 export function PictureControl(): JSX.Element {
@@ -43,7 +43,7 @@ export function PictureControl(): JSX.Element {
           e.target.value = '';
           if (file === undefined) return;
           setInserting(true);
-          void ribbon.attempt('insert the picture', (): Promise<void> => insertPicture(file, ribbon)).finally((): void => setInserting(false));
+          void ribbon.attempt('insert the picture', (editor: RibbonEditor): Promise<void> => insertPicture(file, editor, ribbon)).finally((): void => setInserting(false));
         }} />
     </>
   );

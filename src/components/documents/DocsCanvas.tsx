@@ -91,10 +91,10 @@ export default function DocsCanvas({ documentSource, loadRuntime, keepReplica, s
     platform: platformOf(navigator.userAgent),
     undoPauseMs: UNDO_PAUSE_MS,
     onError: (error: unknown): void => setEditError(error instanceof Error ? error.message : String(error)),
-    writeClipboard: (text: string): Promise<void> => navigator.clipboard.writeText(text),
+    writeClipboard: ribbonEnvironment.writeClipboard,
     caretBlink: { phaseMs: CARET_BLINK_MS, repeat: browserRepeat, reducedMotion: steadyCaret },
     frame: browserFrame,
-  }), [overlayContext, steadyCaret]);
+  }), [overlayContext, steadyCaret, ribbonEnvironment]);
 
   /**
    * The live controller, one value, null while the editor opens (or for a read-only view): what

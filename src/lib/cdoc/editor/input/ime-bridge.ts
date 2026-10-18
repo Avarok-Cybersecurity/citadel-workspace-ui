@@ -13,6 +13,7 @@
  */
 import type { EditorCommand, EditorController, SelectionText } from '../controller';
 import { commandForKey, type Platform } from './keymap';
+import { pastedTextCommands } from './pasted-text';
 
 export interface ImeBridgeOptions {
   readonly platform: Platform;
@@ -50,12 +51,13 @@ export function attachImeBridge(sink: TextSink, editor: EditorController, option
     pause = setTimeout(breakGroup, options.pauseMs);
   };
 
-  /** Pasted or dropped text: its own undo step, line endings as the document's. */
+  /** Pasted or dropped text (pasted-text.ts): the pending typing pause ends with it. */
   const insertBlock = (text: string): void => {
-    if (text === '') return;
-    breakGroup();
-    run({ name: 'insertText', text: text.replace(/\r\n?/g, '\n') });
-    breakGroup();
+    const commands: readonly EditorCommand[] = pastedTextCommands(text);
+    if (commands.length === 0) return;
+    if (pause !== null) clearTimeout(pause);
+    pause = null;
+    commands.forEach(run);
   };
 
   const onPaste = (event: Event): void => {

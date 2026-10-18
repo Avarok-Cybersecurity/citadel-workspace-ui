@@ -11,9 +11,32 @@ import { EditorControllerContext } from '../editor-context';
 import type { RibbonEnvironment } from '../ribbon-environment';
 import type { FakeEditor } from './fake-editor';
 
+/** The system clipboard as a test sees it: what was written, what a read answers, and a refusal on demand. */
+export class TestClipboard {
+  text: string = '';
+  readonly writes: string[] = [];
+  refusal: DOMException | null = null;
+
+  write(text: string): Promise<void> {
+    if (this.refusal !== null) return Promise.reject(this.refusal);
+    this.writes.push(text);
+    this.text = text;
+    return Promise.resolve();
+  }
+
+  read(): Promise<string> {
+    return this.refusal === null ? Promise.resolve(this.text) : Promise.reject(this.refusal);
+  }
+}
+
+export function fixedEnvironment(clipboard: TestClipboard): RibbonEnvironment {
+  return { ...FIXED_ENVIRONMENT, writeClipboard: (t: string): Promise<void> => clipboard.write(t), readClipboard: (): Promise<string> => clipboard.read() };
+}
+
+const UNUSED_CLIPBOARD: TestClipboard = new TestClipboard();
+
 export const FIXED_ENVIRONMENT: RibbonEnvironment = {
   newCommentId: (): string => 'comment-1',
-  newFootnoteId: (): number => 7,
   now: (): string => '2026-10-17T12:00:00.000Z',
   // jsdom has no Blob.arrayBuffer; FileReader reads the same bytes.
   readBytes: (file: Blob): Promise<Uint8Array> => new Promise((resolve: (bytes: Uint8Array) => void, reject: (error: unknown) => void): void => {
@@ -22,6 +45,8 @@ export const FIXED_ENVIRONMENT: RibbonEnvironment = {
     reader.onerror = (): void => reject(reader.error);
     reader.readAsArrayBuffer(file);
   }),
+  writeClipboard: (t: string): Promise<void> => UNUSED_CLIPBOARD.write(t),
+  readClipboard: (): Promise<string> => UNUSED_CLIPBOARD.read(),
   modifier: 'Ctrl',
 };
 

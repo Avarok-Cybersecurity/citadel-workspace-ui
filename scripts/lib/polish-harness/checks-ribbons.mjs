@@ -31,7 +31,8 @@ const eachTabPassesAxe = (scenario) => async ({ page, url }) => {
     await showTab(page, tab);
     const found = await axeViolations(page, '[data-testid="docs-ribbon"]');
     assert.equal(found.length, 0, `${tab}: ${found.slice(0, 5).join(' | ')}`);
-    const groups = page.locator(`[data-testid="ribbon-${tab}-toolbar"] [data-testid$="-open"]`);
+    // A refused opener (Size before the section is known) opens nothing, by design.
+    const groups = page.locator(`[data-testid="ribbon-${tab}-toolbar"] [data-testid$="-open"]:not([aria-disabled="true"])`);
     for (let i = 0; i < await groups.count(); i += 1) {
       const opener = await groups.nth(i).getAttribute('data-testid');
       await groups.nth(i).click();

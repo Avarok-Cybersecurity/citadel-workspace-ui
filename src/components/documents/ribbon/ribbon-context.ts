@@ -3,9 +3,9 @@
  * formatting, the environment, and whether groups are collapsed for a phone. One runner sends
  * every command, so a rejection is always shown and focus always returns to the document.
  */
-import { createContext, useContext, useMemo, useState, type Context } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type Context, type MutableRefObject } from 'react';
 import { toast } from 'sonner';
-import type { AddedImage, CaretFormatting, EditorCommand, EditorState } from '@/lib/cdoc/editor/controller';
+import type { CaretFormatting, EditorCommand, EditorState, SelectionText } from '@/lib/cdoc/editor/controller';
 import type { ActionGate } from '@/hooks/use-permission-result';
 import { describeError } from '@/lib/describe-error';
 import type { RibbonEditor } from './editor-context';
@@ -17,15 +17,15 @@ export interface Ribbon {
   /** Why no command can run now, or null when they can. */
   readonly disabledReason: string | null;
   readonly caret: CaretFormatting;
+  /** The selection's text as the last result carried it; null with no editor. */
+  readonly selection: SelectionText | null;
   readonly environment: RibbonEnvironment;
   /** Groups collapse into one button each (phone width). */
   readonly compact: boolean;
   /** Sends `command`; `what` completes "Could not …" if the editor refuses it. */
   run(command: EditorCommand, what: string): Promise<void>;
-  /** Runs `work` the way `run` runs a command: a failure is shown, and focus returns after. */
-  attempt(what: string, work: () => Promise<unknown>): Promise<void>;
-  /** Hands a picture file of at most `maxBytes` to the editor, which reads its type and pixel size. */
-  addImage(bytes: Uint8Array, maxBytes: number): Promise<AddedImage>;
+  /** Runs `work` on the open editor the way `run` runs a command: a failure is shown, and focus returns after. */
+  attempt(what: string, work: (editor: RibbonEditor) => Promise<unknown>): Promise<void>;
   /** Hands keyboard focus back to the document, e.g. after a dialog closes with nothing done. */
   returnFocus(): void;
 }
@@ -52,7 +52,14 @@ const REFUSAL_TOAST_MS: number = 8000;
 
 export function useRibbonValue(editor: RibbonEditor | null, state: EditorState | null, edit: ActionGate, environment: RibbonEnvironment, compact: boolean): Ribbon {
   const [failure, setFailure] = useState<string | null>(null);
+  // A menu closing or a command settling after the document has gone has no document to focus.
+  const mounted: MutableRefObject<boolean> = useRef<boolean>(true);
+  useEffect((): (() => void) => {
+    mounted.current = true;
+    return (): void => { mounted.current = false; };
+  }, []);
   return useMemo((): Ribbon => {
+    const returnFocus = (): void => { if (mounted.current) editor?.focus(); };
     const disabledReason: string | null = reasonFor(editor, state, edit);
     const attempt: (what: string, work: (live: RibbonEditor) => Promise<unknown>) => Promise<void> = async (what: string, work: (live: RibbonEditor) => Promise<unknown>): Promise<void> => {
       if (editor === null || disabledReason !== null) return;
@@ -65,22 +72,19 @@ export function useRibbonValue(editor: RibbonEditor | null, state: EditorState |
         toast.error(message, { duration: REFUSAL_TOAST_MS });
         setFailure(message);
       } finally {
-        editor.focus();
+        returnFocus();
       }
     };
     return {
       failure,
       disabledReason,
       caret: state?.caretFormatting ?? UNKNOWN,
+      selection: state?.selectionText ?? null,
       environment,
       compact,
       run: (command: EditorCommand, what: string): Promise<void> => attempt(what, (live: RibbonEditor): Promise<EditorState> => live.execute(command)),
-      attempt: (what: string, work: () => Promise<unknown>): Promise<void> => attempt(what, work),
-      addImage: (bytes: Uint8Array, maxBytes: number): Promise<AddedImage> => {
-        if (editor === null) return Promise.reject(new Error('the editor has not opened'));
-        return editor.addImage(bytes, maxBytes);
-      },
-      returnFocus: (): void => editor?.focus(),
+      attempt,
+      returnFocus,
     };
   }, [editor, state, edit, environment, compact, failure]);
 }

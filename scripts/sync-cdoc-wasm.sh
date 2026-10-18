@@ -132,9 +132,6 @@ fs.writeFileSync(manifestOut, [
 ].join('\n'));
 NODE
 
-# The styles gallery reads the blank document's style sheet from the pair just vendored.
-node "$UI/scripts/gen-cdoc-builtin-styles.mjs"
-
 node - "$GLUE_OUT/PROVENANCE.json" "$COMMIT" "$CLI_BINDGEN" "$WASM_OPT_VERSION" "$WASM_OUT" "$GLUE_OUT" $ARTEFACTS <<'NODE'
 const fs = require('node:fs');
 const path = require('node:path');

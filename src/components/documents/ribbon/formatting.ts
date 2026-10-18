@@ -40,14 +40,6 @@ export function shrunkSize(halfPoints: number): number | null {
   return smaller.length === 0 ? null : smaller[smaller.length - 1];
 }
 
-/**
- * Clear Formatting as far as a patch can reach: every on/off property set off. A patch keeps
- * an absent field, so font, size, colour and highlight cannot be returned to "inherited" yet.
- */
-export const CLEAR_RUN_PATCH: RunPropertiesPatch = {
-  bold: false, italic: false, underline: { style: 'none' }, strike: false, verticalAlign: 'baseline', smallCaps: false, allCaps: false,
-};
-
 /** The families a document may ask for and be served: every face's family and every alias. */
 export function fontFamilies(manifest: FontManifest): readonly string[] {
   const names: Set<string> = new Set<string>([...Object.keys(manifest.aliases), ...manifest.faces.map((f: FontFaceEntry): string => f.family)]);
