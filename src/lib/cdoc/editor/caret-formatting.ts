@@ -9,10 +9,12 @@ import type { PageSetup, ParagraphProperties, RunPatch, RunPropertiesPatch } fro
 /** Bit order of the run_mixed set: bit i is RUN_KEYS[i]. */
 export const RUN_KEYS = [
   'style', 'font', 'size', 'bold', 'italic', 'underline', 'strike', 'verticalAlign', 'color', 'highlight', 'smallCaps', 'allCaps',
+  'kern', 'ligatures', 'lang',
 ] as const;
 /** Bit order of the paragraph_mixed set: bit i is PARAGRAPH_KEYS[i]. */
 export const PARAGRAPH_KEYS = [
   'style', 'alignment', 'spacing', 'indent', 'borders', 'shading', 'keepWithNext', 'keepLines', 'pageBreakBefore', 'numbering', 'outlineLevel',
+  'suppressAutoHyphens',
 ] as const;
 
 export type RunKey = (typeof RUN_KEYS)[number];

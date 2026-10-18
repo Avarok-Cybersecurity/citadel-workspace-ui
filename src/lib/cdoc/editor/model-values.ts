@@ -28,7 +28,19 @@ export interface RunPropertiesPatch {
   readonly highlight?: HexColor;
   readonly smallCaps?: boolean;
   readonly allCaps?: boolean;
+  /** Kerning from this size up, in half-points; 0 switches it off. */
+  readonly kern?: number;
+  readonly ligatures?: Ligatures;
+  /** BCP 47 (`de-DE`): the language the text is hyphenated in. */
+  readonly lang?: string;
 }
+
+/** Word's `w14:ligatures` sets, as cdoc-model spells them. */
+export type Ligatures =
+  | 'none' | 'standard' | 'contextual' | 'historical' | 'discretional' | 'standardContextual' | 'standardHistorical'
+  | 'contextualHistorical' | 'standardDiscretional' | 'contextualDiscretional' | 'historicalDiscretional'
+  | 'standardContextualHistorical' | 'standardContextualDiscretional' | 'standardHistoricalDiscretional'
+  | 'contextualHistoricalDiscretional' | 'all';
 
 export type Alignment = 'left' | 'center' | 'right' | 'justify';
 
@@ -57,6 +69,7 @@ export interface ParagraphProperties {
   readonly pageBreakBefore?: boolean;
   readonly numbering?: { readonly numId: number; readonly level: number };
   readonly outlineLevel?: number;
+  readonly suppressAutoHyphens?: boolean;
 }
 
 /** A field of a patch: absent keeps the current value, a value sets it, null clears it. */
@@ -83,6 +96,7 @@ export interface ParagraphPatch {
   readonly pageBreakBefore?: Patched<boolean>;
   readonly numbering?: Patched<{ readonly numId: number; readonly level: number }>;
   readonly outlineLevel?: Patched<number>;
+  readonly suppressAutoHyphens?: Patched<boolean>;
 }
 
 export type Orientation = 'portrait' | 'landscape';
