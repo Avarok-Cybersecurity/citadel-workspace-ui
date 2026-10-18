@@ -5,10 +5,10 @@
 import type { CdocClient } from './cdoc-client';
 import { WorkerCdocClient } from './clients';
 
-/** The worker's name in devtools and task managers. */
-const WORKER_NAME: string = 'citadel-docs';
-
 export function spawnCdocWorkerClient(): CdocClient {
-  const worker: Worker = new Worker(new URL('./cdoc.worker.ts', import.meta.url), { type: 'module', name: WORKER_NAME });
+  // The options must be a static literal: Vite parses them at build time to bundle the worker
+  // (a constant there fails the build). No `name`: it is cosmetic, and a `name: '…'` literal
+  // reads to check-event-listeners-have-emitters as an emitted event.
+  const worker: Worker = new Worker(new URL('./cdoc.worker.ts', import.meta.url), { type: 'module' });
   return new WorkerCdocClient(worker, (): void => worker.terminate());
 }
