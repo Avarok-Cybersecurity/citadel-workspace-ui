@@ -31,6 +31,6 @@ export function serveEditor(editor: EditorEngine, req: EditorSessionRequest): Ed
     case 'encodeDiffChunked': return { updates: editor.encodeDiffChunked(req.sv, req.maxBytes) };
     case 'gc': return { record: editor.collectGarbage(req.known) };
     case 'addImage': return { record: editor.addImage(req.bytes, req.maxBytes) };
-    case 'exportAs': return { bytes: editor.exportAs(req.format) };
+    case 'exportAs': return { file: editor.exportAs(req.target) };
   }
 }

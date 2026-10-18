@@ -10,7 +10,7 @@
  */
 import type { CommentValue, PageSetupPatch, ParagraphPatch, Pt100, RunPropertiesPatch } from './model-values';
 import type { CaretFormatting } from './caret-formatting';
-import type { ExportFormat, ImportFormat, ImportReport } from './file-formats';
+import type { ExportedFile, ExportTarget, ImportFormat, ImportReport } from './file-formats';
 import type { PeerOverlay } from './peer-overlay';
 
 /**
@@ -240,7 +240,7 @@ export interface EditorController {
    */
   addImage(bytes: Uint8Array, maxBytes: number): Promise<AddedImage>;
   /** The live document as a file. */
-  exportAs(format: ExportFormat): Promise<Uint8Array>;
+  exportAs(target: ExportTarget): Promise<ExportedFile>;
   /** What the import lost, for a replica opened from file bytes; null otherwise. */
   readonly importReport: ImportReport | null;
   /** Returns keyboard focus to the editor, e.g. after a ribbon button took it. */

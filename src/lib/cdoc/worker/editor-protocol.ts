@@ -5,7 +5,7 @@
  * decodes every result. Part of CdocRequestBody and CdocResults (protocol.ts).
  */
 import type { EditorOrigin } from '../editor/controller';
-import type { ExportFormat } from '../editor/file-formats';
+import type { ExportedFile, ExportTarget } from '../editor/file-formats';
 
 export type EditorRequestBody =
   /** Opens the editor as replica `client` from a blank document, a CRDT snapshot or file bytes. */
@@ -28,7 +28,7 @@ export type EditorRequestBody =
   | { readonly kind: 'gc'; readonly known: Uint8Array }
   /** Holds an image file of at most `maxBytes` bytes. */
   | { readonly kind: 'addImage'; readonly bytes: Uint8Array; readonly maxBytes: number }
-  | { readonly kind: 'exportAs'; readonly format: ExportFormat }
+  | { readonly kind: 'exportAs'; readonly target: ExportTarget }
   /** Drops the worker painter's copy of `pages` (an edit changed them) before they repaint. */
   | { readonly kind: 'invalidatePages'; readonly pages: readonly number[] };
 
@@ -59,7 +59,7 @@ export interface EditorResults {
   gc: { readonly record: Uint8Array };
   /** A "CDI" added-image record. */
   addImage: { readonly record: Uint8Array };
-  exportAs: { readonly bytes: Uint8Array };
+  exportAs: { readonly file: ExportedFile };
 }
 
 export type EditorKind = EditorRequestBody['kind'];

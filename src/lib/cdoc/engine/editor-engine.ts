@@ -6,7 +6,7 @@
  */
 import type { CdocWasm, EditorHandle, EditorSealedFonts } from './cdoc-wasm-api';
 import type { EditorOrigin } from '../editor/controller';
-import type { ExportFormat } from '../editor/file-formats';
+import type { ExportedFile, ExportTarget } from '../editor/file-formats';
 
 export type { EditorOrigin } from '../editor/controller';
 
@@ -121,12 +121,10 @@ export class EditorEngine {
    * The live document as a file. cdoc-edit-io adds the engine call; until it is vendored this
    * fails by name rather than exporting something else.
    */
-  exportAs(format: ExportFormat): Uint8Array {
-    const exportFn: unknown = (this.handle as unknown as { readonly exportAs?: unknown }).exportAs;
-    if (typeof exportFn !== 'function') throw new Error(`this cdoc-wasm build cannot export ${format} (EditorHandle.exportAs is missing)`);
-    const bytes: unknown = (exportFn as (format: string) => unknown).call(this.handle, format);
-    if (!(bytes instanceof Uint8Array)) throw new Error('EditorHandle.exportAs returned no bytes');
-    return bytes;
+  exportAs(target: ExportTarget): ExportedFile {
+    const exportFn: unknown = (this.handle as unknown as { readonly export?: unknown }).export;
+    if (typeof exportFn !== 'function') throw new Error(`this cdoc-wasm build cannot export ${target.format} (EditorHandle.export is missing)`);
+    throw new Error(`exporting ${target.format} through EditorHandle.export is not wired yet`);
   }
 
   dispose(): void {

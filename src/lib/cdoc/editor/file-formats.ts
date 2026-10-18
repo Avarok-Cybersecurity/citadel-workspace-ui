@@ -8,17 +8,35 @@
 export type ImportFormat = 'docx' | 'odt' | 'md' | 'txt';
 export type ExportFormat = 'docx' | 'dotx' | 'odt' | 'md' | 'txt' | 'pdf';
 
-/** One loss, as the model's report spells it: a counted loss, or refused macros. */
-export type Loss =
-  | { readonly part: string; readonly what: string; readonly count: number }
-  | { readonly part: string; readonly bytes: bigint };
+/**
+ * One loss, as the model's report spells it (cdoc_model::Loss, untagged on the wire, tagged
+ * here): a counted loss, or refused macros.
+ */
+export type ConversionLoss =
+  | { readonly kind: 'counted'; readonly part: string; readonly what: string; readonly count: number }
+  | { readonly kind: 'macros'; readonly part: string; readonly bytes: bigint };
+
+/** What a conversion could not carry; every importer and exporter returns one. */
+export interface ConversionReport {
+  readonly losses: readonly ConversionLoss[];
+  /** The model's validation problems with an imported document. */
+  readonly problems: readonly string[];
+}
+
+/** PDF records when it was written, so its target carries the time; no other format does. */
+export type ExportTarget =
+  | { readonly format: 'pdf'; readonly nowRfc3339: string }
+  | { readonly format: Exclude<ExportFormat, 'pdf'> };
+
+export interface ExportedFile {
+  /** A buffer of its own, transferable. */
+  readonly bytes: Uint8Array;
+  readonly report: ConversionReport;
+}
 
 /** What an import could not carry, and whether the file was a document or a template. */
-export interface ImportReport {
+export interface ImportReport extends ConversionReport {
   readonly format: ImportFormat;
   /** DOCX and ODT only: a template (.dotx, .ott) opens as a new document from it. */
   readonly kind: 'document' | 'template' | null;
-  readonly losses: readonly Loss[];
-  /** The model's validation problems, if any survived the import. */
-  readonly problems: readonly string[];
 }

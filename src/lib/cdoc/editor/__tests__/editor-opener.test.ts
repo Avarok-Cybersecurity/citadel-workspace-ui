@@ -69,14 +69,15 @@ describe('the editor opener', () => {
     await expect(editor.addImage(Uint8Array.from([0x47, 0x49, 0x46, 0x38, 0x39, 0x61]), 1024)).rejects.toThrow(/unsupported image type: GIF/);
   });
 
-  // cdoc-edit-io (EditorHandle.fromDocument / exportAs) is not vendored yet: both refuse by
+  // cdoc-edit-io (EditorHandle.fromDocument / export) is not vendored yet: both refuse by
   // name, and these turn red when it is, to become the import and export tests.
   it('refuses to open file bytes, and to export, saying which call is missing', async () => {
     const runtime: TestRuntime = inProcessRuntime('worker');
     const open: (from: EditorOrigin) => Promise<EditorSession> = createEditorOpener({ client: runtime.client, renderer: runtime.renderer }, counting());
     await expect(open({ kind: 'bytes', bytes: Uint8Array.from([1, 2, 3]), format: 'docx' })).rejects.toThrow(/cannot open docx files \(EditorHandle\.fromDocument is missing\)/);
     const editor: EditorSession = await open({ kind: 'blank' });
-    await expect(editor.exportAs('pdf')).rejects.toThrow(/cannot export pdf \(EditorHandle\.exportAs is missing\)/);
+    await expect(editor.exportAs({ format: 'pdf', nowRfc3339: '2026-10-18T00:00:00Z' })).rejects.toThrow(/cannot export pdf \(EditorHandle\.export is missing\)/);
+    await expect(editor.exportAs({ format: 'docx' })).rejects.toThrow(/cannot export docx \(EditorHandle\.export is missing\)/);
     expect(editor.importReport).toBeNull();
   });
 

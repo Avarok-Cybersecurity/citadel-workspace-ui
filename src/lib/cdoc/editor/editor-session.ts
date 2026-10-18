@@ -23,7 +23,7 @@ import { Emitter } from './emitter';
 import { encodeCommand } from './wire/encode-command';
 import { decodeAddedImage, decodeAwareness, decodeCollected, decodePeerView, decodePosition, decodeResult, type Awareness, type EditorResult } from './wire/decode-records';
 import { RecordWriter } from './wire/record-writer';
-import type { ExportFormat, ImportReport } from './file-formats';
+import type { ExportedFile, ExportTarget, ImportReport } from './file-formats';
 import type { EditorResults } from '../worker/editor-protocol';
 import { PeerSet } from './peer-set';
 
@@ -157,8 +157,8 @@ export class EditorSession implements EditorController, EditorView {
     return this.serial(async () => decodeCollected((await this.deps.client.request({ kind: 'gc', known: w.finish() })).record));
   }
 
-  exportAs(format: ExportFormat): Promise<Uint8Array> {
-    return this.serial(async (): Promise<Uint8Array> => (await this.deps.client.request({ kind: 'exportAs', format })).bytes);
+  exportAs(target: ExportTarget): Promise<ExportedFile> {
+    return this.serial(async (): Promise<ExportedFile> => (await this.deps.client.request({ kind: 'exportAs', target })).file);
   }
 
   addImage(bytes: Uint8Array, maxBytes: number): Promise<AddedImage> {
