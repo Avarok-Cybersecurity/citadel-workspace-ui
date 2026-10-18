@@ -6,6 +6,7 @@
  */
 import { forwardRef, useState, type ComponentPropsWithoutRef, type ForwardedRef, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
+import { isEnterCommit } from '@/lib/keyboard-commit';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { PressedState } from './formatting';
@@ -33,7 +34,7 @@ export function RibbonTip({ label, shortcut, reason, suppressed, children }: { l
     // `suppressed`: something more important (a field's error) is showing where the tip would.
     <Tooltip open={open && suppressed !== true} onOpenChange={setOpen}>
       {/* Activating the control closes its tip, so the dialog it opens gets the next Escape. */}
-      <TooltipTrigger asChild onKeyDown={(e: KeyboardEvent<HTMLElement>): void => { if (e.key === 'Enter' || e.key === ' ') setOpen(false); }}>{children}</TooltipTrigger>
+      <TooltipTrigger asChild onKeyDown={(e: KeyboardEvent<HTMLElement>): void => { if (isEnterCommit(e) || e.key === ' ') setOpen(false); }}>{children}</TooltipTrigger>
       <TooltipContent side="bottom">{text}</TooltipContent>
     </Tooltip>
   );
