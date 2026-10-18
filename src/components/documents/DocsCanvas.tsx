@@ -21,6 +21,10 @@ import type { Ctx2D } from '@/lib/cdoc/paint/canvas-port';
 import { DocsStatusBar } from './page-view/DocsStatusBar';
 import { useDevicePixelRatio } from './page-view/use-device-pixel-ratio';
 import { INITIAL_ZOOM } from './page-view/zoom';
+import type { ActionGate } from '@/hooks/use-permission-result';
+import { DocsRibbon } from './ribbon/DocsRibbon';
+import { EditorControllerContext } from './ribbon/editor-context';
+import { browserRibbonEnvironment, type RibbonEnvironment } from './ribbon/ribbon-environment';
 
 /**
  * Opens and keeps the page's replica: calls `open` (this runtime's EditorOpener) as often as it
@@ -41,6 +45,9 @@ export interface DocsCanvasProps {
   readonly keepReplica: ReplicaKeeper;
   /** The host's status bar; null until it has mounted. */
   readonly statusBar: HTMLElement | null;
+  /** Whether the person may change the document; the ribbon says why not when they may not. */
+  readonly edit: ActionGate;
+  readonly commentAuthor: string | null;
 }
 
 type Runtime =
@@ -50,11 +57,12 @@ type Runtime =
 
 const failure = (error: unknown): Runtime => ({ kind: 'failed', message: error instanceof Error ? error.message : String(error) });
 
-export default function DocsCanvas({ documentSource, loadRuntime, keepReplica, statusBar }: DocsCanvasProps): JSX.Element {
+export default function DocsCanvas({ documentSource, loadRuntime, keepReplica, statusBar, edit, commentAuthor }: DocsCanvasProps): JSX.Element {
   const [state, setState] = useState<Runtime>({ kind: 'loading' });
   const [zoom, setZoom] = useState<number>(INITIAL_ZOOM);
   const [status, setStatus] = useState<PageStatus | null>(null);
   const dpr: number = useDevicePixelRatio();
+  const ribbonEnvironment: RibbonEnvironment = useMemo(browserRibbonEnvironment, []);
   const onPageStatus: (next: PageStatus) => void = useCallback((next: PageStatus): void => setStatus(next), []);
   const [editError, setEditError] = useState<string | null>(null);
   const overlayContext: ((canvas: HTMLCanvasElement) => Ctx2D) | null = state.kind === 'ready' ? state.runtime.overlayContext : null;
@@ -107,6 +115,10 @@ export default function DocsCanvas({ documentSource, loadRuntime, keepReplica, s
 
   return (
     <>
+      {/* The ribbon drives the open editor; with none (loading, or a read-only conversion) there is no ribbon. */}
+      <EditorControllerContext.Provider value={controller}>
+        <DocsRibbon edit={edit} commentAuthor={commentAuthor} environment={ribbonEnvironment} />
+      </EditorControllerContext.Provider>
       {state.kind === 'ready' && state.editor !== null && input !== null && (
         <EditorPageView editor={state.editor} renderer={state.runtime.renderer} zoom={zoom} dpr={dpr} onZoomChange={setZoom} onPageStatus={onPageStatus} input={input} />
       )}

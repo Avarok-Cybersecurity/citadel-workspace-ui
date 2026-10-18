@@ -3,6 +3,7 @@
  * its props. Kept apart from DocumentHost so the host stays a pure contract for the editor.
  */
 import { usePermission } from '@/hooks/use-permission';
+import { useSelfName, type SelfName } from '@/hooks/use-self-name';
 import { Permission } from '@/contexts/PermissionsContext';
 import { gateOnKnownAnswer } from '@/hooks/use-permission-result';
 import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
@@ -21,6 +22,7 @@ interface DocumentViewProps {
 
 export function DocumentView({ node, app }: DocumentViewProps): JSX.Element {
   const edit: ReturnType<typeof usePermission> = usePermission(node.id, Permission.EditContent);
+  const self: SelfName = useSelfName();
   if (app.kind === 'unreadable') return <UnreadableDocument title={node.name} reason={app.reason} />;
   return (
     <DocumentHost
@@ -30,6 +32,7 @@ export function DocumentView({ node, app }: DocumentViewProps): JSX.Element {
       permissions={{ edit: gateOnKnownAnswer(edit) }}
       documentSource={BLANK_DOCUMENT}
       loadCdocRuntime={loadCdocRuntime}
+      commentAuthor={self.name ?? self.username ?? null}
     />
   );
 }

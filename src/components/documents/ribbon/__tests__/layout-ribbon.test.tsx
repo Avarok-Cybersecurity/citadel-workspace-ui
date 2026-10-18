@@ -1,0 +1,105 @@
+/**
+ * Layout: paragraph indents and spacing in points, and Page Setup, whose every choice sends one
+ * SetSectionProperty with exactly the patch Word's own choice means.
+ */
+import { screen, waitFor } from '@testing-library/react';
+import userEvent, { type UserEvent } from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
+import type { EditorCommand } from '@/lib/cdoc/editor/controller';
+import type { PageSetupPatch } from '@/lib/cdoc/editor/model-values';
+import { FakeEditor, knownCaret } from './fake-editor';
+import { MAY_EDIT, renderRibbon } from './render-ribbon';
+
+function setUp(): { editor: FakeEditor; user: UserEvent } {
+  const editor: FakeEditor = new FakeEditor(knownCaret({}, {}));
+  renderRibbon({ editor, edit: MAY_EDIT, commentAuthor: 'Ada' });
+  return { editor, user: userEvent.setup() };
+}
+
+async function choose(user: UserEvent, menu: string, choice: string): Promise<void> {
+  await user.click(screen.getByTestId(`ribbon-page-${menu}-open`));
+  await user.click(await screen.findByTestId(`ribbon-page-${menu}-${choice}`));
+}
+
+const section = (patch: PageSetupPatch): EditorCommand => ({ name: 'setSectionProperty', patch });
+const HALF_INCH_HEADERS: { header: number; footer: number; gutter: number } = { header: 3600, footer: 3600, gutter: 0 };
+
+describe('the Layout ribbon', () => {
+  it('sets indents and spacing in points, as Pt100', async () => {
+    const { editor, user } = setUp();
+    await user.click(screen.getByTestId('docs-ribbon-tab-layout'));
+    await user.type(screen.getByTestId('ribbon-layout-indent-left'), '36{Enter}');
+    await user.type(screen.getByTestId('ribbon-layout-indent-right'), '-4.5{Enter}');
+    await user.type(screen.getByTestId('ribbon-layout-spacing-after'), '8{Enter}');
+    await user.click(screen.getByTestId('ribbon-layout-break-page'));
+    await waitFor((): void => expect(editor.sent).toEqual([
+      { name: 'setParagraphProperty', patch: { indent: { left: 3600 } } },
+      { name: 'setParagraphProperty', patch: { indent: { right: -450 } } },
+      { name: 'setParagraphProperty', patch: { spacing: { after: 800 } } },
+      { name: 'insertBreak', kind: 'page' },
+    ]));
+  });
+
+  it('sends Word’s margins, orientation, paper and columns as one section patch each', async () => {
+    const { editor, user } = setUp();
+    await user.click(screen.getByTestId('docs-ribbon-tab-layout'));
+    await choose(user, 'margins', 'normal');
+    await choose(user, 'margins', 'narrow');
+    await choose(user, 'margins', 'moderate');
+    await choose(user, 'margins', 'wide');
+    await choose(user, 'orientation', 'landscape');
+    await choose(user, 'orientation', 'portrait');
+    await choose(user, 'size', 'letter');
+    await choose(user, 'size', 'legal');
+    await choose(user, 'size', 'a4');
+    await choose(user, 'size', 'a5');
+    await choose(user, 'columns', '1');
+    await choose(user, 'columns', '3');
+    await waitFor((): void => expect(editor.sent).toEqual([
+      section({ margins: { top: 7200, bottom: 7200, left: 7200, right: 7200, ...HALF_INCH_HEADERS } }),
+      section({ margins: { top: 3600, bottom: 3600, left: 3600, right: 3600, ...HALF_INCH_HEADERS } }),
+      section({ margins: { top: 7200, bottom: 7200, left: 5400, right: 5400, ...HALF_INCH_HEADERS } }),
+      section({ margins: { top: 7200, bottom: 7200, left: 14400, right: 14400, ...HALF_INCH_HEADERS } }),
+      section({ orientation: 'landscape' }),
+      section({ orientation: 'portrait' }),
+      section({ size: { width: 61200, height: 79200, orientation: 'portrait' } }),
+      section({ size: { width: 61200, height: 100800, orientation: 'portrait' } }),
+      section({ size: { width: 59528, height: 84189, orientation: 'portrait' } }),
+      section({ size: { width: 41953, height: 59528, orientation: 'portrait' } }),
+      section({ columns: { count: 1, gap: 3600, separator: false } }),
+      section({ columns: { count: 3, gap: 3600, separator: false } }),
+    ]));
+    expect(screen.queryByTestId('ribbon-page-columns')).toBeNull();
+  });
+
+  it('opens a menu and chooses from it by keyboard alone, then gives focus back to the document', async () => {
+    const { editor, user } = setUp();
+    await user.click(screen.getByTestId('docs-ribbon-tab-layout'));
+    screen.getByTestId('ribbon-page-columns-open').focus();
+    await user.keyboard('{Enter}');
+    await waitFor((): void => expect(screen.getByTestId('ribbon-page-columns-1')).toHaveFocus());
+    await user.keyboard('{ArrowDown}{Enter}');
+    await waitFor((): void => expect(editor.sent).toEqual([section({ columns: { count: 2, gap: 3600, separator: false } })]));
+    expect(editor.focused).toBeGreaterThan(0);
+  });
+
+  it('says why when the engine refuses a page setup', async () => {
+    const { editor, user } = setUp();
+    await user.click(screen.getByTestId('docs-ribbon-tab-layout'));
+    editor.refuseNext('the margins leave no room for text');
+    await choose(user, 'margins', 'wide');
+    await waitFor((): void => expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent('Could not set the margins to Wide. the margins leave no room for text'));
+  });
+
+  it('opens no page-setup menu in a read-only document', async () => {
+    const editor: FakeEditor = new FakeEditor(knownCaret({}, {}));
+    renderRibbon({ editor, edit: { enabled: false, reason: 'You can only read this document.' }, commentAuthor: 'Ada' });
+    const user: UserEvent = userEvent.setup();
+    await user.click(screen.getByTestId('docs-ribbon-tab-layout'));
+    const margins: HTMLElement = screen.getByTestId('ribbon-page-margins-open');
+    expect(margins).toHaveAttribute('aria-disabled', 'true');
+    await user.click(margins);
+    expect(screen.queryByTestId('ribbon-page-margins')).toBeNull();
+    expect(editor.sent).toEqual([]);
+  });
+});

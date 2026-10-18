@@ -27,7 +27,7 @@ afterEach(() => restore?.());
 describe('DocsCanvas', () => {
   it('opens a blank document with the keyboard on the editor', async () => {
     const runtime: TestRuntime = inProcessRuntime('main-thread');
-    render(<DocsCanvas documentSource={{ kind: 'blank' }} loadRuntime={async (): Promise<CdocRuntime> => runtime} keepReplica={keepBlankReplica} statusBar={null} />);
+    render(<DocsCanvas documentSource={{ kind: 'blank' }} loadRuntime={async (): Promise<CdocRuntime> => runtime} keepReplica={keepBlankReplica} statusBar={null} edit={{ enabled: true, reason: null }} commentAuthor="Ada" />);
     const input: HTMLElement = await screen.findByTestId('editor-input');
     await waitFor(() => expect(document.activeElement).toBe(input));
   });
@@ -64,7 +64,7 @@ describe('DocsCanvas', () => {
         events.push('keeper torn down');
       };
     };
-    const view: RenderResult = render(<DocsCanvas documentSource={{ kind: 'blank' }} loadRuntime={async (): Promise<CdocRuntime> => runtime} keepReplica={keeper} statusBar={null} />);
+    const view: RenderResult = render(<DocsCanvas documentSource={{ kind: 'blank' }} loadRuntime={async (): Promise<CdocRuntime> => runtime} keepReplica={keeper} statusBar={null} edit={{ enabled: true, reason: null }} commentAuthor="Ada" />);
     await screen.findByTestId('editor-input');
     await act(async (): Promise<void> => { await reopen?.(); });
     expect(opened).toHaveLength(2);
