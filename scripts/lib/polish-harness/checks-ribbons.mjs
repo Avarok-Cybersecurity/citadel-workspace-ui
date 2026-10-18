@@ -127,8 +127,16 @@ async function reasonsFitTheScreen({ page, url, viewport }) {
   const size = page.getByTestId('ribbon-page-size-open');
   await size.waitFor({ state: 'visible' });
   await settled(page);
-  // A tap on a refused control: Playwright counts aria-disabled as not clickable, a finger does not.
-  await size.click({ force: true });
+  // A tap on a refused control. Playwright will not click an aria-disabled element, a finger will:
+  // press where it is drawn, after checking it is what is there (what a forced click would skip).
+  const centre = await size.evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    const x = r.x + r.width / 2;
+    const y = r.y + r.height / 2;
+    return { x, y, hit: el.contains(document.elementFromPoint(x, y)) };
+  });
+  assert.ok(centre.hit, 'something covers the Size control, so a tap would not reach it');
+  await page.mouse.click(centre.x, centre.y);
   const status = page.getByTestId('docs-ribbon-status');
   await status.filter({ hasText: 'The page’s setup shows once you click or type in the document.' }).waitFor({ state: 'visible', timeout: 3000 });
   const line = await status.evaluate((el) => ({ clipped: el.scrollWidth > el.clientWidth + 1, ...el.getBoundingClientRect().toJSON() }));
