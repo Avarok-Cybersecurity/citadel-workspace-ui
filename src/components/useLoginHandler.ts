@@ -5,7 +5,6 @@ import { firstFieldToFix } from '@/lib/first-field-to-fix';
 const LOGIN_FIELD_ORDER: readonly ["username", "password"] = ['username', 'password'] as const;
 type LoginField = (typeof LOGIN_FIELD_ORDER)[number] | 'recovery-code';
 import { DEFAULT_SECURITY_SETTINGS } from './security-settings-defaults';
-import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { getUserFriendlyErrorMessage, getErrorTitle } from "@/lib/error-messages";
 import { redirectToExistingSession } from './login-session-redirect';
@@ -18,7 +17,6 @@ import type { AccountRef, SignInFactors } from '@/lib/sign-in/types';
 import { completeSignIn, type Completed } from './sign-in/complete-sign-in';
 import { useKeyOffer, type KeyOffer } from './sign-in/useKeyOffer';
 import type { AdmissionGate } from './admission/useAdmissionGate';
-import type { NavigateFunction } from 'react-router';
 import type {
   SecurityLevel, SecrecyMode, EncryptionAlgorithm, KemAlgorithm, SigAlgorithm,
 } from "@/types";
@@ -98,13 +96,12 @@ export function useLoginHandler({ onNext, initialUsername, admission }: UseLogin
     useState<SecuritySettingsState>(DEFAULT_SECURITY_SETTINGS);
 
   const { toast } = useToast();
-  const navigate: NavigateFunction = useNavigate();
 
   const passkey: PasskeyAccount = usePasskeyAccount(username);
   const { offer: keyOffer, offerKey } = useKeyOffer();
 
   const doRedirect = (session: { cid: bigint; username: string; server_address: string }): Promise<void> =>
-    redirectToExistingSession(session, { navigate, toast, onNext });
+    redirectToExistingSession(session, { toast, onNext });
 
   const setMode = (next: SignInMode): void => { setModeState(next); setError(null); setInvalidField(null); };
 
