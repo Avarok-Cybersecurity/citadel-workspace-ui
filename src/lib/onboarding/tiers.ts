@@ -53,7 +53,7 @@ export const TIERS: readonly Tier[] = [
     summary: 'For teams that work in Citadel every day.',
     workspaces: 1,
     maxMembers: 100,
-    storage: { kind: 'per-seat', gb: 10 },
+    storage: { kind: 'per-seat', gb: 2 },
     prioritySupport: false,
     unitAmount: { month: 600, year: 6000 },
   },
@@ -63,7 +63,7 @@ export const TIERS: readonly Tier[] = [
     summary: 'For organisations with room to grow.',
     workspaces: 1,
     maxMembers: 1000,
-    storage: { kind: 'per-seat', gb: 25 },
+    storage: { kind: 'per-seat', gb: 5 },
     prioritySupport: true,
     unitAmount: { month: 1200, year: 12000 },
   },
@@ -79,7 +79,7 @@ export interface StorageAddon {
 export const STORAGE_ADDON: StorageAddon = {
   gbPerBlock: 10,
   availableOn: ['team', 'business'],
-  unitAmount: { month: 200, year: 2000 },
+  unitAmount: { month: 600, year: 6000 },
 };
 
 /**
