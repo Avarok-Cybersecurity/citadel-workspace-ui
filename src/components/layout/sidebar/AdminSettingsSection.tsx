@@ -21,7 +21,11 @@ import { Badge } from "@/components/ui/badge";
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 import { connectionManager } from '@/lib/connection';
 import { readControlPlaneBase } from '@/lib/onboarding/control-plane-config';
-import { createControlPlane, type ControlPlane } from '@/lib/onboarding/control-plane-client';
+import type { ControlPlane } from '@/lib/onboarding/control-plane-client';
+import { browserControlPlane } from '@/lib/onboarding/browser-control-plane';
+import { BillingAlertBanner } from '@/components/billing/BillingAlertBanner';
+import { useBillingAlert } from '@/components/billing/use-billing-alert';
+import type { TenantBilling } from '@/lib/billing/billing-state';
 import { planAndBillingSlug } from '@/lib/onboarding/billing-portal';
 import { openBrowserPortalTab } from '@/lib/onboarding/browser-portal-tab';
 import { ManageSubscriptionDialog } from './ManageSubscriptionDialog';
@@ -60,7 +64,7 @@ export const AdminSettingsSection: () => JSX.Element | null = (): JSX.Element | 
   const controlPlaneBase: string | undefined = readControlPlaneBase(document);
   const api: ControlPlane | undefined = useMemo((): ControlPlane | undefined => controlPlaneBase === undefined
     ? undefined
-    : createControlPlane((input: string, init?: RequestInit): Promise<Response> => fetch(input, init), controlPlaneBase),
+    : browserControlPlane(controlPlaneBase),
   [controlPlaneBase]);
   const serverAddress: string | undefined = useWorkspaceAddress(
     configuresWorkspace && controlPlaneBase !== undefined,
@@ -73,6 +77,7 @@ export const AdminSettingsSection: () => JSX.Element | null = (): JSX.Element | 
     serverAddress,
     controlPlaneBase,
   });
+  const billingAlert: TenantBilling | undefined = useBillingAlert(api, billingSlug);
 
   // A permission, not a role name: the same question TopBar's ring and the switcher's shield ask
   // (ManageRoles), plus the workspace's own settings, so nobody is an administrator in two
@@ -94,6 +99,7 @@ export const AdminSettingsSection: () => JSX.Element | null = (): JSX.Element | 
             Admin
           </Badge>
         </div>
+        {billingSlug !== undefined && <BillingAlertBanner billing={billingAlert} onOpenBilling={() => setShowBilling(true)} />}
         <SidebarGroupContent>
           <SidebarMenu>
             {canEditWorkspace && (

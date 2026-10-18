@@ -1,7 +1,22 @@
+import { useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { TurnstileWidget } from '@/components/create-workspace/TurnstileWidget';
 import { ADMISSION_COPY } from '@/lib/admission/copy';
 import type { AdmissionGate } from './useAdmissionGate';
+import { PaymentRequiredScreen } from '@/components/billing/PaymentRequiredScreen';
+import { readControlPlaneBase } from '@/lib/onboarding/control-plane-config';
+import { browserControlPlane } from '@/lib/onboarding/browser-control-plane';
+import { openBrowserPortalTab } from '@/lib/onboarding/browser-portal-tab';
+import type { ControlPlane } from '@/lib/onboarding/control-plane-client';
+
+/** The pay screen against this page's control plane, built once per mount. */
+function BrowserPaymentRequired({ paused }: { paused: NonNullable<AdmissionGate['paymentRequired']> }): JSX.Element {
+  const api: ControlPlane | undefined = useMemo((): ControlPlane | undefined => {
+    const base: string | undefined = readControlPlaneBase(document);
+    return base === undefined ? undefined : browserControlPlane(base);
+  }, []);
+  return <PaymentRequiredScreen slug={paused.slug} refusal={paused.refusal} api={api} openTab={openBrowserPortalTab} />;
+}
 
 /**
  * The human check, where a form needs it. Renders nothing for a workspace that
@@ -13,6 +28,8 @@ import type { AdmissionGate } from './useAdmissionGate';
  * refused by the server, so the widget waits until there is one to bind to.
  */
 export function AdmissionCheck({ gate }: { gate: AdmissionGate }): JSX.Element | null {
+  // A paused workspace refuses every attempt: the form's own check is moot, the pay screen is not.
+  if (gate.paymentRequired !== null) return <BrowserPaymentRequired paused={gate.paymentRequired} />;
   if (!gate.visible) return null;
   const unbound: boolean = gate.needsWorkspace && gate.cData === null;
   return (

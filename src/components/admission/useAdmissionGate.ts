@@ -9,7 +9,8 @@
  * not answer), `admission_failed` resets it with a retry message.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { browserDiscoverAdmission, isAdmissionRefusal, type Admission } from '@/lib/admission';
+import { browserDiscoverAdmission, isAdmissionRefusal, isPaymentRequired, type Admission, type Discovered } from '@/lib/admission';
+import type { PaymentRequired } from '@/lib/billing/billing-state';
 import { ADMISSION_COPY } from '@/lib/admission/copy';
 import { hostedWorkspaceSlug } from '@/lib/onboarding/billing-portal';
 
@@ -43,10 +44,13 @@ export interface AdmissionGate {
   needsWorkspace: boolean;
   /** What the user typed for it, and why it is not one yet (null when it is, or nothing is typed). */
   workspace: { value: string; error: string | null; set: (value: string) => void };
+  /** The workspace is paused for payment (its slug and the refusal); null otherwise. */
+  paymentRequired: { slug: string; refusal: PaymentRequired } | null;
 }
 
 export function useAdmissionGate(action: string, context: AdmissionContext): AdmissionGate {
   const [admission, setAdmission] = useState<Admission | null>(null);
+  const [paused, setPaused] = useState<PaymentRequired | null>(null);
   const [forced, setForced] = useState<boolean>(false);
   const [resetSignal, setResetSignal] = useState<number>(0);
   const [message, setMessage] = useState<string | null>(null);
@@ -58,7 +62,12 @@ export function useAdmissionGate(action: string, context: AdmissionContext): Adm
   /** Ask the control plane; `onUnknown` runs when it cannot say. */
   const discover: (onUnknown: () => void) => void = useCallback((onUnknown: () => void): void => {
     browserDiscoverAdmission(serverAddress)
-      .then((found: Admission | null): void => { if (found) setAdmission(found); else onUnknown(); })
+      .then((found: Discovered | null): void => {
+        if (found === null) { onUnknown(); return; }
+        if (isPaymentRequired(found)) { setPaused(found.refusal); return; }
+        setPaused(null);
+        setAdmission(found);
+      })
       // discoverAdmission never rejects; this is the composition root failing, which is no answer either.
       .catch(onUnknown);
   }, [serverAddress]);
@@ -79,8 +88,10 @@ export function useAdmissionGate(action: string, context: AdmissionContext): Adm
   // Only a workspace nobody knows: a self-hosted server's address is known and binds nothing.
   const needsWorkspace: boolean = visible && context.accountNamed && context.serverAddress === undefined;
   const unbound: boolean = needsWorkspace && named === undefined;
+  const pausedSlug: string | undefined = hostedWorkspaceSlug(serverAddress);
   return {
     require, needsWorkspace,
+    paymentRequired: paused !== null && pausedSlug !== undefined ? { slug: pausedSlug, refusal: paused } : null,
     workspace: {
       value: typedWorkspace,
       error: typedWorkspace.trim() !== '' && named === undefined ? ADMISSION_COPY.workspaceInvalid : null,

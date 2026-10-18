@@ -15,7 +15,8 @@ import { recordIssuedClaim, revealClaimCode } from '@/lib/onboarding/claim-hando
 import { MemoryRouter } from 'react-router-dom';
 import { ClaimStep } from '@/components/create-workspace/ClaimStep';
 import { contractFake, type ContractFake } from '@/lib/onboarding/__tests__/contract-fake';
-import { nameIt, renderFlow, resets, submitWithTerms, throughToReview, installFlowHooks } from './create-flow-harness';
+import { chooseOverage, nameIt, renderFlow, resets, submitWithTerms, throughToReview, installFlowHooks } from './create-flow-harness';
+import { POLICY_BODY } from '@/lib/billing/__tests__/billing-fixtures';
 
 installFlowHooks();
 
@@ -93,6 +94,7 @@ describe('a paid workspace', () => {
   it('prices seats and storage, then leaves for Checkout with the draft kept', async () => {
     const fake: ContractFake = contractFake();
     fake.createReplies.push({ status: 200, body: { checkout_url: 'https://checkout.stripe.com/c/pay/cs_test_9', reservation_token: 'rt_first' } });
+    fake.policyReplies.push({ status: 200, body: POLICY_BODY });
     const redirect: ReturnType<typeof vi.fn> = vi.fn();
     renderFlow(fake, '/create', redirect);
     await throughToReview(() => {
@@ -101,13 +103,14 @@ describe('a paid workspace', () => {
       fireEvent.click(screen.getByTestId('plan-seats-increase'));
       fireEvent.click(screen.getByTestId('plan-storage-increase'));
       expect(screen.getByTestId('plan-total-amount')).toHaveTextContent('$260 / year');
-    });
+    }, true);
     expect(screen.getByTestId('review-total')).toHaveTextContent('$260 / year');
     await submitWithTerms();
 
     await waitFor(() => expect(redirect).toHaveBeenCalledWith('https://checkout.stripe.com/c/pay/cs_test_9'));
     expect(fake.requests.at(-1)?.body).toEqual({
       slug: 'acme', display_name: 'Acme', tier: 'team', interval: 'year', seats: 4, storage_blocks: 1, turnstile_token: 'token-1', accepted_customer_terms_version: 1,
+      overage_billing: true,
     });
     expect(loadDraft('acme')?.plan.seats).toBe(4);
     expect(loadDraft('acme')?.reservationToken).toBe('rt_first');
@@ -117,10 +120,12 @@ describe('a paid workspace', () => {
     saveDraft({ displayName: 'Acme', slug: 'acme', plan: { tier: 'team', interval: 'month', seats: 2, storageBlocks: 0 }, reservationToken: 'rt_first' });
     const fake: ContractFake = contractFake();
     fake.createReplies.push({ status: 200, body: { checkout_url: 'https://checkout.stripe.com/c/pay/cs_test_10', reservation_token: 'rt_second' } });
+    fake.policyReplies.push({ status: 200, body: POLICY_BODY });
     const redirect: ReturnType<typeof vi.fn> = vi.fn();
     renderFlow(fake, '/create?tenant=acme&canceled=1', redirect);
     fireEvent.click(screen.getByTestId('cancelled-back-to-plans'));
     fireEvent.click(screen.getByTestId('create-plan-continue'));
+    await chooseOverage(false);
     await waitFor(() => expect(screen.getByTestId('create-submit')).toBeEnabled());
     await submitWithTerms();
     await waitFor(() => expect(redirect).toHaveBeenCalledWith('https://checkout.stripe.com/c/pay/cs_test_10'));

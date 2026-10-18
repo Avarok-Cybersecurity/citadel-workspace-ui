@@ -12,13 +12,13 @@ import { doubleOf } from '@/test/singleton-double';
 import type { World } from '@/lib/sign-in/__tests__/helpers';
 import type { FakeAccount } from '@/lib/sign-in/__tests__/fake-agent';
 import type { SignInFactors } from '@/lib/sign-in/types';
-import type { Admission } from '@/lib/admission';
+import type { Admission, Discovered } from '@/lib/admission';
 import type { SignedOutAccount } from '@/types/session-types';
 
 export const loginWorld: {
   w: World; postAuth: ReturnType<typeof vi.fn>; messaging: ReturnType<typeof vi.fn>;
   /** What the control plane answers about the human check: null is "unknown" (no answer). */
-  discovered: Admission | null;
+  discovered: Discovered | null;
   /** Its answer for a known workspace (`/admission/<slug>`), by server address; others get `discovered`. */
   discoveredByServer: Map<string, Admission>;
   /** The workspace this page is served from (a tenant host), or undefined on work.avarok.net. */
@@ -34,7 +34,7 @@ export const loginWorld: {
 /** Discovery is a fetch to the control plane: answered here from `loginWorld.discovered`. */
 export const admissionDouble = async (orig: () => Promise<Record<string, unknown>>): Promise<Record<string, unknown>> => ({
   ...(await orig()),
-  browserDiscoverAdmission: async (server: string | undefined): Promise<Admission | null> =>
+  browserDiscoverAdmission: async (server: string | undefined): Promise<Discovered | null> =>
     (server === undefined ? undefined : loginWorld.discoveredByServer.get(server)) ?? loginWorld.discovered,
   browserPageWorkspace: (): string | undefined => loginWorld.pageWorkspace,
   browserAccountServers: async (): Promise<ReadonlyMap<string, string>> => loginWorld.accountServers,

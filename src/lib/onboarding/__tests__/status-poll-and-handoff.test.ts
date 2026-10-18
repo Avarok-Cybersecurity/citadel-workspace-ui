@@ -46,7 +46,7 @@ const PENDING: TenantStatus = { status: 'pending' };
 
 describe('pollUntilActive stops', () => {
   it('as soon as the tenant is active, with its code and host', async () => {
-    const { options, calls } = scripted([PENDING, PENDING, { status: 'active', claimCode: 'C', workspaceHost: 'h' }]);
+    const { options, calls } = scripted([PENDING, PENDING, { status: 'active', claimCode: 'C', workspaceHost: 'h', billing: undefined }]);
     expect(await pollUntilActive(options)).toEqual({ kind: 'active', claimCode: 'C', workspaceHost: 'h' });
     expect(calls()).toBe(3);
   });
@@ -73,7 +73,7 @@ describe('pollUntilActive stops', () => {
 
   it('rides out transient failures, and resets the count on success', async () => {
     const blip: ControlPlaneError = new ControlPlaneError(0, 'offline', undefined);
-    const { options } = scripted([blip, blip, PENDING, blip, blip, { status: 'active', claimCode: undefined, workspaceHost: undefined }]);
+    const { options } = scripted([blip, blip, PENDING, blip, blip, { status: 'active', claimCode: undefined, workspaceHost: undefined, billing: undefined }]);
     expect((await pollUntilActive(options)).kind).toBe('active');
   });
 

@@ -10,7 +10,11 @@
  *   GET  /api/slug/:slug                      -> { available, reason? }
  *   POST /api/tenants                         -> free { claim_code, workspace_host } | paid { checkout_url }
  *   GET  /api/tenants/:slug/status?session_id -> { status, claim_code?, workspace_host? }
- *   POST /api/tenants/:slug/portal { claim_code } -> { portal_url }
+ *   POST /api/tenants/:slug/portal { claim_code, accepted_customer_terms_version? } -> { portal_url }
+ *                                             | 409 { error: 'customer-terms-stale', current }
+ *   GET  /api/billing/policy                  -> billing/policy.json's shape (POLICY_BODY)
+ *   POST /api/tenants/:slug/usage { claim_code } -> { period, overage_billing, dimensions, billing }
+ *   POST /api/tenants/:slug/overage { claim_code, enabled } -> { overage_billing }
  *   errors: { error } with 4xx/5xx; 503 = not configured.
  */
 import type { FetchLike } from '../control-plane-client';
@@ -31,6 +35,12 @@ export interface ContractFake {
   readonly statusReplies: Scripted[];
   /** Replies to POST portal, consumed in order; the last one repeats. */
   readonly portalReplies: Scripted[];
+  /** Replies to GET billing policy; the last one repeats. */
+  readonly policyReplies: Scripted[];
+  /** Replies to POST usage; the last one repeats. */
+  readonly usageReplies: Scripted[];
+  /** Replies to POST overage; the last one repeats. */
+  readonly overageReplies: Scripted[];
 }
 
 function reply({ status, body }: Scripted): Response {
@@ -50,6 +60,9 @@ export function contractFake(): ContractFake {
     createReplies: [],
     statusReplies: [],
     portalReplies: [],
+    policyReplies: [],
+    usageReplies: [],
+    overageReplies: [],
     fetch: async (input: string, init?: RequestInit): Promise<Response> => {
       if (init?.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
       const url: URL = new URL(input, 'https://work.avarok.net');
@@ -65,6 +78,9 @@ export function contractFake(): ContractFake {
       if (method === 'POST' && url.pathname === '/api/tenants') return reply(next(fake.createReplies));
       if (method === 'GET' && /^\/api\/tenants\/[^/]+\/status$/.test(url.pathname)) return reply(next(fake.statusReplies));
       if (method === 'POST' && /^\/api\/tenants\/[^/]+\/portal$/.test(url.pathname)) return reply(next(fake.portalReplies));
+      if (method === 'GET' && url.pathname === '/api/billing/policy') return reply(next(fake.policyReplies));
+      if (method === 'POST' && /^\/api\/tenants\/[^/]+\/usage$/.test(url.pathname)) return reply(next(fake.usageReplies));
+      if (method === 'POST' && /^\/api\/tenants\/[^/]+\/overage$/.test(url.pathname)) return reply(next(fake.overageReplies));
       return reply({ status: 404, body: { error: 'not found' } });
     },
   };

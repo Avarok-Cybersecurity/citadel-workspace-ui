@@ -12,8 +12,11 @@
  * `undefined` that surfaces three screens later.
  */
 import type { BillingInterval, TierId } from './tiers';
+import { parseBillingPolicy, type BillingPolicy } from '@/lib/billing/billing-policy';
+import { parseTenantBilling, parseUsageReport, type TenantBilling, type UsageReport } from '@/lib/billing/billing-state';
+import { malformed, optionalString, postJson, send, type FetchLike } from './control-plane-transport';
 
-export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
+export { ControlPlaneError, type FetchLike } from './control-plane-transport';
 
 export type UnavailableReason = 'invalid' | 'reserved' | 'taken';
 
@@ -32,6 +35,8 @@ export interface CreateTenantRequest {
   /** The Customer Terms version the person accepted; the control plane refuses any but the current one. */
   readonly accepted_customer_terms_version: number;
   readonly reservation_token?: string;
+  /** Paid tiers only, and required there: the person's own choice, never a default. Free must not send it. */
+  readonly overage_billing?: boolean;
 }
 
 export type CreateTenantResult =
@@ -40,7 +45,13 @@ export type CreateTenantResult =
 
 export type TenantStatus =
   | { readonly status: 'pending' }
-  | { readonly status: 'active'; readonly claimCode: string | undefined; readonly workspaceHost: string | undefined };
+  | {
+    readonly status: 'active';
+    readonly claimCode: string | undefined;
+    readonly workspaceHost: string | undefined;
+    /** Undefined from a control plane that predates billing states. */
+    readonly billing: TenantBilling | undefined;
+  };
 
 /** The only place a paid signup may be sent. Anything else in `checkout_url` is refused. */
 export const CHECKOUT_ORIGIN: string = 'https://checkout.stripe.com';
@@ -48,88 +59,22 @@ export const CHECKOUT_ORIGIN: string = 'https://checkout.stripe.com';
 /** The only place "Manage subscription" may send an owner. Anything else in `portal_url` is refused. */
 export const PORTAL_ORIGIN: string = 'https://billing.stripe.com';
 
-/**
- * A request the control plane refused, or could not be asked.
- *
- * `status` is the HTTP status, or 0 when no response arrived at all (offline,
- * DNS, CSP). 503 is the control plane saying it is not configured yet, which is
- * a state of the deployment rather than of the request, so it gets its own flag
- * and its own wording. `code` is the control plane's machine-readable reason
- * (`not-owner`, `no-subscription`, ...), or undefined when it gave none.
- */
-export class ControlPlaneError extends Error {
-  readonly status: number;
-  readonly notConfigured: boolean;
-  readonly code: string | undefined;
-
-  constructor(status: number, message: string, code: string | undefined) {
-    super(message);
-    this.name = 'ControlPlaneError';
-    this.status = status;
-    this.code = code;
-    this.notConfigured = status === 503;
-  }
-
-  /** Worth asking again: nothing answered, or the server failed rather than refused. */
-  get transient(): boolean {
-    return this.status === 0 || (this.status >= 500 && !this.notConfigured);
-  }
-}
-
 export interface ControlPlane {
   checkSlug(slug: string, signal?: AbortSignal): Promise<SlugAvailability>;
   createTenant(request: CreateTenantRequest): Promise<CreateTenantResult>;
-  tenantStatus(slug: string, sessionId: string, signal?: AbortSignal): Promise<TenantStatus>;
-  /** A Stripe Billing Portal address for `slug`, for the holder of its claim code. */
-  openPortal(slug: string, claimCode: string): Promise<string>;
-}
-
-const NOT_CONFIGURED: string =
-  'Creating a workspace is not available yet. Please try again later.';
-const UNREACHABLE: string =
-  'Could not reach Citadel. Check your connection and try again.';
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function optionalString(record: Record<string, unknown>, key: string): string | undefined {
-  const value: unknown = record[key];
-  return typeof value === 'string' && value.length > 0 ? value : undefined;
-}
-
-function malformed(what: string): ControlPlaneError {
-  return new ControlPlaneError(502, `Citadel sent an unexpected reply (${what}). Please try again.`, undefined);
-}
-
-async function readJson(response: Response): Promise<unknown> {
-  try {
-    return await response.json();
-  } catch {
-    return undefined;
-  }
-}
-
-async function send(fetchFn: FetchLike, url: string, init: RequestInit): Promise<Record<string, unknown>> {
-  let response: Response;
-  try {
-    response = await fetchFn(url, { ...init, headers: { Accept: 'application/json', ...init.headers } });
-  } catch (error: unknown) {
-    if (error instanceof DOMException && error.name === 'AbortError') throw error;
-    throw new ControlPlaneError(0, UNREACHABLE, undefined);
-  }
-  const body: unknown = await readJson(response);
-  if (!response.ok) {
-    // The control plane answers `{ error: <code>, detail: <sentence> }`: the
-    // sentence is for the visitor, the code for logs and for callers that word
-    // a refusal themselves.
-    const code: string | undefined = isRecord(body) ? optionalString(body, 'error') : undefined;
-    if (response.status === 503) throw new ControlPlaneError(503, NOT_CONFIGURED, code);
-    const stated: string | undefined = isRecord(body) ? optionalString(body, 'detail') ?? code : undefined;
-    throw new ControlPlaneError(response.status, stated ?? `Request failed (${response.status}).`, code);
-  }
-  if (!isRecord(body)) throw malformed('not an object');
-  return body;
+  /** `sessionId` is the Checkout Session's, which collects the claim code once; undefined asks only the state. */
+  tenantStatus(slug: string, sessionId: string | undefined, signal?: AbortSignal): Promise<TenantStatus>;
+  /**
+   * A Stripe Billing Portal address for `slug`, for the holder of its claim code. The terms version is
+   * sent only after a `customer-terms-stale` refusal, once the person has accepted the current one.
+   */
+  openPortal(slug: string, claimCode: string, acceptedCustomerTermsVersion: number | undefined): Promise<string>;
+  /** Every billing time limit and threshold, which the billing copy renders. */
+  policy(): Promise<BillingPolicy>;
+  /** This period's meters, for the holder of the claim code. */
+  usage(slug: string, claimCode: string): Promise<UsageReport>;
+  /** Turns overage billing on or off; resolves to the state the control plane now holds. */
+  setOverageBilling(slug: string, claimCode: string, enabled: boolean): Promise<boolean>;
 }
 
 function parseAvailability(body: Record<string, unknown>): SlugAvailability {
@@ -174,11 +119,19 @@ function parseCreated(body: Record<string, unknown>): CreateTenantResult {
 function parseStatus(body: Record<string, unknown>): TenantStatus {
   if (body.status === 'pending') return { status: 'pending' };
   if (body.status !== 'active') throw malformed('status');
+  const billing: TenantBilling | null | undefined = body.billing === undefined ? undefined : parseTenantBilling(body.billing);
+  if (billing === null) throw malformed('billing state');
   return {
     status: 'active',
     claimCode: optionalString(body, 'claim_code'),
     workspaceHost: optionalString(body, 'workspace_host'),
+    billing,
   };
+}
+
+function parseOverage(body: Record<string, unknown>): boolean {
+  if (typeof body.overage_billing !== 'boolean') throw malformed('overage billing');
+  return body.overage_billing;
 }
 
 export function createControlPlane(fetchFn: FetchLike, base: string): ControlPlane {
@@ -191,31 +144,45 @@ export function createControlPlane(fetchFn: FetchLike, base: string): ControlPla
       return parseAvailability(body);
     },
     async createTenant(request: CreateTenantRequest): Promise<CreateTenantResult> {
-      const body: Record<string, unknown> = await send(fetchFn, `${base}/tenants`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(request),
-      });
+      const body: Record<string, unknown> = await send(fetchFn, `${base}/tenants`, postJson(request));
       return parseCreated(body);
     },
-    async tenantStatus(slug: string, sessionId: string, signal?: AbortSignal): Promise<TenantStatus> {
-      const query: string = new URLSearchParams({ session_id: sessionId }).toString();
-      const body: Record<string, unknown> = await send(
-        fetchFn,
-        `${base}/tenants/${encodeURIComponent(slug)}/status?${query}`,
-        { method: 'GET', signal },
-      );
+    async tenantStatus(slug: string, sessionId: string | undefined, signal?: AbortSignal): Promise<TenantStatus> {
+      const query: string = sessionId === undefined ? '' : `?${new URLSearchParams({ session_id: sessionId }).toString()}`;
+      const body: Record<string, unknown> = await send(fetchFn, `${base}/tenants/${encodeURIComponent(slug)}/status${query}`, {
+        method: 'GET',
+        signal,
+      });
       return parseStatus(body);
     },
-    async openPortal(slug: string, claimCode: string): Promise<string> {
-      // The code is the owner's proof: in the body, never the URL, where it
-      // would reach logs, history and referrers.
-      const body: Record<string, unknown> = await send(fetchFn, `${base}/tenants/${encodeURIComponent(slug)}/portal`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ claim_code: claimCode }),
-      });
+    // Claim codes are the owner's proof: in the body, never the URL, where they
+    // would reach logs, history and referrers.
+    async openPortal(slug: string, claimCode: string, acceptedCustomerTermsVersion: number | undefined): Promise<string> {
+      const accepted: Record<string, number> = acceptedCustomerTermsVersion === undefined
+        ? {}
+        : { accepted_customer_terms_version: acceptedCustomerTermsVersion };
+      const body: Record<string, unknown> = await send(
+        fetchFn,
+        `${base}/tenants/${encodeURIComponent(slug)}/portal`,
+        postJson({ claim_code: claimCode, ...accepted }),
+      );
       return parsePortal(body);
+    },
+    async policy(): Promise<BillingPolicy> {
+      const parsed: BillingPolicy | null = parseBillingPolicy(await send(fetchFn, `${base}/billing/policy`, { method: 'GET' }));
+      if (parsed === null) throw malformed('billing policy');
+      return parsed;
+    },
+    async usage(slug: string, claimCode: string): Promise<UsageReport> {
+      const body: Record<string, unknown> = await send(
+        fetchFn, `${base}/tenants/${encodeURIComponent(slug)}/usage`, postJson({ claim_code: claimCode }));
+      const parsed: UsageReport | null = parseUsageReport(body);
+      if (parsed === null) throw malformed('usage');
+      return parsed;
+    },
+    async setOverageBilling(slug: string, claimCode: string, enabled: boolean): Promise<boolean> {
+      return parseOverage(await send(
+        fetchFn, `${base}/tenants/${encodeURIComponent(slug)}/overage`, postJson({ claim_code: claimCode, enabled })));
     },
   };
 }

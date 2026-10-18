@@ -2,13 +2,13 @@
 import { readControlPlaneBase } from '@/lib/onboarding/control-plane-config';
 import { hostedWorkspaceSlug } from '@/lib/onboarding/billing-portal';
 import { isTenantHost } from '@/lib/workspace-address';
-import { discoverAdmission, type Admission } from './discovery';
+import { discoverAdmission, type Discovered } from './discovery';
 import { readAccountServers } from './account-servers';
 import { askStoredAccounts } from '@/lib/stored-accounts';
 import { debugLog } from '@/lib/debug-config';
 
 /** `serverAddress` is the workspace the form is for, when the form knows it (registration does). */
-export function browserDiscoverAdmission(serverAddress: string | undefined): Promise<Admission | null> {
+export function browserDiscoverAdmission(serverAddress: string | undefined): Promise<Discovered | null> {
   const fetchFn = (input: string, init?: RequestInit): Promise<Response> => window.fetch(input, init);
   return discoverAdmission(fetchFn, readControlPlaneBase(document), hostedWorkspaceSlug(serverAddress));
 }
@@ -32,5 +32,6 @@ export async function browserAccountServers(): Promise<ReadonlyMap<string, strin
   }
 }
 
-export type { Admission } from './discovery';
+export type { Admission, Discovered, PaymentRequiredAnswer } from './discovery';
+export { isPaymentRequired } from './discovery';
 export { AdmissionRefusal, admissionReasonOf, isAdmissionRefusal, type AdmissionReason } from './refusal';

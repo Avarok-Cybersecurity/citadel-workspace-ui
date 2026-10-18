@@ -53,7 +53,7 @@ describe('opening the billing portal', () => {
     };
     const api: ControlPlane = createControlPlane(recording, '/api');
 
-    expect(await api.openPortal('acme', CODE)).toBe(PORTAL);
+    expect(await api.openPortal('acme', CODE, undefined)).toBe(PORTAL);
     expect(fake.requests).toEqual([{ method: 'POST', path: '/api/tenants/acme/portal', body: { claim_code: CODE } }]);
     expect(seen[0].url).not.toContain(CODE);
     expect(seen[0].contentType).toBe('application/json');
@@ -62,21 +62,21 @@ describe('opening the billing portal', () => {
   it('refuses a portal address that is not Stripe billing', async () => {
     const fake: ContractFake = contractFake();
     fake.portalReplies.push({ status: 200, body: { portal_url: 'https://billing.stripe.com.evil.example/p' } });
-    expect((await refusal(createControlPlane(fake.fetch, '/api').openPortal('acme', CODE))).status).toBe(502);
+    expect((await refusal(createControlPlane(fake.fetch, '/api').openPortal('acme', CODE, undefined))).status).toBe(502);
   });
 
   it('refuses a reply without a portal address', async () => {
     const fake: ContractFake = contractFake();
     fake.portalReplies.push({ status: 200, body: {} });
-    expect((await refusal(createControlPlane(fake.fetch, '/api').openPortal('acme', CODE))).status).toBe(502);
+    expect((await refusal(createControlPlane(fake.fetch, '/api').openPortal('acme', CODE, undefined))).status).toBe(502);
   });
 
   it('keeps the control plane\'s refusal code, including on a 503', async () => {
     const owner: ControlPlaneError = await refusal(
-      createControlPlane(refusedWith(403, 'not-owner').fetch, '/api').openPortal('acme', CODE));
+      createControlPlane(refusedWith(403, 'not-owner').fetch, '/api').openPortal('acme', CODE, undefined));
     expect([owner.status, owner.code]).toEqual([403, 'not-owner']);
     const portal: ControlPlaneError = await refusal(
-      createControlPlane(refusedWith(503, 'portal-not-configured').fetch, '/api').openPortal('acme', CODE));
+      createControlPlane(refusedWith(503, 'portal-not-configured').fetch, '/api').openPortal('acme', CODE, undefined));
     expect([portal.status, portal.code]).toEqual([503, 'portal-not-configured']);
   });
 });

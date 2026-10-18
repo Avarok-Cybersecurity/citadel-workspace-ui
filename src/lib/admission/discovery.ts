@@ -9,6 +9,7 @@
  * attempt, never a locked-out workspace and never a skipped check.
  */
 import type { FetchLike } from '@/lib/onboarding/control-plane-client';
+import { parsePaymentRequired, type PaymentRequired } from '@/lib/billing/billing-state';
 
 /**
  * Public. `<path>/<slug>` answers for that hosted workspace; `<path>` alone, for
@@ -39,11 +40,29 @@ export function parseAdmission(body: unknown): Admission | null {
 export const admissionUrl = (base: string, slug: string | undefined): string =>
   slug === undefined ? `${base}${ADMISSION_PATH}` : `${base}${ADMISSION_PATH}/${encodeURIComponent(slug)}`;
 
-/** Null when unknown: no control plane, no answer, or an answer that does not parse. */
-export async function discoverAdmission(fetchFn: FetchLike, base: string | undefined, slug: string | undefined): Promise<Admission | null> {
+/** The workspace is paused for payment: the form cannot help, and the pay screen is shown instead. */
+export interface PaymentRequiredAnswer {
+  readonly kind: 'payment-required';
+  readonly refusal: PaymentRequired;
+}
+
+export type Discovered = Admission | PaymentRequiredAnswer;
+
+export const isPaymentRequired = (found: Discovered): found is PaymentRequiredAnswer =>
+  'kind' in found && found.kind === 'payment-required';
+
+/**
+ * Null when unknown: no control plane, no answer, or an answer that does not parse. The one
+ * refusal that is read is a well-formed 403 `payment-required`; every other one is still unknown.
+ */
+export async function discoverAdmission(fetchFn: FetchLike, base: string | undefined, slug: string | undefined): Promise<Discovered | null> {
   if (base === undefined) return null;
   try {
     const response: Response = await fetchFn(admissionUrl(base, slug), { method: 'GET', headers: { Accept: 'application/json' } });
+    if (response.status === 403) {
+      const refusal: PaymentRequired | null = parsePaymentRequired(await response.json());
+      return refusal === null ? null : { kind: 'payment-required', refusal };
+    }
     if (!response.ok) return null;
     return parseAdmission(await response.json());
   } catch {

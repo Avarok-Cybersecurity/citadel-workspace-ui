@@ -28,6 +28,15 @@ describe('discovery', () => {
     expect(await discoverAdmission(async () => new Response('<html>', { status: 200 }), '/api', 'acme')).toBeNull();
   });
 
+  it('reads a paused workspace\'s 403 as payment required, and any other 403 as unknown', async () => {
+    const paused: Record<string, unknown> = { error: 'payment-required', detail: 'pay', billing: { state: 'payment_required', since: 1792281600, purge_at: 1794873600 } };
+    expect(await discoverAdmission(answering(403, paused), '/api', 'acme'))
+      .toEqual({ kind: 'payment-required', refusal: { detail: 'pay', since: 1792281600, purgeAt: 1794873600 } });
+    expect(await discoverAdmission(answering(403, { error: 'suspended' }), '/api', 'acme')).toBeNull();
+    expect(await discoverAdmission(answering(403, { error: 'payment-required' }), '/api', 'acme')).toBeNull();
+    expect(await discoverAdmission(async () => new Response('<html>', { status: 403 }), '/api', 'acme')).toBeNull();
+  });
+
   it('refuses a half-formed answer', () => {
     expect(parseAdmission({ turnstile: { required: 'yes', siteKey: 'k' } })).toBeNull();
     expect(parseAdmission({ turnstile: { required: true, siteKey: '  ' } })).toBeNull();

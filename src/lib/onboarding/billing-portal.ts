@@ -56,6 +56,10 @@ const FREE_PLAN: PortalRefusal = {
   retry: false,
 };
 const NOT_AVAILABLE: PortalRefusal = { message: "Billing management isn't available yet", retry: false };
+const PAUSED: PortalRefusal = {
+  message: 'This workspace is paused until its invoice is paid, so its usage cannot be shown.',
+  retry: true,
+};
 const UNREACHABLE: PortalRefusal = {
   message: 'Could not reach Citadel. Check your connection and try again.',
   retry: true,
@@ -71,8 +75,19 @@ export function describePortalRefusal(error: unknown): PortalRefusal {
   switch (error.code) {
     case 'not-owner': return WRONG_CODE;
     case 'no-subscription': return FREE_PLAN;
+    case 'payment-required': return PAUSED;
     case 'portal-not-configured':
     case 'billing-not-configured': return NOT_AVAILABLE;
     default: return error.status === 0 ? UNREACHABLE : UNKNOWN;
   }
+}
+
+/**
+ * The Customer Terms version a `customer-terms-stale` refusal names as current, or undefined for
+ * any other answer. The portal is refused until the person accepts that version.
+ */
+export function staleCustomerTermsVersion(error: unknown): number | undefined {
+  if (!(error instanceof ControlPlaneError) || error.code !== 'customer-terms-stale') return undefined;
+  const current: unknown = error.reply?.current;
+  return typeof current === 'number' && Number.isInteger(current) && current > 0 ? current : undefined;
 }

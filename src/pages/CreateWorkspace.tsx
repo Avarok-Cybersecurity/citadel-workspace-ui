@@ -16,7 +16,6 @@ import {
   ControlPlaneError,
   createControlPlane,
   type ControlPlane,
-  type CreateTenantRequest,
   type CreateTenantResult,
 } from '@/lib/onboarding/control-plane-client';
 import {
@@ -32,31 +31,14 @@ import {
 } from '@/lib/onboarding/create-flow';
 import { deriveSlug, sanitizeSlugInput } from '@/lib/onboarding/slug';
 import { useSlugAvailability, type Availability } from '@/lib/onboarding/slug-availability';
-import { SHOWN_CUSTOMER_TERMS_VERSION } from '@/lib/terms/customer-terms';
-import { clampSeats, clampStorageBlocks, isPaid, type PlanSelection } from '@/lib/onboarding/tiers';
+import { isPaid, type PlanSelection } from '@/lib/onboarding/tiers';
+import { createTenantRequest } from '@/lib/onboarding/create-request';
+import { useBillingPolicy, type BillingPolicyHandle } from '@/hooks/use-billing-policy';
 
 export interface CreateWorkspaceFlowProps {
   readonly api: ControlPlane;
   /** Leave for Stripe Checkout. The URL has already been checked against CHECKOUT_ORIGIN. */
   readonly redirect: (checkoutUrl: string) => void;
-}
-
-function requestFor(draft: FlowDraft, turnstileToken: string): CreateTenantRequest {
-  const base: CreateTenantRequest = {
-    slug: draft.slug,
-    display_name: draft.displayName.trim(),
-    tier: draft.plan.tier,
-    turnstile_token: turnstileToken,
-    accepted_customer_terms_version: SHOWN_CUSTOMER_TERMS_VERSION,
-    ...(draft.reservationToken ? { reservation_token: draft.reservationToken } : {}),
-  };
-  if (!isPaid(draft.plan.tier)) return base;
-  return {
-    ...base,
-    interval: draft.plan.interval,
-    seats: clampSeats(draft.plan.tier, draft.plan.seats),
-    storage_blocks: clampStorageBlocks(draft.plan.tier, draft.plan.storageBlocks),
-  };
 }
 
 /**
@@ -81,6 +63,9 @@ export function CreateWorkspaceFlow({ api, redirect }: CreateWorkspaceFlowProps)
   const [slugEdited, setSlugEdited] = useState<boolean>(initial.draft !== undefined);
   const [plan, setPlan] = useState<PlanSelection>(initial.draft?.plan ?? INITIAL_PLAN);
   const availability: Availability = useSlugAvailability(api, flow.step === 'name' ? slug : '');
+  // A paid workspace's required choice; asked again after every visit to the plan, never defaulted.
+  const [overageBilling, setOverageBilling] = useState<boolean | undefined>(undefined);
+  const policy: BillingPolicyHandle = useBillingPolicy(api, flow.step === 'review' && isPaid(plan.tier));
 
   const toClaim: (workspaceHost: string, claimCode: string | undefined) => void = useCallback((workspaceHost: string, claimCode: string | undefined): void => {
     recordIssuedClaim(workspaceHost, claimCode);
@@ -103,7 +88,7 @@ export function CreateWorkspaceFlow({ api, redirect }: CreateWorkspaceFlowProps)
   const submit = async (turnstileToken: string): Promise<string | undefined> => {
     const draft: FlowDraft = { displayName, slug, plan, reservationToken: initial.draft?.reservationToken };
     try {
-      const result: CreateTenantResult = await api.createTenant(requestFor(draft, turnstileToken));
+      const result: CreateTenantResult = await api.createTenant(createTenantRequest(draft, turnstileToken, overageBilling));
       if (result.kind === 'created') {
         toClaim(result.workspaceHost, result.claimCode);
       } else {
@@ -151,7 +136,8 @@ export function CreateWorkspaceFlow({ api, redirect }: CreateWorkspaceFlowProps)
             displayName={displayName.trim()}
             slug={slug}
             plan={plan}
-            onBack={() => setFlow({ step: 'plan' })}
+            onBack={() => { setOverageBilling(undefined); setFlow({ step: 'plan' }); }}
+            overage={isPaid(plan.tier) ? { load: policy.load, retry: policy.retry, value: overageBilling, onChange: setOverageBilling } : undefined}
             onSubmit={submit}
           />
         );

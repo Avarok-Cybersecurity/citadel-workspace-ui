@@ -53,12 +53,21 @@ export async function nameIt(name: string): Promise<void> {
   fireEvent.change(screen.getByTestId('create-display-name'), { target: { value: name } });
 }
 
-export async function throughToReview(choosePlan: () => void): Promise<void> {
+/** Picks one of the paid plan's overage options once the policy has loaded them. */
+export async function chooseOverage(enabled: boolean): Promise<void> {
+  const option: HTMLElement = screen.getByTestId(enabled ? 'overage-on' : 'overage-off');
+  await waitFor(() => expect(option).toBeEnabled());
+  fireEvent.click(option);
+}
+
+/** `overage`: a paid plan's choice, made on the review step; omitted for Free, which has none. */
+export async function throughToReview(choosePlan: () => void, overage?: boolean): Promise<void> {
   await nameIt('Acme');
   await waitFor(() => expect(screen.getByTestId('create-name-continue')).toBeEnabled());
   fireEvent.click(screen.getByTestId('create-name-continue'));
   choosePlan();
   fireEvent.click(screen.getByTestId('create-plan-continue'));
+  if (overage !== undefined) await chooseOverage(overage);
   await waitFor(() => expect(screen.getByTestId('create-submit')).toBeEnabled());
 }
 

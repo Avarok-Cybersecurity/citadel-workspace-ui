@@ -9,12 +9,15 @@ import { TurnstileWidget } from './TurnstileWidget';
 import { TURNSTILE_ACTION, TURNSTILE_SITEKEY } from '@/lib/onboarding/turnstile';
 import { TermsAcceptanceModal } from '@/components/terms/TermsAcceptanceModal';
 import { CUSTOMER_TERMS_DOCUMENT, PLATFORM_TERMS_DOCUMENT } from '@/lib/terms/legal-documents';
+import { OverageChoice, type OverageChoiceProps } from './OverageChoice';
 
 export interface ReviewStepProps {
   readonly displayName: string;
   readonly slug: string;
   readonly plan: PlanSelection;
   readonly onBack: () => void;
+  /** A paid plan's required overage-billing choice; undefined for Free, which has none. */
+  readonly overage: OverageChoiceProps | undefined;
   /**
    * Spend the token. Resolves to an error message when the request was refused,
    * or `undefined` when it succeeded (and the page has moved on).
@@ -32,7 +35,7 @@ function Row({ label, value, testId }: { readonly label: string; readonly value:
 }
 
 /** Step 3: check everything, prove you are a person, and create. */
-export function ReviewStep({ displayName, slug, plan, onBack, onSubmit }: ReviewStepProps): JSX.Element {
+export function ReviewStep({ displayName, slug, plan, onBack, overage, onSubmit }: ReviewStepProps): JSX.Element {
   const [token, setToken] = useState<string | undefined>(undefined);
   const [resetSignal, setResetSignal] = useState<number>(0);
   const [busy, setBusy] = useState<boolean>(false);
@@ -41,6 +44,8 @@ export function ReviewStep({ displayName, slug, plan, onBack, onSubmit }: Review
   const paid: boolean = isPaid(plan.tier);
   const q: Quote = quote(plan);
   const per: string = INTERVAL_NAME[plan.interval];
+  // Nothing is pre-selected, so a paid workspace cannot be created until its owner has chosen.
+  const unchosen: boolean = overage !== undefined && overage.value === undefined;
 
   const submit = async (): Promise<void> => {
     if (busy) return;
@@ -77,6 +82,8 @@ export function ReviewStep({ displayName, slug, plan, onBack, onSubmit }: Review
         <Row label="Total" value={paid ? `${formatUsd(q.totalCents)} / ${per}` : 'Free'} testId="review-total" />
       </dl>
 
+      {overage && <OverageChoice {...overage} />}
+
       <div className="mt-6">
         <p className="mb-2 text-sm font-medium text-foreground">Verify you are human</p>
         <TurnstileWidget sitekey={TURNSTILE_SITEKEY} action={TURNSTILE_ACTION} cData={null} onToken={setToken} resetSignal={resetSignal} />
@@ -97,7 +104,7 @@ export function ReviewStep({ displayName, slug, plan, onBack, onSubmit }: Review
         <Button
           type="button"
           size="lg"
-          disabled={!token || busy}
+          disabled={!token || busy || unchosen}
           onClick={() => setAsking(true)}
           data-testid="create-submit"
           className="h-11 gap-2"
