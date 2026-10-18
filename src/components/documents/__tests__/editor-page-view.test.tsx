@@ -5,61 +5,13 @@
  * effects are read back from the engine (snapshot text via a repaint, selection, overlays).
  * jsdom has no layout, so the viewport height is stated (800px) and page boxes sit at 0,0.
  */
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { act, render, screen, waitFor } from '@testing-library/react';
-import { inProcessRuntime, type TestRuntime } from '@/lib/cdoc/__tests__/wasm-rig';
-import { EditorSession } from '@/lib/cdoc/editor/editor-session';
+import { describe, expect, it } from 'vitest';
+import { act, screen, waitFor } from '@testing-library/react';
 import type { Call } from '@/lib/cdoc/paint/__tests__/recording-canvas';
-import { EditorPageView } from '../EditorPageView';
 import type { PeerView } from '@/lib/cdoc/editor/controller';
+import { key, mount, settled, statedViewport, type } from './editor-harness';
 
-const VIEWPORT_PX: number = 800;
-let restore: (() => void) | null = null;
-beforeEach(() => {
-  const original: PropertyDescriptor | undefined = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight');
-  Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, get: () => VIEWPORT_PX });
-  restore = (): void => {
-    if (original) Object.defineProperty(HTMLElement.prototype, 'clientHeight', original);
-  };
-});
-afterEach(() => restore?.());
-
-interface Mounted {
-  readonly runtime: TestRuntime;
-  readonly editor: EditorSession;
-  readonly errors: unknown[];
-  readonly input: HTMLTextAreaElement;
-}
-
-async function mount(mode: 'worker' | 'main-thread'): Promise<Mounted> {
-  const runtime: TestRuntime = inProcessRuntime(mode);
-  const editor: EditorSession = await EditorSession.open({ client: runtime.client, renderer: runtime.renderer }, 11n, { kind: 'blank' });
-  const errors: unknown[] = [];
-  render(
-    <EditorPageView
-      editor={editor} renderer={runtime.renderer} zoom={1} dpr={1} onZoomChange={() => undefined} onPageStatus={() => undefined}
-      input={{ platform: 'other', undoPauseMs: 60_000, onError: (e: unknown) => errors.push(e), overlayContext: runtime.overlayContext }}
-    />,
-  );
-  const input: HTMLTextAreaElement = await screen.findByTestId('editor-input') as HTMLTextAreaElement;
-  await waitFor(() => expect(runtime.painted.some((t) => t.sizes.length > 0)).toBe(true));
-  return { runtime, editor, errors, input };
-}
-
-function type(input: HTMLElement, text: string): void {
-  for (const ch of text) {
-    act(() => { input.dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertText', data: ch, bubbles: true, cancelable: true })); });
-  }
-}
-
-function key(input: HTMLElement, k: string, mods: KeyboardEventInit = {}): void {
-  act(() => { input.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...mods })); });
-}
-
-/** The text of page 0 as the engine has it: select all and read the selection's rect count. */
-async function settled(editor: EditorSession): Promise<void> {
-  await act(async () => { await editor.awareness(); });
-}
+statedViewport();
 
 const fills = (calls: readonly Call[]): number => calls.filter((c) => c.name === 'fillRect').length;
 

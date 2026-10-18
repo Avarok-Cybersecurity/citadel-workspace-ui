@@ -2,7 +2,8 @@
  * The hidden textarea that takes the keyboard for the canvas editor. Keys the keymap knows
  * become commands; text arrives through `beforeinput` (typing, paste, dictation, mobile
  * keyboards) and composition events (IMEs, dead keys) become 0x50-0x53, so the editor sees
- * one path for every way text is entered. The textarea's own value is emptied after each
+ * one path for every way text is entered. A paste is the clipboard's text/plain (R1 has no
+ * HTML clipboard), entered as one undo step. The textarea's own value is emptied after each
  * input: the document is the editor's, never the textarea's.
  *
  * An undo step ends on blur and after `pauseMs` without input (BreakUndoGroup), so a pause in
@@ -45,6 +46,20 @@ export function attachImeBridge(sink: TextSink, editor: EditorController, option
     pause = setTimeout(breakGroup, options.pauseMs);
   };
 
+  /** Pasted or dropped text: its own undo step, line endings as the document's. */
+  const insertBlock = (text: string): void => {
+    if (text === '') return;
+    breakGroup();
+    run({ name: 'insertText', text: text.replace(/\r\n?/g, '\n') });
+    breakGroup();
+  };
+
+  const onPaste = (event: Event): void => {
+    const e: ClipboardEvent = event as ClipboardEvent;
+    e.preventDefault();
+    insertBlock(e.clipboardData?.getData('text/plain') ?? '');
+  };
+
   const onKeyDown = (event: Event): void => {
     const e: KeyboardEvent = event as KeyboardEvent;
     if (e.isComposing || composing) return;
@@ -70,11 +85,7 @@ export function attachImeBridge(sink: TextSink, editor: EditorController, option
       case 'insertFromPaste':
       case 'insertFromDrop': {
         e.preventDefault();
-        const text: string = e.dataTransfer?.getData('text/plain') ?? e.data ?? '';
-        if (text === '') return;
-        breakGroup();
-        run({ name: 'insertText', text: text.replace(/\r\n?/g, '\n') });
-        breakGroup();
+        insertBlock(e.dataTransfer?.getData('text/plain') ?? e.data ?? '');
         return;
       }
       case 'insertParagraph': e.preventDefault(); run({ name: 'splitParagraph' }); return;
@@ -118,6 +129,7 @@ export function attachImeBridge(sink: TextSink, editor: EditorController, option
   const listeners: ReadonlyArray<readonly [string, (event: Event) => void]> = [
     ['keydown', onKeyDown], ['beforeinput', onBeforeInput], ['compositionstart', onCompositionStart],
     ['compositionupdate', onCompositionUpdate], ['compositionend', onCompositionEnd], ['input', onInput], ['blur', onBlur],
+    ['paste', onPaste],
   ];
   for (const [type, listener] of listeners) sink.addEventListener(type, listener);
   return (): void => {
