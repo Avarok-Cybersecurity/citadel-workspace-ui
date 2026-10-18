@@ -4,4 +4,4 @@
  * (legal-documents.ts); legal-documents-parity.test.ts holds this to the crate's
  * CUSTOMER_TERMS_VERSION and to the version the text states.
  */
-export const SHOWN_CUSTOMER_TERMS_VERSION: number = 1;
+export const SHOWN_CUSTOMER_TERMS_VERSION: number = 2;

@@ -25,10 +25,11 @@ describe.each(LEGAL_DOCUMENTS.map((d: LegalDocument): [string, LegalDocument] =>
   it('shows its title, effective date and rendered body', () => {
     at(path);
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(doc.title);
-    expect(screen.getByTestId('legal-facts')).toHaveTextContent('Effective October 14, 2026');
+    expect(screen.getByTestId('legal-facts')).toHaveTextContent(`Effective ${doc.effective}`);
     const body: HTMLElement = screen.getByTestId('legal-markdown');
     expect(body.querySelector('h2, p')).not.toBeNull();
     expect(body.textContent).not.toMatch(/\*\*|^## /m);
+    expect(body.textContent).not.toContain('<!--');
     expect(body.querySelector('h1')).toBeNull();
   });
 

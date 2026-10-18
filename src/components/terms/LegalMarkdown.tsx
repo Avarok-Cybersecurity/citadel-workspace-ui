@@ -49,7 +49,9 @@ function LegalTable({ children }: { children?: ReactNode }): JSX.Element {
 /**
  * The one renderer of the legal documents: the acceptance dialog, the read-only dialogs, the
  * re-acceptance prompt and the public /legal pages all come through here, so a document reads the
- * same wherever it is shown. Markdown only: raw HTML in the text is never interpreted.
+ * same wherever it is shown. Markdown only: raw HTML in the text is never interpreted, and never
+ * shown either (`skipHtml`), so the `<!-- billing-policy:... -->` markers that
+ * scripts/render-billing-terms.mjs writes around the policy-derived paragraphs stay out of sight.
  */
 export function LegalMarkdown({ text, onOpenDocument }: LegalMarkdownProps): JSX.Element {
   return (
@@ -57,7 +59,7 @@ export function LegalMarkdown({ text, onOpenDocument }: LegalMarkdownProps): JSX
       data-testid="legal-markdown"
       className="prose prose-sm sm:prose-base max-w-[68ch] break-words prose-headings:text-foreground prose-headings:scroll-mt-4 prose-h2:mt-8 prose-strong:text-foreground prose-li:text-foreground prose-a:underline prose-a:underline-offset-2"
     >
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: anchorFor(onOpenDocument), table: LegalTable }}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} skipHtml components={{ a: anchorFor(onOpenDocument), table: LegalTable }}>
         {text}
       </ReactMarkdown>
     </div>

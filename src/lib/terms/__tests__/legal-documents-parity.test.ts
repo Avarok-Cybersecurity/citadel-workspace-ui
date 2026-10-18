@@ -21,6 +21,24 @@ const CRATE_FILE: Readonly<Record<LegalDocumentId, string>> = {
   subprocessors: 'subprocessors.md',
 };
 
+/**
+ * The terms state the date billing/policy.json gives them (terms.effective_date, the one source;
+ * scripts/render-billing-terms.mjs writes it); the other documents keep the date they were written.
+ */
+const FROM_POLICY: ReadonlySet<LegalDocumentId> = new Set<LegalDocumentId>(['terms', 'customer-terms']);
+const FIXED_EFFECTIVE: Readonly<Partial<Record<LegalDocumentId, string>>> = {
+  privacy: 'October 14, 2026',
+  dpa: 'October 14, 2026',
+  subprocessors: 'October 14, 2026',
+};
+
+function policyEffective(): string {
+  const policy: unknown = JSON.parse(readFileSync(join(process.cwd(), '..', 'billing', 'policy.json'), 'utf8'));
+  const iso: unknown = (policy as { terms?: { effective_date?: unknown } }).terms?.effective_date;
+  expect(iso).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  return new Date(`${String(iso)}T00:00:00Z`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+}
+
 function crateVersion(constant: string): number {
   const rust: string = readFileSync(join(TYPES, 'terms.rs'), 'utf8');
   const version: RegExpMatchArray | null = rust.match(new RegExp(`${constant}: u32 = (\\d+);`));
@@ -32,9 +50,11 @@ describe.each(LEGAL_DOCUMENTS.map((doc: LegalDocument): [LegalDocumentId, LegalD
   it.skipIf(!present)("is the crate's text, byte for byte", () => {
     expect(doc.text).toBe(readFileSync(join(TYPES, CRATE_FILE[id]), 'utf8'));
   });
-  it('states its own title and effective date', () => {
+  it('states its own title', () => {
     expect(doc.title).toMatch(/^Citadel Workspace /);
-    expect(doc.effective).toBe('October 14, 2026');
+  });
+  it.skipIf(FROM_POLICY.has(id) && !present)('states its effective date', () => {
+    expect(doc.effective).toBe(FROM_POLICY.has(id) ? policyEffective() : FIXED_EFFECTIVE[id]);
   });
 });
 

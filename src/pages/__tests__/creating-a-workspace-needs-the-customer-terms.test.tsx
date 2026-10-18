@@ -47,7 +47,7 @@ describe('Create on the final step', () => {
     await waitFor(() => expect(screen.getByTestId('claim-step')).toBeInTheDocument());
     expect(posts(fake)).toHaveLength(1);
     expect(posts(fake)[0].body).toMatchObject({ accepted_customer_terms_version: SHOWN_CUSTOMER_TERMS_VERSION });
-    expect(SHOWN_CUSTOMER_TERMS_VERSION).toBe(1);
+    expect(SHOWN_CUSTOMER_TERMS_VERSION).toBe(2);
   });
 
   it("shows the control plane's sentence when it says the terms moved on", async () => {
