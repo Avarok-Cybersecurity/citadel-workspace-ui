@@ -223,8 +223,11 @@ const DEFERRED_MODULES = [
  * (cdoc-edit-io with the DOCX, ODT, MD, TXT and PDF writers reachable from EditorHandle), the
  * chunked diff, styles and the clipboard text: 4,429,022 bytes; measured plus ~4%, the cap
  * raised to 4,700,000 beside it. Still down with the per-app wasm split.
+ * 5,300,000 (2026-10-18): citadel-docs f8656c6 shapes every run (cdoc-shape, Knuth-Plass line
+ *   breaking, display list v2): 5,086,603 bytes; measured plus ~4%, the cap raised to 5,400,000
+ *   beside it. The editor/pdf split (citadel-docs #39) is what brings it back under 4 MiB.
  */
-const CDOC_WASM_BUDGET_BYTES = 4_600_000;
+const CDOC_WASM_BUDGET_BYTES = 5_300_000;
 const CDOC_WASM = join(dist, 'cdoc', 'cdoc_wasm_bg.wasm');
 
 /**

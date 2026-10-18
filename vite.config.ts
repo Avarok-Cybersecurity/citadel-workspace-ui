@@ -246,7 +246,9 @@ export default defineConfig(({ mode }) => {
           // 59d18eb (gc, addImage, result v2) measures 4,323,294: 4% under, held.
           // 4,700,000: b5cd990 (file open and export on the live replica) measures
           // 4,429,022, 1.6% under 4.5 MB; raised to measured plus ~6% with the budget.
-          maximumFileSizeToCacheInBytes: 4_700_000,
+          // 5,400,000: f8656c6 (every run shaped, display list v2) measures 5,086,603;
+          // measured plus ~6% with the budget, until the editor/pdf split lands.
+          maximumFileSizeToCacheInBytes: 5_400_000,
           // SPA fallback, minus the endpoints that must always hit the network.
           // `/`, never `/index.html`: the Worker's asset handler answers /index.html with a
           // 307 to `/`. Workbox's precache normally hides that, but when the cached copy is
