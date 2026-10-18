@@ -2,9 +2,103 @@
 /* eslint-disable */
 
 /**
- * A written `.docx` and the report of what it could not carry.
+ * Faces being gathered for editing.
  */
-export class DocxExport {
+export class EditorFonts {
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Adds a face (TrueType or OpenType bytes).
+     */
+    addFont(family: string, bold: boolean, italic: boolean, bytes: Uint8Array): void;
+    /**
+     * Serves `target` whenever a document asks for `name`.
+     */
+    aliasFont(name: string, target: string): void;
+    /**
+     * No faces yet; `fallback_family` serves any family not added or aliased.
+     */
+    constructor(fallback_family: string);
+    /**
+     * Seals the faces; they are kept for the page's life (seal once, reuse).
+     */
+    seal(): EditorSealedFonts;
+}
+
+/**
+ * An editing session over one document.
+ */
+export class EditorHandle {
+    private constructor();
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Applies a peer's update; returns the result record.
+     */
+    applyRemote(update: Uint8Array): Uint8Array;
+    /**
+     * This replica's awareness record.
+     */
+    awareness(): Uint8Array;
+    /**
+     * A new blank document as client `client` (a `BigInt`).
+     */
+    static blank(client: bigint, fonts: EditorSealedFonts): EditorHandle;
+    /**
+     * What a peer at state vector `sv` lacks.
+     */
+    encodeDiff(sv: Uint8Array): Uint8Array;
+    /**
+     * The position record nearest `(x, y)` on `page`.
+     */
+    hitTest(page: number, x: number, y: number): Uint8Array;
+    /**
+     * Opens a replica from a CRDT snapshot as client `client` (a `BigInt`).
+     */
+    static open(snapshot: Uint8Array, client: bigint, fonts: EditorSealedFonts): EditorHandle;
+    /**
+     * Pages in the document.
+     */
+    pageCount(): number;
+    /**
+     * Page `page`'s `[width, height]`, or nothing past the last page.
+     */
+    pageSize(page: number): Int32Array | undefined;
+    /**
+     * The display list of `pages` (zero-based).
+     */
+    paint(pages: Uint32Array): Uint8Array;
+    /**
+     * A peer's awareness record as a peer-view record.
+     */
+    peerView(record: Uint8Array): Uint8Array;
+    /**
+     * Runs a request record; returns the result record.
+     */
+    request(request: Uint8Array): Uint8Array;
+    /**
+     * The full CRDT snapshot.
+     */
+    snapshot(): Uint8Array;
+    /**
+     * The replica's state vector.
+     */
+    stateVector(): Uint8Array;
+}
+
+/**
+ * Faces sealed for the page's lifetime; open every editor on one of these.
+ */
+export class EditorSealedFonts {
+    private constructor();
+    free(): void;
+    [Symbol.dispose](): void;
+}
+
+/**
+ * A written file (`.docx`, `.dotx`, `.odt`, `.ott`) and the report of what it could not carry.
+ */
+export class FileExport {
     private constructor();
     free(): void;
     [Symbol.dispose](): void;
@@ -19,8 +113,9 @@ export class DocxExport {
 }
 
 /**
- * Images moving across the boundary: embedded images found by `docx_to_pm` (under
- * provisional ids), and the bytes `pm_to_docx` needs for the ids a document names.
+ * Images moving across the boundary: embedded images found by `docx_to_pm` / `odt_to_pm`
+ * (under provisional ids), and the bytes `pm_to_docx` / `pm_to_odt` need for the ids a
+ * document names.
  */
 export class ImageStore {
     free(): void;
@@ -96,7 +191,8 @@ export function blank_pm_json(): string;
 export function check_pm(pm_json: string): void;
 
 /**
- * A `.docx` to JSON `{"pm", "report", "problems"}`; images go into `images`.
+ * A `.docx`, `.dotx`, `.docm` or `.dotm` to JSON `{"pm", "report", "problems", "kind"}`;
+ * images go into `images`, macros are refused and reported.
  */
 export function docx_to_pm(bytes: Uint8Array, images: ImageStore): string;
 
@@ -129,6 +225,12 @@ export function md_to_pm(md: string, options_json: string): string;
 export function model_to_pm(model_json: string): string;
 
 /**
+ * A `.odt` or `.ott` to JSON `{"pm", "report", "problems", "kind"}`; images go into
+ * `images`.
+ */
+export function odt_to_pm(bytes: Uint8Array, images: ImageStore): string;
+
+/**
  * ProseMirror JSON → the display list of every page: the binary format of
  * `docs/display-list.md`, returned as a `Uint8Array` the caller can transfer to the painter.
  */
@@ -141,9 +243,10 @@ export function pm_to_display_list(pm_json: string, assets: RenderAssets): Uint8
 export function pm_to_display_list_pages(pm_json: string, assets: RenderAssets, pages: Uint32Array): Uint8Array;
 
 /**
- * ProseMirror JSON to a `.docx`; image bytes come from `images`.
+ * ProseMirror JSON to a `.docx` or `.dotx`; image bytes come from `images`. Options JSON:
+ * `{"kind": "document" | "template"}`.
  */
-export function pm_to_docx(pm_json: string, images: ImageStore): DocxExport;
+export function pm_to_docx(pm_json: string, images: ImageStore, options_json: string): FileExport;
 
 /**
  * ProseMirror JSON to JSON `{"text", "report"}` holding Markdown.
@@ -154,6 +257,12 @@ export function pm_to_md(pm_json: string): string;
  * ProseMirror JSON → model JSON.
  */
 export function pm_to_model(pm_json: string): string;
+
+/**
+ * ProseMirror JSON to a `.odt` or `.ott`; image bytes come from `images`. Options JSON:
+ * `{"kind": "document" | "template"}`.
+ */
+export function pm_to_odt(pm_json: string, images: ImageStore, options_json: string): FileExport;
 
 /**
  * ProseMirror JSON → PDF bytes.
@@ -200,16 +309,36 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
-    readonly __wbg_docxexport_free: (a: number, b: number) => void;
+    readonly __wbg_editorfonts_free: (a: number, b: number) => void;
+    readonly __wbg_editorhandle_free: (a: number, b: number) => void;
+    readonly __wbg_editorsealedfonts_free: (a: number, b: number) => void;
+    readonly __wbg_fileexport_free: (a: number, b: number) => void;
     readonly __wbg_imagestore_free: (a: number, b: number) => void;
     readonly __wbg_renderassets_free: (a: number, b: number) => void;
     readonly blank_model_json: () => [number, number];
     readonly blank_pm_json: () => [number, number];
     readonly check_pm: (a: number, b: number) => [number, number];
     readonly docx_to_pm: (a: number, b: number, c: number) => [number, number, number, number];
-    readonly docxexport_bytes: (a: number) => [number, number];
-    readonly docxexport_reportJson: (a: number) => [number, number];
+    readonly editorfonts_addFont: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
+    readonly editorfonts_aliasFont: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly editorfonts_new: (a: number, b: number) => number;
+    readonly editorfonts_seal: (a: number) => number;
+    readonly editorhandle_applyRemote: (a: number, b: number, c: number) => [number, number, number, number];
+    readonly editorhandle_awareness: (a: number) => [number, number];
+    readonly editorhandle_blank: (a: bigint, b: number) => [number, number, number];
+    readonly editorhandle_encodeDiff: (a: number, b: number, c: number) => [number, number, number, number];
+    readonly editorhandle_hitTest: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+    readonly editorhandle_open: (a: number, b: number, c: bigint, d: number) => [number, number, number];
+    readonly editorhandle_pageCount: (a: number) => number;
+    readonly editorhandle_pageSize: (a: number, b: number) => [number, number];
+    readonly editorhandle_paint: (a: number, b: number, c: number) => [number, number, number, number];
+    readonly editorhandle_peerView: (a: number, b: number, c: number) => [number, number, number, number];
+    readonly editorhandle_request: (a: number, b: number, c: number) => [number, number, number, number];
+    readonly editorhandle_snapshot: (a: number) => [number, number];
+    readonly editorhandle_stateVector: (a: number) => [number, number];
     readonly face_metrics: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
+    readonly fileexport_bytes: (a: number) => [number, number];
+    readonly fileexport_reportJson: (a: number) => [number, number];
     readonly glyph_path: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number, number];
     readonly imagestore_add: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
     readonly imagestore_bytes: (a: number, b: number) => [number, number];
@@ -221,11 +350,13 @@ export interface InitOutput {
     readonly list_labels: (a: number, b: number) => [number, number, number, number];
     readonly md_to_pm: (a: number, b: number, c: number, d: number) => [number, number, number, number];
     readonly model_to_pm: (a: number, b: number) => [number, number, number, number];
+    readonly odt_to_pm: (a: number, b: number, c: number) => [number, number, number, number];
     readonly pm_to_display_list: (a: number, b: number, c: number) => [number, number, number, number];
     readonly pm_to_display_list_pages: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
-    readonly pm_to_docx: (a: number, b: number, c: number) => [number, number, number];
+    readonly pm_to_docx: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
     readonly pm_to_md: (a: number, b: number) => [number, number, number, number];
     readonly pm_to_model: (a: number, b: number) => [number, number, number, number];
+    readonly pm_to_odt: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
     readonly pm_to_pdf: (a: number, b: number, c: number) => [number, number, number, number];
     readonly pm_to_svg_pages: (a: number, b: number, c: number) => [number, number, number, number];
     readonly pm_to_txt: (a: number, b: number) => [number, number, number, number];

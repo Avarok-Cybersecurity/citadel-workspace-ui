@@ -1,9 +1,9 @@
 {
-  "citadel_docs_commit": "84182f3f396615b2d192e29bc1c2d2335fcf636a",
+  "citadel_docs_commit": "aff63f9134e7387e882a64e81d336fdcd975c1c4",
   "wasm_bindgen_version": "0.2.129",
   "wasm_opt_version": "123",
-  "wasm_sha256": "3bd73b8d0281521fa0511eeae93390700a6d08d5ca207869be2e4c70c94b0642",
-  "wasm_bytes": 2679138,
-  "glue_sha256": "927f2a5967ad016796a47d3abe693f95f9180cf946cb0cd139d55c26676df5d7",
-  "dts_sha256": "51779bc0f01ba152a941a25e1772fe391ef7249fda8383543fbfb413541fa46f"
+  "wasm_sha256": "5eca44b57c74fa71e3048b58d496cc1a8c955c81b57edef17e9cf0dd8621c981",
+  "wasm_bytes": 4222829,
+  "glue_sha256": "611c1321ed266c4ca5e16150cbe8440b5c93bbc8b49a2531b09eb649a1ad2c59",
+  "dts_sha256": "53103413dfb1a45ea8c5ca110a1e39a687f3bbdca16209fc60734787139a3449"
 }
