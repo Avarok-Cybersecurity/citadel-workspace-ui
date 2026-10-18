@@ -82,7 +82,7 @@ describe('editor records against cdoc-edit', () => {
     const { displayList } = await client.request({ kind: 'paint', pages: [0] });
     const list: DisplayList = openDisplayList(displayList);
     const used: Set<number> = new Set<number>(
-      decodePage(list, 0).ops.flatMap((op: Op) => (op.kind === 'textRun' || op.kind === 'glyphRun' ? [op.head.faceId] : [])),
+      decodePage(list, 0).ops.flatMap((op: Op) => (op.kind === 'glyphRun' ? [op.head.faceId] : [])),
     );
     return [...used].map((id: number) => ({ bold: list.faces[id].bold, italic: list.faces[id].italic }));
   }

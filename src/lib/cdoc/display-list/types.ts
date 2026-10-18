@@ -1,5 +1,5 @@
 /**
- * A decoded display list (`docs/display-list.md` v1). Every coordinate, length and size is
+ * A decoded display list (`docs/display-list.md` v2). Every coordinate, length and size is
  * Pt100 (hundredths of a point), page space, y down. Colours are packed `0xRRGGBBAA`, straight
  * alpha.
  */
@@ -13,7 +13,7 @@ export interface Rect {
   readonly h: number;
 }
 
-/** One entry of a face's glyph table: what a TEXT_RUN index refers to. */
+/** One entry of a face's glyph table: a glyph the list's runs draw, to preload before the bodies. */
 export interface GlyphMetric {
   readonly glyphId: number;
   /** The face's `hmtx` advance, font units. */
@@ -83,12 +83,15 @@ export type Op =
     }
   | { readonly kind: 'fillPath'; readonly color: Rgba; readonly path: PathData }
   | { readonly kind: 'strokePath'; readonly width: number; readonly color: Rgba; readonly path: PathData }
-  /** Unshaped: `indices` are positions in the face's glyph table. */
-  | { readonly kind: 'textRun'; readonly head: RunHead; readonly indices: Uint32Array }
-  /** Shaped: per glyph id, advance, x offset, y offset. */
+  /**
+   * Shaped (every run is): the characters it stands for, then per glyph its id, its cluster (the
+   * UTF-8 byte offset in `text` of its first character), advance, x offset and y offset.
+   */
   | {
       readonly kind: 'glyphRun';
       readonly head: RunHead;
+      readonly text: string;
+      readonly clusters: Uint32Array;
       readonly glyphIds: Uint16Array;
       readonly advances: Int32Array;
       readonly dx: Int32Array;

@@ -1,13 +1,13 @@
 /**
  * Paints one decoded page into a 2d context in device pixels, op by op in painting order
- * (`docs/display-list.md` v1 § Operations), with the rounding rule of units.ts. The context's
+ * (`docs/display-list.md` v2 § Operations), with the rounding rule of units.ts. The context's
  * transform is the identity throughout; only glyph fills set (and restore) their own.
  *
  * Links paint nothing: they come back as hit areas in CSS px, for the page view to overlay.
  * Selection and caret are not painted here; they belong to overlay canvases above the page.
  */
 import { SEG_CLOSE, SEG_CUBIC, SEG_LINE, SEG_MOVE } from '../format';
-import { placeGlyphRun, placeTextRun } from '../display-list/text-placement';
+import { placeGlyphRun } from '../display-list/text-placement';
 import type { Face, Op, PageOps, PathData, Rect } from '../display-list/types';
 import type { Ctx2D } from './canvas-port';
 import { cssColor } from './color';
@@ -101,7 +101,7 @@ function line(ctx: Ctx2D, op: Extract<Op, { kind: 'line' }>, k: number): void {
   ctx.stroke();
 }
 
-function text(env: PagePaintEnv, op: Extract<Op, { kind: 'textRun' | 'glyphRun' }>): void {
+function text(env: PagePaintEnv, op: Extract<Op, { kind: 'glyphRun' }>): void {
   const { k } = env.scale;
   const face: Face = env.faces[op.head.faceId];
   const sizePx: number = quarterPx(op.head.size * k);
@@ -113,8 +113,7 @@ function text(env: PagePaintEnv, op: Extract<Op, { kind: 'textRun' | 'glyphRun' 
       x: quarterPx(gx * k), y: gy === op.head.y ? y : px(gy, k), color,
     });
   };
-  if (op.kind === 'textRun') placeTextRun(op, face, visit);
-  else placeGlyphRun(op, visit);
+  placeGlyphRun(op, visit);
 }
 
 function cssRect(r: Rect, css: number): Omit<LinkArea, 'target'> {
@@ -160,7 +159,6 @@ export function paintPage(env: PagePaintEnv, page: PageOps): LinkArea[] {
         ctx.strokeStyle = cssColor(op.color);
         ctx.stroke();
         break;
-      case 'textRun':
       case 'glyphRun': text(env, op); break;
       case 'image': {
         // The same rounding as every rect, so the picture lands where PDF and SVG put it.

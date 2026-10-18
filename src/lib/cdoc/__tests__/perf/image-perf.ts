@@ -25,7 +25,7 @@ export interface ImagePagePerf {
   readonly decodesPerKeystroke: number;
 }
 
-const DOCX: string = join(__dirname, '..', 'fixtures', 'png-jpeg-gif.docx');
+const DOCX: string = join(process.cwd(), 'src/lib/cdoc/__tests__/fixtures/png-jpeg-gif.docx');
 const percentile = (xs: number[], p: number): number => [...xs].sort((a: number, b: number) => a - b)[Math.min(xs.length - 1, Math.floor(p * xs.length))];
 
 /** `cached: false` is the control. */

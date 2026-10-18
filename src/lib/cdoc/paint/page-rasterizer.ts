@@ -9,7 +9,6 @@
  */
 import { slotOfPage } from '../display-list/decoder';
 import { decodePage } from '../display-list/page-ops';
-import { placeGlyphRun, placeTextRun } from '../display-list/text-placement';
 import type { DisplayList, Face, FaceKey, PageOps } from '../display-list/types';
 import { DisplayListError } from '../display-list/byte-reader';
 import type { CanvasPort, PaintTarget } from './canvas-port';
@@ -138,16 +137,14 @@ export class PageRasterizer {
     const wanted: Map<number, Set<number>> = new Map<number, Set<number>>();
     const faces: readonly Face[] = this.heldPage(pageNumber).faces;
     for (const op of this.page(pageNumber).ops) {
-      if (op.kind !== 'textRun' && op.kind !== 'glyphRun') continue;
+      if (op.kind !== 'glyphRun') continue;
       const faceId: number = faces[op.head.faceId].faceId;
-      const note = (glyphId: number): void => {
-        if (this.outlines.has(faceId, glyphId)) return;
+      for (const glyphId of op.glyphIds) {
+        if (this.outlines.has(faceId, glyphId)) continue;
         let set: Set<number> | undefined = wanted.get(faceId);
         if (set === undefined) wanted.set(faceId, (set = new Set<number>()));
         set.add(glyphId);
-      };
-      if (op.kind === 'textRun') placeTextRun(op, faces[op.head.faceId], note);
-      else placeGlyphRun(op, note);
+      }
     }
     return new Map<number, Uint16Array>([...wanted].map(([face, ids]) => [face, Uint16Array.from(ids)]));
   }

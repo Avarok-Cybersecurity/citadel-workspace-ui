@@ -1,5 +1,5 @@
 /**
- * Opens a display list (`docs/display-list.md` v1): header, face table with per-face glyph
+ * Opens a display list (`docs/display-list.md` v2): header, face table with per-face glyph
  * tables, string table and page index, checked once. Page bodies are decoded one at a time by
  * offset (`decodePage` in page-ops.ts), so a buffer that ends after page N's body opens and
  * serves pages 0..=N. Reads in place over the caller's ArrayBuffer; nothing is copied.

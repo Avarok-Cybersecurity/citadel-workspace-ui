@@ -67,7 +67,7 @@ describe('every op on the every-op golden', () => {
 
   it('draws TEXT_RUN and GLYPH_RUN glyphs from the atlas', () => {
     const glyphs: number = decodePage(dl, 0).ops.reduce((n: number, o: Op) =>
-      n + (o.kind === 'textRun' ? o.indices.length : o.kind === 'glyphRun' ? o.glyphIds.length : 0), 0);
+      n + (o.kind === 'glyphRun' ? o.glyphIds.length : 0), 0);
     expect(named(target.calls, 'drawImage')).toHaveLength(glyphs);
   });
 

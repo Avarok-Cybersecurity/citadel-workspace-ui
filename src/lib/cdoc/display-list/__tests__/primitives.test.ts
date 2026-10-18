@@ -1,5 +1,5 @@
 /**
- * The primitive encodings against known vectors (`docs/display-list.md` v1 § Conventions; the
+ * The primitive encodings against known vectors (`docs/display-list.md` v2 § Conventions; the
  * same vectors cdoc-paint's codec tests pin), and a header this decoder must refuse.
  */
 import { describe, expect, it } from 'vitest';
@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { ByteReader, unzigzag } from '../byte-reader';
 import { openDisplayList } from '../decoder';
 import { decodePage } from '../page-ops';
-import type { DisplayList } from '../types';
+import type { DisplayList, Op } from '../types';
 
 function reader(bytes: number[]): ByteReader {
   return new ByteReader(new DataView(new Uint8Array(bytes).buffer), 0, bytes.length);
@@ -76,8 +76,9 @@ describe('the header', () => {
     expect(() => openDisplayList(patched(0, 0x58))).toThrow(/bad magic/);
   });
 
-  it('refuses any version but 1, naming both', () => {
-    expect(() => openDisplayList(patched(4, 2))).toThrow(/version 2 is not supported \(this decoder reads 1\)/);
+  it('refuses any version but 2, naming both: the retired 1 and a later 3 alike', () => {
+    expect(() => openDisplayList(patched(4, 1))).toThrow(/version 1 is not supported \(this decoder reads 2\)/);
+    expect(() => openDisplayList(patched(4, 3))).toThrow(/version 3 is not supported \(this decoder reads 2\)/);
   });
 
   it('refuses reserved flags', () => {
@@ -98,6 +99,50 @@ describe('element counts', () => {
   it('refuses a count the remaining bytes cannot hold, naming it, before sizing anything by it', () => {
     expect(() => reader([0x03, 0xaa, 0xbb]).count(1, 'a list')).toThrow(/a list claims 3 entries, but only 2 bytes remain/);
     expect(() => reader([0x01, 0xaa, 0xbb, 0xcc]).count(4, 'a glyph run')).toThrow(/a glyph run claims 1 entries, but only 3 bytes remain/);
+  });
+});
+
+function bodyList(body: number[]): DisplayList {
+  return {
+    view: new DataView(new Uint8Array(body).buffer),
+    faces: [{ faceId: 0, family: 'Carlito', bold: false, italic: false, unitsPerEm: 2048, glyphs: [] }],
+    strings: [],
+    pages: [{ number: 0, offset: 0, length: body.length, width: 59530, height: 84190 }],
+    indexEnd: 0,
+  };
+}
+
+describe('a glyph run', () => {
+  // Face 0, size 0, opaque black, at (0, 0); text "aé" (é is two bytes); glyph 1 at cluster 0,
+  // glyph 2 at `second`; advances and offsets 0.
+  const run = (second: number, opcode: number = 0x11): number[] => [
+    opcode, 23, 0, 0, 0, 0, 0, 0xff, 0, 0, 0x03, 0x61, 0xc3, 0xa9, 2, 1, 0, 0, 0, 0, 2, second, 0, 0, 0,
+  ];
+
+  it('carries its text and each glyph\'s cluster', () => {
+    const op: Op = decodePage(bodyList(run(1)), 0).ops[0];
+    expect(op.kind === 'glyphRun' && [op.text, [...op.clusters], [...op.glyphIds]]).toEqual(['aé', [0, 1], [1, 2]]);
+  });
+
+  it('accepts a cluster at the end of its text', () => {
+    expect(decodePage(bodyList(run(3)), 0).ops).toHaveLength(1);
+  });
+
+  it.each([
+    [2, 'inside a character'],
+    [4, 'past the text'],
+  ])('refuses a cluster at byte %d, %s', (cluster: number) => {
+    expect(() => decodePage(bodyList(run(cluster)), 0)).toThrow(/cluster \d+ decreases or is not a character boundary/);
+  });
+
+  it('refuses a cluster that decreases', () => {
+    const body: number[] = run(0);
+    body[16] = 1; // the first glyph's cluster: 1, then 0
+    expect(() => decodePage(bodyList(body), 0)).toThrow(/cluster 0 decreases/);
+  });
+
+  it('refuses 0x10, version 1\'s retired TEXT_RUN, as an unknown opcode', () => {
+    expect(() => decodePage(bodyList(run(1, 0x10)), 0)).toThrow(/unknown opcode 0x10/);
   });
 });
 
