@@ -1,13 +1,20 @@
 /**
  * Where a document node opens: the host an app's editor mounts inside.
  *
- * For R1 it is the shell only. The Citadel Docs canvas editor is a separate work item and
- * mounts in the region marked below; it receives these same props, so the contract is fixed
- * here rather than by whichever editor arrives first. The host does no I/O: what the person
- * may do arrives in `permissions`, already decided by the caller.
+ * Citadel Docs mounts its page view in the editor region (lazily: neither the view nor cdoc
+ * is in the shell's bundle) and fills the status bar the host reserves at the bottom. Apps
+ * without an editor yet keep the placeholder. The host does no I/O: what the person may do
+ * arrives in `permissions`, what to open in `documentSource`, and how to start cdoc in
+ * `loadCdocRuntime`, all decided by the caller.
  */
+import { lazy, Suspense, useState, type LazyExoticComponent } from 'react';
 import { citadelApp, type CitadelApp, type CitadelAppId } from '@/lib/citadel-apps/registry';
 import type { ActionGate } from '@/hooks/use-permission-result';
+import type { DocumentSource } from '@/lib/cdoc/document-source';
+import type { CdocRuntimeFactory } from '@/lib/cdoc/runtime-loader';
+import type { DocsCanvasProps } from './DocsCanvas';
+
+const DocsCanvas: LazyExoticComponent<(props: DocsCanvasProps) => JSX.Element> = lazy(() => import('./DocsCanvas'));
 
 export interface DocumentPermissions {
   /** Whether the person may change the document, and when not, the reason to show. */
@@ -20,11 +27,15 @@ export interface DocumentHostProps {
   /** The node's name, which is the document's title. */
   title: string;
   permissions: DocumentPermissions;
+  /** What the editor opens. R1 opens a blank document; the stored content wires up next. */
+  documentSource: DocumentSource;
+  loadCdocRuntime: CdocRuntimeFactory;
 }
 
-export function DocumentHost({ nodeId, appId, title, permissions }: DocumentHostProps): JSX.Element {
+export function DocumentHost({ nodeId, appId, title, permissions, documentSource, loadCdocRuntime }: DocumentHostProps): JSX.Element {
   const app: CitadelApp = citadelApp(appId);
   const Icon: CitadelApp['icon'] = app.icon;
+  const [statusBar, setStatusBar] = useState<HTMLElement | null>(null);
   return (
     <div className="flex h-full min-w-0 flex-col bg-background" data-testid="document-host" data-node-id={nodeId} data-app={appId}>
       <header className="flex min-w-0 items-center gap-3 border-b border-border px-4 py-3 sm:px-6">
@@ -39,13 +50,22 @@ export function DocumentHost({ nodeId, appId, title, permissions }: DocumentHost
           Read only. {permissions.edit.reason}
         </p>
       )}
-      <section
-        aria-label={`${app.name} editor`}
-        data-testid="document-editor-region"
-        className="m-4 flex flex-1 items-center justify-center rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground sm:m-6"
-      >
-        {app.name} editor loads here
-      </section>
+      {appId === 'docs' ? (
+        <section aria-label={`${app.name} editor`} data-testid="document-editor-region" className="flex min-h-0 flex-1 flex-col">
+          <Suspense fallback={<p role="status" className="m-auto text-sm text-muted-foreground">Loading {app.name}…</p>}>
+            <DocsCanvas documentSource={documentSource} loadRuntime={loadCdocRuntime} statusBar={statusBar} />
+          </Suspense>
+        </section>
+      ) : (
+        <section
+          aria-label={`${app.name} editor`}
+          data-testid="document-editor-region"
+          className="m-4 flex flex-1 items-center justify-center rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground sm:m-6"
+        >
+          {app.name} editor loads here
+        </section>
+      )}
+      <footer ref={setStatusBar} data-testid="document-status-bar" className="border-t border-border px-4 py-1.5 sm:px-6" />
     </div>
   );
 }

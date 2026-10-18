@@ -197,7 +197,25 @@ const DEFERRED_MODULES = [
   'src/lib/agent-supervisor/status.ts',
   'src/lib/agent-supervisor/wire-up.ts',
   'src/lib/notification-service/interrupt-os.ts',
+  // Citadel Docs: the page view, the worker and the decoder load when a document opens.
+  'src/components/documents/DocsCanvas.tsx',
+  'src/lib/cdoc/worker/cdoc.worker.ts',
+  'src/lib/cdoc/display-list/decoder.ts',
 ];
+
+/**
+ * The Citadel Docs binary (public/cdoc, vendored by scripts/sync-cdoc-wasm.sh), in bytes.
+ * Never on the critical path -- the worker fetches it when a document opens -- but precached
+ * with its glue, so it is part of every install and must stay under workbox's per-file cap
+ * (vite.config.ts, 4 MB), above which workbox drops it from the precache SILENTLY.
+ *
+ * 3,000,000 (2026-10-17): introduced at 2,679,138 bytes (1.0 MB gzipped; wasm-opt -Oz over
+ * citadel-docs 84182f3: model, ProseMirror mapping, layout, shaping, display list, DOCX, MD,
+ * TXT and PDF). The headroom is for the editor (cdoc-edit) arriving next; raise it on purpose,
+ * with the reason here, and the precache cap with it if it ever nears 4 MB.
+ */
+const CDOC_WASM_BUDGET_BYTES = 3_000_000;
+const CDOC_WASM = join(dist, 'cdoc', 'cdoc_wasm_bg.wasm');
 
 /**
  * This measures dist/ and does not build it, so a dist/ older than the source
@@ -286,6 +304,21 @@ if (deferralBroken) {
     'Something the landing page imports statically reaches it. Trace the import chain from\n' +
     'src/main.tsx -- a barrel re-export is the usual cause -- and cut it; do not raise BUDGET_KB.'
   );
+  process.exit(1);
+}
+
+if (!existsSync(CDOC_WASM)) {
+  console.error(`\n${CDOC_WASM} is not in dist/: the Citadel Docs binary was not served at all.`);
+  process.exit(1);
+}
+const cdocBytes = statSync(CDOC_WASM).size;
+console.log(`\n  ${(cdocBytes / 1e6).toFixed(2).padStart(7)} MB  Citadel Docs binary, precached, loaded on document open (budget ${(CDOC_WASM_BUDGET_BYTES / 1e6).toFixed(2)} MB)`);
+if (cdocBytes > CDOC_WASM_BUDGET_BYTES) {
+  console.error(`The Citadel Docs binary is ${cdocBytes} bytes, over its ${CDOC_WASM_BUDGET_BYTES}-byte budget. Find what grew, or raise the budget on purpose.`);
+  process.exit(1);
+}
+if (!readFileSync(join(dist, 'sw.js'), 'utf8').includes('"cdoc/cdoc_wasm_bg.wasm"')) {
+  console.error('The Citadel Docs binary is not in the service worker precache: its glue would be served without it.');
   process.exit(1);
 }
 

@@ -1,0 +1,9 @@
+{
+  "citadel_docs_commit": "84182f3f396615b2d192e29bc1c2d2335fcf636a",
+  "wasm_bindgen_version": "0.2.129",
+  "wasm_opt_version": "123",
+  "wasm_sha256": "3bd73b8d0281521fa0511eeae93390700a6d08d5ca207869be2e4c70c94b0642",
+  "wasm_bytes": 2679138,
+  "glue_sha256": "927f2a5967ad016796a47d3abe693f95f9180cf946cb0cd139d55c26676df5d7",
+  "dts_sha256": "51779bc0f01ba152a941a25e1772fe391ef7249fda8383543fbfb413541fa46f"
+}

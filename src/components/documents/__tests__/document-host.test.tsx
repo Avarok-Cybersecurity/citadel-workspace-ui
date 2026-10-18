@@ -1,12 +1,22 @@
 /**
  * DocumentHost's contract: the node and app it was given, the title, the region an editor
- * mounts in, and a read-only notice when editing is not permitted. No mocks: props in, DOM out.
+ * mounts in, the status bar it reserves, and a read-only notice when editing is not permitted.
+ * No mocks: the Docs editor region runs the real cdoc wasm through the in-process runtime.
  */
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
+import { inProcessRuntime } from '@/lib/cdoc/__tests__/wasm-rig';
+import type { CdocRuntime } from '@/lib/cdoc/runtime';
 import { DocumentHost, UnreadableDocument, type DocumentHostProps } from '../DocumentHost';
 
-const EDITABLE: DocumentHostProps = { nodeId: 'plan-1', appId: 'docs', title: 'Quarterly plan', permissions: { edit: { enabled: true, reason: null } } };
+const EDITABLE: DocumentHostProps = {
+  nodeId: 'plan-1',
+  appId: 'docs',
+  title: 'Quarterly plan',
+  permissions: { edit: { enabled: true, reason: null } },
+  documentSource: { kind: 'blank' },
+  loadCdocRuntime: (): Promise<CdocRuntime> => Promise.resolve(inProcessRuntime('main-thread')),
+};
 
 describe('DocumentHost', () => {
   it('shows the document title and its app, and marks the editor region', () => {
@@ -15,8 +25,21 @@ describe('DocumentHost', () => {
     expect(host).toHaveAttribute('data-node-id', 'plan-1');
     expect(host).toHaveAttribute('data-app', 'docs');
     expect(screen.getByRole('heading', { name: 'Quarterly plan' })).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'Citadel Docs editor' })).toHaveTextContent('Citadel Docs editor loads here');
     expect(screen.queryByTestId('document-read-only')).toBeNull();
+  });
+
+  it('mounts the Citadel Docs page view on the blank document, with its page and zoom in the status bar', async () => {
+    render(<DocumentHost {...EDITABLE} />);
+    const editor: HTMLElement = screen.getByRole('region', { name: 'Citadel Docs editor' });
+    expect(await within(editor).findByRole('group', { name: 'Page 1 of 1' })).toBeInTheDocument();
+    const bar: HTMLElement = screen.getByTestId('document-status-bar');
+    expect(await within(bar).findByText('Page 1 of 1')).toBeInTheDocument();
+    expect(within(bar).getByRole('slider', { name: 'Zoom' })).toHaveValue('100');
+  });
+
+  it('keeps the placeholder for an app with no editor yet', () => {
+    render(<DocumentHost {...EDITABLE} appId="pdf" />);
+    expect(screen.getByRole('region', { name: 'Citadel PDF editor' })).toHaveTextContent('Citadel PDF editor loads here');
   });
 
   it('says it is read only, and why, when editing is not permitted', () => {
