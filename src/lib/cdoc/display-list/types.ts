@@ -1,0 +1,100 @@
+/**
+ * A decoded display list (`docs/display-list.md` v1). Every coordinate, length and size is
+ * Pt100 (hundredths of a point), page space, y down. Colours are packed `0xRRGGBBAA`, straight
+ * alpha.
+ */
+
+export type Rgba = number;
+
+export interface Rect {
+  readonly x: number;
+  readonly y: number;
+  readonly w: number;
+  readonly h: number;
+}
+
+/** One entry of a face's glyph table: what a TEXT_RUN index refers to. */
+export interface GlyphMetric {
+  readonly glyphId: number;
+  /** The face's `hmtx` advance, font units. */
+  readonly advance: number;
+}
+
+export interface Face {
+  readonly faceId: number;
+  readonly family: string;
+  readonly bold: boolean;
+  readonly italic: boolean;
+  readonly unitsPerEm: number;
+  readonly glyphs: readonly GlyphMetric[];
+}
+
+export interface PageEntry {
+  /** Zero-based page number in the layout. */
+  readonly number: number;
+  readonly offset: number;
+  readonly length: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+export interface DisplayList {
+  readonly view: DataView;
+  readonly faces: readonly Face[];
+  readonly strings: readonly string[];
+  /** In slot order; a partial list holds only some page numbers. */
+  readonly pages: readonly PageEntry[];
+  /** First byte after the page index: every body starts at or after it. */
+  readonly indexEnd: number;
+}
+
+export interface RunHead {
+  readonly faceId: number;
+  readonly size: number;
+  readonly color: Rgba;
+  readonly x: number;
+  readonly y: number;
+}
+
+/** Path segments: one verb per segment and their points, flattened as x, y pairs. */
+export interface PathData {
+  readonly verbs: Uint8Array;
+  readonly coords: Int32Array;
+}
+
+export type Op =
+  | { readonly kind: 'fillRect'; readonly rect: Rect; readonly color: Rgba }
+  | { readonly kind: 'strokeRect'; readonly rect: Rect; readonly width: number; readonly color: Rgba }
+  | {
+      readonly kind: 'line';
+      readonly x1: number;
+      readonly y1: number;
+      readonly x2: number;
+      readonly y2: number;
+      readonly width: number;
+      readonly color: Rgba;
+    }
+  | { readonly kind: 'fillPath'; readonly color: Rgba; readonly path: PathData }
+  | { readonly kind: 'strokePath'; readonly width: number; readonly color: Rgba; readonly path: PathData }
+  /** Unshaped: `indices` are positions in the face's glyph table. */
+  | { readonly kind: 'textRun'; readonly head: RunHead; readonly indices: Uint32Array }
+  /** Shaped: per glyph id, advance, x offset, y offset. */
+  | {
+      readonly kind: 'glyphRun';
+      readonly head: RunHead;
+      readonly glyphIds: Uint16Array;
+      readonly advances: Int32Array;
+      readonly dx: Int32Array;
+      readonly dy: Int32Array;
+    }
+  | { readonly kind: 'image'; readonly rect: Rect; readonly contentId: string }
+  | { readonly kind: 'link'; readonly rect: Rect; readonly target: string }
+  | { readonly kind: 'clipPush'; readonly rect: Rect }
+  | { readonly kind: 'clipPop' };
+
+export type OpKind = Op['kind'];
+
+export interface PageOps {
+  readonly entry: PageEntry;
+  readonly ops: readonly Op[];
+}

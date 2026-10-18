@@ -507,5 +507,12 @@ export default defineConfig(({ mode }) => {
 
     // Configure WASM mime type
     assetsInclude: ['**/*.wasm'],
+
+    // The Citadel Docs worker (src/lib/cdoc/worker/cdoc.worker.ts) is a module worker that loads
+    // the cdoc glue with a dynamic import, which needs ES output: the default 'iife' cannot
+    // split chunks. Every browser the app supports runs module workers.
+    worker: {
+      format: 'es',
+    },
   };
 });

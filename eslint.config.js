@@ -12,6 +12,7 @@ export default tseslint.config(
     "node_modules/**",
     "public/**",
     "ui/public/**",  // WASM generated files
+    "src/lib/cdoc/generated/**",  // cdoc-wasm glue, vendored by scripts/sync-cdoc-wasm.sh and pinned by PROVENANCE.json
     "*.config.js",
     "*.config.ts",
     "integration-tests/**",  // Has its own ESLint config

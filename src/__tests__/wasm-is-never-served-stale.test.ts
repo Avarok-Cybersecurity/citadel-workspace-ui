@@ -26,7 +26,7 @@
  * This reads the real vite config rather than a copy of the rule.
  */
 import { describe, it, expect } from 'vitest';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 const config: string = readFileSync(join(process.cwd(), 'vite.config.ts'), 'utf8');
@@ -83,6 +83,13 @@ describe('the WASM binary', () => {
     expect(capBytes, 'the cap must clear a WASM binary of several megabytes').toBeGreaterThanOrEqual(
       FLOOR_BYTES,
     );
+
+    // The Citadel Docs binary is vendored and committed, so its size is checked everywhere, CI
+    // included, with no existence escape.
+    expect(
+      statSync(join(process.cwd(), 'public/wasm/cdoc/cdoc_wasm_bg.wasm')).size,
+      'the Citadel Docs binary is larger than the precache cap, so workbox will drop it',
+    ).toBeLessThan(capBytes);
 
     const binary: string = join(process.cwd(), 'public/wasm/citadel_internal_service_wasm_client_bg.wasm');
     if (!existsSync(binary)) return;
