@@ -97,7 +97,7 @@ export function RibbonNumberField({ testId, label, shortLabel, unit, value, min,
     setRefused(false);
   };
   return (
-    <RibbonTip label={`${label} (${min} to ${max} ${unit})`} reason={reason}>
+    <RibbonTip label={`${label} (${min} to ${max} ${unit})`} reason={reason} suppressed={refused}>
       <label className="relative mx-1 inline-flex shrink-0 items-center gap-1 text-[13px] text-muted-foreground">
         <span className="whitespace-nowrap" aria-hidden="true">{shortLabel}</span>
         <input
@@ -113,7 +113,7 @@ export function RibbonNumberField({ testId, label, shortLabel, unit, value, min,
           placeholder="—"
           className={cn(FIELD, 'w-[64px] text-right aria-[invalid=true]:border-destructive aria-[invalid=true]:ring-1 aria-[invalid=true]:ring-destructive')}
           value={draft}
-          onChange={(e: ChangeEvent<HTMLInputElement>): void => setDraft(e.target.value)}
+          onChange={(e: ChangeEvent<HTMLInputElement>): void => { setDraft(e.target.value); setRefused(false); }}
           onBlur={(_e: FocusEvent<HTMLInputElement>): void => commit()}
           onKeyDown={(e: KeyboardEvent<HTMLInputElement>): void => {
             if (isEnterCommit(e)) { e.preventDefault(); commit(); }

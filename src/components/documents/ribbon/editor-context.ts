@@ -1,7 +1,6 @@
 /**
  * Where the ribbons find the editor. The editor wiring provides its EditorController here
- * (`<EditorControllerContext.Provider value={controller}>`); until it does the ribbons render
- * disabled, saying the document is still opening. The ribbons need only this slice of the
+ * (`<EditorControllerContext.Provider value={controller}>`); until it does there is no ribbon. The ribbons need only this slice of the
  * controller, so nothing about collaboration or hit-testing reaches them.
  */
 import { createContext, useCallback, useContext, useSyncExternalStore, type Context } from 'react';

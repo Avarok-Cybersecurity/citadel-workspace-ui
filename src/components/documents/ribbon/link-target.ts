@@ -12,10 +12,17 @@ export type LinkTarget = { readonly ok: true; readonly href: string } | { readon
 /** A scheme, not a host and port ("example.com:8080" has none). */
 const HAS_SCHEME: RegExp = /^[a-z][a-z0-9+.-]*:(?!\d)/i;
 
+/** What comes between `scheme://` and the path: where a space cannot belong. */
+function hostOf(candidate: string): string {
+  return candidate.replace(/^[a-z][a-z0-9+.-]*:(\/\/)?/i, '').split(/[/?#]/)[0];
+}
+
 export function linkTarget(input: string): LinkTarget {
   const trimmed: string = input.trim();
   if (trimmed === '') return { ok: false, reason: 'Enter an address to link to.' };
   const candidate: string = HAS_SCHEME.test(trimmed) ? trimmed : `https://${trimmed}`;
+  // Engines differ here: Chromium encodes "not a url" into a dead https://not%20a%20url/.
+  if (/\s/.test(hostOf(candidate))) return { ok: false, reason: 'A web address cannot have spaces in its name.' };
   let url: URL;
   try {
     url = new URL(candidate);

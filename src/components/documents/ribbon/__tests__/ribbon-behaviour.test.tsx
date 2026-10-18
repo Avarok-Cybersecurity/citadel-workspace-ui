@@ -44,17 +44,20 @@ describe('a ribbon that cannot run commands', () => {
 });
 
 describe('a refused command', () => {
-  it('is shown to the person until dismissed, focus still returns, and the next command runs', async () => {
+  it('is shown in a toast and kept in the status line, focus still returns, and the next command clears it', async () => {
     const editor: FakeEditor = new FakeEditor({ known: false });
     renderRibbon({ editor, edit: MAY_EDIT, commentAuthor: 'Ada' });
     const user: UserEvent = userEvent.setup();
     editor.refuseNext('there is no link here');
     await user.click(screen.getByTestId('docs-ribbon-tab-insert'));
     await user.click(screen.getByTestId('ribbon-remove-link'));
-    expect(await screen.findByText('Could not remove the link. there is no link here')).toBeInTheDocument();
+    const refusal: string = 'Could not remove the link. there is no link here';
+    await waitFor((): void => expect(screen.getAllByText(refusal)).toHaveLength(2));
+    expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent(refusal);
     await waitFor((): void => expect(editor.focused).toBe(1));
     await user.click(screen.getByTestId('ribbon-insert-footnote'));
     await waitFor((): void => expect(editor.focused).toBe(2));
+    await waitFor((): void => expect(screen.getByTestId('docs-ribbon-status')).not.toHaveTextContent(refusal));
     expect(editor.sent.map((c: { name: string }): string => c.name)).toEqual(['removeLink', 'insertFootnote']);
   });
 });
@@ -63,7 +66,7 @@ describe('the status line', () => {
   it('says the caret’s formatting is not shown while the engine does not report it', () => {
     const editor: FakeEditor = new FakeEditor({ known: false });
     renderRibbon({ editor, edit: MAY_EDIT, commentAuthor: 'Ada' });
-    expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent('Formatting at the cursor is not shown yet.');
+    expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent('Formatting at the cursor is not shown yet, so spacing and indents wait for it.');
     act((): void => editor.report(editorState({ known: true, run: {}, paragraph: {} })));
     expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent(/^$/);
   });
@@ -125,6 +128,17 @@ describe('keyboard', () => {
 });
 
 describe('at phone width', () => {
+  it('leaves a folded group’s popover on Tab, back to its button, instead of cycling inside it', async () => {
+    window.innerWidth = 390;
+    renderRibbon({ editor: new FakeEditor({ known: false }), edit: MAY_EDIT, commentAuthor: 'Ada' });
+    const user: UserEvent = userEvent.setup();
+    await user.click(screen.getByTestId('ribbon-font-open'));
+    await screen.findByTestId('ribbon-mark-bold');
+    await user.keyboard('{Tab}');
+    await waitFor((): void => expect(screen.queryByTestId('ribbon-mark-bold')).toBeNull());
+    expect(screen.getByTestId('ribbon-font-open')).toHaveFocus();
+  });
+
   it('collapses each group into one button whose popover holds the same controls', async () => {
     window.innerWidth = 390;
     const editor: FakeEditor = new FakeEditor({ known: false });

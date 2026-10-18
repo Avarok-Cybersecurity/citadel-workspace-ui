@@ -2,12 +2,14 @@
  * Insert and Layout: table grid, link, comment, footnote, breaks, symbol, and Layout's fields;
  * each sends exactly its command with the arguments the form produced.
  */
-import { screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import type { CaretFormatting } from '@/lib/cdoc/editor/controller';
 import { FakeEditor } from './fake-editor';
 import { FIXED_ENVIRONMENT, MAY_EDIT, renderRibbon } from './render-ribbon';
+import { MAX_PICTURE_BYTES } from '../picture';
+import type { RibbonEnvironment } from '../ribbon-environment';
 
 /** A paragraph the engine reports with no direct spacing or indent, so Layout's fields can be set. */
 const PLAIN: CaretFormatting = { known: true, run: {}, paragraph: {} };
@@ -102,9 +104,43 @@ describe('the Insert ribbon', () => {
     await openTab(user, 'insert');
     const svg: File = new File(['<svg/>'], 'logo.svg', { type: 'image/svg+xml' });
     await user.upload(screen.getByTestId('ribbon-picture-file'), svg);
-    expect(await screen.findByText('Could not insert the picture. logo.svg is not a PNG or JPEG picture.')).toBeInTheDocument();
+    await waitFor((): void => expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent('Could not insert the picture. logo.svg is not a PNG or JPEG picture.'));
     expect(editor.images).toEqual([]);
     expect(editor.sent).toEqual([]);
+  });
+
+  it('names the file when it cannot be decoded, rather than quoting the engine', async () => {
+    const editor: FakeEditor = new FakeEditor(PLAIN);
+    const environment: RibbonEnvironment = { ...FIXED_ENVIRONMENT, imageSize: (): Promise<{ width: number; height: number }> => Promise.reject(new Error('Cannot decode the data')) };
+    renderRibbon({ editor, edit: MAY_EDIT, commentAuthor: 'Ada', environment });
+    const user: UserEvent = userEvent.setup();
+    await openTab(user, 'insert');
+    await user.upload(screen.getByTestId('ribbon-picture-file'), new File([new Uint8Array([0])], 'broken.png', { type: 'image/png' }));
+    await waitFor((): void => expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent('Could not insert the picture. broken.png could not be read as a picture.'));
+    expect(editor.images).toEqual([]);
+  });
+
+  it('refuses a picture over the size cap before reading it', async () => {
+    const { editor, user } = setUp('Ada');
+    await openTab(user, 'insert');
+    const huge: File = new File([new Uint8Array(MAX_PICTURE_BYTES + 1)], 'scan.png', { type: 'image/png' });
+    await user.upload(screen.getByTestId('ribbon-picture-file'), huge);
+    await waitFor((): void => expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent('scan.png is larger than 20 MB.'));
+    expect(editor.images).toEqual([]);
+  });
+
+  it('blocks a second picture while one is being inserted', async () => {
+    const editor: FakeEditor = new FakeEditor(PLAIN);
+    let finish: (size: { width: number; height: number }) => void = (): void => undefined;
+    const environment: RibbonEnvironment = { ...FIXED_ENVIRONMENT, imageSize: (): Promise<{ width: number; height: number }> => new Promise((resolve: (s: { width: number; height: number }) => void): void => { finish = resolve; }) };
+    renderRibbon({ editor, edit: MAY_EDIT, commentAuthor: 'Ada', environment });
+    const user: UserEvent = userEvent.setup();
+    await openTab(user, 'insert');
+    await user.upload(screen.getByTestId('ribbon-picture-file'), new File([new Uint8Array([1])], 'a.png', { type: 'image/png' }));
+    expect(screen.getByTestId('ribbon-insert-picture')).toHaveAttribute('aria-disabled', 'true');
+    act((): void => finish({ width: 10, height: 10 }));
+    await waitFor((): void => expect(screen.getByTestId('ribbon-insert-picture')).toHaveAttribute('aria-disabled', 'false'));
+    expect(editor.sent).toEqual([{ name: 'insertImage', contentId: 'image-1', width: 750, height: 750 }]);
   });
 
   it('signs a comment with the signed-in name, a fresh id and the time', async () => {

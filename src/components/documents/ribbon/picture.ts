@@ -8,6 +8,9 @@ import type { Pt100 } from '@/lib/cdoc/editor/model-values';
 /** The picture types every output (page, PDF, DOCX) can draw. */
 export const PICTURE_TYPES: readonly string[] = ['image/png', 'image/jpeg'];
 
+/** The largest file handed to the editor: a picture past this is a photo to resize first, and it is held in the worker's memory. */
+export const MAX_PICTURE_BYTES: number = 20 * 1_048_576;
+
 const PT100_PER_PX: number = 75;
 /** A4's 595.3 pt width less two 72 pt margins. */
 export const MAX_PICTURE_WIDTH: Pt100 = 45130;

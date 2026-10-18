@@ -19,7 +19,7 @@ import { RibbonContext, useRibbonValue, type Ribbon } from './ribbon-context';
 import type { RibbonEnvironment } from './ribbon-environment';
 
 /** Shown while the engine does not report the caret's formatting, which the toggles then cannot show. */
-const UNKNOWN_CARET: string = 'Formatting at the cursor is not shown yet.';
+const UNKNOWN_CARET: string = 'Formatting at the cursor is not shown yet, so spacing and indents wait for it.';
 
 export type RibbonTab = 'home' | 'insert' | 'layout';
 
@@ -60,7 +60,7 @@ export function DocsRibbon({ edit, commentAuthor, environment }: DocsRibbonProps
           </TabsList>
           {/* In the tab row, so it appearing or going never moves the toolbar. Mounted empty, so it is announced. */}
           <p role="status" data-testid="docs-ribbon-status" className="ml-auto min-w-0 text-right text-[12px] leading-tight text-muted-foreground">
-            {ribbon.disabledReason ?? (ribbon.caret.known ? '' : UNKNOWN_CARET)}
+            {ribbon.disabledReason ?? ribbon.failure ?? (ribbon.caret.known ? '' : UNKNOWN_CARET)}
           </p>
           </div>
           <TabsContent value="home" tabIndex={-1} className="mt-1"><HomeRibbon /></TabsContent>

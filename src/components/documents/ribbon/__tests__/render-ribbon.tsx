@@ -33,12 +33,14 @@ export interface RibbonSetup {
   readonly editor: FakeEditor | null;
   readonly edit: ActionGate;
   readonly commentAuthor: string | null;
+  /** The fixed environment unless a test needs the world to answer differently. */
+  readonly environment?: RibbonEnvironment;
 }
 
-export function renderRibbon({ editor, edit, commentAuthor }: RibbonSetup): RenderResult {
+export function renderRibbon({ editor, edit, commentAuthor, environment }: RibbonSetup): RenderResult {
   return render(
     <EditorControllerContext.Provider value={editor}>
-      <DocsRibbon edit={edit} commentAuthor={commentAuthor} environment={FIXED_ENVIRONMENT} />
+      <DocsRibbon edit={edit} commentAuthor={commentAuthor} environment={environment ?? FIXED_ENVIRONMENT} />
       <Toaster />
     </EditorControllerContext.Provider>,
   );

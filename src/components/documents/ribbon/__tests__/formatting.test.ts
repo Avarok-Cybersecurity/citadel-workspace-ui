@@ -40,11 +40,16 @@ describe('link targets', () => {
     ['example.com', 'https://example.com/'],
     ['  example.com:8080/x ', 'https://example.com:8080/x'],
     ['mailto:ada@example.com', 'mailto:ada@example.com'],
+    ['example.com/a plan', 'https://example.com/a%20plan'],
   ])('accepts %s as %s', (input: string, href: string) => {
     expect(linkTarget(input)).toEqual({ ok: true, href });
   });
 
   it.each(['javascript:alert(1)', 'JavaScript:alert(1)', 'data:text/html,<b>x</b>', 'file:///etc/passwd', 'tel:+15551234', '', '   ', 'https://'])('refuses %j', (input: string) => {
     expect(linkTarget(input).ok).toBe(false);
+  });
+
+  it('refuses a name with spaces in it, which one engine would encode into a dead link', () => {
+    expect(linkTarget('not a url')).toEqual({ ok: false, reason: 'A web address cannot have spaces in its name.' });
   });
 });

@@ -3,7 +3,7 @@
  * at phone width (`compact`) each group collapses to one button whose popover holds the same
  * controls in a toolbar of their own, so the ribbon never scrolls the page sideways.
  */
-import type { ReactNode } from 'react';
+import { useState, type KeyboardEvent, type ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -41,6 +41,7 @@ export interface RibbonGroupProps {
 
 export function RibbonGroup({ label, testId, icon, collapses, children }: RibbonGroupProps): JSX.Element {
   const { compact } = useRibbon();
+  const [open, setOpen] = useState<boolean>(false);
   if (!compact || !collapses) {
     return (
       <div role="group" aria-label={label} data-testid={testId} className="flex items-center gap-0.5 border-r border-border pr-1 last:border-r-0">
@@ -49,13 +50,15 @@ export function RibbonGroup({ label, testId, icon, collapses, children }: Ribbon
     );
   }
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <RibbonButton testId={`${testId}-open`} label={label} icon={icon} text={label} />
       </PopoverTrigger>
       {/* Focus lands on the popover, not its first control, so that control's tooltip does not open over its neighbours. */}
       <PopoverContent align="start" collisionPadding={16} className="w-auto max-w-[calc(100vw-32px)] p-2" tabIndex={-1}
-        onOpenAutoFocus={(e: Event): void => { e.preventDefault(); (e.currentTarget as HTMLElement | null)?.focus(); }}>
+        onOpenAutoFocus={(e: Event): void => { e.preventDefault(); (e.currentTarget as HTMLElement | null)?.focus(); }}
+        // Its toolbar is one Tab stop, so Tab would only cycle there: Tab leaves, back to the group's button.
+        onKeyDown={(e: KeyboardEvent<HTMLDivElement>): void => { if (e.key === 'Tab') { e.preventDefault(); setOpen(false); } }}>
         <RibbonToolbar label={label} testId={testId}>
           {children}
         </RibbonToolbar>

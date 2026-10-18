@@ -127,6 +127,18 @@ describe('the Home ribbon', () => {
     expect(editor.sent).toEqual([]);
   });
 
+  it('clears the refusal once the value is corrected', async () => {
+    const { editor, user } = setUp(BOLD_12PT_CENTRED);
+    const field: HTMLElement = screen.getByTestId('ribbon-home-spacing-before');
+    await user.clear(field);
+    await user.type(field, '2000{Enter}');
+    await user.clear(field);
+    await user.type(field, '6{Enter}');
+    expect(field).toHaveAttribute('aria-invalid', 'false');
+    expect(screen.queryByTestId('ribbon-home-spacing-before-error')).toBeNull();
+    expect(editor.sent).toEqual([]);
+  });
+
   it('will not send one spacing while the others are unknown, since the engine would reset them', async () => {
     const { editor, user } = setUp(UNKNOWN);
     expect(screen.getByTestId('ribbon-home-spacing-before')).toHaveAttribute('aria-disabled', 'true');
