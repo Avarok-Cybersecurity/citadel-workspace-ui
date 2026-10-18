@@ -239,7 +239,12 @@ export default defineConfig(({ mode }) => {
           // ever requests — WASM init passes the stable /wasm/ URL explicitly.
           // Precaching it would double the install for bytes no page fetches.
           globIgnores: ['assets/*.wasm', '**/screenshots/*'],
-          maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+          // Per file. 4,500,000 (2026-10-18): the Citadel Docs binary with the editor
+          // (cdoc-edit, citadel-docs aff63f9) is 4,222,829 bytes, over the old 4 MiB,
+          // and workbox drops an over-cap file from the precache SILENTLY. Measured
+          // size plus ~6%; it comes back down when the wasm is split per app.
+          // 59d18eb (gc, addImage, result v2) measures 4,323,294: 4% under, held.
+          maximumFileSizeToCacheInBytes: 4_500_000,
           // SPA fallback, minus the endpoints that must always hit the network.
           // `/`, never `/index.html`: the Worker's asset handler answers /index.html with a
           // 307 to `/`. Workbox's precache normally hides that, but when the cached copy is
@@ -507,5 +512,12 @@ export default defineConfig(({ mode }) => {
 
     // Configure WASM mime type
     assetsInclude: ['**/*.wasm'],
+
+    // The Citadel Docs worker (src/lib/cdoc/worker/cdoc.worker.ts) is a module worker that loads
+    // the cdoc glue with a dynamic import, which needs ES output: the default 'iife' cannot
+    // split chunks. Every browser the app supports runs module workers.
+    worker: {
+      format: 'es',
+    },
   };
 });

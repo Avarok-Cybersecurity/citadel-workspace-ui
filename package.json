@@ -39,7 +39,8 @@
     "check:parent-ref": "node scripts/check-parent-checkouts-agree-on-the-ref.mjs",
     "check:toast-header": "node scripts/check-toast-clears-header.mjs",
     "check:captured-vs-failed": "node scripts/check-captured-is-not-failed.mjs",
-    "check:assertions": "node scripts/check-assertions-can-fail.mjs"
+    "check:assertions": "node scripts/check-assertions-can-fail.mjs",
+    "check:cdoc-paint-perf": "node scripts/check-cdoc-paint-perf.mjs"
   },
   "dependencies": {
     "@avarok/citadel-protocol-types": "^0.14.0",

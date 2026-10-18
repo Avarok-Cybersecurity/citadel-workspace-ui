@@ -17,7 +17,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Check, FileText } from 'lucide-react';
-import { getEntityMetadata , type EntityTypeMetadata } from '@/lib/entity-type-registry';
+import { getEntityMetadata, type EntityTypeMetadata, type NodeEntityType } from '@/lib/entity-type-registry';
 import { activateOnKey } from '@/lib/a11y';
 
 import {
@@ -28,21 +28,17 @@ import {
 
 interface TemplateSelectorProps {
   category: TemplateCategory;
+  /** The node's own level, whose schema label and icon the dialog shows. */
+  level: NodeEntityType;
   onSelectTemplate: (template: MdxTemplate) => void;
   buttonVariant?: 'default' | 'outline' | 'secondary' | 'ghost';
   buttonSize?: 'default' | 'sm' | 'lg' | 'icon';
   buttonText?: string;
 }
 
-/** Map TemplateCategory to entity type string for registry lookup */
-function categoryToEntityType(category: TemplateCategory): string {
-  // TemplateCategory values are lowercase ('office', 'room')
-  // Registry keys are capitalized ('Office', 'Room')
-  return category.charAt(0).toUpperCase() + category.slice(1);
-}
-
 const TemplateSelector = ({
   category,
+  level,
   onSelectTemplate,
   buttonVariant = 'default',
   buttonSize = 'default',
@@ -68,9 +64,8 @@ const TemplateSelector = ({
     }
   };
 
-  // Derive icon and label from entity-type-registry (SSOT)
-  const entityType: string = categoryToEntityType(category);
-  const metadata: EntityTypeMetadata = getEntityMetadata(entityType);
+  // The node's level as the live schema names it; never derived from the category.
+  const metadata: EntityTypeMetadata = getEntityMetadata(level);
   const CategoryIcon: ComponentType<{ className?: string; }> = metadata.icon;
   const categoryLabel: string = metadata.label;
 
@@ -94,7 +89,7 @@ const TemplateSelector = ({
             {categoryLabel} Templates
           </DialogTitle>
           <DialogDescription className="text-foreground/80">
-            Choose a template to start with pre-configured content tailored for specific {category.toLowerCase()} types.
+            Choose a template to start this {categoryLabel.toLowerCase()} with pre-configured content.
           </DialogDescription>
         </DialogHeader>
 

@@ -64,8 +64,10 @@ for (const file of [...all, ...CONFIG_IMPORTERS]) {
   // (`import './x';`) alike. The last was missing from the first draft, which
   // its own control caught: a module imported only for its side effects would
   // have been reported as an orphan.
-  for (const m of source.matchAll(/from\s+['"]([^'"]+)['"]|import\s*\(\s*['"]([^'"]+)['"]|import\s+['"]([^'"]+)['"]/g)) {
-    const spec = m[1] ?? m[2] ?? m[3];
+  // And `new URL('./x.ts', import.meta.url)`, which is how Vite reaches a Web Worker's entry
+  // (`new Worker(new URL(...), { type: 'module' })`): the worker module is bundled from it.
+  for (const m of source.matchAll(/from\s+['"]([^'"]+)['"]|import\s*\(\s*['"]([^'"]+)['"]|import\s+['"]([^'"]+)['"]|new\s+URL\(\s*['"]([^'"]+)['"]\s*,\s*import\.meta\.url/g)) {
+    const spec = m[1] ?? m[2] ?? m[3] ?? m[4];
     if (!spec) continue;
     let base = null;
     if (spec.startsWith('@/')) base = join(SRC, spec.slice(2));

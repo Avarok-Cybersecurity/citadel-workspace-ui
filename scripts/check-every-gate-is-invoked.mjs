@@ -37,6 +37,7 @@ const NOT_IN_CI = new Map([
   ['check:a11y', 'needs the built app served and a browser driving it'],
   ['check:toast-header', 'needs a running app with a toast on screen; it measures geometry'],
   ['check:agent-down', 'needs port 12399 free, or it measures a CONNECTED app and reports the agent-down state works'],
+  ['check:cdoc-paint-perf', 'a timing measurement that asserts no time; needs a quiet machine (a GitHub runner, never the shared Mac). Its vitest, paint-perf.test.ts, runs in CI'],
 ]);
 
 const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));

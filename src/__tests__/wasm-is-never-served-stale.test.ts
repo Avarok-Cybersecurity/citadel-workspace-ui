@@ -26,7 +26,7 @@
  * This reads the real vite config rather than a copy of the rule.
  */
 import { describe, it, expect } from 'vitest';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 const config: string = readFileSync(join(process.cwd(), 'vite.config.ts'), 'utf8');
@@ -65,10 +65,11 @@ describe('the WASM binary', () => {
   });
 
   it('fits under the per-file precache cap', () => {
-    const cap: RegExpMatchArray | null = code.match(/maximumFileSizeToCacheInBytes:\s*(\d+)\s*\*\s*1024\s*\*\s*1024/);
+    // A byte count, written as an integer literal (digit separators allowed).
+    const cap: RegExpMatchArray | null = code.match(/maximumFileSizeToCacheInBytes:\s*(\d[\d_]*),/);
     expect(cap, 'no maximumFileSizeToCacheInBytes — the binary would be dropped').not.toBeNull();
 
-    const capBytes: number = Number(cap![1]) * 1024 * 1024;
+    const capBytes: number = Number(cap![1].replace(/_/g, ''));
 
     // The cap has to clear the binary, and workbox drops an over-cap file from
     // the precache SILENTLY — which reinstates the glue/binary split without
@@ -83,6 +84,13 @@ describe('the WASM binary', () => {
     expect(capBytes, 'the cap must clear a WASM binary of several megabytes').toBeGreaterThanOrEqual(
       FLOOR_BYTES,
     );
+
+    // The Citadel Docs binary is vendored and committed, so its size is checked everywhere, CI
+    // included, with no existence escape.
+    expect(
+      statSync(join(process.cwd(), 'public/cdoc/cdoc_wasm_bg.wasm')).size,
+      'the Citadel Docs binary is larger than the precache cap, so workbox will drop it',
+    ).toBeLessThan(capBytes);
 
     const binary: string = join(process.cwd(), 'public/wasm/citadel_internal_service_wasm_client_bg.wasm');
     if (!existsSync(binary)) return;

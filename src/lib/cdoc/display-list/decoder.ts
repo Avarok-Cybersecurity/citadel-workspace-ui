@@ -1,0 +1,85 @@
+/**
+ * Opens a display list (`docs/display-list.md` v1): header, face table with per-face glyph
+ * tables, string table and page index, checked once. Page bodies are decoded one at a time by
+ * offset (`decodePage` in page-ops.ts), so a buffer that ends after page N's body opens and
+ * serves pages 0..=N. Reads in place over the caller's ArrayBuffer; nothing is copied.
+ */
+import { HEADER_LEN, INDEX_ENTRY_LEN, MAGIC, STYLE_BOLD, STYLE_ITALIC, VERSION } from '../format';
+import { ByteReader, DisplayListError } from './byte-reader';
+import type { DisplayList, Face, GlyphMetric, PageEntry } from './types';
+
+const MAX_U16: number = 0xffff;
+
+function viewOf(bytes: ArrayBuffer | Uint8Array): DataView {
+  // isView, not instanceof: bytes from a worker, WASM or another realm fail instanceof.
+  return ArrayBuffer.isView(bytes)
+    ? new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+    : new DataView(bytes);
+}
+
+function readFace(r: ByteReader, faceId: number): Face {
+  const style: number = r.u8();
+  if ((style & ~(STYLE_BOLD | STYLE_ITALIC)) !== 0) throw new DisplayListError(`face ${faceId} sets reserved style bits`);
+  const family: string = r.str();
+  const unitsPerEm: number = r.uv();
+  if (unitsPerEm === 0 || unitsPerEm > MAX_U16) throw new DisplayListError(`face ${faceId} has units_per_em ${unitsPerEm}`);
+  const count: number = r.uv();
+  const glyphs: GlyphMetric[] = new Array<GlyphMetric>(count);
+  for (let i: number = 0; i < count; i++) {
+    const glyphId: number = r.uv();
+    const advance: number = r.uv();
+    if (glyphId > MAX_U16 || advance > MAX_U16) throw new DisplayListError(`face ${faceId} glyph ${i} exceeds 16 bits`);
+    glyphs[i] = { glyphId, advance };
+  }
+  return { faceId, family, bold: (style & STYLE_BOLD) !== 0, italic: (style & STYLE_ITALIC) !== 0, unitsPerEm, glyphs };
+}
+
+export function openDisplayList(bytes: ArrayBuffer | Uint8Array): DisplayList {
+  const view: DataView = viewOf(bytes);
+  if (view.byteLength < HEADER_LEN) throw new DisplayListError(`truncated at byte ${view.byteLength}`);
+  const head: ByteReader = new ByteReader(view, 0, HEADER_LEN);
+  for (const expected of MAGIC) {
+    if (head.u8() !== expected) throw new DisplayListError('not a display list (bad magic)');
+  }
+  const version: number = head.u16();
+  if (version !== VERSION) {
+    throw new DisplayListError(`version ${version} is not supported (this decoder reads ${VERSION})`);
+  }
+  if (head.u16() !== 0) throw new DisplayListError('reserved header flags are set');
+  const pageCount: number = head.u32();
+  const facesAt: number = head.u32();
+  const stringsAt: number = head.u32();
+  const indexAt: number = head.u32();
+  if (facesAt !== HEADER_LEN || stringsAt < facesAt || indexAt < stringsAt) {
+    throw new DisplayListError('sections out of order');
+  }
+  const indexEnd: number = indexAt + INDEX_ENTRY_LEN * pageCount;
+  if (indexEnd > view.byteLength) throw new DisplayListError(`truncated at byte ${view.byteLength}`);
+
+  const fr: ByteReader = new ByteReader(view, facesAt, stringsAt);
+  const faceCount: number = fr.uv();
+  const faces: Face[] = [];
+  for (let id: number = 0; id < faceCount; id++) faces.push(readFace(fr, id));
+  if (!fr.done) throw new DisplayListError('face table does not end where the string table begins');
+
+  const sr: ByteReader = new ByteReader(view, stringsAt, indexAt);
+  const stringCount: number = sr.uv();
+  const strings: string[] = [];
+  for (let i: number = 0; i < stringCount; i++) strings.push(sr.str());
+  if (!sr.done) throw new DisplayListError('string table does not end where the page index begins');
+
+  const ir: ByteReader = new ByteReader(view, indexAt, indexEnd);
+  const pages: PageEntry[] = [];
+  for (let slot: number = 0; slot < pageCount; slot++) {
+    const entry: PageEntry = { number: ir.u32(), offset: ir.u32(), length: ir.u32(), width: ir.i32(), height: ir.i32() };
+    if (entry.offset < indexEnd) throw new DisplayListError(`page slot ${slot} overlaps the tables`);
+    pages.push(entry);
+  }
+  return { view, faces, strings, pages, indexEnd };
+}
+
+/** The slot holding layout page `pageNumber`, or null when this (partial) list lacks it. */
+export function slotOfPage(list: DisplayList, pageNumber: number): number | null {
+  const slot: number = list.pages.findIndex((p: PageEntry): boolean => p.number === pageNumber);
+  return slot < 0 ? null : slot;
+}
