@@ -7,7 +7,16 @@
  * canvas of fractional CSS size (793.5 px for an odd 2x width) is rescaled by a pixel across the
  * page and every edge softens: the blur this guards. Every page canvas must also sit on whole
  * device pixels, with the host shifted by a fractional CSS offset as the app's layout can shift
- * it. The browser's own fillText of the same text in the same face is the reference.
+ * it.
+ *
+ * The reference is the page canvas's own pixels before the browser composites them: what the
+ * engine's rasteriser drew, read back from the canvas. Only the main-thread renderer's canvas
+ * can be read (a worker's OffscreenCanvas cannot), so each DPR first runs with that renderer (as
+ * a browser without transferControlToOffscreen does) to take the reference, then both renderers
+ * are measured against it. The rasteriser is the same code in both, so any edge the screen shows
+ * softer than the canvas holds was softened by placement or compositing. (The browser's own
+ * fillText was the reference before; it measures the platform's text rasteriser instead: Linux
+ * hints stems to the pixel grid and macOS does not, so its edges differ by OS for the same page.)
  *
  *   CRISPNESS_OUT=<dir>   also writes each crop as <dir>/dpr<N>-offset<X>.png
  */
@@ -22,11 +31,12 @@ const TEXT = 'Illumination lit HIH minimum';
 /** Mean pixels per edge strictly between 10% and 90% of the step, at most (the owner's bar). */
 const LIMIT = { 1: 1.5, 2: 2 };
 /**
- * And no softer than the browser's own text by more than this, edge for edge. The owner's bar
+ * And no softer than the canvas's own pixels by more than this, edge for edge. The owner's bar
  * alone passed the blur it was set for (a 2x page at 793.5 CSS px measured 1.42 across and 1.97
- * down against fillText's 0.81 and 1.25); a resampled canvas adds about half a pixel per edge.
+ * down); a resampled canvas adds about half a pixel per edge.
  */
 const OVER_REFERENCE = 0.25;
+const RENDERERS = ['main-thread', 'worker'];
 const OFFSETS = [0, 0.3];
 const OUT = process.env.CRISPNESS_OUT ?? null;
 
@@ -50,30 +60,21 @@ async function measure(page, png) {
 }
 
 /**
- * The browser's own fillText of the same line in the same face (the Carlito the engine lays out
- * with, served beside the wasm) at the same size, 11 pt, as a reference.
+ * The first page canvas's own pixels under `clip` (CSS px, page coordinates), read back from the
+ * canvas: what the rasteriser drew, before the browser places and composites it.
  */
-async function reference(page, dpr) {
-  await page.evaluate(async ({ text, dpr }) => {
-    const face = new FontFace('CarlitoReference', 'url(/fonts/cdoc/Carlito-Regular.ttf)');
-    document.fonts.add(await face.load());
-    const c = document.createElement('canvas');
-    c.id = 'fillText-reference';
-    c.width = 150 * dpr;
-    c.height = 40 * dpr;
-    Object.assign(c.style, { position: 'fixed', left: '0px', top: '0px', width: '150px', height: '40px', zIndex: '1000' });
-    const ctx = c.getContext('2d');
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(0, 0, c.width, c.height);
-    ctx.fillStyle = '#000';
-    ctx.font = `${(11 * 96 / 72) * dpr}px CarlitoReference`;
-    ctx.fillText(text, 6 * dpr, 28 * dpr);
-    document.body.append(c);
-  }, { text: TEXT, dpr });
-  // Through the same compositor and screenshot as the page, so only the rasteriser differs.
-  const png = await page.screenshot({ clip: { x: 0, y: 0, width: 150, height: 40 } });
-  await page.evaluate(() => document.getElementById('fillText-reference')?.remove());
-  return { png, edges: await measure(page, png) };
+async function canvasPixels(page, clip) {
+  const { width, height, rgba } = await page.evaluate((clip) => {
+    const canvas = document.querySelector('[data-testid="document-page"][data-page="0"] canvas[data-layer="page"]');
+    if (!(canvas instanceof HTMLCanvasElement)) throw new Error('no first page canvas');
+    const r = canvas.getBoundingClientRect();
+    const k = canvas.width / r.width;
+    const [x, y, w, h] = [clip.x - r.left, clip.y - r.top, clip.width, clip.height].map((v) => Math.round(v * k));
+    const ctx = canvas.getContext('2d');
+    if (ctx === null) throw new Error('the page canvas has no 2D context to read (is this the worker renderer?)');
+    return { width: w, height: h, rgba: Array.from(ctx.getImageData(x, y, w, h).data) };
+  }, clip);
+  return measureEdges(grayscale(rgba, width, height), width, height);
 }
 
 /** Every page-view canvas whose screen rect does not start and end on whole device pixels. */
@@ -116,31 +117,40 @@ async function typedLine(page, dpr) {
   throw new Error(`dpr ${dpr}: the typed line never settled into painted text`);
 }
 
+async function run(browser, dpr, offset, renderer) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: dpr });
+  // A browser without transferControlToOffscreen gets the main-thread renderer (runtime.ts).
+  if (renderer === 'main-thread') await context.addInitScript(() => { delete HTMLCanvasElement.prototype.transferControlToOffscreen; });
+  const page = await context.newPage();
+  const problems = [];
+  page.on('pageerror', (e) => problems.push(e.message));
+  await page.goto(`${harness.origin}/?offset=${offset}`);
+  const { png, edges } = await typedLine(page, dpr);
+  const own = renderer === 'main-thread' ? await canvasPixels(page, await crop(page)) : null;
+  problems.push(...(await misplacedCanvases(page)).map((c) => `not on device pixels: ${c}`));
+  await context.close();
+  return { png, edges, own, problems };
+}
+
 const harness = await serveDocsHarness(PORT);
 const browser = await chromium.launch();
 let failures = 0;
 try {
   if (OUT !== null) mkdirSync(OUT, { recursive: true });
   for (const dpr of [1, 2]) {
-    for (const offset of OFFSETS) {
-      const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: dpr });
-      const page = await context.newPage();
-      const problems = [];
-      page.on('pageerror', (e) => problems.push(e.message));
-      await page.goto(`${harness.origin}/?offset=${offset}`);
-      const { png, edges } = await typedLine(page, dpr);
-      const ref = await reference(page, dpr);
-      if (OUT !== null) {
-        writeFileSync(join(OUT, `dpr${dpr}-offset${offset}.png`), png);
-        writeFileSync(join(OUT, `dpr${dpr}-fillText-reference.png`), ref.png);
+    let reference = null;
+    for (const renderer of RENDERERS) {
+      for (const offset of OFFSETS) {
+        const { png, edges, own, problems } = await run(browser, dpr, offset, renderer);
+        reference ??= own;
+        if (reference === null) throw new Error('the main-thread run must come first: it reads the reference');
+        if (OUT !== null) writeFileSync(join(OUT, `dpr${dpr}-${renderer}-offset${offset}.png`), png);
+        const worst = Math.max(edges.across.mean, edges.down.mean);
+        const softer = Math.max(edges.across.mean - reference.across.mean, edges.down.mean - reference.down.mean);
+        const ok = worst <= LIMIT[dpr] && softer <= OVER_REFERENCE && problems.length === 0;
+        if (!ok) failures++;
+        console.log(`  ${ok ? 'ok  ' : 'FAIL'}  dpr ${dpr} ${renderer} offset ${offset}px: edge width across ${edges.across.mean} (p90 ${edges.across.p90}, ${edges.across.edges} edges), down ${edges.down.mean} (p90 ${edges.down.p90}); limit ${LIMIT[dpr]} and the canvas's own pixels + ${OVER_REFERENCE}: across ${reference.across.mean}, down ${reference.down.mean}${problems.length > 0 ? `; problems: ${problems.join(' | ')}` : ''}`);
       }
-      problems.push(...(await misplacedCanvases(page)).map((c) => `not on device pixels: ${c}`));
-      const worst = Math.max(edges.across.mean, edges.down.mean);
-      const softer = Math.max(edges.across.mean - ref.edges.across.mean, edges.down.mean - ref.edges.down.mean);
-      const ok = worst <= LIMIT[dpr] && softer <= OVER_REFERENCE && problems.length === 0;
-      if (!ok) failures++;
-      console.log(`  ${ok ? 'ok  ' : 'FAIL'}  dpr ${dpr} offset ${offset}px: edge width across ${edges.across.mean} (p90 ${edges.across.p90}, ${edges.across.edges} edges), down ${edges.down.mean} (p90 ${edges.down.p90}); limit ${LIMIT[dpr]} and reference + ${OVER_REFERENCE}; fillText reference across ${ref.edges.across.mean}, down ${ref.edges.down.mean}${problems.length > 0 ? `; problems: ${problems.join(' | ')}` : ''}`);
-      await context.close();
     }
   }
 } finally {
