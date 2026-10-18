@@ -41,6 +41,7 @@ export function sessionConfig(clientSeqBase: bigint, overrides: Partial<Document
     snapshotAfterLocalUpdates: null,
     gcBeforeSnapshot: 'never',
     pullTimeoutMs: 5_000,
+    retryDelaysMs: [1_000, 3_000, 6_000],
     awarenessHeartbeatMs: 3_000,
     peerExpiryMs: 10_000,
     // Room for the two-tabs-of-one-account tests; the cap itself is peer-book.test.ts's.

@@ -5,7 +5,8 @@
  * (KernelLog; the awareness limiter's fixed one-second window; `broadcast_to_node` excluding
  * the author; permission errors as plain `Error` strings) and its delivery (every message for a
  * cid reaches every tab holding that cid, as route-by-cid.ts does). Tests script faults on top:
- * a dropped push, a link drop, a denied permission, an injected payload.
+ * a dropped push, a link drop, a denied permission, an injected payload, a request refused
+ * for now (rate limited, log full) and the server's own compaction.
  */
 import type { DocumentsRequest, DocumentsResponse } from 'citadel-workspace-client-ts';
 import type { DocumentsTransport, LinkState } from '../../ports';
@@ -16,6 +17,9 @@ export interface ScriptedKernelConfig extends KernelLogConfig {
   readonly maxAwarenessBytes: number;
   readonly awarenessPerSecond: number;
 }
+
+/** Refusals of a request the kernel would take later (requests/documents.rs). */
+export type HeldBack = 'LogFull' | 'AppendRateLimited' | 'PullRateLimited';
 
 type Delivery = { readonly kind: 'response'; readonly response: DocumentsResponse } | { readonly kind: 'error'; readonly message: string };
 
@@ -36,6 +40,7 @@ export class ScriptedKernel {
   private readonly denied: Map<bigint, 'EditMdx' | 'ViewContent'> = new Map<bigint, 'EditMdx' | 'ViewContent'>();
   private readonly dropPushes: Map<bigint, number> = new Map<bigint, number>();
   private readonly windows: Map<bigint, { start: number; tokens: number }> = new Map<bigint, { start: number; tokens: number }>();
+  private readonly held: Map<bigint, { kind: HeldBack; count: number }> = new Map<bigint, { kind: HeldBack; count: number }>();
 
   constructor(readonly nodeId: string, private readonly config: ScriptedKernelConfig, private readonly clock: ManualClock) {
     this.log = new KernelLog(nodeId, config);
@@ -57,6 +62,18 @@ export class ScriptedKernel {
 
   deny(cid: bigint, permission: 'EditMdx' | 'ViewContent'): void {
     this.denied.set(cid, permission);
+  }
+
+  /** `cid`'s next `count` Appends (LogFull, AppendRateLimited) or Pulls are refused, and dropped. */
+  holdBack(cid: bigint, kind: HeldBack, count: number): void {
+    this.held.set(cid, { kind, count });
+  }
+
+  /** The kernel compacted the log itself: every session with the document open hears it. */
+  compact(): void {
+    for (const cid of new Set(this.endpoints.map((e: Endpoint): bigint => e.cid))) {
+      this.toCid(cid, { kind: 'response', response: { DocumentCompacted: { node_id: this.nodeId, upto_seq: this.log.latestSeq } } });
+    }
   }
 
   /** The next `count` pushes to `cid` are lost, as a lagging broadcast receiver's are. */
@@ -101,6 +118,7 @@ export class ScriptedKernel {
       this.toCid(cid, { kind: 'error', message: `Permission denied: ${needs} required` });
       return;
     }
+    if (this.heldBack(cid, request)) return;
     if ('Append' in request) {
       const { update, doc_version, client_seq } = request.Append;
       const { answer, stored } = this.log.append(update, doc_version, cid, client_seq);
@@ -114,6 +132,17 @@ export class ScriptedKernel {
     } else {
       this.awareness(cid, request.Awareness.payload);
     }
+  }
+
+  private heldBack(cid: bigint, request: DocumentsRequest): boolean {
+    const held: { kind: HeldBack; count: number } | undefined = this.held.get(cid);
+    if (!held || held.count === 0 || !(held.kind === 'PullRateLimited' ? 'Pull' in request : 'Append' in request)) return false;
+    held.count -= 1;
+    const refusal: DocumentsResponse = held.kind === 'LogFull'
+      ? { Refused: { LogFull: { node_id: this.nodeId, pending_bytes: 33_554_432n, max_bytes: 33_554_432n } } }
+      : { Refused: { [held.kind]: { node_id: this.nodeId } } as { AppendRateLimited: { node_id: string } } };
+    this.toCid(cid, { kind: 'response', response: refusal });
+    return true;
   }
 
   private awareness(cid: bigint, payload: readonly number[]): void {

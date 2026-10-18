@@ -66,6 +66,11 @@ export interface DocumentSessionConfig {
    * snapshot uncollected.
    */
   readonly gcBeforeSnapshot: 'never' | 'whenAlone';
+  /**
+   * How long to wait before each retry of an Append or Pull the server refused for now (rate
+   * limited, log full); once they are spent the refusal is reported.
+   */
+  readonly retryDelaysMs: readonly number[];
   /** A Pull unanswered for this long is sent again. */
   readonly pullTimeoutMs: number;
   /** Our awareness is re-sent this often while nothing moves, so peers do not expire us. */

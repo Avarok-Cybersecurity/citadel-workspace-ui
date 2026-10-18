@@ -5,19 +5,22 @@
  * Every step runs on the session's SerialQueue, so the cursor, the outbox and the editor are
  * only ever touched by one step at a time.
  */
-import type { DocumentsRequest, DocumentsResponse, DocumentSnapshot } from 'citadel-workspace-client-ts';
+import type { DocumentRefusal, DocumentsRequest, DocumentsResponse, DocumentSnapshot } from 'citadel-workspace-client-ts';
 import type { EditorController, EditorOrigin } from '../editor/controller';
 import { LogCursor } from './log-cursor';
 import { Outbox, type PendingUpdate } from './outbox';
 import type { CachedDocument, DocumentSessionConfig, DocumentSessionPorts } from './ports';
 import type { DocumentSessionProblem } from './session-errors';
 import { haltsWriting } from './session-errors';
+import { CachedCopy } from './cached-copy';
+import { HeldRequests } from './refused-retry';
 import { fromWire, toWire } from './wire-bytes';
 import { SnapshotPolicy, type SnapshotHost } from './snapshot-policy';
 
 type Updates = Extract<DocumentsResponse, { Updates: unknown }>['Updates'];
 type Updated = Extract<DocumentsResponse, { DocumentUpdated: unknown }>['DocumentUpdated'];
 type Appended = Extract<DocumentsResponse, { Appended: unknown }>['Appended'];
+type Compacted = Extract<DocumentsResponse, { DocumentCompacted: unknown }>['DocumentCompacted'];
 
 export interface SyncHost {
   report(problem: DocumentSessionProblem): void;
@@ -25,6 +28,8 @@ export interface SyncHost {
   adopt(editor: EditorController, previous: EditorController | null): void;
   linkUp(): boolean;
   alone(): boolean;
+  /** Runs `step` on the session's queue, after the steps before it. */
+  run(step: () => Promise<void>): void;
 }
 
 export class DocumentSync {
@@ -32,6 +37,8 @@ export class DocumentSync {
   private cursor: LogCursor = new LogCursor(0n);
   private readonly outbox: Outbox;
   private readonly snapshots: SnapshotPolicy;
+  private readonly copy: CachedCopy;
+  private readonly held: HeldRequests;
   private cancelPullTimer: (() => void) | null = null;
   private writable: boolean = true;
   private readable: boolean = true;
@@ -40,6 +47,9 @@ export class DocumentSync {
     this.outbox = new Outbox(config.clientSeqBase);
     const snapshotHost: SnapshotHost = { report: host.report, linkUp: host.linkUp, alone: host.alone, writable: (): boolean => this.writable };
     this.snapshots = new SnapshotPolicy(config, ports, snapshotHost, (request: DocumentsRequest, name: string): Promise<void> => this.send(request, name));
+    this.copy = new CachedCopy(config.nodeId, ports.cache, host.report);
+    this.held = new HeldRequests(ports.clock, config.retryDelaysMs, (): void => host.run((): Promise<void> => this.resend()),
+      (): void => host.run((): Promise<void> => this.pull()), (refusal: DocumentRefusal): void => host.report({ kind: 'refused', refusal }));
   }
 
   get editor(): EditorController | null {
@@ -55,26 +65,21 @@ export class DocumentSync {
   }
 
   async start(): Promise<void> {
-    const cached: CachedDocument | null = await this.loadCached();
+    const cached: CachedDocument | null = await this.copy.load();
     if (cached && this.versionOk(cached.docVersion, 'the cached snapshot')) {
       await this.open({ kind: 'snapshot', snapshot: cached.snapshot }, cached.seq);
     }
     await this.pull();
   }
 
-  private async loadCached(): Promise<CachedDocument | null> {
-    if (!this.ports.cache) return null;
-    try {
-      return await this.ports.cache.load(this.config.nodeId);
-    } catch (cause: unknown) {
-      this.host.report({ kind: 'cacheFailed', operation: 'read', cause });
-      return null;
-    }
+  async onLinkUp(): Promise<void> {
+    await this.resend();
+    await this.pull();
   }
 
-  async onLinkUp(): Promise<void> {
-    if (this.writable) for (const entry of this.outbox.all()) await this.sendAppend(entry);
-    await this.pull();
+  /** Sends every update the server has not acknowledged again. */
+  private async resend(): Promise<void> {
+    if (this.writable && this.host.linkUp()) for (const entry of this.outbox.all()) await this.sendAppend(entry);
   }
 
   onLinkDown(): void {
@@ -98,6 +103,7 @@ export class DocumentSync {
     else if ('DocumentUpdated' in response) await this.onUpdated(response.DocumentUpdated);
     else if ('Appended' in response) await this.onAppended(response.Appended);
     else if ('SnapshotStored' in response) await this.snapshots.stored(response.SnapshotStored.upto_seq);
+    else if ('DocumentCompacted' in response) await this.onCompacted(response.DocumentCompacted);
     else if ('Refused' in response) await this.onRefused(response.Refused);
   }
 
@@ -109,15 +115,17 @@ export class DocumentSync {
     if (writeDenied) this.writable = false;
     if (readDenied) { this.readable = false; this.stopPullTimer(); }
     this.host.report({ kind: 'permissionDenied', message });
-    if (readDenied) await this.forgetCached();
+    if (readDenied) await this.copy.forget();
   }
 
   stop(): void {
     this.stopPullTimer();
+    this.held.stop();
   }
 
   private async onUpdates(page: Updates): Promise<void> {
     this.stopPullTimer();
+    this.held.pulls.succeeded();
     if (page.snapshot && page.snapshot.upto_seq > this.cursor.seq && !(await this.adoptSnapshot(page.snapshot))) return;
     if (!this.editorNow) await this.open({ kind: 'blank' }, this.cursor.seq);
     let gap: boolean = false;
@@ -146,26 +154,24 @@ export class DocumentSync {
       if (this.cursor.place(answer.seq) !== 'old') await this.pull();
       return;
     }
+    this.held.appends.succeeded();
     if (!this.cursor.own(answer.seq)) await this.pull();
     if (answer.compaction) this.snapshots.requested();
     await this.snapshots.consider(this.editorNow, this.cursor.seq, this.caughtUp);
   }
 
-  private async onRefused(refusal: Extract<DocumentsResponse, { Refused: unknown }>['Refused']): Promise<void> {
+  /** The server stored a snapshot to `upto_seq`, the log's latest: a held-back Append can go. */
+  private async onCompacted(compacted: Compacted): Promise<void> {
+    this.held.appends.now();
+    if (compacted.upto_seq > this.cursor.seq) await this.pull();
+  }
+
+  private async onRefused(refusal: DocumentRefusal): Promise<void> {
+    if (this.held.refused(refusal)) return;
     if (haltsWriting(refusal)) this.writable = false;
     if (typeof refusal !== 'string' && ('SnapshotBehind' in refusal || 'SnapshotAhead' in refusal || 'SnapshotTooLarge' in refusal)) this.snapshots.abandon();
     this.host.report({ kind: 'refused', refusal });
-    if (typeof refusal !== 'string' && 'NoSuchNode' in refusal) await this.forgetCached();
-  }
-
-  /** The node is gone or no longer ours to read: its decrypted copy leaves this device. */
-  private async forgetCached(): Promise<void> {
-    if (!this.ports.cache) return;
-    try {
-      await this.ports.cache.forget(this.config.nodeId);
-    } catch (cause: unknown) {
-      this.host.report({ kind: 'cacheFailed', operation: 'forget', cause });
-    }
+    if (typeof refusal !== 'string' && 'NoSuchNode' in refusal) await this.copy.forget();
   }
 
   private async applyNext(seq: bigint, update: readonly number[]): Promise<void> {

@@ -1,16 +1,15 @@
 /**
- * Every refusal reaches the person by its kernel name and as its own notice, including kinds
- * this client's bindings do not know yet (the kernel adds them before the bindings follow).
+ * Every refusal reaches the person by its kernel name and as its own notice, the hardening
+ * kinds included.
  */
 import { describe, expect, it } from 'vitest';
 import type { DocumentRefusal } from 'citadel-workspace-client-ts';
 import { DocumentSessionError, noticeKind, refusalName } from '../session-errors';
 
-/** A kind the kernel is adding (ClientIdForeign); cast because the bindings do not have it yet. */
-const NEWER: DocumentRefusal = { ClientIdForeign: { node_id: 'n' } } as unknown as DocumentRefusal;
+const NEWER: DocumentRefusal = { ClientIdForeign: { node_id: 'n', crdt_client: 9_007_199_254_740_993n } };
 
 describe('refusal notices', () => {
-  it('names a refusal by its kernel variant, unit or struct, known or newer', () => {
+  it('names a refusal by its kernel variant, unit or struct', () => {
     expect(refusalName('NoSession')).toBe('NoSession');
     expect(refusalName({ AwarenessRateLimited: { node_id: 'n' } })).toBe('AwarenessRateLimited');
     expect(refusalName(NEWER)).toBe('ClientIdForeign');

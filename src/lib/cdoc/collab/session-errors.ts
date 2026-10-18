@@ -49,6 +49,17 @@ function describeProblem(problem: DocumentSessionProblem): string {
   }
 }
 
+/**
+ * Refusals of a request the server will take later: the request is retried (refused-retry.ts)
+ * and reported only if the refusals persist.
+ */
+export function retryLater(refusal: DocumentRefusal): 'append' | 'pull' | null {
+  if (typeof refusal === 'string') return null;
+  if ('AppendRateLimited' in refusal || 'LogFull' in refusal) return 'append';
+  if ('PullRateLimited' in refusal) return 'pull';
+  return null;
+}
+
 /** The kernel's name for a refusal: the variant, whatever kinds the kernel adds later. */
 export function refusalName(refusal: DocumentRefusal): string {
   return typeof refusal === 'string' ? refusal : Object.keys(refusal)[0];

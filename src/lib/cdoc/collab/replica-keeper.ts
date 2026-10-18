@@ -25,6 +25,8 @@ export const R1_COLLABORATION: Omit<DocumentSessionConfig, 'nodeId' | 'clientSeq
   gcBeforeSnapshot: 'never',
   // A Pull is a request like any other workspace write: the same patience.
   pullTimeoutMs: WRITE_RESPONSE_TIMEOUT_MS,
+  // Three tries over 10 s (the kernel's rate windows are 1 s; a full log compacts at once).
+  retryDelaysMs: [1_000, 3_000, 6_000],
   // Three heartbeats per expiry: one lost record does not make a present peer vanish.
   awarenessHeartbeatMs: 5_000,
   peerExpiryMs: 15_000,

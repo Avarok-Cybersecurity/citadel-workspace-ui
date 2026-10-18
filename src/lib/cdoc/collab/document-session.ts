@@ -46,6 +46,7 @@ export class DocumentSession {
       linkUp,
       adopt: (editor: EditorController): void => this.adopt(editor),
       alone: (): boolean => this.presence.alone(),
+      run: (step: () => Promise<void>): void => { void this.queue.run(step); },
     });
     this.presence = new DocumentPresence(config, ports, this.queue, {
       report,
