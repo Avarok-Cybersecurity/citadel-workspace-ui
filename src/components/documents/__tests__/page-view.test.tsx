@@ -9,7 +9,6 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useState } from 'react';
 import { inProcessRuntime, pmWithParagraphs, type TestRuntime } from '@/lib/cdoc/__tests__/wasm-rig';
 import type { DocumentSource } from '@/lib/cdoc/document-source';
-import { deviceScale } from '@/lib/cdoc/paint/units';
 import { PAGE_GAP_PX, PageView, type PageStatus } from '../PageView';
 
 const VIEWPORT_PX: number = 800;
@@ -60,8 +59,10 @@ describe.each(['worker', 'main-thread'] as const)('PageView with the %s renderer
     const runtime: TestRuntime = inProcessRuntime(mode);
     render(<Harness runtime={runtime} dpr={2} statuses={[]} />);
     await waitFor(() => expect(runtime.painted[0]?.sizes.length).toBeGreaterThan(0));
-    expect(runtime.painted[0].sizes[0]).toEqual([Math.round(59530 * deviceScale(1, 2).k), Math.round(84190 * deviceScale(1, 2).k)]);
-    expect(screen.getAllByTestId('document-page')[0].style.width).toBe(`${Math.round(59530 * deviceScale(1, 2).k) / 2}px`);
+    // A4 is 793.73 x 1122.53 CSS px at 100%: the canvas is the whole CSS size, 794 x 1123, at 2x.
+    expect(runtime.painted[0].sizes[0]).toEqual([1588, 2246]);
+    expect(screen.getAllByTestId('document-page')[0].style.width).toBe('794px');
+    expect(screen.getAllByTestId('document-page')[0].style.height).toBe('1123px');
   });
 });
 

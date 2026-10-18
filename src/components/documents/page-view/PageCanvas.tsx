@@ -11,13 +11,12 @@ import { useEffect, useRef, useState, type MutableRefObject, type RefObject } fr
 import type { LinkArea } from '@/lib/cdoc/paint/page-painter';
 import type { PageRenderer } from '@/lib/cdoc/paint/page-renderer';
 import { RASTERIZER_OPTIONS } from '@/lib/cdoc/paint/paint-config';
-import type { PageBox } from './page-layout';
 import { PageOverlays, type PageOverlaysProps } from './PageOverlays';
 
 interface PageCanvasProps {
   readonly renderer: PageRenderer;
-  readonly box: PageBox;
-  readonly left: number;
+  /** The page and where it sits in the column, on whole device pixels. */
+  readonly placed: { readonly box: { readonly pageNumber: number; readonly width: number; readonly height: number }; readonly left: number; readonly top: number };
   readonly zoom: number;
   readonly dpr: number;
   readonly pageCount: number;
@@ -34,10 +33,11 @@ interface Mounted {
 
 let nextSlot: number = 0;
 
-export function PageCanvas({ renderer, box, left, zoom, dpr, pageCount, onPaintError, revision, overlay }: PageCanvasProps): JSX.Element {
+export function PageCanvas({ renderer, placed, zoom, dpr, pageCount, onPaintError, revision, overlay }: PageCanvasProps): JSX.Element {
   const host: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
   const mounted: MutableRefObject<Mounted | null> = useRef<Mounted | null>(null);
   const [links, setLinks] = useState<readonly LinkArea[]>([]);
+  const { box, left, top } = placed;
   const pageNumber: number = box.pageNumber;
 
   useEffect((): (() => void) | undefined => {
@@ -82,7 +82,7 @@ export function PageCanvas({ renderer, box, left, zoom, dpr, pageCount, onPaintE
       data-testid="document-page"
       data-page={pageNumber}
       className="absolute shadow-md ring-1 ring-border"
-      style={{ top: box.top, left, width: box.width, height: box.height, backgroundColor: RASTERIZER_OPTIONS.paper }}
+      style={{ top, left, width: box.width, height: box.height, backgroundColor: RASTERIZER_OPTIONS.paper }}
     >
       {overlay !== null && <PageOverlays {...overlay} />}
       {links.map((link: LinkArea, i: number) => (

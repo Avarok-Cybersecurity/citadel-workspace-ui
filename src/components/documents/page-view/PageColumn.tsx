@@ -12,7 +12,7 @@ import type { OverlayScene } from '@/lib/cdoc/paint/overlay-painter';
 import type { PageRect } from '@/lib/cdoc/editor/controller';
 import type { OverlayContextOf } from './PageOverlays';
 import { PageCanvas } from './PageCanvas';
-import { currentPage, layoutPages, visiblePages, type PageBox, type PageLayout } from './page-layout';
+import { currentPage, deviceResidue, layoutPages, pageLeft, visiblePages, type PageBox, type PageLayout } from './page-layout';
 import { INITIAL_ZOOM, zoomBySteps, zoomByWheel } from './zoom';
 
 /** Space between pages and around the column, CSS px. */
@@ -52,14 +52,37 @@ export interface PageColumnProps {
 
 export const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
-function caretAnchor(layout: PageLayout, columnWidth: number, caret: PageRect | null, scale: DeviceScale): { top: number; left: number } {
+/** Where the column starts on screen, CSS px: pages are placed so they land on device pixels. */
+interface ColumnOrigin {
+  readonly left: number;
+  readonly top: number;
+}
+
+/** A page's top-left in the column, on whole device pixels of the screen. */
+interface Placed {
+  readonly box: PageBox;
+  readonly left: number;
+  readonly top: number;
+}
+
+function place(box: PageBox, columnWidth: number, origin: ColumnOrigin, dpr: number): Placed {
+  return { box, left: pageLeft(columnWidth, box.width, origin.left, dpr), top: box.top + deviceResidue(origin.top, dpr) };
+}
+
+function caretBox(layout: PageLayout, caret: PageRect | null, columnWidth: number, origin: ColumnOrigin, dpr: number): Placed | undefined {
   const box: PageBox | undefined = caret === null ? undefined : layout.boxes[caret.page];
-  if (caret === null || box === undefined) return { top: 0, left: 0 };
-  return { top: box.top + caret.rect.y * scale.css, left: (columnWidth - box.width) / 2 + caret.rect.x * scale.css };
+  return box === undefined ? undefined : place(box, columnWidth, origin, dpr);
+}
+
+function caretAnchor(placed: Placed | undefined, caret: PageRect | null, scale: DeviceScale): { top: number; left: number } {
+  if (caret === null || placed === undefined) return { top: 0, left: 0 };
+  return { top: placed.top + caret.rect.y * scale.css, left: placed.left + caret.rect.x * scale.css };
 }
 
 export function PageColumn({ renderer, sizes, zoom, dpr, onZoomChange, onPageStatus, scroller, editing, children }: PageColumnProps): JSX.Element {
   const [viewport, setViewport] = useState<{ readonly top: number; readonly height: number; readonly width: number }>({ top: 0, height: 0, width: 0 });
+  const column: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
+  const [origin, setOrigin] = useState<ColumnOrigin>({ left: 0, top: 0 });
   const zoomRef: MutableRefObject<number> = useRef<number>(zoom);
   const lastZoom: MutableRefObject<number> = useRef<number>(zoom);
   const opening: boolean = sizes === null;
@@ -72,6 +95,10 @@ export function PageColumn({ renderer, sizes, zoom, dpr, onZoomChange, onPageSta
   const measure: () => void = useCallback((): void => {
     const el: HTMLDivElement | null = scroller.current;
     if (el !== null) setViewport({ top: el.scrollTop, height: el.clientHeight, width: el.clientWidth });
+    const rect: DOMRect | undefined = column.current?.getBoundingClientRect();
+    if (rect !== undefined) {
+      setOrigin((was: ColumnOrigin): ColumnOrigin => (was.left === rect.left && was.top === rect.top ? was : { left: rect.left, top: rect.top }));
+    }
   }, [scroller]);
 
   useLayoutEffect((): void => {
@@ -144,10 +171,10 @@ export function PageColumn({ renderer, sizes, zoom, dpr, onZoomChange, onPageSta
       {layout === null && children}
       {paintError !== null && <p role="alert" className="sticky top-0 z-10 bg-background p-2 text-sm text-destructive">A page could not be painted. {paintError}</p>}
       {layout !== null && (
-        <div className="relative" style={{ width: columnWidth, height: layout.height }}>
+        <div ref={column} className="relative" style={{ width: columnWidth, height: layout.height }}>
           {painted.map((box: PageBox) => (
             <PageCanvas
-              key={box.pageNumber} renderer={renderer} box={box} left={(columnWidth - box.width) / 2} zoom={zoom} dpr={dpr} pageCount={total}
+              key={box.pageNumber} renderer={renderer} placed={place(box, columnWidth, origin, dpr)} zoom={zoom} dpr={dpr} pageCount={total}
               onPaintError={onPaintError} revision={editing?.revisionOf(box.pageNumber) ?? 0}
               overlay={editing === null || sizes === null ? null : {
                 width: sizes[2 * box.pageNumber], height: sizes[2 * box.pageNumber + 1],
@@ -157,7 +184,7 @@ export function PageColumn({ renderer, sizes, zoom, dpr, onZoomChange, onPageSta
           ))}
           {/* Always mounted here once laid out, so the textarea never remounts (and never drops
               focus or its listeners) as the caret comes and goes; it only moves. */}
-          <div className="pointer-events-none absolute" style={caretAnchor(layout, columnWidth, editing?.caret ?? null, deviceScale(zoom, dpr))}>
+          <div className="pointer-events-none absolute" style={caretAnchor(caretBox(layout, editing?.caret ?? null, columnWidth, origin, dpr), editing?.caret ?? null, deviceScale(zoom, dpr))}>
             {children}
           </div>
         </div>

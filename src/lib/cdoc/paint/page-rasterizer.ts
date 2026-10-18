@@ -156,7 +156,7 @@ export class PageRasterizer {
   /** Sizes `target` to the page in device px and paints it. Every outline must be present. */
   paint(target: PaintTarget, pageNumber: number, scale: DeviceScale): PaintOutcome {
     const page: PageOps = this.page(pageNumber);
-    const size: { readonly w: number; readonly h: number } = pageSizePx(page.entry.width, page.entry.height, scale.k);
+    const size: { readonly w: number; readonly h: number } = pageSizePx(page.entry.width, page.entry.height, scale);
     target.resize(size.w, size.h);
     const links: LinkArea[] = paintPage({
       ctx: target.ctx, scale, faces: this.heldPage(pageNumber).faces, atlas: this.atlas, outlines: this.outlines,

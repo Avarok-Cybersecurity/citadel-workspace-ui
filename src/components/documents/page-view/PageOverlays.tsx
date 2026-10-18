@@ -31,7 +31,7 @@ export function PageOverlays({ width, height, scene, contextOf }: PageOverlaysPr
   const caret: RefObject<HTMLCanvasElement> = useRef<HTMLCanvasElement>(null);
 
   useLayoutEffect((): void => {
-    const size: { readonly w: number; readonly h: number } = pageSizePx(width, height, scene.scale.k);
+    const size: { readonly w: number; readonly h: number } = pageSizePx(width, height, scene.scale);
     if (selection.current === null || caret.current === null) return;
     paintSelectionLayer(sized(selection.current, size.w, size.h, contextOf), size.w, size.h, scene, OVERLAY_STYLE);
     paintCaretLayer(sized(caret.current, size.w, size.h, contextOf), size.w, size.h, scene, OVERLAY_STYLE);
