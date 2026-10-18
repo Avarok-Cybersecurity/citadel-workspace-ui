@@ -42,8 +42,9 @@ import * as dirOps from './revfs-dir-ops';
 import type { FileOpsContext } from './revfs-file-ops';
 import * as fileOps from './revfs-file-ops';
 import * as serverFileOps from './revfs-server-file-ops';
+import { readPulledChunk } from './revfs-read-ops';
 import { loadTree } from './tree-load';
-import type { RevfsIntentResult } from '@/types/revfs-intents';
+import type { PulledChunk, RevfsIntentResult } from '@/types/revfs-intents';
 
 export class RevfsService {
   private readonly state: RevfsState = new RevfsState();
@@ -140,6 +141,8 @@ export class RevfsService {
   uploadFileToServer(myCid: bigint, dir: string, name: string, meta: RevfsFileMetadata, content: Uint8Array): Promise<void> { return withSerialLock(serverTreeKey(myCid), () => serverFileOps.uploadFileToServer(this.fileCtx(), myCid, dir, name, meta, content)); }
   removeFileFromServer(myCid: bigint, path: string): Promise<void> { return withSerialLock(serverTreeKey(myCid), () => serverFileOps.removeFileFromServer(this.fileCtx(), myCid, path)); }
   downloadFileFromServer(myCid: bigint, path: string): Promise<string | undefined> { return serverFileOps.downloadFileFromServer(this.fileCtx(), myCid, path); }
+  /** A chunk of a file pulled from the peer's storage, or the server's when peerCid is null. */
+  readPulledChunk(myCid: bigint, peerCid: bigint | null, path: string, offset: bigint, maxLen: number): Promise<PulledChunk> { return readPulledChunk(this.fileCtx(), myCid, peerCid, path, offset, maxLen); }
 
   // ── Incoming Operation Handler ────────────────────────────────────────
 

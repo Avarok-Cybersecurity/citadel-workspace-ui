@@ -70,6 +70,9 @@ describe('Citadel Docs is loaded lazily', () => {
   // even the chunk that shows a document, until the Docs editor region mounts.
   const fromHost: Map<string, string> = graphFrom(join(SRC, 'components/documents/DocumentHost.tsx'));
 
+  // The file manager opens Docs files in place; it must reach cdoc only through the same doors.
+  const fromFileManager: Map<string, string> = graphFrom(join(SRC, 'components/file-manager/FileManagerContent.tsx'));
+
   it('walks real graphs', () => {
     expect(fromMain.size).toBeGreaterThan(200);
     expect([...fromHost.keys()].map((f: string) => relative(SRC, f))).toContain('lib/citadel-apps/registry.ts');
@@ -82,6 +85,11 @@ describe('Citadel Docs is loaded lazily', () => {
   it('reaches none from DocumentHost either: DocsCanvas arrives through React.lazy', () => {
     expect(eagerIn(fromHost)).toEqual([]);
     expect(readFileSync(join(SRC, 'components/documents/DocumentHost.tsx'), 'utf8')).toMatch(/lazy\(\(\) => import\('\.\/DocsCanvas'\)\)/);
+  });
+
+  it('reaches none from the file manager, which opens Docs files through DocumentHost', () => {
+    expect([...fromFileManager.keys()].map((f: string) => relative(SRC, f))).toContain('components/file-manager/DocsFileScreen.tsx');
+    expect(eagerIn(fromFileManager)).toEqual([]);
   });
 
   it('reads type-only imports as erased and value imports as edges', () => {

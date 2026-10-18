@@ -7,6 +7,7 @@ import { describe, it, expect } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import { inProcessRuntime } from '@/lib/cdoc/__tests__/wasm-rig';
 import type { CdocRuntime } from '@/lib/cdoc/runtime';
+import { recordingDocumentFiles } from '@/test-utils/recording-document-files';
 import { DocumentHost, UnreadableDocument, type DocumentHostProps } from '../DocumentHost';
 
 const EDITABLE: DocumentHostProps = {
@@ -18,6 +19,9 @@ const EDITABLE: DocumentHostProps = {
   loadCdocRuntime: (): Promise<CdocRuntime> => Promise.resolve(inProcessRuntime('main-thread')),
   // Any signed-in name: these tests are about the host, not who signs a comment.
   commentAuthor: 'Ada',
+  // Any fixed instant: these tests download nothing.
+  files: recordingDocumentFiles('2026-10-17T00:00:00Z'),
+  original: null,
 };
 
 describe('DocumentHost', () => {

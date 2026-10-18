@@ -13,15 +13,26 @@ import { openDisplayList } from '../display-list/decoder';
 import { DisplayListError } from '../display-list/byte-reader';
 import type { DisplayList, FaceKey, PageEntry } from '../display-list/types';
 import type { FontFaceEntry, FontManifest, FontSource } from '../fonts/font-manifest';
-import type { CdocWasm, EditorSealedFonts, RenderAssets } from './cdoc-wasm-api';
+import type { CdocWasm, EditorSealedFonts, ImageStore, RenderAssets } from './cdoc-wasm-api';
 import { EditorEngine, type EditorOrigin } from './editor-engine';
 import type { DocumentSource } from '../document-source';
+import { NOT_CONVERTED, refusedMacros } from '../conversion-report';
+import type { ConversionReport, ExportedFile, ExportTarget } from '../editor/file-formats';
+import { exportFile, importFile, type ImportedFile } from './file-codec';
 
-export interface OpenedDocument {
-  readonly pageCount: number;
-  /** Width, height pairs in Pt100, in page order. */
-  readonly pageSizes: Int32Array;
-}
+/**
+ * What opening produced. A file whose macros the importer refused is not opened as a Docs
+ * document at all: the person is told, and the file is left as it is.
+ */
+export type OpenedDocument =
+  | {
+      readonly kind: 'opened';
+      readonly pageCount: number;
+      /** Width, height pairs in Pt100, in page order. */
+      readonly pageSizes: Int32Array;
+      readonly report: ConversionReport;
+    }
+  | { readonly kind: 'refused'; readonly reason: 'macros'; readonly report: ConversionReport };
 
 export interface GlyphPathBatch {
   readonly records: Uint8Array;
@@ -29,16 +40,18 @@ export interface GlyphPathBatch {
   readonly offsets: Uint32Array;
 }
 
-/**
- * RenderAssets takes the time its PDF output records. The display list records no time and
- * this engine never writes a PDF, so the clock is a fixed, visibly meaningless instant.
- */
 interface OpenDoc {
   readonly bytes: Uint8Array;
   readonly list: DisplayList;
   readonly assets: RenderAssets;
+  readonly pmJson: string;
+  readonly images: ImageStore;
 }
 
+/**
+ * RenderAssets takes the time its PDF output records. The display list records no time, so the
+ * page view's assets carry a fixed, visibly meaningless instant; a PDF export brings its own.
+ */
 const DISPLAY_LIST_HAS_NO_CLOCK: string = '1970-01-01T00:00:00Z';
 
 type LoadedFace = readonly [FontFaceEntry, Uint8Array];
@@ -68,11 +81,16 @@ export class CdocEngine {
     return this.faces;
   }
 
+  private buildAssets(loaded: readonly LoadedFace[], clock: string): RenderAssets {
+    const assets: RenderAssets = new this.wasm.RenderAssets(this.manifest.fallback, clock);
+    for (const [face, bytes] of loaded) assets.addFont(face.family, face.bold, face.italic, bytes);
+    for (const [name, target] of Object.entries(this.manifest.aliases)) assets.aliasFont(name, target);
+    return assets;
+  }
+
   private loadAssets(): Promise<RenderAssets> {
     this.assets ??= this.loadFaces().then((loaded: readonly LoadedFace[]): RenderAssets => {
-      const assets: RenderAssets = new this.wasm.RenderAssets(this.manifest.fallback, DISPLAY_LIST_HAS_NO_CLOCK);
-      for (const [face, bytes] of loaded) assets.addFont(face.family, face.bold, face.italic, bytes);
-      for (const [name, target] of Object.entries(this.manifest.aliases)) assets.aliasFont(name, target);
+      const assets: RenderAssets = this.buildAssets(loaded, DISPLAY_LIST_HAS_NO_CLOCK);
       this.ready = assets;
       return assets;
     });
@@ -99,29 +117,56 @@ export class CdocEngine {
   /** Opens an editor as replica `client`; outlines for its pages come from this engine. */
   async openEditor(client: bigint, origin: EditorOrigin): Promise<EditorEngine> {
     const [fonts] = await Promise.all([this.loadEditorFonts(), this.loadAssets()]);
+    this.doc?.images.free();
     this.doc = null;
     return EditorEngine.open(this.wasm, fonts, client, origin);
   }
 
-  private pmJson(source: DocumentSource): string {
+  private resolve(source: DocumentSource): ImportedFile {
     switch (source.kind) {
-      case 'blank': return this.wasm.blank_pm_json();
-      case 'pm': return source.pmJson;
-      case 'model': return this.wasm.model_to_pm(source.modelJson);
+      case 'blank': return { pmJson: this.wasm.blank_pm_json(), report: NOT_CONVERTED, images: new this.wasm.ImageStore() };
+      case 'pm': return { pmJson: source.pmJson, report: NOT_CONVERTED, images: new this.wasm.ImageStore() };
+      case 'model': return { pmJson: this.wasm.model_to_pm(source.modelJson), report: NOT_CONVERTED, images: new this.wasm.ImageStore() };
+      case 'file': return importFile(this.wasm, source.format, source.bytes);
     }
   }
 
   async open(source: DocumentSource): Promise<OpenedDocument> {
     const assets: RenderAssets = await this.loadAssets();
-    const bytes: Uint8Array = this.wasm.pm_to_display_list(this.pmJson(source), assets);
-    const decoded: DisplayList = openDisplayList(bytes);
-    this.doc = { bytes, list: decoded, assets };
+    const file: ImportedFile = this.resolve(source);
+    if (refusedMacros(file.report).length > 0) {
+      file.images.free();
+      return { kind: 'refused', reason: 'macros', report: file.report };
+    }
+    let bytes: Uint8Array;
+    let decoded: DisplayList;
+    try {
+      addImages(assets, file.images);
+      bytes = this.wasm.pm_to_display_list(file.pmJson, assets);
+      decoded = openDisplayList(bytes);
+    } catch (error: unknown) {
+      file.images.free();
+      throw error;
+    }
+    this.doc?.images.free();
+    this.doc = { bytes, list: decoded, assets, pmJson: file.pmJson, images: file.images };
     const pageSizes: Int32Array = new Int32Array(decoded.pages.length * 2);
     decoded.pages.forEach((p: PageEntry, i: number) => {
       pageSizes[2 * i] = p.width;
       pageSizes[2 * i + 1] = p.height;
     });
-    return { pageCount: decoded.pages.length, pageSizes };
+    return { kind: 'opened', pageCount: decoded.pages.length, pageSizes, report: file.report };
+  }
+
+  /** The open (static) document written by the engine in another format. */
+  async export(target: ExportTarget): Promise<ExportedFile> {
+    const faces: readonly LoadedFace[] = await this.loadFaces();
+    const doc: OpenDoc = this.current();
+    return exportFile(this.wasm, target, doc.pmJson, doc.images, (clock: string): RenderAssets => {
+      const assets: RenderAssets = this.buildAssets(faces, clock);
+      addImages(assets, doc.images);
+      return assets;
+    });
   }
 
   /** The open document's decoded list, for a painter in the same thread. */
@@ -162,5 +207,15 @@ export class CdocEngine {
 
   faceMetrics(face: FaceKey): Uint8Array {
     return this.wasm.face_metrics(this.readyAssets(), face.family, face.bold, face.italic);
+  }
+}
+
+function addImages(assets: RenderAssets, images: ImageStore): void {
+  for (let i: number = 0; i < images.len(); i++) {
+    const id: string | undefined = images.id(i);
+    const mime: string | undefined = images.mime(i);
+    const bytes: Uint8Array | undefined = images.bytes(i);
+    if (id === undefined || mime === undefined || bytes === undefined) throw new Error(`image ${i} of the document is incomplete`);
+    assets.addImage(id, mime, bytes);
   }
 }

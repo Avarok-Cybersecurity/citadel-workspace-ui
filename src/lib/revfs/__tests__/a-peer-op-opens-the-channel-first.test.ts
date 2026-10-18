@@ -60,6 +60,12 @@ describe('a peer-scoped RE-VFS operation', () => {
     expect(events).toEqual([`open:${PEER}`, `p2p:${PEER}`]);
   });
 
+  it('opens the channel before reading a pulled file\'s bytes from the peer', async () => {
+    void new RevfsIO(deps).execute({ type: 'backend-read-pulled-chunk', cid: LOCAL, peerCid: PEER, virtualDir: '/a.bin', offset: 0n, maxLen: 1048576 });
+    await settled();
+    expect(events).toEqual([`open:${PEER}`, 'request:ReadPulledFileChunk']);
+  });
+
   it('opens the channel before downloading from and deleting on the peer', async () => {
     const io: RevfsIO = new RevfsIO(deps);
     void io.execute({ type: 'backend-download-file', cid: LOCAL, peerCid: PEER, virtualDir: '/a.bin' });

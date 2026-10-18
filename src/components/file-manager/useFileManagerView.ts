@@ -17,6 +17,7 @@ import type { ShareLink } from './ShareDialog';
 import type { StoragePeer } from './storage-peers';
 import { selectionPanel, type SelectionPanel } from './selection-panel';
 import { useTransfers, type Transfers } from './useTransfers';
+import { docsOpenAction } from './docs-file-open';
 
 export interface FileManagerView {
   view: ContentView;
@@ -49,7 +50,8 @@ export function useFileManagerView(fm: UseFileManagerContentResult): FileManager
   }, [myCid, registeredPeers]);
   const transfers: Transfers = useTransfers(useCallback((cid: string): string => nameOf(BigInt(cid)), [nameOf]));
 
-  const { linkTo, openFolder } = place;
+  const { linkTo, openFolder, openFile } = place;
+  const openInDocs: VFSItemActions['openInDocs'] = useCallback((node: RevfsNode): void => openFile(node.path), [openFile]);
   const linkFor: (node: RevfsNode) => string | null = useCallback((node: RevfsNode): string | null =>
     node.type === 'directory' ? linkTo(node.path, null) : linkTo(parentPath(node.path), node.name), [linkTo]);
 
@@ -58,7 +60,8 @@ export function useFileManagerView(fm: UseFileManagerContentResult): FileManager
 
   const actions: VFSItemActions = useMemo((): VFSItemActions => ({
     openFolder,
-    openFile: handleDownload,
+    openFile: (node: RevfsNode): void => (docsOpenAction({ openInDocs }, node) ?? ((): void => handleDownload(node)))(),
+    openInDocs,
     inspect: handleInfo,
     download: handleDownload,
     share: (nodes: RevfsNode[]): void => {
@@ -83,7 +86,7 @@ export function useFileManagerView(fm: UseFileManagerContentResult): FileManager
     upload: handleUploadFile,
     refresh: (): void => { void handleSync(); },
     drop: (target: string, files: FileList): void => { void handleDrop(target, files); },
-  }), [openFolder, handleDownload, handleInfo, linkFor, copy, handleDelete, handleDeleteMultiple, handleRename,
+  }), [openFolder, openInDocs, handleDownload, handleInfo, linkFor, copy, handleDelete, handleDeleteMultiple, handleRename,
     handleCut, handleCutMultiple, handleCopy, handleCopyMultiple, handlePaste, handleNewFolder, handleUploadFile, handleSync, handleDrop]);
 
   const panel: SelectionPanel = useMemo((): SelectionPanel => selectionPanel(fm.tree, fm.selectedPaths), [fm.tree, fm.selectedPaths]);

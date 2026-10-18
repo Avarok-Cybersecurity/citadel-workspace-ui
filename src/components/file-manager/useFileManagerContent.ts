@@ -9,12 +9,14 @@ import { useFileManagerPlace, type FileManagerPlace } from './useFileManagerPlac
 import type { StorageRef } from '@/lib/file-manager-location';
 import { peerTreeKey, serverTreeKey } from "@/lib/revfs/tree-operations";
 import type { RevfsNode, TreeKey } from "@/types/revfs-types";
+import type { PulledChunk } from '@/types/revfs-intents';
 import { TreeScope } from "@/types/revfs-types";
 import { INTERVAL } from "@/lib/timeout-constants";
 import { useFileManagerHandlers } from "./useFileManagerHandlers";
 import { useUploadTarget, type UploadTarget } from './useUploadTarget';
 import type { SortField, SortDirection } from './vfs-content-helpers';
 import { useLinkedItem } from './useLinkedItem';
+import { agentFileReader, type WorkspaceFileReader } from './docs-file-open';
 import { revfsDownloadHistory } from '@/lib/revfs/download-history';
 import type { FileDetails } from '@/components/layout/sidebar/file-details';
 import type { UseRevfsTreeResult, UseServerRevfsTreeResult } from '@/hooks/useRevfsTree-types';
@@ -53,6 +55,9 @@ export type UseFileManagerContentResult = ReturnType<typeof useFileManagerHandle
   currentPath: string;
   /** An item a link pointed at that is not in the folder. */
   missingItem: string | null;
+  /** Has the agent pull a file (DownloadFile) without the download toast, for an app to read it. */
+  /** Reads a stored file's bytes for an app that opens it in the page (Citadel Docs). */
+  fileReader: WorkspaceFileReader;
   fileInputRef: RefObject<HTMLInputElement>;
   /** The folder a picked file lands in; see useUploadTarget. */
   takeUploadTarget: UploadTarget['take'];
@@ -119,7 +124,7 @@ export function useFileManagerContent(): UseFileManagerContentResult {
   );
   const serverTree: UseServerRevfsTreeResult = useServerRevfsTree(storageMode === TreeScope.Server ? myCid : null);
   const activeTree: UseServerRevfsTreeResult = storageMode === TreeScope.Server ? serverTree : peerTree;
-  const { tree, loading, error, mkdir, rmdir, uploadFile, downloadFile, removeFile, rename, move, copy, refresh, storageUsed, storageQuota, revfsEnabled, pendingPaths } = activeTree;
+  const { tree, loading, error, mkdir, rmdir, uploadFile, downloadFile, readPulledChunk, removeFile, rename, move, copy, refresh, storageUsed, storageQuota, revfsEnabled, pendingPaths } = activeTree;
 
   const { clipboard, cut, copy: copyToClipboard, clear: clearClipboard, hasItems: hasPasteItems, isCut } = useVFSClipboard();
   const { selectedPaths, select: selectItem, selectAll, clearSelection } = useVFSSelection();
@@ -199,6 +204,12 @@ export function useFileManagerContent(): UseFileManagerContentResult {
   // "Info" and "Preview" are the inspector, which follows the selection.
   const inspect: (node: RevfsNode) => void = useCallback((node: RevfsNode): void => selectAll([node.path]), [selectAll]);
 
+  const fileReader: WorkspaceFileReader = useMemo((): WorkspaceFileReader =>
+    agentFileReader({
+      pull: async (node: RevfsNode): Promise<void> => { await downloadFile(node.path); },
+      readChunk: (node: RevfsNode, offset: bigint, maxLen: number): Promise<PulledChunk> => readPulledChunk(node.path, offset, maxLen),
+    }), [downloadFile, readPulledChunk]);
+
   const handlers: ReturnType<typeof useFileManagerHandlers> = useFileManagerHandlers({
     mkdir, rmdir, removeFile, downloadFile, uploadFile, rename, move, copy, refresh,
     cut, copyToClipboard, clearClipboard, clearSelection, selectAll,
@@ -218,7 +229,7 @@ export function useFileManagerContent(): UseFileManagerContentResult {
     // into the handlers; the screen that needs it had no route to it.
     refresh,
     storageUsed, storageQuota, storageLabel, storageName,
-    currentPath, missingItem,
+    currentPath, missingItem, fileReader,
     fileInputRef, takeUploadTarget: uploadTarget.take,
     storageLimitModalOpen, setStorageLimitModalOpen, attemptedFileSize,
     revfsDisabledModalOpen, setRevfsDisabledModalOpen, revfsDisabledReason,

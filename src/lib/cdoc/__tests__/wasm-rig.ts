@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import * as glue from '../../../../vendor/cdoc/cdoc_wasm.js';
 import { FONT_MANIFEST } from '../generated/font-manifest';
-import { CdocEngine } from '../engine/cdoc-engine';
+import { CdocEngine, type OpenedDocument } from '../engine/cdoc-engine';
 import type { CdocWasm } from '../engine/cdoc-wasm-api';
 import type { FontFaceEntry, FontSource } from '../fonts/font-manifest';
 import { CdocHost } from '../worker/cdoc-host';
@@ -93,4 +93,12 @@ export function inProcessRuntime(renderer: 'worker' | 'main-thread'): TestRuntim
     return rec.ctx;
   };
   return { client, renderer: pages, painted, overlays, overlayContext };
+}
+
+export type OpenedPages = Extract<OpenedDocument, { kind: 'opened' }>;
+
+/** The outcome of an open that must have opened; a refusal fails the test with its report. */
+export function openedPages(outcome: OpenedDocument): OpenedPages {
+  if (outcome.kind !== 'opened') throw new Error(`expected the document to open; it was refused over ${outcome.report.losses.map((l) => l.part).join(', ')}`);
+  return outcome;
 }

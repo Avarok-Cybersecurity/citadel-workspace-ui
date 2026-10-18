@@ -87,6 +87,8 @@ export function defaultIntentHandler(overrides?: Partial<Record<RevfsIntent['typ
         return { type: 'backend-download-file', success: true, downloadPath: '/tmp/file' };
       case 'backend-delete-file':
         return { type: 'backend-delete-file', success: true };
+      case 'backend-read-pulled-chunk':
+        return { type: 'backend-read-pulled-chunk', answer: { kind: 'failed', message: 'no file is pulled in this test' } };
     }
   };
 }

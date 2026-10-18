@@ -12,7 +12,9 @@ import { citadelApp, type CitadelApp, type CitadelAppId } from '@/lib/citadel-ap
 import type { ActionGate } from '@/hooks/use-permission-result';
 import type { DocumentSource } from '@/lib/cdoc/document-source';
 import type { CdocRuntimeFactory } from '@/lib/cdoc/runtime-loader';
+import type { DocumentFiles } from '@/lib/document-files';
 import type { DocsCanvasProps } from './DocsCanvas';
+import type { OriginalFile } from './NotOpened';
 import { keepBlankReplica } from './blank-replica';
 
 const DocsCanvas: LazyExoticComponent<(props: DocsCanvasProps) => JSX.Element> = lazy(() => import('./DocsCanvas'));
@@ -33,9 +35,13 @@ export interface DocumentHostProps {
   loadCdocRuntime: CdocRuntimeFactory;
   /** The name new comments are signed with; null until the person's name has loaded. */
   commentAuthor: string | null;
+  /** Where downloads go and the time they record. */
+  files: DocumentFiles;
+  /** The file this document was opened from, offered when Docs refuses it; null for a workspace document. */
+  original: OriginalFile | null;
 }
 
-export function DocumentHost({ nodeId, appId, title, permissions, documentSource, loadCdocRuntime, commentAuthor }: DocumentHostProps): JSX.Element {
+export function DocumentHost({ nodeId, appId, title, permissions, documentSource, loadCdocRuntime, commentAuthor, files, original }: DocumentHostProps): JSX.Element {
   const app: CitadelApp = citadelApp(appId);
   const Icon: CitadelApp['icon'] = app.icon;
   const [statusBar, setStatusBar] = useState<HTMLElement | null>(null);
@@ -56,7 +62,7 @@ export function DocumentHost({ nodeId, appId, title, permissions, documentSource
       {appId === 'docs' ? (
         <section aria-label={`${app.name} editor`} data-testid="document-editor-region" className="flex min-h-0 flex-1 flex-col">
           <Suspense fallback={<p role="status" className="m-auto text-sm text-muted-foreground">Loading {app.name}…</p>}>
-            <DocsCanvas documentSource={documentSource} loadRuntime={loadCdocRuntime} keepReplica={keepBlankReplica} statusBar={statusBar} edit={permissions.edit} commentAuthor={commentAuthor} />
+            <DocsCanvas documentSource={documentSource} loadRuntime={loadCdocRuntime} keepReplica={keepBlankReplica} statusBar={statusBar} edit={permissions.edit} commentAuthor={commentAuthor} title={title} files={files} original={original} />
           </Suspense>
         </section>
       ) : (

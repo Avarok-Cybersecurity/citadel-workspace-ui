@@ -21,15 +21,31 @@ import { FileManagerStatusStrip } from './FileManagerStatusStrip';
 import { connectedCount } from './storage-peers';
 import { itemCountLabel } from './address-bar-model';
 import { findNodeByPath } from '@/lib/revfs/tree-operations';
+import { parentPath } from '@/lib/revfs/tree-queries';
+import { loadCdocRuntime } from '@/lib/cdoc/runtime-loader';
+import { browserDocumentFiles } from '@/lib/document-files';
 import type { RevfsNode } from '@/types/revfs-types';
 import type { ReactNode } from 'react';
+import { DocsFileScreen } from './DocsFileScreen';
 
-function Body({ fm, v, shown, footer }: { fm: UseFileManagerContentResult; v: FileManagerView; shown: FileManagerScreen; footer: ReactNode }): JSX.Element {
+function OpenedFile({ fm, v, node }: { fm: UseFileManagerContentResult; v: FileManagerView; node: RevfsNode }): JSX.Element {
+  const folder: string = parentPath(node.path);
+  const folderName: string = folder === '/' ? fm.storageName : folder.slice(folder.lastIndexOf('/') + 1);
+  return (
+    <DocsFileScreen
+      node={node} folderName={folderName} onBack={() => fm.place.openFolder(folder)} onDownload={() => v.actions.download(node)}
+      reader={fm.fileReader} loadCdocRuntime={loadCdocRuntime} files={browserDocumentFiles}
+    />
+  );
+}
+
+function Body({ fm, v, shown, footer, opened }: { fm: UseFileManagerContentResult; v: FileManagerView; shown: FileManagerScreen; footer: ReactNode; opened: RevfsNode | null }): JSX.Element {
   if (shown === 'connecting') return <ConnectingScreen />;
   if (shown === 'finding-peers') return <LoadingScreen label="Finding your peers..." />;
   if (shown === 'unknown-peer') return <UnknownPeerScreen storage={fm.storage} onOpenServer={() => fm.place.openStorage({ kind: 'server' })} />;
   if (shown === 'loading') return <LoadingScreen label="Loading file system..." />;
   if (shown === 'error' || !fm.tree) return <ErrorScreen error={fm.error ?? null} onRetry={() => { void fm.refresh(); }} />;
+  if (opened !== null) return <OpenedFile fm={fm} v={v} node={opened} />;
   return <FileManagerBrowser fm={fm} v={v} tree={fm.tree} footer={footer} />;
 }
 
@@ -42,7 +58,10 @@ export const FileManagerContent: () => JSX.Element = (): JSX.Element => {
     treeLoading: fm.loading, hasError: Boolean(fm.error), hasTree: Boolean(fm.tree),
   });
   const browsing: boolean = shown === 'browser' && fm.tree !== null;
-  const folder: RevfsNode | null = browsing && fm.tree ? findNodeByPath(fm.tree, fm.currentPath) : null;
+  const at: RevfsNode | null = browsing && fm.tree ? findNodeByPath(fm.tree, fm.currentPath) : null;
+  // The address names a folder to list, or a file opened in its app.
+  const folder: RevfsNode | null = at?.type === 'directory' ? at : null;
+  const opened: RevfsNode | null = at?.type === 'file' ? at : null;
   const peerName: string | null = fm.storageMode === TreeScope.Peer && fm.peerRegistered ? fm.storageLabel : null;
 
   // Under the list, beside the inspector; under everything when there is no list.
@@ -73,7 +92,7 @@ export const FileManagerContent: () => JSX.Element = (): JSX.Element => {
         }}
         transfers={{ active: v.transfers.active, open: v.transfersOpen, onToggle: () => v.setTransfersOpen(!v.transfersOpen) }}
       />
-      {browsing && (
+      {browsing && opened === null && (
         <FileManagerAddressBar
           tree={fm.tree} path={fm.currentPath} onOpenFolder={fm.place.openFolder} back={fm.place.back} up={fm.place.up}
           countLabel={folder ? itemCountLabel(folder.children ?? []) : null}
@@ -82,7 +101,7 @@ export const FileManagerContent: () => JSX.Element = (): JSX.Element => {
         />
       )}
       <div className="flex min-h-0 flex-1 flex-col">
-        <Body fm={fm} v={v} shown={shown} footer={footer} />
+        <Body fm={fm} v={v} shown={shown} footer={footer} opened={opened} />
       </div>
       {!browsing && footer}
       <FileManagerModals fm={fm} v={v} />

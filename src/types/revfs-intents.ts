@@ -42,7 +42,21 @@ export type RevfsIntent =
       virtualDir: string;
     }
   | { type: 'backend-download-file'; cid: bigint; peerCid: bigint | null; virtualDir: string }
-  | { type: 'backend-delete-file'; cid: bigint; peerCid: bigint | null; virtualDir: string };
+  | { type: 'backend-delete-file'; cid: bigint; peerCid: bigint | null; virtualDir: string }
+  // Read a pulled file's bytes back from the agent, one chunk (ReadPulledFileChunk).
+  | { type: 'backend-read-pulled-chunk'; cid: bigint; peerCid: bigint | null; virtualDir: string; offset: bigint; maxLen: number };
+
+/** One chunk of a file the agent pulled: `offset + data.length === totalSize` at the end. */
+export interface PulledChunk {
+  readonly totalSize: bigint;
+  readonly offset: bigint;
+  readonly data: Uint8Array;
+}
+
+/** The agent's answer to one ReadPulledFileChunk: a chunk, or why there is none. */
+export type ReadChunkAnswer =
+  | { readonly kind: 'chunk'; readonly chunk: PulledChunk }
+  | { readonly kind: 'failed'; readonly message: string };
 
 export type RevfsIntentResult =
   | { type: 'send-revfs-op'; success: boolean }
@@ -56,4 +70,5 @@ export type RevfsIntentResult =
   | { type: 'load-pending-ops'; ops: RevfsPendingOp[] }
   | { type: 'backend-send-file'; success: boolean; virtualDir?: string }
   | { type: 'backend-download-file'; success: boolean; downloadPath?: string }
-  | { type: 'backend-delete-file'; success: boolean };
+  | { type: 'backend-delete-file'; success: boolean }
+  | { type: 'backend-read-pulled-chunk'; answer: ReadChunkAnswer };

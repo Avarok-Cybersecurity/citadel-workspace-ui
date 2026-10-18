@@ -30,7 +30,7 @@ function Harness({ runtime, dpr, statuses }: { runtime: TestRuntime; dpr: number
   return (
     <>
       <output data-testid="zoom">{zoom}</output>
-      <PageView client={runtime.client} renderer={runtime.renderer} source={LONG} zoom={zoom} dpr={dpr} onZoomChange={setZoom} onPageStatus={(s) => statuses.push(s)} />
+      <PageView client={runtime.client} renderer={runtime.renderer} source={LONG} zoom={zoom} dpr={dpr} onZoomChange={setZoom} onPageStatus={(s) => statuses.push(s)} onOpened={() => undefined} original={null} />
     </>
   );
 }
