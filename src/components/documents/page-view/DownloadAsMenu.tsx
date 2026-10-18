@@ -33,7 +33,7 @@ export function DownloadAsMenu({ state, onExport }: DownloadAsMenuProps): JSX.El
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         {DOCS_EXPORT_FORMATS.map((format: ExportFormat) => (
-          <DropdownMenuItem key={format} className="min-h-[44px]" disabled={busy} onSelect={() => onExport(format)}>
+          <DropdownMenuItem key={format} data-testid={`docs-download-as-${format}`} className="min-h-[44px]" disabled={busy} onSelect={() => onExport(format)}>
             {DOCS_FORMATS[format].label}
           </DropdownMenuItem>
         ))}
