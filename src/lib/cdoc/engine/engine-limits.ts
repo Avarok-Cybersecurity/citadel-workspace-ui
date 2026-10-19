@@ -58,5 +58,8 @@ export const READ_LIMITS: {
 /** The options a DOCX or ODT read takes (docx_to_pm, odt_to_pm, EditorHandle.fromDocument). */
 export const PACKAGE_READ_OPTIONS: { readonly limits: typeof READ_LIMITS } = { limits: READ_LIMITS };
 
+/** The deepest list level, inclusive: a list has nine, 0..=8 (cdoc_model::numbering::MAX_LEVEL). */
+export const MAX_LIST_LEVEL: number = 8;
+
 /** Plain-text import: a single newline is a line break, a blank line a new paragraph. */
 export const TXT_READ_OPTIONS: { readonly singleNewline: 'break' | 'space' } = { singleNewline: 'break' };

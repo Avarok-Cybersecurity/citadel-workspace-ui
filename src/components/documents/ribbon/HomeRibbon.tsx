@@ -1,5 +1,5 @@
 /**
- * The Home tab: Undo and Redo, Clipboard, Font, Paragraph and Styles.
+ * The Home tab: Undo and Redo, Clipboard (with Select All), Font, Paragraph and Styles.
  */
 import { Redo2, Undo2 } from 'lucide-react';
 import { ClipboardGroup } from './ClipboardGroup';

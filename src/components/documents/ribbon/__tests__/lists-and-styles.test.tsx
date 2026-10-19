@@ -21,8 +21,8 @@ async function number(user: UserEvent, kind: string): Promise<void> {
 }
 
 describe('lists', () => {
-  it('keeps the list level of a paragraph already in a list, and starts at the first level otherwise', async () => {
-    const { editor, user } = setUp(knownCaret({}, { numbering: { numId: 3, level: 2 } }));
+  it('keeps the list level the editor reports for the list, and starts at the first level otherwise', async () => {
+    const { editor, user } = setUp(knownCaret({}, { numbering: { numId: 3, level: 2 } }, {}, undefined, { kind: 'custom', level: 2 }));
     await user.click(screen.getByTestId('ribbon-bullets'));
     await number(user, 'upperRoman');
     await waitFor((): void => expect(editor.sent).toEqual([
@@ -45,6 +45,9 @@ describe('lists', () => {
     act((): void => editor.report(editorState(knownCaret({}, {}, { list: true }, undefined, { kind: 'decimal', level: 0 }))));
     expect(screen.getByTestId('ribbon-bullets')).toHaveAttribute('aria-pressed', 'mixed');
     expect(screen.getByTestId('ribbon-numbering-open')).toHaveAttribute('aria-pressed', 'mixed');
+    // Before the editor reports anything, neither says pressed or not: mixed, as the other toggles.
+    act((): void => editor.report(editorState({ known: false })));
+    expect(screen.getByTestId('ribbon-bullets')).toHaveAttribute('aria-pressed', 'mixed');
     // A list the templates do not describe (an imported one) presses neither.
     act((): void => editor.report(editorState(knownCaret({}, { numbering: { numId: 9, level: 0 } }, {}, undefined, { kind: 'custom', level: 0 }))));
     expect(screen.getByTestId('ribbon-bullets')).toHaveAttribute('aria-pressed', 'false');
@@ -52,9 +55,20 @@ describe('lists', () => {
   });
 
   it('ends a list with No list, whatever its kind', async () => {
-    const { editor, user } = setUp(knownCaret({}, { numbering: { numId: 3, level: 0 } }));
+    const { editor, user } = setUp(knownCaret({}, { numbering: { numId: 3, level: 0 } }, {}, undefined, { kind: 'custom', level: 0 }));
     await user.click(screen.getByTestId('ribbon-list-none'));
     await waitFor((): void => expect(editor.sent).toEqual([{ name: 'clearNumbering' }]));
+  });
+
+  it('refuses Increase indent at the ninth level, and allows it above', async () => {
+    const { editor, user } = setUp(knownCaret({}, {}, {}, undefined, { kind: 'bullet', level: 8 }));
+    const indent: HTMLElement = screen.getByTestId('ribbon-indent');
+    expect(indent).toHaveAttribute('aria-disabled', 'true');
+    await user.click(indent);
+    await waitFor((): void => expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent('This list item is at the deepest of a list’s nine levels.'));
+    act((): void => editor.report(editorState(knownCaret({}, {}, {}, undefined, { kind: 'bullet', level: 7 }))));
+    await user.click(screen.getByTestId('ribbon-indent'));
+    await waitFor((): void => expect(editor.sent).toEqual([{ name: 'indent' }]));
   });
 
   it('refuses No list outside a list', async () => {

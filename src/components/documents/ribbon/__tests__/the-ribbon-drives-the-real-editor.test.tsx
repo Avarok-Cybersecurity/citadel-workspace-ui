@@ -135,4 +135,48 @@ describe('the ribbon over the real editor', () => {
       Reflect.deleteProperty(navigator, 'clipboard');
     }
   }, 30_000);
+
+  it('enters the header from Insert, says so, and Back returns to the document', async () => {
+    render(<DocumentHost {...BLANK} />);
+    const user: UserEvent = userEvent.setup();
+    await user.click(await screen.findByTestId('docs-ribbon-tab-insert', {}, { timeout: 10_000 }));
+    await user.click(screen.getByTestId('ribbon-edit-header-open'));
+    await user.click(await screen.findByTestId('ribbon-edit-header-default'));
+    const bar: HTMLElement = await screen.findByTestId('docs-story-bar', {}, { timeout: 10_000 });
+    expect(bar).toHaveTextContent(/^Editing the header of section 1\./);
+    expect(screen.getByTestId('ribbon-edit-header-open')).toHaveAttribute('aria-pressed', 'true');
+    await user.click(screen.getByTestId('docs-story-back'));
+    await waitFor((): void => expect(screen.queryByTestId('docs-story-bar')).toBeNull(), { timeout: 10_000 });
+  }, 30_000);
+
+  it('says why the engine refuses a first-page footer in a section without a distinct first page', async () => {
+    render(<DocumentHost {...BLANK} />);
+    const user: UserEvent = userEvent.setup();
+    await user.click(await screen.findByTestId('docs-ribbon-tab-insert', {}, { timeout: 10_000 }));
+    await user.click(screen.getByTestId('ribbon-edit-footer-open'));
+    await user.click(await screen.findByTestId('ribbon-edit-footer-firstPage'));
+    await waitFor((): void => expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent(/^Could not edit the first page footer\. .+/), { timeout: 10_000 });
+    expect(screen.queryByTestId('docs-story-bar')).toBeNull();
+  }, 30_000);
+
+  it('puts the caret in a new footnote, whose bar leads back', async () => {
+    render(<DocumentHost {...BLANK} />);
+    const user: UserEvent = userEvent.setup();
+    await user.click(await screen.findByTestId('docs-ribbon-tab-insert', {}, { timeout: 10_000 }));
+    await user.click(screen.getByTestId('ribbon-insert-footnote'));
+    expect(await screen.findByTestId('docs-story-bar', {}, { timeout: 10_000 })).toHaveTextContent('Editing a footnote.');
+    await user.click(screen.getByTestId('docs-story-back'));
+    await waitFor((): void => expect(screen.queryByTestId('docs-story-bar')).toBeNull(), { timeout: 10_000 });
+  }, 30_000);
+
+  it('reads the list from the engine: Bullets turns pressed, No list ends it', async () => {
+    render(<DocumentHost {...BLANK} />);
+    const user: UserEvent = userEvent.setup();
+    const bullets: HTMLElement = await screen.findByTestId('ribbon-bullets', {}, { timeout: 10_000 });
+    await waitFor((): void => expect(bullets).toHaveAttribute('aria-pressed', 'false'), { timeout: 10_000 });
+    await user.click(bullets);
+    await waitFor((): void => expect(bullets).toHaveAttribute('aria-pressed', 'true'), { timeout: 10_000 });
+    await user.click(screen.getByTestId('ribbon-list-none'));
+    await waitFor((): void => expect(bullets).toHaveAttribute('aria-pressed', 'false'), { timeout: 10_000 });
+  }, 30_000);
 });

@@ -7,14 +7,15 @@ import { useRef, useState, type ChangeEvent, type RefObject } from 'react';
 import { Image } from 'lucide-react';
 import type { AddedImage } from '@/lib/cdoc/editor/controller';
 import type { RibbonEditor } from './editor-context';
-import { MAX_PICTURE_BYTES, PICTURE_TYPES } from './picture';
+import { MAX_IMAGE_BYTES } from '@/lib/cdoc/engine/engine-limits';
+import { PICTURE_TYPES } from './picture';
 import { RibbonButton } from './RibbonButton';
 import { useRibbon, type Ribbon } from './ribbon-context';
 
 async function added(file: File, editor: RibbonEditor, ribbon: Ribbon): Promise<AddedImage> {
   const bytes: Uint8Array = await ribbon.environment.readBytes(file);
   try {
-    return await editor.addImage(bytes, MAX_PICTURE_BYTES);
+    return await editor.addImage(bytes, MAX_IMAGE_BYTES);
   } catch (error: unknown) {
     // The engine's decode message is not addressed to anyone; the cause is the file.
     console.warn('[PictureControl] the editor did not take', file.name, error);
@@ -24,7 +25,7 @@ async function added(file: File, editor: RibbonEditor, ribbon: Ribbon): Promise<
 
 async function insertPicture(file: File, editor: RibbonEditor, ribbon: Ribbon): Promise<void> {
   if (!PICTURE_TYPES.includes(file.type)) throw new Error(`${file.name} is not a PNG or JPEG picture.`);
-  if (file.size > MAX_PICTURE_BYTES) throw new Error(`${file.name} is larger than ${MAX_PICTURE_BYTES / 1_048_576} MB.`);
+  if (file.size > MAX_IMAGE_BYTES) throw new Error(`${file.name} is larger than ${MAX_IMAGE_BYTES / 1_048_576} MB.`);
   const image: AddedImage = await added(file, editor, ribbon);
   await editor.execute({ name: 'insertImageFitted', contentId: image.contentId });
 }

@@ -2,8 +2,10 @@
  * Insert › Header & Footer, and the bar shown while the selection is in a story other than the
  * body (EditHeaderFooter, GoToFootnote, ReturnToBody: docs/edit-commands.md § Stories).
  *
- * Header and Footer put the caret in the default header or footer, adding an empty one when the
- * section has none. The section is the one being edited when the caret is in a header or footer;
+ * Header and Footer are menus of the three a section can have (every page, the first page, even
+ * pages); a choice puts the caret there, adding an empty one when the section has none. The
+ * editor refuses one the section never shows (a first-page header without a distinct first
+ * page), and the refusal says so like any other. The section is the one being edited when the caret is in a header or footer;
  * from the body it is the first, since the editor reports the caret's page setup but not which
  * section that is. Clicking a header or footer line on the page enters it too.
  *
@@ -11,9 +13,10 @@
  * selection on the first of those pages only. The bar says so, so a cursor that seems to stay
  * on page one while the header repeats below is explained, not mistaken for a fault.
  */
-import { PanelBottom, PanelTop } from 'lucide-react';
-import type { Furniture, Story } from '@/lib/cdoc/editor/controller';
-import { RIBBON_CONTROL, RibbonButton } from './RibbonButton';
+import { PanelBottom, PanelTop, type LucideIcon } from 'lucide-react';
+import type { Furniture, HeaderFooterKind, Story } from '@/lib/cdoc/editor/controller';
+import { RIBBON_CONTROL } from './RibbonButton';
+import { MenuOption, RibbonMenu } from './RibbonMenu';
 import { useRibbon, type Ribbon } from './ribbon-context';
 
 /** The section the Header and Footer buttons edit: the current header's or footer's, else the first. */
@@ -21,15 +24,45 @@ function sectionFor(story: Story | null): number {
   return story !== null && (story.kind === 'header' || story.kind === 'footer') ? story.section : 0;
 }
 
-export function HeaderFooterButtons(): JSX.Element {
+interface KindChoice {
+  readonly which: HeaderFooterKind;
+  readonly label: string;
+  readonly detail: string;
+}
+
+const KINDS: readonly KindChoice[] = [
+  { which: 'default', label: 'Every page', detail: 'The one most pages show' },
+  { which: 'firstPage', label: 'First page', detail: 'Where the section’s first page differs' },
+  { which: 'evenPages', label: 'Even pages', detail: 'Where odd and even pages differ' },
+];
+
+const FURNITURE: Readonly<Record<Furniture, { readonly label: string; readonly icon: LucideIcon }>> = {
+  header: { label: 'Header', icon: PanelTop },
+  footer: { label: 'Footer', icon: PanelBottom },
+};
+
+function FurnitureMenu({ furniture }: { furniture: Furniture }): JSX.Element {
   const { run, story }: Ribbon = useRibbon();
-  const edit = (furniture: Furniture): void => {
-    void run({ name: 'editHeaderFooter', furniture, section: sectionFor(story), which: 'default' }, `edit the ${furniture}`);
-  };
+  const here: HeaderFooterKind | null = story !== null && story.kind === furniture ? story.which : null;
+  const { label, icon } = FURNITURE[furniture];
+  return (
+    <RibbonMenu testId={`ribbon-edit-${furniture}`} label={`Edit the ${furniture}`} icon={icon} text={label} widthPx={260} pressed={here !== null}>
+      {(close: () => void): JSX.Element[] => KINDS.map((k: KindChoice): JSX.Element => (
+        <MenuOption key={k.which} testId={`ribbon-edit-${furniture}-${k.which}`} label={k.label} detail={k.detail} pressed={here === k.which}
+          onChoose={(): void => {
+            close();
+            void run({ name: 'editHeaderFooter', furniture, section: sectionFor(story), which: k.which }, `edit the ${k.label.toLowerCase()} ${furniture}`);
+          }} />
+      ))}
+    </RibbonMenu>
+  );
+}
+
+export function HeaderFooterButtons(): JSX.Element {
   return (
     <>
-      <RibbonButton testId="ribbon-edit-header" label="Edit the header" icon={PanelTop} text="Header" pressed={story?.kind === 'header'} onPress={(): void => edit('header')} />
-      <RibbonButton testId="ribbon-edit-footer" label="Edit the footer" icon={PanelBottom} text="Footer" pressed={story?.kind === 'footer'} onPress={(): void => edit('footer')} />
+      <FurnitureMenu furniture="header" />
+      <FurnitureMenu furniture="footer" />
     </>
   );
 }

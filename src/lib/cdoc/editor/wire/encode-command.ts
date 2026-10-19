@@ -4,6 +4,7 @@
  * the spec's table, the same tables cdoc-edit's decoder reads.
  */
 import { COMMAND_OPCODES, type BreakKind, type CaretGranularity, type DeleteUnit, type EditorCommand, type Furniture, type HeaderFooterKind, type ListKind, type Mark } from '../controller';
+import { MAX_LIST_LEVEL } from '../../engine/engine-limits';
 import { RecordWriter } from './record-writer';
 
 const UNITS: readonly DeleteUnit[] = ['char', 'word'];
@@ -14,8 +15,6 @@ export const LIST_KINDS: readonly ListKind[] = ['bullet', 'decimal', 'lowerLette
 export const FURNITURE: readonly Furniture[] = ['header', 'footer'];
 export const HEADER_FOOTER_KINDS: readonly HeaderFooterKind[] = ['default', 'firstPage', 'evenPages'];
 
-/** The deepest list level, inclusive (cdoc_model::numbering::MAX_LEVEL). */
-const MAX_LIST_LEVEL: number = 8;
 
 function listLevel(level: number): number {
   if (!Number.isInteger(level) || level < 0 || level > MAX_LIST_LEVEL) throw new Error(`editor record: list level ${level} is not 0..=${MAX_LIST_LEVEL}`);
