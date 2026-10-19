@@ -11,10 +11,9 @@
  * The member holds ViewContent and not EditMdx, so the member only watches, which is all the
  * Documents relay needs from a reader (Pull, and Awareness).
  */
-import { readFileSync } from 'node:fs';
-import { expect, type Download, type Locator, type Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import { adminMemberTest } from '../fixtures/multi-user.fixture.js';
-import { openSelectedNodeMenu, revealNode, selectRoot } from '../lib/focused-tree.js';
+import { createDocument, downloadedText, firstPage, openDocument } from '../lib/docs-document.js';
 
 const STEP_MS = 30_000;
 const SYNC_MS = 60_000;
@@ -31,8 +30,6 @@ const HIDE_OVERLAYS = 'canvas[data-layer]:not([data-layer="page"]) { visibility:
  */
 const BAND_PX = 220;
 
-const firstPage = (page: Page): Locator => page.getByRole('group', { name: /^Page 1 of / });
-
 async function pageTop(page: Page, style: string | undefined): Promise<Buffer> {
   const box: { x: number; y: number; width: number; height: number } | null = await firstPage(page).boundingBox();
   if (box === null) throw new Error('the first page is not on screen');
@@ -43,39 +40,6 @@ async function pageTop(page: Page, style: string | undefined): Promise<Buffer> {
 
 const textOf = (page: Page): Promise<Buffer> => pageTop(page, HIDE_OVERLAYS);
 const screenOf = (page: Page): Promise<Buffer> => pageTop(page, undefined);
-
-async function createDocument(page: Page, name: string): Promise<void> {
-  const parentId: string | null = (await selectRoot(page)) === null ? null : await openSelectedNodeMenu(page);
-  expect(parentId, 'no node menu could be opened to create a document in').not.toBeNull();
-  const entry: Locator = page.getByTestId(`new-document-${parentId}`);
-  await expect(entry, 'the workspace root offers no new document').not.toHaveAttribute('data-disabled', { timeout: STEP_MS });
-  await entry.click();
-  const dialog: Locator = page.getByTestId('new-document-dialog');
-  await dialog.getByTestId('new-document-app-docs').click();
-  // Where the root admits more than one level, the dialog asks which; any one will do.
-  const levels: Locator = dialog.getByTestId('new-document-level').getByRole('radio');
-  if ((await levels.count()) > 0) await levels.first().click();
-  await dialog.getByTestId('new-document-name').fill(name);
-  await dialog.getByTestId('new-document-create').click();
-  await expect(dialog).toBeHidden({ timeout: STEP_MS });
-}
-
-/** The document as the person's own "Download as… → Plain text" writes it. */
-async function downloadedText(page: Page): Promise<string> {
-  await page.getByTestId('docs-download-as').click();
-  const downloaded: Promise<Download> = page.waitForEvent('download', { timeout: STEP_MS });
-  await page.getByTestId('docs-download-as-txt').click();
-  const path: string | null = await (await downloaded).path();
-  expect(path, 'the plain-text download should finish').not.toBeNull();
-  return readFileSync(path ?? '', 'utf-8');
-}
-
-/** Select the document in the sidebar, as a person would, and wait for its pages. */
-async function openDocument(page: Page, name: string): Promise<void> {
-  expect(await revealNode(page, name, STEP_MS), `"${name}" never appeared in the sidebar`).not.toBeNull();
-  await expect(page.getByTestId('document-host')).toHaveAttribute('data-app', 'docs', { timeout: STEP_MS });
-  await expect(firstPage(page)).toBeVisible({ timeout: STEP_MS });
-}
 
 adminMemberTest('what one person types in a document appears on the other\'s page, with their caret', async ({ admin, member }) => {
   adminMemberTest.setTimeout(300_000);

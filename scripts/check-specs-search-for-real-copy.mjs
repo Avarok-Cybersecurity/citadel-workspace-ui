@@ -42,6 +42,7 @@ import { readFileSync } from 'node:fs';
 import { readdirSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { chosenTestIds } from './lib/chosen-testids.mjs';
 
 const APP = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = join(APP, 'src');
@@ -191,6 +192,7 @@ const appTestIds = new Set();
 const appTestIdPrefixes = new Set();
 for (const m of appText.matchAll(/data-testid["']?\s*[=:]\s*["'`]([^"'`$]+)["'`]/g)) appTestIds.add(m[1]);
 for (const m of appText.matchAll(/data-testid["']?\s*[=:]\s*\{?\s*`([^`$]*)/g)) if (m[1]) appTestIdPrefixes.add(m[1]);
+for (const id of chosenTestIds(appText)) appTestIds.add(id);
 // A `testId` PROP forwarded to `data-testid` by a wrapper — `CallControls.tsx`
 // passes `testId="call-toggle-mic"` to a local `ToggleButton` whose JSX ends in
 // `data-testid={testId}`. The rendered id is real; only the literal's spelling

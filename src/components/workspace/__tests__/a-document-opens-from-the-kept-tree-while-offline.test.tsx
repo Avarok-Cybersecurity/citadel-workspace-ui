@@ -12,7 +12,7 @@
  * whether it is chosen is under test).
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { act, renderHook, screen, waitFor } from '@testing-library/react';
+import { act, renderHook, screen, waitFor, type RenderHookResult } from '@testing-library/react';
 import { useLocation } from 'react-router-dom';
 import type { UsePermissionResult } from '@/hooks/use-permission-result';
 import type { TabIdentity } from '@/lib/tab-identity';
@@ -64,7 +64,7 @@ async function reloadOffline(at: string, linkDown: boolean): Promise<void> {
 describe('the kept workspace tree', () => {
   it('is written each time the server lists the tree, and not while it is still loading', async () => {
     const live: Record<string, DomainNode> = Object.fromEntries([...ESTATE, PLAN].map((n: DomainNode) => [n.id, n]));
-    const hook = renderHook(({ loading }: { loading: boolean }): void => useKeepWorkspaceTree(saveKeptTree, 11n, live, loading), { initialProps: { loading: true } });
+    const hook: RenderHookResult<void, { loading: boolean }> = renderHook(({ loading }: { loading: boolean }): void => useKeepWorkspaceTree(saveKeptTree, 11n, live, loading), { initialProps: { loading: true as boolean } });
     await act(async (): Promise<void> => { await Promise.resolve(); });
     expect(store.has(workspaceTreeKey(11n))).toBe(false);
     hook.rerender({ loading: false });
@@ -96,8 +96,8 @@ describe('the kept workspace tree', () => {
 
   it('is neither read nor chosen while the link is up, each on its own', async () => {
     const asked: bigint[] = [];
-    const load = async (account: bigint): Promise<CachedWorkspaceTree | null> => { asked.push(account); return keptOf([PLAN]); };
-    const hook = renderHook((): ReturnType<typeof useKeptTree> => useKeptTree(load, 11n, false));
+    const load: (account: bigint) => Promise<CachedWorkspaceTree | null> = async (account: bigint): Promise<CachedWorkspaceTree | null> => { asked.push(account); return keptOf([PLAN]); };
+    const hook: RenderHookResult<ReturnType<typeof useKeptTree>, unknown> = renderHook((): ReturnType<typeof useKeptTree> => useKeptTree(load, 11n, false));
     await act(async (): Promise<void> => { await Promise.resolve(); });
     expect(asked).toEqual([]);
     expect(hook.result.current).toEqual({ kind: 'unread' });
