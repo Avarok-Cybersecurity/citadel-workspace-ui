@@ -47,6 +47,10 @@ export function sessionConfig(clientSeqBase: bigint, overrides: Partial<Document
     // Room for the two-tabs-of-one-account tests; the cap itself is peer-book.test.ts's.
     maxCaretsPerSession: 4,
     clientSeqBase,
+    // The app's (R1_COLLABORATION): tests of AutoSave off say so.
+    autoSaveWhenUnset: true,
+    // The app's; tests reach it by moving the clock.
+    baseAfterIdleMs: 2_000,
     ...overrides,
   };
 }

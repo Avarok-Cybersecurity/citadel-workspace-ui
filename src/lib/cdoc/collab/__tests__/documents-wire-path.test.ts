@@ -11,6 +11,7 @@
 import { describe, expect, it } from 'vitest';
 import { encodeWorkspacePayload, type DocumentsResponse, type WorkspaceProtocolPayload } from 'citadel-workspace-client-ts';
 import { eventEmitter } from '@/lib/event-emitter';
+import { reconnectingTo } from '@/lib/reconnect/server-reconnect';
 import { extractRequestId, extractTargetCid } from '@/lib/multi-instance/message-routing';
 import '@/lib/workspace-response-handler';
 import type { ProtocolSender } from '@/lib/workspace-service/workspace-operations';
@@ -65,6 +66,14 @@ describe('a Documents message on the production path', () => {
     eventEmitter.emit('websocket-message', { ServerReconnected: { cid: BOB, request_id: null } });
     stop();
     expect(states).toEqual(['down', 'up']);
+  });
+
+  it('starts with the link the tab shows: down while the agent re-dials this tab\'s session', () => {
+    const { sender } = recordingSender();
+    reconnectingTo.set('workspace.example:12349');
+    expect(workspaceDocumentsTransport(sender).link()).toBe('down');
+    reconnectingTo.set(null);
+    expect(workspaceDocumentsTransport(sender).link()).toBe('up');
   });
 
   it('hears a permission refusal', () => {

@@ -17,12 +17,15 @@ import { DocumentSync } from './document-sync';
 import type { DocumentSessionConfig, DocumentSessionPorts, LinkState } from './ports';
 import { SerialQueue } from './serial-queue';
 import { DocumentSessionError, type DocumentSessionProblem } from './session-errors';
+import type { SaveInputs } from './save-status';
 
 export interface DocumentSessionEvents {
   /** A replica was opened: the first, or a re-open over a newer snapshot. Draw this one. */
   editor: EditorController;
   problem: DocumentSessionError;
   peers: readonly PeerPresence[];
+  /** Where this tab's edits are (save-status.ts reads it): emitted whenever any of it changes. */
+  save: SaveInputs;
 }
 
 type Listeners = { [E in keyof DocumentSessionEvents]: Set<(payload: DocumentSessionEvents[E]) => void> };
@@ -31,7 +34,7 @@ export class DocumentSession {
   private readonly queue: SerialQueue;
   private readonly sync: DocumentSync;
   private readonly presence: DocumentPresence;
-  private readonly listeners: Listeners = { editor: new Set(), problem: new Set(), peers: new Set() };
+  private readonly listeners: Listeners = { editor: new Set(), problem: new Set(), peers: new Set(), save: new Set() };
   private readonly unsubscribe: (() => void)[] = [];
   private unbindEditor: (() => void) | null = null;
   private link: LinkState = 'up';
@@ -47,10 +50,12 @@ export class DocumentSession {
       adopt: (editor: EditorController): void => this.adopt(editor),
       alone: (): boolean => this.presence.alone(),
       run: (step: () => Promise<void>): void => { void this.queue.run(step); },
+      changed: (): void => this.emit('save', this.saveInputs),
     });
     this.presence = new DocumentPresence(config, ports, this.queue, {
       report,
-      linkUp,
+      // With AutoSave off, a caret moving over text nobody else has would say where the edits are.
+      linkUp: (): boolean => linkUp() && this.sync.autoSave,
       editor: (): EditorController | null => this.sync.editor,
       publish: (peers: readonly PeerPresence[]): void => this.emit('peers', peers),
     });
@@ -59,6 +64,8 @@ export class DocumentSession {
   /** Subscribes first, then pulls: a push that lands mid-open is queued behind the pull. */
   open(): Promise<void> {
     const { transport } = this.ports;
+    this.link = transport.link();
+    this.emit('save', this.saveInputs);
     this.unsubscribe.push(
       transport.onResponse((response: DocumentsResponse): void => this.received(response)),
       transport.onError((message: string): void => {
@@ -78,9 +85,25 @@ export class DocumentSession {
     return this.sync.seq;
   }
 
-  /** Every queued step has run (for callers that must wait for the replica to settle). */
-  settled(): Promise<void> {
-    return this.queue.idle();
+  get saveInputs(): SaveInputs {
+    return { ...this.sync.saveInputs(), link: this.link };
+  }
+
+  /** Save: with AutoSave off, sends every edit made so far. */
+  save(): Promise<void> {
+    return this.queue.run((): Promise<void> => this.sync.save());
+  }
+
+  async setAutoSave(on: boolean): Promise<void> {
+    await this.queue.run((): Promise<void> => this.sync.setAutoSave(on));
+    // Back in view: peers hear where this caret is now, not at the next move.
+    if (on) this.presence.moved();
+  }
+
+  /** Every queued step has run and this device holds the edits (for callers that must wait). */
+  async settled(): Promise<void> {
+    await this.queue.idle();
+    await this.sync.written();
   }
 
   on<E extends keyof DocumentSessionEvents>(event: E, listener: (payload: DocumentSessionEvents[E]) => void): () => void {
@@ -112,6 +135,7 @@ export class DocumentSession {
   private linkChanged(state: LinkState): void {
     if (this.closed || state === this.link) return;
     this.link = state;
+    this.emit('save', this.saveInputs);
     if (state === 'down') {
       this.sync.onLinkDown();
       return;

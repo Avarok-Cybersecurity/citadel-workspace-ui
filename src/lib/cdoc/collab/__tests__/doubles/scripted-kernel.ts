@@ -54,6 +54,7 @@ export class ScriptedKernel {
     return {
       selfCid: cid,
       send: (request: DocumentsRequest): Promise<void> => { if (endpoint.link === 'up') this.handle(cid, request); return Promise.resolve(); },
+      link: (): LinkState => endpoint.link,
       onResponse: (listener: (response: DocumentsResponse) => void): (() => void) => subscribe(endpoint.responses, listener),
       onError: (listener: (message: string) => void): (() => void) => subscribe(endpoint.errors, listener),
       onLink: (listener: (state: LinkState) => void): (() => void) => subscribe(endpoint.links, listener),

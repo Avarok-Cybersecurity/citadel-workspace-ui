@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import type { EditorSession } from '../../editor/editor-session';
 import type { CachedDocument, DocumentCache } from '../ports';
 import { ALICE, BOB, newDocument, openTab, type Tab } from './doubles/harness';
+import { memoryDevice } from './doubles/memory-device';
 import { realReplicas, snapshotText, typeInto } from './doubles/real-replicas';
 import type { ScriptedKernel } from './doubles/scripted-kernel';
 
@@ -79,11 +80,11 @@ describe('snapshot policy', () => {
   it('saves the stored snapshot to the local cache, and a later open starts from it', async () => {
     const { kernel, clock } = await newDocument({});
     const saved: Map<string, CachedDocument> = new Map<string, CachedDocument>();
-    const cache: DocumentCache = {
+    const cache: DocumentCache = memoryDevice({
       load: (nodeId: string): Promise<CachedDocument | null> => Promise.resolve(saved.get(nodeId) ?? null),
       save: (nodeId: string, document: CachedDocument): Promise<void> => { saved.set(nodeId, document); return Promise.resolve(); },
       forget: (nodeId: string): Promise<void> => { saved.delete(nodeId); return Promise.resolve(); },
-    };
+    }).cache;
     const alice: RealTab = openTab(kernel, clock, ALICE, { snapshotAfterLocalUpdates: 2 }, realReplicas(), cache);
     await alice.session.open();
     await kernel.settle([alice.session]);
@@ -103,11 +104,12 @@ describe('snapshot policy', () => {
 
   it('reports a cache it cannot read, and pulls the document whole', async () => {
     const { kernel, clock } = await newDocument({});
-    const broken: DocumentCache = {
+    // The base copy is broken; the device's edits are not (that is local-edits' to test).
+    const broken: DocumentCache = memoryDevice({
       load: (): Promise<CachedDocument | null> => Promise.reject(new Error('storage unavailable')),
       save: (): Promise<void> => Promise.reject(new Error('storage unavailable')),
       forget: (): Promise<void> => Promise.reject(new Error('storage unavailable')),
-    };
+    }).cache;
     const alice: RealTab = openTab(kernel, clock, ALICE, { snapshotAfterLocalUpdates: 1 }, realReplicas(), broken);
     await alice.session.open();
     await kernel.settle([alice.session]);

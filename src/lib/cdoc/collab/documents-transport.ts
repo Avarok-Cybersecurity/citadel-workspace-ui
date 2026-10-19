@@ -13,6 +13,7 @@ import type { DocumentsRequest } from 'citadel-workspace-client-ts';
 import { eventEmitter } from '@/lib/event-emitter';
 import type { ProtocolSender } from '@/lib/workspace-service/workspace-operations';
 import { readAgentReconnectEvent, type AgentReconnectEvent } from '@/types/agent-reconnect';
+import { reconnectingTo } from '@/lib/reconnect/server-reconnect';
 import { DOCUMENTS_EVENT, type DocumentsEvent } from '@/lib/workspace-response-handler/documents-event';
 import type { DocumentsTransport, LinkState } from './ports';
 
@@ -29,6 +30,9 @@ export function workspaceDocumentsTransport(sender: ProtocolSender): DocumentsTr
         const message: unknown = typeof response === 'object' && response !== null && 'Error' in response ? (response as { Error: unknown }).Error : undefined;
         if (typeof message === 'string') listener(message);
       }),
+    // What the tab shows (ServerReconnectWatcher sets it for this tab's own session): a page
+    // opened while the agent re-dials starts with the link down.
+    link: (): LinkState => (reconnectingTo.get() === null ? 'up' : 'down'),
     onLink: (listener: (state: LinkState) => void): (() => void) =>
       eventEmitter.on('websocket-message', (message: unknown): void => {
         const event: AgentReconnectEvent | null = readAgentReconnectEvent(message);

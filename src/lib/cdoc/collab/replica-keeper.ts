@@ -32,6 +32,10 @@ export const R1_COLLABORATION: Omit<DocumentSessionConfig, 'nodeId' | 'clientSeq
   peerExpiryMs: 15_000,
   // One caret per tab of an account; more is a session drawing carets it does not have.
   maxCaretsPerSession: 8,
+  // Word's for a cloud file: edits sync as they are made until this device chooses otherwise.
+  autoSaveWhenUnset: true,
+  // A pause in typing: the base is at most this far behind what the server holds.
+  baseAfterIdleMs: 2_000,
 };
 
 /** DocsCanvas's ReplicaKeeper, for any replica type the runtime's opener returns. */

@@ -22,6 +22,8 @@ export interface DocumentsTransport {
    * ("Permission denied: EditMdx required"); it names no node and no request.
    */
   onError(listener: (message: string) => void): () => void;
+  /** The session's link to the server as it is now; `onLink` reports each change from here on. */
+  link(): LinkState;
   /** The session's link to the server dropping and coming back. */
   onLink(listener: (state: LinkState) => void): () => void;
 }
@@ -39,11 +41,32 @@ export interface CachedDocument {
   readonly seq: bigint;
 }
 
+/** One tab instance's edits the server has not acknowledged, as this device keeps them. */
+export interface HeldEdits {
+  readonly instance: string;
+  readonly updates: readonly Uint8Array[];
+  /** That instance's tab is still open, and sends its own. */
+  readonly open: boolean;
+}
+
+/** What this device remembers choosing for a document. */
+export interface DeviceChoices {
+  readonly autoSave: boolean;
+}
+
 export interface DocumentCache {
   load(nodeId: string): Promise<CachedDocument | null>;
   save(nodeId: string, document: CachedDocument): Promise<void>;
-  /** Removes the node's copy: the node is gone, or this account may no longer read it. */
+  /** Removes the node's copy, edits and choices: the node is gone, or this account may no longer read it. */
   forget(nodeId: string): Promise<void>;
+  /** Every instance's held edits for the node, in the order each made them. */
+  loadEdits(nodeId: string): Promise<readonly HeldEdits[]>;
+  /** Replaces `instance`'s held edits; an empty list removes them. */
+  saveEdits(nodeId: string, instance: string, updates: readonly Uint8Array[]): Promise<void>;
+  /** Marks `instance` open until the returned function is called, so no other tab adopts its edits. */
+  hold(nodeId: string, instance: string): Promise<() => void>;
+  loadChoices(nodeId: string): Promise<DeviceChoices | null>;
+  saveChoices(nodeId: string, choices: DeviceChoices): Promise<void>;
 }
 
 /** Who a session is, for drawing their caret: the member list's name and a colour. */
@@ -84,6 +107,16 @@ export interface DocumentSessionConfig {
    * of one account both see every `Appended`), e.g. a random 32-bit prefix shifted left 32.
    */
   readonly clientSeqBase: bigint;
+  /**
+   * Whether edits are sent as they are made (AutoSave) when this device has no choice stored
+   * for the document. Off keeps them on the device until Save, AutoSave on, or a share.
+   */
+  readonly autoSaveWhenUnset: boolean;
+  /**
+   * How long the replica stays still before this device's base copy (what the document opens
+   * from with no link) is rewritten: a snapshot per acknowledged keystroke would be too many.
+   */
+  readonly baseAfterIdleMs: number;
 }
 
 export interface DocumentSessionPorts {

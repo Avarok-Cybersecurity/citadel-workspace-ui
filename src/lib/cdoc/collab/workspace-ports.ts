@@ -11,6 +11,7 @@ import { workspaceDocumentsTransport } from './documents-transport';
 import type { EditorOpener } from '../editor/controller';
 import type { Clock, DocumentSessionPorts, DocumentsTransport, PeerIdentity } from './ports';
 import { indexedDbDocumentCache } from './document-cache';
+import { browserInstanceLocks } from './instance-locks';
 
 export const browserClock: Clock = {
   now: (): number => performance.now(),
@@ -27,7 +28,7 @@ export const rosterIdentity: PeerIdentity = (cid: bigint): { readonly name: stri
 
 export function workspaceCollabPorts(openEditor: EditorOpener): DocumentSessionPorts {
   const transport: DocumentsTransport = workspaceDocumentsTransport(WorkspaceService);
-  return { transport, clock: browserClock, cache: indexedDbDocumentCache(transport.selfCid), openEditor, identify: rosterIdentity };
+  return { transport, clock: browserClock, cache: indexedDbDocumentCache(transport.selfCid, browserInstanceLocks()), openEditor, identify: rosterIdentity };
 }
 
 /** A `clientSeqBase` no other session instance will draw: a random 32-bit prefix. */

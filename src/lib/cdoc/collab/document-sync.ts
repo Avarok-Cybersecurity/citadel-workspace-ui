@@ -5,16 +5,19 @@
  * Every step runs on the session's SerialQueue, so the cursor, the outbox and the editor are
  * only ever touched by one step at a time.
  */
-import type { DocumentRefusal, DocumentsRequest, DocumentsResponse, DocumentSnapshot } from 'citadel-workspace-client-ts';
-import type { EditorController, EditorOrigin, RemoteApplied } from '../editor/controller';
-import { LogCursor } from './log-cursor';
-import { Outbox, type PendingUpdate } from './outbox';
-import type { CachedDocument, DocumentSessionConfig, DocumentSessionPorts } from './ports';
+import type { DocumentRefusal, DocumentsRequest, DocumentsResponse } from 'citadel-workspace-client-ts';
+import type { EditorController } from '../editor/controller';
+import type { LogCursor } from './log-cursor';
+import type { PendingUpdate } from './outbox';
+import { LocalEdits } from './local-edits';
+import type { CachedDocument, DocumentSessionConfig, DocumentSessionPorts, HeldEdits } from './ports';
+import type { SaveInputs } from './save-status';
 import type { DocumentSessionProblem } from './session-errors';
 import { haltsWriting } from './session-errors';
-import { CachedCopy } from './cached-copy';
+import { CachedCopy, type ReplicaNow } from './cached-copy';
 import { HeldRequests } from './refused-retry';
-import { fromWire, toWire } from './wire-bytes';
+import { toWire } from './wire-bytes';
+import { ReplicaInStep } from './replica-in-step';
 import { SnapshotPolicy, type SnapshotHost } from './snapshot-policy';
 
 type Updates = Extract<DocumentsResponse, { Updates: unknown }>['Updates'];
@@ -28,14 +31,15 @@ export interface SyncHost {
   adopt(editor: EditorController, previous: EditorController | null): void;
   linkUp(): boolean;
   alone(): boolean;
+  /** Something saveInputs() reads has changed. */
+  changed(): void;
   /** Runs `step` on the session's queue, after the steps before it. */
   run(step: () => Promise<void>): void;
 }
 
 export class DocumentSync {
-  private editorNow: EditorController | null = null;
-  private cursor: LogCursor = new LogCursor(0n);
-  private readonly outbox: Outbox;
+  private readonly replica: ReplicaInStep;
+  private readonly edits: LocalEdits;
   private readonly snapshots: SnapshotPolicy;
   private readonly copy: CachedCopy;
   private readonly held: HeldRequests;
@@ -44,32 +48,60 @@ export class DocumentSync {
   private readable: boolean = true;
 
   constructor(private readonly config: DocumentSessionConfig, private readonly ports: DocumentSessionPorts, private readonly host: SyncHost) {
-    this.outbox = new Outbox(config.clientSeqBase);
+    this.replica = new ReplicaInStep(config.docVersion, ports.openEditor, host);
+    this.edits = new LocalEdits(config, ports.cache, { report: host.report, changed: host.changed });
     const snapshotHost: SnapshotHost = { report: host.report, linkUp: host.linkUp, alone: host.alone, writable: (): boolean => this.writable };
     this.snapshots = new SnapshotPolicy(config, ports, snapshotHost, (request: DocumentsRequest, name: string): Promise<void> => this.send(request, name));
-    this.copy = new CachedCopy(config.nodeId, ports.cache, host.report);
+    this.copy = new CachedCopy(config.nodeId, config.docVersion, ports.cache, host.report, { clock: ports.clock, idleMs: config.baseAfterIdleMs, run: host.run },
+      (): ReplicaNow => ({ editor: this.replica.editor, seq: this.replica.cursor.seq, exact: this.caughtUp }));
     this.held = new HeldRequests(ports.clock, config.retryDelaysMs, (): void => host.run((): Promise<void> => this.resend()),
       (): void => host.run((): Promise<void> => this.pull()), (refusal: DocumentRefusal): void => host.report({ kind: 'refused', refusal }));
   }
 
   get editor(): EditorController | null {
-    return this.editorNow;
+    return this.replica.editor;
   }
 
   get seq(): bigint {
-    return this.cursor.seq;
+    return this.replica.cursor.seq;
   }
 
   get caughtUp(): boolean {
-    return this.cancelPullTimer === null && this.outbox.empty && this.cursor.contiguous;
+    return this.cancelPullTimer === null && this.edits.empty && this.replica.cursor.contiguous;
   }
 
+  get autoSave(): boolean {
+    return this.edits.autoSave;
+  }
+
+  saveInputs(): Omit<SaveInputs, 'link'> {
+    return { ...this.edits.inputs(), halted: !this.writable };
+  }
+
+  written(): Promise<void> {
+    return this.edits.written();
+  }
+
+  /** Opens from this device's copy, takes over closed tabs' edits, then pulls what is newer. */
   async start(): Promise<void> {
+    const orphans: readonly HeldEdits[] = await this.edits.open();
     const cached: CachedDocument | null = await this.copy.load();
-    if (cached && this.versionOk(cached.docVersion, 'the cached snapshot')) {
-      await this.open({ kind: 'snapshot', snapshot: cached.snapshot }, cached.seq);
+    if (cached && this.replica.versionOk(cached.docVersion, 'the cached snapshot')) {
+      await this.replica.open({ kind: 'snapshot', snapshot: cached.snapshot }, cached.seq);
     }
+    if (!this.replica.editor && orphans.length > 0) await this.replica.open({ kind: 'blank' }, 0n);
+    await this.edits.adopt(orphans, (update: Uint8Array): Promise<void> => this.replica.applyHeld(update));
     await this.pull();
+  }
+
+  /** Save: with AutoSave off, every edit made so far goes (with it on they are going already). */
+  async save(): Promise<void> {
+    if (!this.edits.autoSave && this.edits.requestSync()) await this.resend();
+  }
+
+  async setAutoSave(on: boolean): Promise<void> {
+    await this.edits.setAutoSave(on);
+    if (on) await this.resend();
   }
 
   async onLinkUp(): Promise<void> {
@@ -79,7 +111,8 @@ export class DocumentSync {
 
   /** Sends every update the server has not acknowledged again. */
   private async resend(): Promise<void> {
-    if (this.writable && this.host.linkUp()) for (const entry of this.outbox.all()) await this.sendAppend(entry);
+    if (!this.writable || !this.host.linkUp()) return;
+    for (const entry of this.edits.all()) if (this.edits.sendable(entry)) await this.sendAppend(entry);
   }
 
   onLinkDown(): void {
@@ -89,12 +122,12 @@ export class DocumentSync {
 
   async local(update: Uint8Array): Promise<void> {
     if (update.byteLength > this.config.limits.maxUpdateBytes) {
-      this.writable = false;
+      this.halt();
       this.host.report({ kind: 'tooLarge', what: 'update', sizeBytes: update.byteLength, maxBytes: this.config.limits.maxUpdateBytes });
       return;
     }
-    const entry: PendingUpdate = this.outbox.push(update.slice());
-    if (this.writable && this.host.linkUp()) await this.sendAppend(entry);
+    const entry: PendingUpdate = this.edits.push(update.slice());
+    if (this.writable && this.host.linkUp() && this.edits.sendable(entry)) await this.sendAppend(entry);
     this.snapshots.countLocal();
   }
 
@@ -109,10 +142,10 @@ export class DocumentSync {
 
   /** A protocol `Error` naming a permission; only ours when we have that kind of request out. */
   async onPermissionDenied(message: string): Promise<void> {
-    const writeDenied: boolean = message.includes('EditMdx') && (!this.outbox.empty || this.snapshots.inFlight);
+    const writeDenied: boolean = message.includes('EditMdx') && (!this.edits.empty || this.snapshots.inFlight);
     const readDenied: boolean = message.includes('ViewContent') && this.cancelPullTimer !== null;
     if (!writeDenied && !readDenied) return;
-    if (writeDenied) this.writable = false;
+    if (writeDenied) this.halt();
     if (readDenied) { this.readable = false; this.stopPullTimer(); }
     this.host.report({ kind: 'permissionDenied', message });
     if (readDenied) await this.copy.forget();
@@ -121,108 +154,74 @@ export class DocumentSync {
   stop(): void {
     this.stopPullTimer();
     this.held.stop();
+    this.copy.stop();
+    this.edits.close();
   }
 
   private async onUpdates(page: Updates): Promise<void> {
     this.stopPullTimer();
     this.held.pulls.succeeded();
-    if (page.snapshot && page.snapshot.upto_seq > this.cursor.seq && !(await this.adoptSnapshot(page.snapshot))) return;
-    if (!this.editorNow) await this.open({ kind: 'blank' }, this.cursor.seq);
+    if (page.snapshot && page.snapshot.upto_seq > this.replica.cursor.seq && !(await this.replica.adoptSnapshot(page.snapshot, (): readonly PendingUpdate[] => this.edits.all()))) return;
+    if (!this.replica.editor) await this.replica.open({ kind: 'blank' }, this.replica.cursor.seq);
     let gap: boolean = false;
     for (const entry of page.updates) {
-      if (!this.versionOk(entry.doc_version, `update ${entry.seq}`)) return;
-      const placement: ReturnType<LogCursor['place']> = this.cursor.place(entry.seq);
+      if (!this.replica.versionOk(entry.doc_version, `update ${entry.seq}`)) return;
+      const placement: ReturnType<LogCursor['place']> = this.replica.cursor.place(entry.seq);
       if (placement === 'gap') { gap = true; break; }
-      if (placement === 'next') await this.applyNext(entry.seq, entry.update);
+      if (placement === 'next') await this.replica.applyNext(entry.seq, entry.update);
     }
-    if (gap || page.has_more || page.latest_seq > this.cursor.seq) await this.pull();
-    else await this.snapshots.consider(this.editorNow, this.cursor.seq, this.caughtUp);
+    if (gap || page.has_more || page.latest_seq > this.replica.cursor.seq) await this.pull();
+    else await this.snapshots.consider(this.replica.editor, this.replica.cursor.seq, this.caughtUp);
+    this.copy.moved();
   }
 
   private async onUpdated(pushed: Updated): Promise<void> {
-    if (!this.editorNow || !this.versionOk(pushed.doc_version, `update ${pushed.seq}`)) return;
-    const placement: ReturnType<LogCursor['place']> = this.cursor.place(pushed.seq);
-    if (placement === 'next') await this.applyNext(pushed.seq, pushed.update);
+    if (!this.replica.editor || !this.replica.versionOk(pushed.doc_version, `update ${pushed.seq}`)) return;
+    const placement: ReturnType<LogCursor['place']> = this.replica.cursor.place(pushed.seq);
+    if (placement === 'next') await this.replica.applyNext(pushed.seq, pushed.update);
     else if (placement === 'gap') await this.pull();
+    this.copy.moved();
   }
 
   private async onAppended(answer: Appended): Promise<void> {
-    const ours: PendingUpdate | null = this.outbox.settle(answer.client_seq);
+    const ours: PendingUpdate | null = this.edits.settle(answer.client_seq);
     // Not ours: another tab of this account wrote it, and the server sends an author's own
     // session no DocumentUpdated, so the bytes are only to be had by pulling.
     if (!ours) {
-      if (this.cursor.place(answer.seq) !== 'old') await this.pull();
+      if (this.replica.cursor.place(answer.seq) !== 'old') await this.pull();
       return;
     }
     this.held.appends.succeeded();
-    if (!this.cursor.own(answer.seq)) await this.pull();
+    if (!this.replica.cursor.own(answer.seq)) await this.pull();
     if (answer.compaction) this.snapshots.requested();
-    await this.snapshots.consider(this.editorNow, this.cursor.seq, this.caughtUp);
+    await this.snapshots.consider(this.replica.editor, this.replica.cursor.seq, this.caughtUp);
+    this.copy.moved();
   }
 
   /** The server stored a snapshot to `upto_seq`, the log's latest: a held-back Append can go. */
   private async onCompacted(compacted: Compacted): Promise<void> {
     this.held.appends.now();
-    if (compacted.upto_seq > this.cursor.seq) await this.pull();
+    if (compacted.upto_seq > this.replica.cursor.seq) await this.pull();
   }
 
   private async onRefused(refusal: DocumentRefusal): Promise<void> {
     if (this.held.refused(refusal)) return;
-    if (haltsWriting(refusal)) this.writable = false;
+    if (haltsWriting(refusal)) this.halt();
     if (typeof refusal !== 'string' && ('SnapshotBehind' in refusal || 'SnapshotAhead' in refusal || 'SnapshotTooLarge' in refusal)) this.snapshots.abandon();
     this.host.report({ kind: 'refused', refusal });
     if (typeof refusal !== 'string' && 'NoSuchNode' in refusal) await this.copy.forget();
   }
 
-  private async applyNext(seq: bigint, update: readonly number[]): Promise<void> {
-    const editor: EditorController | null = this.editorNow;
-    if (!editor) return;
-    try {
-      this.checkWaiting(await editor.applyRemote(fromWire(update)), `apply update ${seq}`);
-    } catch (cause: unknown) {
-      // Reported, then stepped over: holding the cursor here would stall this replica on one
-      // peer's unreadable update for good, and pulling again would fetch the same bytes.
-      this.host.report({ kind: 'editorFailed', operation: `apply update ${seq}`, cause });
-    }
-    this.cursor.advance(seq);
-  }
-
-  /** Reports an applied update that left operations waiting or dropped (nothing applied in log order should). */
-  private checkWaiting(applied: RemoteApplied, operation: string): void {
-    if (applied.remote.missing !== null || applied.remote.dropped > 0n) this.host.report({ kind: 'updatesWaiting', operation, ...applied.remote });
-  }
-
-  /** Opens or re-opens from the snapshot; false when it cannot be read. */
-  private async adoptSnapshot(snapshot: DocumentSnapshot): Promise<boolean> {
-    if (!this.versionOk(snapshot.doc_version, `the snapshot to ${snapshot.upto_seq}`)) return false;
-    const previous: EditorController | null = this.editorNow;
-    await this.open({ kind: 'snapshot', snapshot: fromWire(snapshot.bytes) }, snapshot.upto_seq);
-    // A re-open lost what the old replica held past the snapshot: our unacknowledged edits
-    // go into the new one (the outbox still holds them), and the log's later updates follow.
-    const reopened: EditorController | null = previous ? this.editorNow : null;
-    if (!reopened) return true;
-    try {
-      for (const entry of this.outbox.all()) this.checkWaiting(await reopened.applyRemote(entry.update.slice()), 'carry unacknowledged edits into the re-opened replica');
-    } catch (cause: unknown) {
-      this.host.report({ kind: 'editorFailed', operation: 'carry unacknowledged edits into the re-opened replica', cause });
-    }
-    return true;
-  }
-
-  private async open(from: EditorOrigin, seq: bigint): Promise<void> {
-    const previous: EditorController | null = this.editorNow;
-    const editor: EditorController = await this.ports.openEditor(from);
-    this.editorNow = editor;
-    this.cursor = new LogCursor(seq);
-    this.host.adopt(editor, previous);
-    if (previous) previous.dispose();
+  private halt(): void {
+    this.writable = false;
+    this.host.changed();
   }
 
   private async pull(): Promise<void> {
     if (!this.readable || !this.host.linkUp()) return;
     this.stopPullTimer();
     this.cancelPullTimer = this.ports.clock.after(this.config.pullTimeoutMs, (): void => { this.cancelPullTimer = null; void this.pull(); });
-    await this.send({ Pull: { node_id: this.config.nodeId, since_seq: this.cursor.seq } }, 'Pull');
+    await this.send({ Pull: { node_id: this.config.nodeId, since_seq: this.replica.cursor.seq } }, 'Pull');
   }
 
   private stopPullTimer(): void {
@@ -240,11 +239,5 @@ export class DocumentSync {
     } catch (cause: unknown) {
       this.host.report({ kind: 'sendFailed', request: name, cause });
     }
-  }
-
-  private versionOk(received: number, where: string): boolean {
-    if (received === this.config.docVersion) return true;
-    this.host.report({ kind: 'docVersionMismatch', expected: this.config.docVersion, received, where });
-    return false;
   }
 }

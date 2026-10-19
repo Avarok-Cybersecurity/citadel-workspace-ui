@@ -9,17 +9,18 @@ import type { EditorSession } from '../../editor/editor-session';
 import type { CachedDocument, DocumentCache } from '../ports';
 import { CDOC_CRDT_DOC_VERSION } from '../relay-limits';
 import { BOB, NODE, newDocument, openTab, type Tab } from './doubles/harness';
+import { memoryDevice } from './doubles/memory-device';
 import { baseSnapshot, realReplicas, typeInto } from './doubles/real-replicas';
 
 type RealTab = Tab<EditorSession>;
 
 async function cacheHoldingTheBase(failForget: boolean): Promise<{ cache: DocumentCache; saved: Map<string, CachedDocument> }> {
   const saved: Map<string, CachedDocument> = new Map<string, CachedDocument>([[NODE, { docVersion: CDOC_CRDT_DOC_VERSION, seq: 1n, snapshot: await baseSnapshot() }]]);
-  const cache: DocumentCache = {
+  const cache: DocumentCache = memoryDevice({
     load: (nodeId: string): Promise<CachedDocument | null> => Promise.resolve(saved.get(nodeId) ?? null),
     save: (nodeId: string, document: CachedDocument): Promise<void> => { saved.set(nodeId, document); return Promise.resolve(); },
     forget: (nodeId: string): Promise<void> => (failForget ? Promise.reject(new Error('storage unavailable')) : (saved.delete(nodeId), Promise.resolve())),
-  };
+  }).cache;
   return { cache, saved };
 }
 

@@ -1,32 +1,67 @@
 /**
- * The local cache of a document replica, in the app's one IndexedDB (storage-utils). The value
- * is stored by Structured Clone, so the snapshot stays a Uint8Array and the seq a bigint: no
- * JSON, no revivers.
+ * The local cache of a document replica, through the device-records seam
+ * (lib/document-replica-cache.ts), in the app's one IndexedDB. Values are stored by Structured
+ * Clone, so snapshots and updates stay Uint8Arrays and the seq a bigint: no JSON, no revivers.
  *
  * Keyed by account AND node. Several accounts can be signed in to one browser, and one
  * account's copy of a document must never open in another's tab: that one may not be
- * allowed to read it. A value that is there but malformed is an error, never "no cache".
- * Removal on sign-out and node deletion: lib/document-replica-cache.ts.
+ * allowed to read it. A value that is there but malformed is an error, never "nothing kept".
+ * Removal on sign-out and node deletion: the same seam.
  */
-import { dbGet, dbPut } from '@/lib/storage-utils';
-import { documentCacheKey as keyOf, forgetNodeDocuments } from '@/lib/document-replica-cache';
-import type { CachedDocument, DocumentCache } from './ports';
+import {
+  documentCacheKey, documentDeviceKey, documentEditsKey, documentEditsPrefix, forgetNodeDocuments,
+  localRecordGet, localRecordPut, localRecordRemove, localRecordsWithPrefix,
+} from '@/lib/document-replica-cache';
+import type { InstanceLocks } from './instance-locks';
+import type { CachedDocument, DeviceChoices, DocumentCache, HeldEdits } from './ports';
+
+const bytes = (view: ArrayBufferView): Uint8Array => new Uint8Array(view.buffer, view.byteOffset, view.byteLength).slice();
+const fields = (value: unknown): Record<string, unknown> => (typeof value === 'object' && value !== null ? value as Record<string, unknown> : {});
 
 /** A stored value read back; throws when it is not a CachedDocument. */
 export function readCached(value: unknown): CachedDocument | null {
   if (value === undefined) return null;
-  const v: Partial<Record<keyof CachedDocument, unknown>> = typeof value === 'object' && value !== null ? value : {};
+  const v: Record<string, unknown> = fields(value);
   if (typeof v.docVersion !== 'number' || typeof v.seq !== 'bigint' || !ArrayBuffer.isView(v.snapshot)) {
     throw new Error('the cached document is not in the shape this client writes');
   }
-  return { docVersion: v.docVersion, seq: v.seq, snapshot: new Uint8Array(v.snapshot.buffer, v.snapshot.byteOffset, v.snapshot.byteLength).slice() };
+  return { docVersion: v.docVersion, seq: v.seq, snapshot: bytes(v.snapshot) };
 }
 
-export function indexedDbDocumentCache(account: bigint): DocumentCache {
+/** Stored held edits read back; throws when they are not a list of updates. */
+export function readEdits(value: unknown): readonly Uint8Array[] {
+  if (!Array.isArray(value) || !value.every((u: unknown): boolean => ArrayBuffer.isView(u))) {
+    throw new Error('the edits kept on this device are not in the shape this client writes');
+  }
+  return value.map((u: ArrayBufferView): Uint8Array => bytes(u));
+}
+
+export function readChoices(value: unknown): DeviceChoices | null {
+  if (value === undefined) return null;
+  const v: Record<string, unknown> = fields(value);
+  if (typeof v.autoSave !== 'boolean') throw new Error('the document\'s choices on this device are not in the shape this client writes');
+  return { autoSave: v.autoSave };
+}
+
+export function indexedDbDocumentCache(account: bigint, locks: InstanceLocks): DocumentCache {
   return {
-    load: async (nodeId: string): Promise<CachedDocument | null> => readCached(await dbGet<unknown>('keyValue', keyOf(account, nodeId))),
+    load: async (nodeId: string): Promise<CachedDocument | null> => readCached(await localRecordGet(documentCacheKey(account, nodeId))),
     save: (nodeId: string, document: CachedDocument): Promise<void> =>
-      dbPut('keyValue', keyOf(account, nodeId), { docVersion: document.docVersion, seq: document.seq, snapshot: document.snapshot.slice() }),
+      localRecordPut(documentCacheKey(account, nodeId), { docVersion: document.docVersion, seq: document.seq, snapshot: document.snapshot.slice() }),
     forget: (nodeId: string): Promise<void> => forgetNodeDocuments(account, [nodeId]),
+    loadEdits: async (nodeId: string): Promise<readonly HeldEdits[]> => {
+      const prefix: string = documentEditsPrefix(account, nodeId);
+      const open: ReadonlySet<string> = await locks.held();
+      return (await localRecordsWithPrefix(prefix)).map(({ key, value }: { readonly key: string; readonly value: unknown }): HeldEdits =>
+        ({ instance: key.slice(prefix.length), updates: readEdits(value), open: open.has(key) }));
+    },
+    saveEdits: (nodeId: string, instance: string, updates: readonly Uint8Array[]): Promise<void> => {
+      const key: string = documentEditsKey(account, nodeId, instance);
+      return updates.length === 0 ? localRecordRemove(key) : localRecordPut(key, updates.map((u: Uint8Array): Uint8Array => u.slice()));
+    },
+    // The lock is named for the instance's edits key: one name per instance, per account and node.
+    hold: (nodeId: string, instance: string): Promise<() => void> => locks.hold(documentEditsKey(account, nodeId, instance)),
+    loadChoices: async (nodeId: string): Promise<DeviceChoices | null> => readChoices(await localRecordGet(documentDeviceKey(account, nodeId))),
+    saveChoices: (nodeId: string, choices: DeviceChoices): Promise<void> => localRecordPut(documentDeviceKey(account, nodeId), { autoSave: choices.autoSave }),
   };
 }
