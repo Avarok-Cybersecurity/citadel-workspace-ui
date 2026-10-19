@@ -4,7 +4,7 @@
  * DocumentHost can pass it without pulling cdoc into the shell's bundle.
  */
 import type { EditorSession } from '@/lib/cdoc/editor/editor-session';
-import type { ReplicaKeeper } from './DocsCanvas';
+import type { ReplicaKeeper } from './use-docs-document';
 
 export const keepBlankReplica: ReplicaKeeper = (open, show, fail): (() => void) => {
   let live: boolean = true;

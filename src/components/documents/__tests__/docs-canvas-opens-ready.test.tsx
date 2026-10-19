@@ -10,12 +10,14 @@ import type { EditorSession } from '@/lib/cdoc/editor/editor-session';
 import type { EditorOrigin } from '@/lib/cdoc/editor/controller';
 import { inProcessRuntime, type TestRuntime } from '@/lib/cdoc/__tests__/wasm-rig';
 import type { CdocRuntime } from '@/lib/cdoc/runtime';
-import DocsCanvas, { type ReplicaKeeper } from '../DocsCanvas';
+import DocsCanvas from '../DocsCanvas';
+import type { DocumentEditing, ReplicaKeeper } from '../use-docs-document';
 import { keepBlankReplica } from '../blank-replica';
 import { recordingDocumentFiles, type RecordingDocumentFiles } from '@/test-utils/recording-document-files';
 
 // Any fixed instant: these tests download nothing.
 const FILES: RecordingDocumentFiles = recordingDocumentFiles('2026-10-18T00:00:00Z');
+const EDIT_BLANK: DocumentEditing = { kind: 'replica', keep: keepBlankReplica };
 
 const VIEWPORT_PX: number = 800;
 let restore: (() => void) | null = null;
@@ -31,7 +33,7 @@ afterEach(() => restore?.());
 describe('DocsCanvas', () => {
   it('opens a blank document with the keyboard on the editor', async () => {
     const runtime: TestRuntime = inProcessRuntime('main-thread');
-    render(<DocsCanvas documentSource={{ kind: 'blank' }} loadRuntime={async (): Promise<CdocRuntime> => runtime} keepReplica={keepBlankReplica} statusBar={null} edit={{ enabled: true, reason: null }} commentAuthor="Ada" title="Untitled" files={FILES} original={null} />);
+    render(<DocsCanvas documentSource={{ kind: 'blank' }} loadRuntime={async (): Promise<CdocRuntime> => runtime} editing={EDIT_BLANK} statusBar={null} edit={{ enabled: true, reason: null }} commentAuthor="Ada" title="Untitled" files={FILES} original={null} />);
     const input: HTMLElement = await screen.findByTestId('editor-input');
     await waitFor(() => expect(document.activeElement).toBe(input));
   });
@@ -68,7 +70,8 @@ describe('DocsCanvas', () => {
         events.push('keeper torn down');
       };
     };
-    const view: RenderResult = render(<DocsCanvas documentSource={{ kind: 'blank' }} loadRuntime={async (): Promise<CdocRuntime> => runtime} keepReplica={keeper} statusBar={null} edit={{ enabled: true, reason: null }} commentAuthor="Ada" title="Untitled" files={FILES} original={null} />);
+    const editing: DocumentEditing = { kind: 'replica', keep: keeper };
+    const view: RenderResult = render(<DocsCanvas documentSource={{ kind: 'blank' }} loadRuntime={async (): Promise<CdocRuntime> => runtime} editing={editing} statusBar={null} edit={{ enabled: true, reason: null }} commentAuthor="Ada" title="Untitled" files={FILES} original={null} />);
     await screen.findByTestId('editor-input');
     await act(async (): Promise<void> => { await reopen?.(); });
     expect(opened).toHaveLength(2);

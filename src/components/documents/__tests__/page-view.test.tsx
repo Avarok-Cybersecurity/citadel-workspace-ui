@@ -9,13 +9,13 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import { inProcessRuntime, pmWithParagraphs, type TestRuntime } from '@/lib/cdoc/__tests__/wasm-rig';
-import type { DocumentSource } from '@/lib/cdoc/document-source';
+import type { StaticSource } from '@/lib/cdoc/document-source';
 import { PAGE_GAP_PX, PageView, type PageStatus } from '../PageView';
 import { ManualFrames } from './manual-clock';
 import { PAINT_AHEAD_MOUNTS_PER_TICK, PAINT_AHEAD_PAGES } from '@/lib/cdoc/paint/paint-config';
 
 const VIEWPORT_PX: number = 800;
-const LONG: DocumentSource = { kind: 'pm', pmJson: pmWithParagraphs(60, 'Every page of this document is painted only while it is near the viewport. '.repeat(4)) };
+const LONG: StaticSource = { kind: 'pm', pmJson: pmWithParagraphs(60, 'Every page of this document is painted only while it is near the viewport. '.repeat(4)) };
 
 let restore: (() => void) | null = null;
 beforeEach(() => {
@@ -32,7 +32,7 @@ function Harness({ runtime, dpr, statuses, idle }: { runtime: TestRuntime; dpr: 
   return (
     <>
       <output data-testid="zoom">{zoom}</output>
-      <PageView client={runtime.client} renderer={runtime.renderer} source={LONG} zoom={zoom} dpr={dpr} onZoomChange={setZoom} onPageStatus={(s) => statuses.push(s)} onOpened={() => undefined} original={null}
+      <PageView client={runtime.client} renderer={runtime.renderer} source={LONG} zoom={zoom} dpr={dpr} onZoomChange={setZoom} onPageStatus={(s) => statuses.push(s)}
         paintAhead={{ warmPages: PAINT_AHEAD_PAGES, mountsPerTick: PAINT_AHEAD_MOUNTS_PER_TICK, idle: idle.frame }} />
     </>
   );

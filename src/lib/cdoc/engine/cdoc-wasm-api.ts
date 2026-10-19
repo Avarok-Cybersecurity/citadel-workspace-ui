@@ -1,6 +1,7 @@
 /**
  * The parts of the two cdoc-wasm artefacts the engine calls, typed from the generated
- * declarations: the editor artefact (layout, editing, every format but PDF) and the PDF
+ * declarations: the editor artefact (layout, editing, and every format but PDF through
+ * EditorHandle) and the PDF
  * artefact (layout and the PDF writer). The engine is handed initialised modules rather than
  * importing the glue, so loading them (fetch in the browser, file bytes under node) stays in
  * the adapters.
@@ -12,7 +13,6 @@ export type CdocWasm = Pick<
   typeof Glue,
   | 'RenderAssets' | 'blank_pm_json' | 'model_to_pm' | 'pm_to_model' | 'pm_to_display_list' | 'glyph_path' | 'face_metrics' | 'version'
   | 'EditorFonts' | 'EditorHandle' | 'ImageStore' | 'hyphenation_patterns_needed'
-  | 'docx_to_pm' | 'odt_to_pm' | 'md_to_pm' | 'txt_to_pm' | 'pm_to_docx' | 'pm_to_odt' | 'pm_to_md' | 'pm_to_txt'
 >;
 
 export type PdfWasm = Pick<typeof PdfGlue, 'RenderAssets' | 'model_to_pm' | 'pm_to_pdf'>;

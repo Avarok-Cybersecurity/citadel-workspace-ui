@@ -7,7 +7,7 @@
 import { toast } from 'sonner';
 import type { EditorSession } from '@/lib/cdoc/editor/editor-session';
 import type { DocumentSessionError } from '@/lib/cdoc/collab/session-errors';
-import type { ReplicaKeeper } from './DocsCanvas';
+import type { ReplicaKeeper } from './use-docs-document';
 
 export function collaborationKeeper(nodeId: string): ReplicaKeeper {
   return (open, show, fail): (() => void) => {

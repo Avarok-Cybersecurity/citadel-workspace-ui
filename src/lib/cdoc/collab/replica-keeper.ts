@@ -1,5 +1,5 @@
 /**
- * The page's replica, opened and kept by a DocumentSession: what DocsCanvas's `keepReplica`
+ * The page's replica, opened and kept by a DocumentSession: what an editable document's `editing.keep`
  * does in the app. DocsCanvas supplies its runtime's opener and a `show` for each replica to
  * draw; the session decides when to open (over the snapshot its Pull returns) and when to
  * re-open (over a newer one after a long disconnect), and the keeper owns every replica's

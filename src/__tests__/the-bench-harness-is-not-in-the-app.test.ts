@@ -2,7 +2,9 @@
  * The bench harness page (scripts/lib/bench-harness, which citadel-docs' browser benchmark builds
  * on its own) is never part of the app: walking EVERY import from src/main.tsx, static and
  * dynamic (a lazy chunk ships too), reaches no module of it. The same walk from the harness's
- * own entry reaches the editor, so the walker does follow the imports it is trusted with.
+ * own entry reaches the editor, so the walker does follow the imports it is trusted with. And
+ * the harness has one "Download as…", the editor's own document bar: none of its modules
+ * exports a document or draws a download control of its own.
  */
 import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync, statSync } from 'node:fs';
@@ -24,8 +26,10 @@ function resolveImport(from: string, spec: string): string | null {
 }
 
 /** Every value-carrying import of a module: `import`/`export ... from`, bare `import '...'`, and `import('...')`. */
+const withoutComments = (source: string): string => source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+
 function imports(source: string): string[] {
-  const code: string = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  const code: string = withoutComments(source);
   const specs: string[] = [];
   for (const m of code.matchAll(/^\s*(import|export)\s+(type\s+)?([^'";]*?\s+from\s+)?['"]([^'"]+)['"]/gm)) {
     if (m[2] === undefined && m[4] !== undefined) specs.push(m[4]);
@@ -66,5 +70,16 @@ describe('the bench harness page', () => {
   it('is walked by the same walker, which reaches the editor from it', () => {
     const harness: Set<string> = reachable(join(HARNESS, 'main.tsx'));
     expect([...harness].map((f: string) => relative(ROOT, f))).toContain('src/components/documents/DocsCanvas.tsx');
+  });
+});
+
+describe('the bench harness\'s downloads', () => {
+  const harness: string[] = [...reachable(join(HARNESS, 'main.tsx'))].filter(inHarness);
+
+  it('come only from the document bar DocsCanvas draws, never a control of the harness', () => {
+    expect(harness.length).toBeGreaterThan(2);
+    const own: string[] = harness.filter((f: string): boolean => /exportAs\(|Download as|DownloadAsMenu|role="menu"/.test(withoutComments(readFileSync(f, 'utf8'))));
+    expect(own.map((f: string) => relative(ROOT, f))).toEqual([]);
+    expect(readFileSync(join(SRC, 'components/documents/DocsCanvas.tsx'), 'utf8')).toMatch(/<DocsDocumentBar /);
   });
 });

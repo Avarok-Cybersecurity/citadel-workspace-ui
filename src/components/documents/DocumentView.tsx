@@ -14,7 +14,7 @@ import { loadCdocRuntime } from '@/lib/cdoc/runtime-loader';
 import { browserDocumentFiles } from '@/lib/document-files';
 import { DocumentHost, UnreadableDocument } from './DocumentHost';
 import { collaborationKeeper } from './collab-replica';
-import type { ReplicaKeeper } from './DocsCanvas';
+import type { DocumentEditing } from './use-docs-document';
 
 /** Until the document-content work item reads the node's stored document, every node opens blank. */
 const BLANK_DOCUMENT: DocumentSource = { kind: 'blank' };
@@ -28,7 +28,7 @@ export function DocumentView({ node, app }: DocumentViewProps): JSX.Element {
   const edit: ReturnType<typeof usePermission> = usePermission(node.id, Permission.EditContent);
   const self: SelfName = useSelfName();
   // One keeper per node: a new identity would re-open the document.
-  const keepReplica: ReplicaKeeper = useMemo((): ReplicaKeeper => collaborationKeeper(node.id), [node.id]);
+  const editing: DocumentEditing = useMemo((): DocumentEditing => ({ kind: 'replica', keep: collaborationKeeper(node.id) }), [node.id]);
   if (app.kind === 'unreadable') return <UnreadableDocument title={node.name} reason={app.reason} />;
   return (
     <DocumentHost
@@ -42,7 +42,7 @@ export function DocumentView({ node, app }: DocumentViewProps): JSX.Element {
       files={browserDocumentFiles}
       // A workspace document, not a file: there is no original to download.
       original={null}
-      keepReplica={keepReplica}
+      editing={editing}
     />
   );
 }

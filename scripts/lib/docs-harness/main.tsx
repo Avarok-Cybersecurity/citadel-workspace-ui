@@ -13,7 +13,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import '@/index.css';
 import '@/styles/brand-tokens.css';
 import { DocumentHost } from '@/components/documents/DocumentHost';
-import type { ReplicaKeeper } from '@/components/documents/DocsCanvas';
+import type { DocumentEditing, ReplicaKeeper } from '@/components/documents/use-docs-document';
 import type { EditorSession } from '@/lib/cdoc/editor/editor-session';
 import type { EditorOrigin } from '@/lib/cdoc/editor/controller';
 import { loadCdocRuntime } from '@/lib/cdoc/runtime-loader';
@@ -52,6 +52,7 @@ function keepFile(url: string): ReplicaKeeper {
   };
 }
 
+const EDITING: DocumentEditing = { kind: 'replica', keep: doc === null ? keepBlankReplica : keepFile(doc) };
 const app: Root = createRoot(root);
 app.render(
   // min-h-0: #root is a flex column (index.css), and a flex item does not shrink below its
@@ -60,7 +61,7 @@ app.render(
     <DocumentHost
       nodeId="harness" appId="docs" title="Harness" permissions={{ edit: { enabled: true, reason: null } }}
       documentSource={{ kind: 'blank' }} loadCdocRuntime={loadCdocRuntime} commentAuthor="Harness"
-      files={browserDocumentFiles} original={null} keepReplica={doc === null ? keepBlankReplica : keepFile(doc)}
+      files={browserDocumentFiles} original={null} editing={EDITING}
     />
   </div>,
 );

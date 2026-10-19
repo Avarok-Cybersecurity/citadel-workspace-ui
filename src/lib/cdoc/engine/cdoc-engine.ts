@@ -19,26 +19,17 @@ import { DisplayListError } from '../display-list/byte-reader';
 import type { DisplayList, FaceKey, PageEntry } from '../display-list/types';
 import type { CdocWasm, EditorSealedFonts, ImageStore, RenderAssets } from './cdoc-wasm-api';
 import { EditorEngine, type EditorOrigin } from './editor-engine';
-import { addImages, patternSet, type EngineAssets, type LoadedFace } from './engine-assets';
+import { patternSet, type EngineAssets, type LoadedFace } from './engine-assets';
 import type { PdfWriter } from './pdf-writer';
-import type { DocumentSource } from '../document-source';
-import { refusedMacros } from '../conversion-report';
-import type { ConversionReport, ExportedFile, ExportTarget } from '../editor/file-formats';
-import { exportFile, resolveSource, type ImportedFile } from './file-codec';
+import { isStaticSource, type StaticSource } from '../document-source';
 
-/**
- * What opening produced. A file whose macros the importer refused is not opened as a Docs
- * document at all: the person is told, and the file is left as it is.
- */
-export type OpenedDocument =
-  | {
-      readonly kind: 'opened';
-      readonly pageCount: number;
-      /** Width, height pairs in Pt100, in page order. */
-      readonly pageSizes: Int32Array;
-      readonly report: ConversionReport;
-    }
-  | { readonly kind: 'refused'; readonly reason: 'macros'; readonly report: ConversionReport };
+/** What opening a static document produced. A file opens as a replica instead (openEditor). */
+export interface OpenedDocument {
+  readonly kind: 'opened';
+  readonly pageCount: number;
+  /** Width, height pairs in Pt100, in page order. */
+  readonly pageSizes: Int32Array;
+}
 
 export interface GlyphPathBatch {
   readonly records: Uint8Array;
@@ -49,11 +40,6 @@ export interface GlyphPathBatch {
 interface OpenDoc {
   readonly bytes: Uint8Array;
   readonly list: DisplayList;
-  readonly pmJson: string;
-  /** The images the file embedded; freed when another document opens. */
-  readonly images: ImageStore;
-  /** The pattern set it was laid out with, which its PDF is laid out with too. */
-  readonly patterns: readonly string[];
 }
 
 /**
@@ -128,7 +114,6 @@ export class CdocEngine {
   }
 
   private close(): void {
-    this.doc?.images.free();
     this.doc = null;
   }
 
@@ -164,23 +149,15 @@ export class CdocEngine {
     }
   }
 
-  async open(source: DocumentSource): Promise<OpenedDocument> {
-    const file: ImportedFile = resolveSource(this.wasm, source);
-    if (refusedMacros(file.report).length > 0) {
-      file.images.free();
-      return { kind: 'refused', reason: 'macros', report: file.report };
-    }
-    let doc: OpenDoc;
-    try {
-      const patterns: readonly string[] = this.patternsNeeded(source.kind === 'model' ? source.modelJson : this.wasm.pm_to_model(file.pmJson));
-      const assets: RenderAssets = await this.assetsWith(patterns);
-      addImages(assets, file.images);
-      const bytes: Uint8Array = this.wasm.pm_to_display_list(file.pmJson, assets);
-      doc = { bytes, list: openDisplayList(bytes), pmJson: file.pmJson, images: file.images, patterns };
-    } catch (error: unknown) {
-      file.images.free();
-      throw error;
-    }
+  /** Docs' own JSON laid out once, read-only: it embeds no images, so none are registered. */
+  async open(source: StaticSource): Promise<OpenedDocument> {
+    // The worker's messages are not typed at run time: a file names the path it must take.
+    if (!isStaticSource(source)) throw new Error(`a ${String((source as { kind: unknown }).kind)} document opens as a replica (editorOpen), not static`);
+    const pmJson: string = source.kind === 'pm' ? source.pmJson : this.wasm.model_to_pm(source.modelJson);
+    const patterns: readonly string[] = this.patternsNeeded(source.kind === 'model' ? source.modelJson : this.wasm.pm_to_model(pmJson));
+    const assets: RenderAssets = await this.assetsWith(patterns);
+    const bytes: Uint8Array = this.wasm.pm_to_display_list(pmJson, assets);
+    const doc: OpenDoc = { bytes, list: openDisplayList(bytes) };
     this.close();
     this.doc = doc;
     const pageSizes: Int32Array = new Int32Array(doc.list.pages.length * 2);
@@ -188,18 +165,7 @@ export class CdocEngine {
       pageSizes[2 * i] = p.width;
       pageSizes[2 * i + 1] = p.height;
     });
-    return { kind: 'opened', pageCount: doc.list.pages.length, pageSizes, report: file.report };
-  }
-
-  /**
-   * The open (static) document written by the engine in another format; a PDF through the PDF
-   * artefact, which reports no losses (pm_to_pdf returns bytes only), so its report is null.
-   */
-  async export(target: ExportTarget): Promise<ExportedFile> {
-    const doc: OpenDoc = this.current();
-    if (target.format !== 'pdf') return exportFile(this.wasm, target, doc.pmJson, doc.images);
-    const modelJson: string = this.wasm.pm_to_model(doc.pmJson);
-    return { bytes: await this.pdf.write({ modelJson, images: doc.images, patterns: doc.patterns, nowRfc3339: target.nowRfc3339 }), report: null };
+    return { kind: 'opened', pageCount: doc.list.pages.length, pageSizes };
   }
 
   /** The open document's decoded list, for a painter in the same thread. */

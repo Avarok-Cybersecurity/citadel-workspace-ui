@@ -14,11 +14,13 @@ import type { DocumentFiles } from '@/lib/document-files';
 import type { RevfsNode } from '@/types/revfs-types';
 import { NotOpened, type OriginalFile } from '@/components/documents/NotOpened';
 // A file opens read-only, so its replica is never opened; the keeper only satisfies the contract.
-import { keepBlankReplica } from '@/components/documents/blank-replica';
+import type { DocumentEditing } from '@/components/documents/use-docs-document';
 import { docsRouteOf, type WorkspaceFileReader } from './docs-file-open';
 
 /** A file opens read-only: saving back to the file manager is not wired yet. */
-const READ_ONLY: DocumentPermissions = { edit: { enabled: false, reason: 'Changes to a file from the file manager cannot be saved back to it yet.' } };
+/** A file opens read-only: no kept replica, so nothing could be saved back to it. One reason, shown and decided. */
+const READ_ONLY_FILE: DocumentEditing = { kind: 'readOnly', reason: 'Changes to a file from the file manager cannot be saved back to it yet.' };
+const READ_ONLY: DocumentPermissions = { edit: { enabled: false, reason: READ_ONLY_FILE.reason } };
 
 /** A file opened read-only takes no comments, so nobody signs one. */
 const NO_COMMENTS: string | null = null;
@@ -60,7 +62,7 @@ function FileBody({ node, route, reader, loadCdocRuntime, files, original }: Omi
   );
   if (read.kind === 'failed') return <NotOpened original={original} why={read.message} testId="docs-file-unreadable" />;
   if (source === null) return <p role="status" className="m-auto text-sm text-muted-foreground">Reading {node.name}…</p>;
-  return <DocumentHost nodeId={node.path} appId="docs" title={node.name} permissions={READ_ONLY} documentSource={source} loadCdocRuntime={loadCdocRuntime} files={files} original={original} commentAuthor={NO_COMMENTS} keepReplica={keepBlankReplica} />;
+  return <DocumentHost nodeId={node.path} appId="docs" title={node.name} permissions={READ_ONLY} documentSource={source} loadCdocRuntime={loadCdocRuntime} files={files} original={original} commentAuthor={NO_COMMENTS} editing={READ_ONLY_FILE} />;
 }
 
 export function DocsFileScreen({ node, folderName, onBack, onDownload, ...rest }: DocsFileScreenProps): JSX.Element {

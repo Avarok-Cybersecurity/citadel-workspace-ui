@@ -9,9 +9,6 @@
  */
 import type { ConversionLoss, ConversionReport, LossSeverity } from './editor/file-formats';
 
-/** The report of a document that was not converted: opened blank, or from Docs' own JSON. */
-export const NOT_CONVERTED: ConversionReport = { losses: [], problems: [] };
-
 export class ConversionReportError extends Error {
   constructor(message: string) {
     super(`unreadable conversion report: ${message}`);

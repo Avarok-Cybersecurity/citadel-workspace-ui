@@ -106,7 +106,6 @@ export class CdocHost {
         return result;
       }
       case 'paint': return { displayList: this.requireSource().paint(req.pages) };
-      case 'export': return engine.export(req.target);
       case 'glyphPaths': return engine.glyphPaths(req.face, req.glyphIds);
       case 'faceMetrics': return { metrics: engine.faceMetrics(req.face) };
       case 'attachCanvas':

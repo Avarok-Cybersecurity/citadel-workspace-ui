@@ -9,17 +9,15 @@
  * display list, because an editor's partial lists each number their faces afresh.
  */
 import type { GlyphPathBatch, OpenedDocument } from '../engine/cdoc-engine';
-import type { ExportedFile, ExportTarget } from '../editor/file-formats';
-import type { DocumentSource } from '../document-source';
+import type { StaticSource } from '../document-source';
 import type { PaintOutcome } from '../paint/page-rasterizer';
 import type { FaceKey } from '../display-list/types';
 import { EDITOR_KINDS, type EditorRequestBody, type EditorResults } from './editor-protocol';
 
 export type CdocRequestBody =
-  | { readonly kind: 'open'; readonly source: DocumentSource }
+  /** Docs' own JSON, laid out read-only; a file opens as a replica (editorOpen), and exports from it (exportAs). */
+  | { readonly kind: 'open'; readonly source: StaticSource }
   | { readonly kind: 'paint'; readonly pages: readonly number[] }
-  /** The open read-only document written in another format by the engine. */
-  | { readonly kind: 'export'; readonly target: ExportTarget }
   | { readonly kind: 'glyphPaths'; readonly face: FaceKey; readonly glyphIds: Uint16Array }
   | { readonly kind: 'faceMetrics'; readonly face: FaceKey }
   /** Hands the worker a page canvas (transferred); `slot` names it in later requests. */
@@ -31,7 +29,6 @@ export type CdocRequestBody =
 export interface CdocResults extends EditorResults {
   open: OpenedDocument;
   paint: { readonly displayList: Uint8Array };
-  export: ExportedFile;
   glyphPaths: GlyphPathBatch;
   faceMetrics: { readonly metrics: Uint8Array };
   attachCanvas: { readonly slot: number };
@@ -47,7 +44,7 @@ export type CdocResponse =
   | { readonly id: number; readonly ok: true; readonly result: CdocResults[CdocKind] }
   | { readonly id: number; readonly ok: false; readonly error: string };
 
-const KINDS: ReadonlySet<string> = new Set<CdocKind>(['open', 'paint', 'export', 'glyphPaths', 'faceMetrics', 'attachCanvas', 'paintCanvas', 'detachCanvas', ...EDITOR_KINDS]);
+const KINDS: ReadonlySet<string> = new Set<CdocKind>(['open', 'paint', 'glyphPaths', 'faceMetrics', 'attachCanvas', 'paintCanvas', 'detachCanvas', ...EDITOR_KINDS]);
 
 export function isCdocRequest(value: unknown): value is CdocRequest {
   if (typeof value !== 'object' || value === null) return false;

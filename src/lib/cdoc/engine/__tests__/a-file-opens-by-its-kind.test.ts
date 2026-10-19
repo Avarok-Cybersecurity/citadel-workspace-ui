@@ -1,46 +1,55 @@
 /**
- * A file opens in Citadel Docs by its kind, through the one engine: the bytes go to the worker
- * host, the engine imports them by format and lays the result out, and the import report comes
- * back with the pages. What came through is read back by exporting the opened document as text.
- * The production host, engine and wasm throughout; no mocks.
+ * A file opens in Citadel Docs by its kind, as a replica (EditorHandle.fromDocument): the bytes
+ * go to the worker host, the editor imports them by format, and the import report comes back
+ * with the pages. What came through is read back by exporting the replica as text. The
+ * production host, engine and wasm throughout; no mocks.
  */
 import { describe, expect, it } from 'vitest';
-import type { CdocClient } from '../../worker/cdoc-client';
 import { transferablesOf } from '../../worker/protocol';
-import { openedPages, type OpenedPages } from '../../__tests__/wasm-rig';
-import type { OpenedDocument } from '../cdoc-engine';
+import { inProcessRuntime, type TestRuntime } from '../../__tests__/wasm-rig';
 import { refusedMacros } from '../../conversion-report';
 import { bytesOf, fixture, freshClient, text } from '../../__tests__/files-rig';
 import type { DocsImportFormat } from '../../../citadel-apps/docs-file-kinds';
+import { replicaOrigin } from '../../document-source';
+import { createEditorOpener } from '../../editor/editor-opener';
+import type { EditorSession } from '../../editor/editor-session';
+import type { ImportReport } from '../../editor/file-formats';
 
-async function openAndRead(format: DocsImportFormat, bytes: Uint8Array): Promise<{ opened: OpenedPages; asText: string }> {
-  const client: CdocClient = freshClient();
-  const opened: OpenedPages = openedPages(await client.request({ kind: 'open', source: { kind: 'file', format, bytes } }));
-  const out: { bytes: Uint8Array } = await client.request({ kind: 'export', target: { format: 'txt' } });
-  return { opened, asText: text(out.bytes) };
+function openFile(format: DocsImportFormat, bytes: Uint8Array): Promise<EditorSession> {
+  const runtime: TestRuntime = inProcessRuntime('worker');
+  let next: number = 1;
+  const open: ReturnType<typeof createEditorOpener> = createEditorOpener({ client: runtime.client, renderer: runtime.renderer }, (b: Uint8Array): Uint8Array => b.map((): number => next++ & 0xff));
+  return open(replicaOrigin({ kind: 'file', format, bytes }));
+}
+
+async function openAndRead(format: DocsImportFormat, bytes: Uint8Array): Promise<{ pages: number; report: ImportReport; asText: string }> {
+  const editor: EditorSession = await openFile(format, bytes);
+  if (editor.importReport === null) throw new Error('a replica opened from a file has an import report');
+  return { pages: editor.state.pageCount, report: editor.importReport, asText: text((await editor.exportAs({ format: 'txt' })).bytes) };
 }
 
 describe('opening a file by its kind', () => {
   it('opens a .docx, with its text and the report of what Word formatting it could not carry', async () => {
-    const { opened, asText } = await openAndRead('docx', fixture('textutil.docx'));
-    expect(opened.pageCount).toBe(1);
+    const { pages, report, asText } = await openAndRead('docx', fixture('textutil.docx'));
+    expect(pages).toBe(1);
     expect(asText).toContain('Heading One');
     expect(asText).toContain('apple');
-    expect(opened.report.losses.length).toBeGreaterThan(0);
-    expect(opened.report.losses.every((l) => l.kind === 'counted')).toBe(true);
-    expect(opened.report.losses.some((l) => l.part === 'word/document.xml')).toBe(true);
+    expect(report.losses.length).toBeGreaterThan(0);
+    expect(report.losses.every((l: ImportReport['losses'][number]): boolean => l.kind === 'counted')).toBe(true);
+    expect(report.losses.some((l: ImportReport['losses'][number]): boolean => l.part === 'word/document.xml')).toBe(true);
   });
 
-  it('opens a .dotx template', async () => {
-    const { opened, asText } = await openAndRead('dotx', fixture('poi-test.dotx'));
-    expect(opened.pageCount).toBeGreaterThanOrEqual(1);
+  it('opens a .dotx template through the package reader, which says it was a template', async () => {
+    const { pages, report, asText } = await openAndRead('dotx', fixture('poi-test.dotx'));
+    expect(pages).toBeGreaterThanOrEqual(1);
     expect(asText).toContain('Test');
+    expect(report).toMatchObject({ format: 'docx', kind: 'template' });
   });
 
   it('opens Markdown, losslessly', async () => {
-    const { opened, asText } = await openAndRead('md', bytesOf('# Plan\n\nShip the *file manager* open.\n'));
+    const { report, asText } = await openAndRead('md', bytesOf('# Plan\n\nShip the *file manager* open.\n'));
     expect(asText).toContain('Ship the file manager open.');
-    expect(opened.report).toEqual({ losses: [], problems: [] });
+    expect(report).toMatchObject({ losses: [], problems: [] });
   });
 
   it('opens plain text, keeping each line', async () => {
@@ -49,32 +58,37 @@ describe('opening a file by its kind', () => {
   });
 
   it('opens an .odt', async () => {
-    const { opened, asText } = await openAndRead('odt', fixture('bullet_list.odt'));
-    expect(opened.pageCount).toBeGreaterThanOrEqual(1);
+    const { pages, asText } = await openAndRead('odt', fixture('bullet_list.odt'));
+    expect(pages).toBeGreaterThanOrEqual(1);
     expect(asText).toContain('listItem1');
   });
 
-  it('does not open a Word file with macros, and names each macro part it refused', async () => {
-    const outcome: OpenedDocument = await freshClient().request({ kind: 'open', source: { kind: 'file', format: 'docx', bytes: fixture('poi-simple-macro.docm') } });
-    expect(outcome.kind).toBe('refused');
-    expect(refusedMacros(outcome.report)).toEqual([
+  it('names each macro part of a Word file with macros, which is how Docs refuses it', async () => {
+    const { report } = await openAndRead('docx', fixture('poi-simple-macro.docm'));
+    expect(refusedMacros(report)).toEqual([
       { kind: 'macros', part: 'word/vbaData.xml', bytes: 809n, severity: 'info', label: 'Macros removed' },
       { kind: 'macros', part: 'word/vbaProject.bin', bytes: 12800n, severity: 'info', label: 'Macros removed' },
     ]);
   });
 
   it('refuses text that is not UTF-8 rather than guessing an encoding', async () => {
-    const client: CdocClient = freshClient();
-    await expect(client.request({ kind: 'open', source: { kind: 'file', format: 'txt', bytes: Uint8Array.from([0x66, 0xff, 0xfe]) } })).rejects.toThrow(/not UTF-8/);
+    await expect(openFile('txt', Uint8Array.from([0x66, 0xff, 0xfe]))).rejects.toThrow(/UTF-8/);
   });
 
   it('refuses bytes that are not the format named', async () => {
-    const client: CdocClient = freshClient();
-    await expect(client.request({ kind: 'open', source: { kind: 'file', format: 'docx', bytes: bytesOf('# not a zip') } })).rejects.toThrow(/cdoc open/);
+    await expect(openFile('docx', bytesOf('# not a zip'))).rejects.toThrow();
   });
 
-  it('moves the file to the worker: its buffer is in the transfer list', () => {
+  it('moves a copy of the file to the worker: its buffer is in the transfer list, and the caller keeps the original', () => {
     const bytes: Uint8Array = fixture('textutil.docx');
-    expect(transferablesOf({ kind: 'open', source: { kind: 'file', format: 'docx', bytes } })).toEqual([bytes.buffer]);
+    const from: ReturnType<typeof replicaOrigin> = replicaOrigin({ kind: 'file', format: 'docx', bytes });
+    if (from.kind !== 'bytes') throw new Error('a file opens from its bytes');
+    expect(transferablesOf({ kind: 'editorOpen', client: 1n, from })).toEqual([from.bytes.buffer]);
+    expect(from.bytes.buffer).not.toBe(bytes.buffer);
+  });
+
+  it('is never laid out as a static document: the worker refuses a file sent to open', async () => {
+    const sneaked: { kind: 'open'; source: never } = { kind: 'open', source: { kind: 'file', format: 'docx', bytes: fixture('textutil.docx') } as never };
+    await expect(freshClient().request(sneaked)).rejects.toThrow(/opens as a replica/);
   });
 });

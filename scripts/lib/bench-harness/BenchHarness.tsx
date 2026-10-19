@@ -1,15 +1,14 @@
 /**
- * The page: a file input, then the document in the shipped editor (DocsCanvas: ribbons, page view,
- * status bar) laid out as DocumentHost lays it out, and
- * "Download as…" writing PDF or plain text through the editor's own export. One document per page
- * load, as the protocol opens one per fresh tab. The replica keeper opens the file's bytes;
- * everything else is the product's.
+ * The page: a file input, then the document in the shipped editor (DocsCanvas: ribbons, document
+ * bar with its one "Download as…", page view, status bar) laid out as DocumentHost lays it out.
+ * One document per page load, as the protocol opens one per fresh tab. The replica keeper opens
+ * the file's bytes; everything else is the product's.
  */
-import { lazy, Suspense, useCallback, useMemo, useState, type ChangeEvent, type LazyExoticComponent } from 'react';
-import type { DocsCanvasProps, ReplicaKeeper } from '@/components/documents/DocsCanvas';
+import { lazy, Suspense, useMemo, useState, type ChangeEvent, type LazyExoticComponent } from 'react';
+import type { DocsCanvasProps } from '@/components/documents/DocsCanvas';
+import type { DocumentEditing, ReplicaKeeper } from '@/components/documents/use-docs-document';
 import type { DocumentSource } from '@/lib/cdoc/document-source';
 import type { EditorSession } from '@/lib/cdoc/editor/editor-session';
-import type { ExportTarget } from '@/lib/cdoc/editor/file-formats';
 import { loadCdocRuntime, type CdocRuntimeFactory } from '@/lib/cdoc/runtime-loader';
 import type { CdocRuntime } from '@/lib/cdoc/runtime';
 import type { ActionGate } from '@/hooks/use-permission-result';
@@ -32,22 +31,9 @@ interface Opened {
   readonly bytes: Uint8Array;
 }
 
-const EXPORTS: ReadonlyArray<{ readonly label: string; readonly extension: string; readonly mime: string; readonly target: () => ExportTarget }> = [
-  { label: 'PDF (.pdf)', extension: 'pdf', mime: 'application/pdf', target: (): ExportTarget => ({ format: 'pdf', nowRfc3339: new Date().toISOString() }) },
-  { label: 'Plain text (.txt)', extension: 'txt', mime: 'text/plain', target: (): ExportTarget => ({ format: 'txt' }) },
-];
-
-function save(bytes: Uint8Array, name: string, mime: string): void {
-  const url: string = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: mime }));
-  const a: HTMLAnchorElement = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  a.click();
-  setTimeout((): void => URL.revokeObjectURL(url), 60_000);
-}
-
-function fileKeeper(file: Opened, onSession: (editor: EditorSession | null) => void): ReplicaKeeper {
-  return (open, show, fail): (() => void) => {
+/** Edits a replica of the file's bytes, kept for the page's life. */
+function fileEditing(file: Opened): DocumentEditing {
+  const keep: ReplicaKeeper = (open, show, fail): (() => void) => {
     let live: boolean = true;
     let held: EditorSession | null = null;
     let unwatch: (() => void) | null = null;
@@ -56,7 +42,6 @@ function fileKeeper(file: Opened, onSession: (editor: EditorSession | null) => v
         if (!live) return editor.dispose();
         held = editor;
         unwatch = probe.session(editor);
-        onSession(editor);
         show(editor);
       },
       (error: unknown): void => {
@@ -66,54 +51,17 @@ function fileKeeper(file: Opened, onSession: (editor: EditorSession | null) => v
     return (): void => {
       live = false;
       unwatch?.();
-      onSession(null);
       held?.dispose();
     };
   };
-}
-
-function DownloadAs({ editor, name }: { readonly editor: EditorSession | null; readonly name: string }): JSX.Element {
-  const [open, setOpen] = useState<boolean>(false);
-  const [status, setStatus] = useState<string>('');
-  const run = useCallback(async (choice: (typeof EXPORTS)[number]): Promise<void> => {
-    if (editor === null) return;
-    setOpen(false);
-    setStatus(`Preparing ${choice.extension.toUpperCase()}…`);
-    try {
-      const file: { readonly bytes: Uint8Array } = await editor.exportAs(choice.target());
-      save(file.bytes, `${name.replace(/\.docx$/i, '')}.${choice.extension}`, choice.mime);
-      setStatus(`Downloaded ${choice.extension.toUpperCase()}`);
-    } catch (error: unknown) {
-      setStatus(`Could not export: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }, [editor, name]);
-  return (
-    <div className="relative flex items-center gap-2">
-      <button type="button" aria-haspopup="menu" aria-expanded={open} disabled={editor === null} data-testid="bench-download-as" className="rounded border border-border px-3 py-1 text-sm disabled:opacity-40" onClick={(): void => setOpen(!open)}>
-        Download as…
-      </button>
-      {open && (
-        <ul role="menu" className="absolute right-0 top-full z-50 mt-1 rounded border border-border bg-background p-1 shadow">
-          {EXPORTS.map((choice: (typeof EXPORTS)[number]) => (
-            <li key={choice.extension} role="none">
-              <button type="button" role="menuitem" data-testid={`bench-export-${choice.extension}`} className="w-full whitespace-nowrap rounded px-3 py-1 text-left text-sm hover:bg-foreground/10" onClick={(): void => void run(choice)}>
-                {choice.label}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      <p role="status" className="text-xs text-muted-foreground">{status}</p>
-    </div>
-  );
+  return { kind: 'replica', keep };
 }
 
 export function BenchHarness(): JSX.Element {
   const [file, setFile] = useState<Opened | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [editor, setEditor] = useState<EditorSession | null>(null);
   const [statusBar, setStatusBar] = useState<HTMLElement | null>(null);
-  const keeper: ReplicaKeeper | null = useMemo(() => (file === null ? null : fileKeeper(file, setEditor)), [file]);
+  const editing: DocumentEditing | null = useMemo(() => (file === null ? null : fileEditing(file)), [file]);
   const choose = (e: ChangeEvent<HTMLInputElement>): void => {
     const chosen: File | undefined = e.target.files?.[0];
     if (chosen === undefined) return;
@@ -127,19 +75,17 @@ export function BenchHarness(): JSX.Element {
     <div className="flex h-full min-w-0 flex-col bg-background" data-testid="document-host">
       <header className="flex min-w-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
         <h1 className="truncate text-lg font-semibold text-foreground">{file?.name ?? 'Citadel Docs bench harness'}</h1>
-        {file === null ? (
+        {file === null && (
           <label className="text-sm">
             Open a .docx <input type="file" accept=".docx" data-testid="bench-open" onChange={choose} />
           </label>
-        ) : (
-          <DownloadAs editor={editor} name={file.name} />
         )}
       </header>
       {error !== null && <p role="alert" className="p-2 text-sm text-destructive">{error}</p>}
       <section aria-label="Citadel Docs editor" data-testid="document-editor-region" className="flex min-h-0 flex-1 flex-col">
-        {file !== null && keeper !== null && (
+        {file !== null && editing !== null && (
           <Suspense fallback={<p role="status" className="m-auto text-sm text-muted-foreground">Loading Citadel Docs…</p>}>
-            <DocsCanvas documentSource={EDITABLE} loadRuntime={loadRuntime} keepReplica={keeper} statusBar={statusBar} edit={MAY_EDIT} commentAuthor="Benchmark"
+            <DocsCanvas documentSource={EDITABLE} loadRuntime={loadRuntime} editing={editing} statusBar={statusBar} edit={MAY_EDIT} commentAuthor="Benchmark"
               title={file.name.replace(/\.docx$/i, '')} files={browserDocumentFiles} original={null} />
           </Suspense>
         )}

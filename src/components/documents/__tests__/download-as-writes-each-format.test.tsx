@@ -1,6 +1,6 @@
 /**
- * "Download as…" on an open (read-only) document, end to end in the page: the menu (reached by keyboard)
- * lists every format, the engine writes the chosen one from the open document, and the bytes
+ * "Download as…" on a file opened read-only, end to end in the page: the menu (reached by keyboard)
+ * lists every format, the file's read-only replica writes the chosen one, and the bytes
  * are handed to the save port with the format's MIME type and a name from the title; what the
  * format dropped is shown, and a document being edited downloads from its live replica.
  * Real cdoc wasm through the in-process runtime. The one double is the save port
@@ -15,15 +15,21 @@ import { recordingDocumentFiles, type RecordingDocumentFiles } from '@/test-util
 import type { DocumentSource } from '@/lib/cdoc/document-source';
 import { DocumentHost } from '../DocumentHost';
 import { keepBlankReplica } from '../blank-replica';
+import type { DocumentEditing } from '../use-docs-document';
 import { DownloadAsMenu } from '../page-view/DownloadAsMenu';
 
 const FILE: DocumentSource = { kind: 'file', format: 'md', bytes: new TextEncoder().encode('# Quarterly plan\n\nShip **open** and *export*.\n') };
 
+/** A file opens as the file manager opens it, read only; a blank document is edited through a kept replica. */
+const READ_ONLY: DocumentEditing = { kind: 'readOnly', reason: 'Read only here.' };
+const EDIT_BLANK: DocumentEditing = { kind: 'replica', keep: keepBlankReplica };
+
 function host(files: RecordingDocumentFiles, documentSource: DocumentSource = FILE): void {
+  const editing: DocumentEditing = documentSource.kind === 'blank' ? EDIT_BLANK : READ_ONLY;
   render(
     <DocumentHost
-      nodeId="plan-1" appId="docs" title="Quarterly plan" permissions={{ edit: { enabled: true, reason: null } }}
-      documentSource={documentSource} files={files} original={null} commentAuthor="Ada" keepReplica={keepBlankReplica}
+      nodeId="plan-1" appId="docs" title="Quarterly plan" permissions={{ edit: editing.kind === 'readOnly' ? { enabled: false, reason: editing.reason } : { enabled: true, reason: null } }}
+      documentSource={documentSource} files={files} original={null} commentAuthor="Ada" editing={editing}
       loadCdocRuntime={(): Promise<CdocRuntime> => Promise.resolve(inProcessRuntime('main-thread'))}
     />,
   );

@@ -11,7 +11,7 @@ import * as glue from '../../../../vendor/cdoc/cdoc_wasm_editor.js';
 import * as pdfGlue from '../../../../vendor/cdoc/cdoc_wasm_pdf.js';
 import { FONT_MANIFEST } from '../generated/font-manifest';
 import { PATTERN_MANIFEST } from '../generated/pattern-manifest';
-import { CdocEngine, type OpenedDocument } from '../engine/cdoc-engine';
+import { CdocEngine } from '../engine/cdoc-engine';
 import { EngineAssets } from '../engine/engine-assets';
 import { PdfWriter } from '../engine/pdf-writer';
 import type { CdocWasm, PdfWasm } from '../engine/cdoc-wasm-api';
@@ -139,12 +139,4 @@ export function inProcessRuntime(renderer: 'worker' | 'main-thread'): TestRuntim
     return rec.ctx;
   };
   return { client, renderer: pages, painted, overlays, overlayContext, images: (renderer === 'worker' ? hostPort : pagePort).images };
-}
-
-export type OpenedPages = Extract<OpenedDocument, { kind: 'opened' }>;
-
-/** The outcome of an open that must have opened; a refusal fails the test with its report. */
-export function openedPages(outcome: OpenedDocument): OpenedPages {
-  if (outcome.kind !== 'opened') throw new Error(`expected the document to open; it was refused over ${outcome.report.losses.map((l) => l.part).join(', ')}`);
-  return outcome;
 }

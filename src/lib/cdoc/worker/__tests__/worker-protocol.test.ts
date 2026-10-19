@@ -11,7 +11,8 @@ import type { DisplayList, Op } from '../../display-list/types';
 import { parseFaceMetrics, parseGlyphPath, type GlyphOutline } from '../../glyph/glyph-record';
 import type { GlyphPathBatch } from '../../engine/cdoc-engine';
 import type { PaintOutcome } from '../../paint/page-rasterizer';
-import { pmWithText, realHost, openedPages, type OpenedPages } from '../../__tests__/wasm-rig';
+import { pmWithText, realHost } from '../../__tests__/wasm-rig';
+import type { OpenedDocument } from '../../engine/cdoc-engine';
 import { recordingPort, recordingTarget, type Call, type RecordingTarget } from '../../paint/__tests__/recording-canvas';
 import type { CdocClient } from '../cdoc-client';
 import type { CdocHost } from '../cdoc-host';
@@ -33,8 +34,8 @@ function glyphCount(list: DisplayList): number {
 describe('InProcessCdocClient over the real wasm', () => {
   const client: CdocClient = new InProcessCdocClient(host());
 
-  it('opens a blank document as one A4 page', async () => {
-    const opened: OpenedPages = openedPages(await client.request({ kind: 'open', source: { kind: 'blank' } }));
+  it('opens a one-line document as one A4 page', async () => {
+    const opened: OpenedDocument = await client.request({ kind: 'open', source: { kind: 'pm', pmJson: pmWithText(TEXT) } });
     expect(opened.pageCount).toBe(1);
     expect(Array.from(opened.pageSizes)).toEqual([59530, 84190]);
   });
@@ -100,14 +101,14 @@ describe('WorkerCdocClient over a real MessageChannel', () => {
 
   it('receives the display list as bytes that decode', async () => {
     const client: CdocClient = wired();
-    await client.request({ kind: 'open', source: { kind: 'blank' } });
+    await client.request({ kind: 'open', source: { kind: 'pm', pmJson: pmWithText(TEXT) } });
     const { displayList } = await client.request({ kind: 'paint', pages: [0] });
     expect(openDisplayList(displayList).pages).toHaveLength(1);
   });
 
   it('rejects every pending request on dispose', async () => {
     const client: CdocClient = wired();
-    const pending: Promise<unknown> = client.request({ kind: 'open', source: { kind: 'blank' } });
+    const pending: Promise<unknown> = client.request({ kind: 'open', source: { kind: 'pm', pmJson: pmWithText(TEXT) } });
     client.dispose();
     await expect(pending).rejects.toThrow(/disposed/);
   });
