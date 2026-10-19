@@ -41,10 +41,14 @@ export const R1_COLLABORATION: Omit<DocumentSessionConfig, 'nodeId' | 'clientSeq
 /** DocsCanvas's ReplicaKeeper, for any replica type the runtime's opener returns. */
 export type Keeper<E extends EditorController> = (open: (from: EditorOrigin) => Promise<E>, show: (editor: E) => void, fail: (error: unknown) => void) => () => void;
 
+/** What the page does with the session while it is open (its Save control, the share trigger); returns the undo. */
+export type SessionBinder = (session: DocumentSession) => () => void;
+
 export function replicaKeeper<E extends EditorController>(
   config: DocumentSessionConfig,
   portsFor: (open: EditorOpener) => DocumentSessionPorts,
   onProblem: (problem: DocumentSessionError) => void,
+  bind: SessionBinder,
 ): Keeper<E> {
   return (open: (from: EditorOrigin) => Promise<E>, show: (editor: E) => void, fail: (error: unknown) => void): (() => void) => {
     const opened: E[] = [];
@@ -68,8 +72,10 @@ export function replicaKeeper<E extends EditorController>(
       show(opened[0]);
     });
     session.on('problem', onProblem);
+    const unbind: () => void = bind(session);
     void session.open();
     return (): void => {
+      unbind();
       session.close();
       for (const editor of opened.splice(0)) editor.dispose();
     };
@@ -77,6 +83,6 @@ export function replicaKeeper<E extends EditorController>(
 }
 
 /** The app's keeper for `nodeId`: this tab's workspace session, the R1 configuration. */
-export function workspaceReplicaKeeper<E extends EditorController>(nodeId: string, onProblem: (problem: DocumentSessionError) => void): Keeper<E> {
-  return replicaKeeper<E>({ ...R1_COLLABORATION, nodeId, clientSeqBase: randomClientSeqBase() }, workspaceCollabPorts, onProblem);
+export function workspaceReplicaKeeper<E extends EditorController>(nodeId: string, onProblem: (problem: DocumentSessionError) => void, bind: SessionBinder): Keeper<E> {
+  return replicaKeeper<E>({ ...R1_COLLABORATION, nodeId, clientSeqBase: randomClientSeqBase() }, workspaceCollabPorts, onProblem, bind);
 }

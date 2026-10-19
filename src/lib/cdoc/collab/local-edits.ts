@@ -12,7 +12,7 @@
  */
 import { Outbox, type PendingUpdate } from './outbox';
 import type { DocumentCache, DocumentSessionConfig, HeldEdits } from './ports';
-import type { LocalWrite, SaveInputs } from './save-status';
+import type { LocalWrite, SaveInputs } from '@/lib/document-save/save-status';
 import type { DocumentSessionProblem } from './session-errors';
 
 export interface LocalEditsHost {

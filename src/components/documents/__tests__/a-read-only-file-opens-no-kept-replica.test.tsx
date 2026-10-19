@@ -63,6 +63,7 @@ describe('a document given to a keeper', () => {
     const asked: string[] = [];
     const editing: DocumentEditing = {
       kind: 'replica',
+      save: null,
       keep: (open, show, fail): (() => void) => {
         asked.push('keep');
         open({ kind: 'blank' }).then(show, fail);

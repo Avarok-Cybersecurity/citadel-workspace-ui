@@ -18,7 +18,9 @@ describe('the replica keeper', () => {
     const replicas: ReplicaSource<EditorSession> = realReplicas();
     const ports = (open: EditorOpener): DocumentSessionPorts => ({ transport: kernel.connect(ALICE), clock, cache: null, openEditor: open, identify: () => ({ name: 'Alice', color: '#4F46E5' }) });
     const problems: DocumentSessionError[] = [];
-    const keep: Keeper<EditorSession> = replicaKeeper<EditorSession>({ ...R1_COLLABORATION, nodeId: NODE, clientSeqBase: 1n << 32n }, ports, (p: DocumentSessionError): void => { problems.push(p); });
+    const bound: string[] = [];
+    const bind = (): (() => void) => { bound.push('bound'); return (): void => { bound.push('unbound'); }; };
+    const keep: Keeper<EditorSession> = replicaKeeper<EditorSession>({ ...R1_COLLABORATION, nodeId: NODE, clientSeqBase: 1n << 32n }, ports, (p: DocumentSessionError): void => { problems.push(p); }, bind);
     const shown: EditorSession[] = [];
     const failures: unknown[] = [];
     const stop: () => void = keep(replicas.open, (e: EditorSession): void => { shown.push(e); }, (e: unknown): void => { failures.push(e); });
@@ -35,7 +37,9 @@ describe('the replica keeper', () => {
     expect(problems.map((p: DocumentSessionError) => p.problem.kind)).toEqual(['refused']);
     expect(failures).toEqual([]);
 
+    expect(bound).toEqual(['bound']);
     stop();
+    expect(bound).toEqual(['bound', 'unbound']);
     await expect(shown[0].snapshot()).rejects.toThrow();
   });
 

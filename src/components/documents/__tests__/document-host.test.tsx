@@ -4,15 +4,16 @@
  * No mocks: the Docs editor region runs the real cdoc wasm through the in-process runtime.
  */
 import { describe, it, expect } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { inProcessRuntime } from '@/lib/cdoc/__tests__/wasm-rig';
 import type { CdocRuntime } from '@/lib/cdoc/runtime';
 import { recordingDocumentFiles } from '@/test-utils/recording-document-files';
 import { DocumentHost, UnreadableDocument, type DocumentHostProps } from '../DocumentHost';
 import { keepBlankReplica } from '../blank-replica';
 import type { DocumentEditing } from '../use-docs-document';
+import { saveControl, type BindableSaveControl } from '../save/save-control';
 
-const EDIT_BLANK: DocumentEditing = { kind: 'replica', keep: keepBlankReplica };
+const EDIT_BLANK: DocumentEditing = { kind: 'replica', keep: keepBlankReplica, save: null };
 
 const EDITABLE: DocumentHostProps = {
   nodeId: 'plan-1',
@@ -51,6 +52,23 @@ describe('DocumentHost', () => {
   it('keeps the placeholder for an app with no editor yet', () => {
     render(<DocumentHost {...EDITABLE} appId="pdf" />);
     expect(screen.getByRole('region', { name: 'Citadel PDF editor' })).toHaveTextContent('Citadel PDF editor loads here');
+  });
+
+  it('puts the save controls in the title bar of a document someone saves, and Ctrl/Cmd+S over its editor to them', () => {
+    const save: BindableSaveControl = saveControl('plan-1');
+    save.inputs.set({ autoSave: true, link: 'up', unacknowledged: 0, syncRequested: false, local: 'written', halted: false });
+    render(<DocumentHost {...EDITABLE} editing={{ kind: 'replica', keep: keepBlankReplica, save }} />);
+    const header: HTMLElement = screen.getByRole('banner');
+    expect(within(header).getByTestId('docs-save-status')).toHaveTextContent('Saved');
+    const region: HTMLElement = screen.getByRole('region', { name: 'Citadel Docs editor' });
+    // Kept from the browser's "save page", whatever there is to save.
+    expect(fireEvent.keyDown(region, { key: 's', ctrlKey: true })).toBe(false);
+  });
+
+  it('has no save controls for a replica nobody saves', () => {
+    render(<DocumentHost {...EDITABLE} />);
+    expect(screen.queryByTestId('docs-save-controls')).toBeNull();
+    expect(fireEvent.keyDown(screen.getByRole('region', { name: 'Citadel Docs editor' }), { key: 's', ctrlKey: true })).toBe(true);
   });
 
   it('says it is read only, and why, when editing is not permitted', () => {

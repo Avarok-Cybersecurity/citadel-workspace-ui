@@ -3,7 +3,7 @@
  * the link, how many of this tab's edits the server has not acknowledged, and whether those
  * are written to this device. Pure: the title bar shows it, beforeunload asks it.
  */
-import type { LinkState } from './ports';
+import type { LinkState } from '@/lib/cdoc/collab/ports';
 
 /** How far this device's write of the held edits has got. */
 export type LocalWrite = 'written' | 'writing' | 'failed';
@@ -42,4 +42,9 @@ export function saveStatus(inputs: SaveInputs): SaveStatus {
 /** Closing now would lose edits: some are neither acknowledged nor written to this device. */
 export function warnsOnUnload(inputs: SaveInputs): boolean {
   return inputs.unacknowledged > 0 && inputs.local !== 'written';
+}
+
+/** Save has something to do: AutoSave is off, edits are held, and the server takes them. */
+export function canSave(inputs: SaveInputs): boolean {
+  return !inputs.autoSave && inputs.unacknowledged > 0 && !inputs.halted;
 }

@@ -11,7 +11,7 @@ import type { LogCursor } from './log-cursor';
 import type { PendingUpdate } from './outbox';
 import { LocalEdits } from './local-edits';
 import type { CachedDocument, DocumentSessionConfig, DocumentSessionPorts, HeldEdits } from './ports';
-import type { SaveInputs } from './save-status';
+import type { SaveInputs } from '@/lib/document-save/save-status';
 import type { DocumentSessionProblem } from './session-errors';
 import { haltsWriting } from './session-errors';
 import { CachedCopy, type ReplicaNow } from './cached-copy';
@@ -91,6 +91,8 @@ export class DocumentSync {
     }
     if (!this.replica.editor && orphans.length > 0) await this.replica.open({ kind: 'blank' }, 0n);
     await this.edits.adopt(orphans, (update: Uint8Array): Promise<void> => this.replica.applyHeld(update));
+    // Taken-over edits go now if they may (AutoSave on), not at the next link change.
+    await this.resend();
     await this.pull();
   }
 

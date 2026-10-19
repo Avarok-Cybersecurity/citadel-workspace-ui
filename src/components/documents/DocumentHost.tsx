@@ -8,7 +8,7 @@
  * `loadCdocRuntime`, and whether a kept replica is edited or the document only read in
  * `editing`, all decided by the caller.
  */
-import { lazy, Suspense, useState, type LazyExoticComponent } from 'react';
+import { lazy, Suspense, useState, type KeyboardEvent, type LazyExoticComponent } from 'react';
 import { citadelApp, type CitadelApp, type CitadelAppId } from '@/lib/citadel-apps/registry';
 import type { ActionGate } from '@/hooks/use-permission-result';
 import type { DocumentSource } from '@/lib/cdoc/document-source';
@@ -17,6 +17,8 @@ import type { DocumentFiles } from '@/lib/document-files';
 import type { DocsCanvasProps } from './DocsCanvas';
 import type { DocumentEditing } from './use-docs-document';
 import type { OriginalFile } from './NotOpened';
+import { DocumentSaveControls, saveShortcut } from './save/DocumentSaveControls';
+import type { SaveControl } from './save/save-control';
 
 const DocsCanvas: LazyExoticComponent<(props: DocsCanvasProps) => JSX.Element> = lazy(() => import('./DocsCanvas'));
 
@@ -48,14 +50,17 @@ export function DocumentHost({ nodeId, appId, title, permissions, documentSource
   const app: CitadelApp = citadelApp(appId);
   const Icon: CitadelApp['icon'] = app.icon;
   const [statusBar, setStatusBar] = useState<HTMLElement | null>(null);
+  const save: SaveControl | null = editing.kind === 'replica' ? editing.save : null;
+  const onSaveKey: ((event: KeyboardEvent<HTMLElement>) => void) | undefined = saveShortcut(save);
   return (
     <div className="flex h-full min-w-0 flex-col bg-background" data-testid="document-host" data-node-id={nodeId} data-app={appId}>
       <header className="flex min-w-0 items-center gap-3 border-b border-border px-4 py-3 sm:px-6">
         <Icon className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <h1 className="truncate text-lg font-semibold text-foreground" title={title}>{title}</h1>
           <p className="text-xs text-muted-foreground">{app.name}</p>
         </div>
+        {save !== null && <DocumentSaveControls control={save} />}
       </header>
       {!permissions.edit.enabled && (
         <p role="status" data-testid="document-read-only" className="border-b border-border px-4 py-2 text-sm text-muted-foreground sm:px-6">
@@ -63,7 +68,7 @@ export function DocumentHost({ nodeId, appId, title, permissions, documentSource
         </p>
       )}
       {appId === 'docs' ? (
-        <section aria-label={`${app.name} editor`} data-testid="document-editor-region" className="flex min-h-0 flex-1 flex-col">
+        <section aria-label={`${app.name} editor`} data-testid="document-editor-region" className="flex min-h-0 flex-1 flex-col" onKeyDownCapture={onSaveKey}>
           <Suspense fallback={<p role="status" className="m-auto text-sm text-muted-foreground">Loading {app.name}…</p>}>
             <DocsCanvas documentSource={documentSource} loadRuntime={loadCdocRuntime} editing={editing} statusBar={statusBar} edit={permissions.edit} commentAuthor={commentAuthor} title={title} files={files} original={original} />
           </Suspense>

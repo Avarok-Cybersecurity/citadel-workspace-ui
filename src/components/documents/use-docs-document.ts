@@ -5,6 +5,7 @@
  * no one, never collaborates, and is disposed with the view. A file whose macros the importer
  * refused is not shown at all: its replica is disposed at once and the report says why.
  */
+import type { SaveControl } from './save/save-control';
 import { useEffect, useState } from 'react';
 import { isStaticSource, replicaOrigin, type DocumentSource } from '@/lib/cdoc/document-source';
 import type { CdocRuntimeFactory } from '@/lib/cdoc/runtime-loader';
@@ -29,7 +30,8 @@ export type ReplicaKeeper = (
 
 /** Whether the document is edited through a kept replica, or only read, and then why. */
 export type DocumentEditing =
-  | { readonly kind: 'replica'; readonly keep: ReplicaKeeper }
+  /** `save`: the title bar's controls for where its edits are; null for a replica nobody keeps anywhere. */
+  | { readonly kind: 'replica'; readonly keep: ReplicaKeeper; readonly save: SaveControl | null }
   | { readonly kind: 'readOnly'; readonly reason: string };
 
 export type DocsDocument =

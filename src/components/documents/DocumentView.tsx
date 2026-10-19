@@ -13,7 +13,7 @@ import type { DocumentSource } from '@/lib/cdoc/document-source';
 import { loadCdocRuntime } from '@/lib/cdoc/runtime-loader';
 import { browserDocumentFiles } from '@/lib/document-files';
 import { DocumentHost, UnreadableDocument } from './DocumentHost';
-import { collaborationKeeper } from './collab-replica';
+import { collaborationEditing } from './collab-replica';
 import type { DocumentEditing } from './use-docs-document';
 
 /** Until the document-content work item reads the node's stored document, every node opens blank. */
@@ -28,7 +28,7 @@ export function DocumentView({ node, app }: DocumentViewProps): JSX.Element {
   const edit: ReturnType<typeof usePermission> = usePermission(node.id, Permission.EditContent);
   const self: SelfName = useSelfName();
   // One keeper per node: a new identity would re-open the document.
-  const editing: DocumentEditing = useMemo((): DocumentEditing => ({ kind: 'replica', keep: collaborationKeeper(node.id) }), [node.id]);
+  const editing: DocumentEditing = useMemo((): DocumentEditing => collaborationEditing(node.id), [node.id]);
   if (app.kind === 'unreadable') return <UnreadableDocument title={node.name} reason={app.reason} />;
   return (
     <DocumentHost

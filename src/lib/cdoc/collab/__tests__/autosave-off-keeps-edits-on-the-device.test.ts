@@ -4,7 +4,7 @@
  * double, and the production device storage (doubles/device-tabs.ts).
  */
 import { describe, expect, it, vi } from 'vitest';
-import { saveStatus } from '../save-status';
+import { saveStatus } from '@/lib/document-save/save-status';
 import { ALICE, BOB, converged } from './doubles/harness';
 import { device, type Device, type RealTab } from './doubles/device-tabs';
 import { snapshotText, typeInto } from './doubles/real-replicas';

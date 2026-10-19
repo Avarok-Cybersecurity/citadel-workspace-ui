@@ -52,7 +52,7 @@ function keepFile(url: string): ReplicaKeeper {
   };
 }
 
-const EDITING: DocumentEditing = { kind: 'replica', keep: doc === null ? keepBlankReplica : keepFile(doc) };
+const EDITING: DocumentEditing = { kind: 'replica', keep: doc === null ? keepBlankReplica : keepFile(doc), save: null };
 const app: Root = createRoot(root);
 app.render(
   // min-h-0: #root is a flex column (index.css), and a flex item does not shrink below its

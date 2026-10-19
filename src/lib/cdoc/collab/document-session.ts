@@ -17,7 +17,7 @@ import { DocumentSync } from './document-sync';
 import type { DocumentSessionConfig, DocumentSessionPorts, LinkState } from './ports';
 import { SerialQueue } from './serial-queue';
 import { DocumentSessionError, type DocumentSessionProblem } from './session-errors';
-import type { SaveInputs } from './save-status';
+import type { SaveInputs } from '@/lib/document-save/save-status';
 
 export interface DocumentSessionEvents {
   /** A replica was opened: the first, or a re-open over a newer snapshot. Draw this one. */

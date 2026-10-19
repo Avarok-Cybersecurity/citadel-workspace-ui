@@ -54,7 +54,7 @@ function fileEditing(file: Opened): DocumentEditing {
       held?.dispose();
     };
   };
-  return { kind: 'replica', keep };
+  return { kind: 'replica', keep, save: null };
 }
 
 export function BenchHarness(): JSX.Element {

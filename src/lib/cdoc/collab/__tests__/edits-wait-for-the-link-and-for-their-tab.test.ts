@@ -5,7 +5,7 @@
  * said to be unsaved. Real replicas, the kernel double, the production device storage.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { saveStatus, warnsOnUnload } from '../save-status';
+import { saveStatus, warnsOnUnload } from '@/lib/document-save/save-status';
 import { indexedDbDocumentCache } from '../document-cache';
 import { ALICE, BOB, converged, openTab } from './doubles/harness';
 import { device, type Device, type RealTab } from './doubles/device-tabs';
@@ -37,6 +37,26 @@ describe('with AutoSave on and the link down', () => {
     expect(await snapshotText(bob.replica())).toContain(FIRST);
     expect(await converged([alice, bob])).toBe(true);
     expect(saveStatus(alice.session.saveInputs)).toBe('saved');
+    expect(heldKeys()).toEqual([]);
+  });
+});
+
+describe('a tab reopened with AutoSave on', () => {
+  it('sends the edits a closed tab left behind as soon as it opens', async () => {
+    store.clear();
+    const d: Device = await device();
+    const closed: RealTab = await d.open(ALICE, {});
+    d.kernel.setLink(ALICE, 'down');
+    await typeInto(closed.replica(), FIRST);
+    await d.settle(closed);
+    closed.session.close();
+    d.kernel.setLink(ALICE, 'up');
+
+    const reopened: RealTab = await d.open(ALICE, {});
+    const bob: RealTab = await d.open(BOB, {});
+    await d.settle(reopened, bob);
+    expect(await snapshotText(bob.replica())).toContain(FIRST);
+    expect(saveStatus(reopened.session.saveInputs)).toBe('saved');
     expect(heldKeys()).toEqual([]);
   });
 });

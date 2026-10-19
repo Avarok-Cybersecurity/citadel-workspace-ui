@@ -1,7 +1,7 @@
 /** The title bar's status and the unload warning, from where a document's edits are. Pure. */
 import { describe, expect, it } from 'vitest';
-import { saveStatus, warnsOnUnload, type SaveInputs, type SaveStatus } from '../save-status';
-import { SAVE_STATUS_TEXT } from '../save-status-text';
+import { saveStatus, warnsOnUnload, type SaveInputs, type SaveStatus } from '@/lib/document-save/save-status';
+import { SAVE_STATUS_TEXT } from '@/lib/document-save/save-status-text';
 
 const AT_REST: SaveInputs = { autoSave: true, link: 'up', unacknowledged: 0, syncRequested: false, local: 'written', halted: false };
 const held = (changes: Partial<SaveInputs>): SaveInputs => ({ ...AT_REST, unacknowledged: 2, ...changes });

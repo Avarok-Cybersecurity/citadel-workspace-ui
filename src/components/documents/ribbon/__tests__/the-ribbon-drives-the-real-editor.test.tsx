@@ -15,7 +15,7 @@ import { keepBlankReplica } from '../../blank-replica';
 import type { DocumentEditing } from '../../use-docs-document';
 
 // A document nobody shares: the commands, not the collaboration, are under test here.
-const EDIT_BLANK: DocumentEditing = { kind: 'replica', keep: keepBlankReplica };
+const EDIT_BLANK: DocumentEditing = { kind: 'replica', keep: keepBlankReplica, save: null };
 
 const BLANK: DocumentHostProps = {
   nodeId: 'plan-1',
