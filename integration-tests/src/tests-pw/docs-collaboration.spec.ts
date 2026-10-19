@@ -18,8 +18,11 @@ import { openSelectedNodeMenu, revealNode, selectRoot } from '../lib/focused-tre
 
 const STEP_MS = 30_000;
 const SYNC_MS = 60_000;
-/** The caret and selection canvases (PageOverlays.tsx), hidden to see the text alone. */
-const HIDE_OVERLAYS = 'canvas[data-layer] { visibility: hidden !important; }';
+/**
+ * The caret, selection and peer canvases (PageOverlays.tsx), hidden to see the text alone. The
+ * text is itself a layer, `data-layer="page"` (PageCanvas.tsx), so it is the one layer kept.
+ */
+const HIDE_OVERLAYS = 'canvas[data-layer]:not([data-layer="page"]) { visibility: hidden !important; }';
 
 /**
  * The top of the first page, where the typed line is, the same size for both people. Not the
@@ -88,7 +91,10 @@ adminMemberTest('what one person types in a document appears on the other\'s pag
   const line: string = `Hello from ${admin.username}`;
   await firstPage(admin.page).click();
   await admin.page.keyboard.type(line, { delay: 30 });
-  expect((await textOf(admin.page)).equals(adminBlank), 'the admin\'s own page did not change when typing').toBe(false);
+  await expect.poll(async (): Promise<boolean> => !(await textOf(admin.page)).equals(adminBlank), {
+    message: 'the admin\'s own page did not change when typing',
+    timeout: STEP_MS,
+  }).toBe(true);
 
   // The text: the member's page, untouched, comes to paint something, and what it says is the
   // admin's line, word for word.
