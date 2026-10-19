@@ -6,6 +6,7 @@
  */
 import type { CaretFormatting } from '@/lib/cdoc/editor/controller';
 import type { Indent, ParagraphPatch, Pt100, Spacing } from '@/lib/cdoc/editor/model-values';
+import { PARAGRAPH_MEASURE_MAX_PT } from '@/lib/cdoc/ui-input-limits';
 import { caretParagraph, pointsToPt100, pt100ToPoints } from './formatting';
 import { RibbonNumberField } from './RibbonFields';
 import { useRibbon, type Ribbon } from './ribbon-context';
@@ -13,10 +14,6 @@ import { useRibbon, type Ribbon } from './ribbon-context';
 type SpacingKey = 'before' | 'after';
 type IndentKey = 'left' | 'right';
 
-/** Word's limits for each, in points. */
-const SPACING_MAX_PT: number = 1584;
-const INDENT_MAX_PT: number = 1584;
-const INDENT_MIN_PT: number = -1584;
 
 export function spacingPatch(key: SpacingKey, value: Pt100): ParagraphPatch {
   return { spacing: { [key]: value } };
@@ -44,7 +41,7 @@ export function SpacingFields({ idPrefix }: { idPrefix: string }): JSX.Element {
   return (
     <>
       {(['before', 'after'] as const).map((key: SpacingKey): JSX.Element => (
-        <RibbonNumberField key={key} testId={`${idPrefix}-spacing-${key}`} label={`Spacing ${SPACING_LABELS[key].toLowerCase()}`} shortLabel={SPACING_LABELS[key]} unit="pt" min={0} max={SPACING_MAX_PT} unavailable={null}
+        <RibbonNumberField key={key} testId={`${idPrefix}-spacing-${key}`} label={`Spacing ${SPACING_LABELS[key].toLowerCase()}`} shortLabel={SPACING_LABELS[key]} unit="pt" min={0} max={PARAGRAPH_MEASURE_MAX_PT} unavailable={null}
           value={spacingPoints(caret, key)}
           onCommit={(points: number): void => { void run({ name: 'setParagraphProperty', patch: spacingPatch(key, pointsToPt100(points)) }, `change the spacing ${key}`); }} />
       ))}
@@ -57,7 +54,7 @@ export function IndentFields({ idPrefix }: { idPrefix: string }): JSX.Element {
   return (
     <>
       {(['left', 'right'] as const).map((key: IndentKey): JSX.Element => (
-        <RibbonNumberField key={key} testId={`${idPrefix}-indent-${key}`} label={`Indent ${INDENT_LABELS[key].toLowerCase()}`} shortLabel={INDENT_LABELS[key]} unit="pt" min={INDENT_MIN_PT} max={INDENT_MAX_PT} unavailable={null}
+        <RibbonNumberField key={key} testId={`${idPrefix}-indent-${key}`} label={`Indent ${INDENT_LABELS[key].toLowerCase()}`} shortLabel={INDENT_LABELS[key]} unit="pt" min={-PARAGRAPH_MEASURE_MAX_PT} max={PARAGRAPH_MEASURE_MAX_PT} unavailable={null}
           value={indentPoints(caret, key)}
           onCommit={(points: number): void => { void run({ name: 'setParagraphProperty', patch: indentPatch(key, pointsToPt100(points)) }, `change the ${key} indent`); }} />
       ))}
