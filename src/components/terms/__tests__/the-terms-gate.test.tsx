@@ -26,6 +26,9 @@ vi.mock('@/lib/connection', () => ({
   },
 }));
 vi.mock('@/lib/tab-context', () => ({ getSelectedUser: async (): Promise<{ selectedCid: bigint }> => ({ selectedCid: 9n }), clearSelectedUser: session.clearSelectedUser }));
+// jsdom has no IndexedDB: the sign-out's check for edits held on the device reads the stand-in (none held).
+const deviceStore: Map<string, unknown> = vi.hoisted((): Map<string, unknown> => new Map<string, unknown>());
+vi.mock('@/lib/storage-utils', async () => (await import('@/lib/cdoc/collab/__tests__/doubles/memory-storage')).memoryStorageUtils(deviceStore));
 vi.mock('@/lib/wasm-connection-manager', () => ({ wasmConnectionManager: { stop: session.stop } }));
 import { TermsGate } from '../TermsGate';
 import { trackSignupConsent } from '@/lib/telemetry/signup-consent-pending';

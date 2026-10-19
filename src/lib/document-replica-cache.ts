@@ -10,6 +10,7 @@
  *   `<node>`                    the document's base copy (snapshot and seq)
  *   `<node>#edits:<instance>`   one tab instance's edits the server has not acknowledged
  *   `<node>#device`             this device's choices for the document
+ *   `<node>#access`             the account's last answer to "may I edit it?", for offline
  *   `#tree`                     the last-known workspace tree (no node: deletion never matches it)
  */
 import { dbDelete, dbGet, dbKeysWithPrefix, dbPut } from '@/lib/storage-utils';
@@ -31,6 +32,7 @@ export const documentCacheKey = (account: bigint, nodeId: string): string => nod
 export const documentEditsPrefix = (account: bigint, nodeId: string): string => `${nodeKey(account, nodeId)}${RESERVED}edits:`;
 export const documentEditsKey = (account: bigint, nodeId: string, instance: string): string => `${documentEditsPrefix(account, nodeId)}${instance}`;
 export const documentDeviceKey = (account: bigint, nodeId: string): string => `${nodeKey(account, nodeId)}${RESERVED}device`;
+export const documentAccessKey = (account: bigint, nodeId: string): string => `${nodeKey(account, nodeId)}${RESERVED}access`;
 export const workspaceTreeKey = (account: bigint): string => `${accountPrefix(account)}${RESERVED}tree`;
 
 export const localRecordGet = (key: string): Promise<unknown> => dbGet<unknown>('keyValue', key);
@@ -53,6 +55,15 @@ function nodeOf(key: string): string {
 
 async function forgetKeys(keys: readonly string[]): Promise<void> {
   for (const key of keys) await localRecordRemove(key);
+}
+
+/** The documents this account has edits held of on this device (sent by no tab yet). */
+export async function documentsWithHeldEdits(account: bigint): Promise<string[]> {
+  const held: Set<string> = new Set<string>();
+  for (const key of await dbKeysWithPrefix('keyValue', accountPrefix(account))) {
+    if (key.includes(`${RESERVED}edits:`)) held.add(nodeOf(key));
+  }
+  return [...held];
 }
 
 /** Sign-out: every record of the account, documents, edits, choices and tree. */

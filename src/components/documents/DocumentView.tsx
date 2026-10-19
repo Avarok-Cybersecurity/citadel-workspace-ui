@@ -3,10 +3,9 @@
  * its props. Kept apart from DocumentHost so the host stays a pure contract for the editor.
  */
 import { useMemo } from 'react';
-import { usePermission } from '@/hooks/use-permission';
 import { useSelfName, type SelfName } from '@/hooks/use-self-name';
-import { Permission } from '@/contexts/PermissionsContext';
-import { gateOnKnownAnswer } from '@/hooks/use-permission-result';
+import type { ActionGate } from '@/hooks/use-permission-result';
+import { useEditGate } from './use-edit-gate';
 import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 import type { NodeAppState } from '@/lib/citadel-apps/node-app-metadata';
 import type { DocumentSource } from '@/lib/cdoc/document-source';
@@ -25,7 +24,8 @@ interface DocumentViewProps {
 }
 
 export function DocumentView({ node, app }: DocumentViewProps): JSX.Element {
-  const edit: ReturnType<typeof usePermission> = usePermission(node.id, Permission.EditContent);
+  // With the link down, the last answer this account had here (use-edit-gate.ts).
+  const edit: ActionGate = useEditGate(node.id);
   const self: SelfName = useSelfName();
   // One keeper per node: a new identity would re-open the document.
   const editing: DocumentEditing = useMemo((): DocumentEditing => collaborationEditing(node.id), [node.id]);
@@ -35,7 +35,7 @@ export function DocumentView({ node, app }: DocumentViewProps): JSX.Element {
       nodeId={node.id}
       appId={app.app}
       title={node.name}
-      permissions={{ edit: gateOnKnownAnswer(edit) }}
+      permissions={{ edit }}
       documentSource={BLANK_DOCUMENT}
       loadCdocRuntime={loadCdocRuntime}
       commentAuthor={self.name ?? self.username ?? null}
