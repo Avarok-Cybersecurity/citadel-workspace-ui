@@ -111,6 +111,10 @@ test.describe.serial('A workspace .docx in Citadel Docs', () => {
     const bytes: Buffer = readFileSync(path!);
     expect(bytes.length, 'the PDF should not be empty').toBeGreaterThan(1_000);
     expect(bytes.subarray(0, 5).toString('latin1')).toBe('%PDF-');
-    await expect(page.getByText(`Downloaded ${name.replace(/\.docx$/, '.pdf')}:`)).toBeVisible({ timeout: 15_000 });
+    // A PDF's writer reports no losses, so the bar names the download with no report after it
+    // (no "…: N things"); the live region announces it too.
+    const pdfName: string = name.replace(/\.docx$/, '.pdf');
+    await expect(page.getByTestId('docs-export-report')).toHaveText(`Downloaded ${pdfName}`, { timeout: 15_000 });
+    await expect(page.getByTestId('docs-export-status')).toHaveText(`Downloaded ${pdfName}.`);
   });
 });

@@ -96,6 +96,9 @@ describe('Download as…', () => {
     await waitFor(() => expect(files.saved).toHaveLength(1));
     expect(files.saved[0]).toMatchObject({ name: 'Quarterly plan.pdf', mime: 'application/pdf' });
     expect(text(files.saved[0].bytes)).toContain('20310203');
+    // What the e2e spec reads: the name alone, since the PDF writer reports nothing to list.
+    expect(await screen.findByTestId('docs-export-report')).toHaveTextContent(/^Downloaded Quarterly plan\.pdf$/);
+    expect(screen.getByTestId('docs-export-status')).toHaveTextContent(/^Downloaded Quarterly plan\.pdf\.$/);
   });
 
   it('saves a .docx as a zip package', async () => {
