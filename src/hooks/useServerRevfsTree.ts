@@ -16,7 +16,7 @@ import { debugLog } from '@/lib/debug-config';
 import type { ReadPulledChunk, UseServerRevfsTreeResult, ServerCapabilities } from './useRevfsTree-types';
 import type { PulledChunk } from '@/types/revfs-intents';
 import { NOTHING_PENDING } from './useRevfsTree-types';
-import { CHECKING, offerOf, SERVER_STORAGE_OFF, type StorageOffer } from '@/lib/revfs/storage-offer';
+import { CHECKING, offerOf, serverStorageRefusal, type StorageOffer } from '@/lib/revfs/storage-offer';
 
 export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResult {
   const [tree, setTree] = useState<RevfsNode | null>(null);
@@ -55,6 +55,7 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
         allowServerRevfsStorage: data.allowServerRevfsStorage,
         maxFileTransferSizeMb: data.maxFileTransferSizeMb,
         revfsStorageQuotaMb: data.revfsStorageQuotaMb,
+        revfsStorageRefusal: data.revfsStorageRefusal,
       });
     };
 
@@ -173,7 +174,7 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
 
   // The quota the server stated, in bytes; none is offered before it states one.
   const storageQuota: number = serverCapabilities === null ? 0 : serverCapabilities.revfsStorageQuotaMb * 1024 * 1024;
-  const storageOffer: StorageOffer = serverCapabilities === null ? CHECKING : offerOf(serverCapabilities.allowServerRevfsStorage, SERVER_STORAGE_OFF);
+  const storageOffer: StorageOffer = serverCapabilities === null ? CHECKING : offerOf(serverCapabilities.allowServerRevfsStorage, serverStorageRefusal(serverCapabilities.revfsStorageRefusal));
 
   return {
     tree,

@@ -5,6 +5,7 @@
 import type { RevfsNode, RevfsFileMetadata } from '@/types/revfs-types';
 import type { PulledChunk } from '@/types/revfs-intents';
 import type { StorageOffer } from '@/lib/revfs/storage-offer';
+import type { ServerFeatureRefusal } from 'citadel-workspace-client-ts';
 
 /** A chunk of a file this storage's last pull of it left with the agent (ReadPulledFileChunk). */
 export type ReadPulledChunk = (filePath: string, offset: bigint, maxLen: number) => Promise<PulledChunk>;
@@ -83,6 +84,8 @@ export interface ServerCapabilities {
   allowServerRevfsStorage: boolean;
   maxFileTransferSizeMb: number;
   revfsStorageQuotaMb: number;
+  /** Why the server stores no files, when it says; null when storage is on or it gave no reason. */
+  revfsStorageRefusal: ServerFeatureRefusal | null;
 }
 
 /** The server acknowledges by answering the request itself; nothing is left pending. */

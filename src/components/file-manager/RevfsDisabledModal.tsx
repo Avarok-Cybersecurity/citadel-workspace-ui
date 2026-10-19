@@ -8,7 +8,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { PEER_STORAGE_OFF, SERVER_STORAGE_OFF } from '@/lib/revfs/storage-offer';
 
 type DisabledReason = 'peer_disabled' | 'server_disabled';
 
@@ -16,6 +15,8 @@ interface RevfsDisabledModalProps {
   isOpen: boolean;
   onClose: () => void;
   reason: DisabledReason;
+  /** The refused offer's own words (lib/revfs/storage-offer.ts): the server's reason, when it gave one. */
+  explanation: string;
   /** Called when user clicks "Open Settings" (only for P2P) */
   onOpenSettings?: () => void;
 }
@@ -28,6 +29,7 @@ export function RevfsDisabledModal({
   isOpen,
   onClose,
   reason,
+  explanation,
   onOpenSettings,
 }: RevfsDisabledModalProps): JSX.Element {
   const isPeerDisabled: boolean = reason === 'peer_disabled';
@@ -41,7 +43,7 @@ export function RevfsDisabledModal({
             Remote Storage Unavailable
           </DialogTitle>
           <DialogDescription className="text-muted-foreground">
-            {isPeerDisabled ? PEER_STORAGE_OFF : SERVER_STORAGE_OFF}
+            {explanation}
           </DialogDescription>
         </DialogHeader>
 

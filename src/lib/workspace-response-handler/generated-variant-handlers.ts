@@ -178,13 +178,15 @@ export function handleGeneratedVariants(
   }
 
   if (isVariant(response, 'ServerCapabilities')) {
-    const caps: { allow_server_file_transfer: boolean; allow_server_revfs_storage: boolean; max_file_transfer_size_mb: bigint; revfs_storage_quota_mb: bigint; } = response.ServerCapabilities;
+    const caps: Extract<WorkspaceProtocolResponse, { ServerCapabilities: unknown }>['ServerCapabilities'] = response.ServerCapabilities;
     debugLog('WorkspaceResponseHandler', 'ServerCapabilities received', caps);
     eventEmitter.emit('server:capabilities:loaded', {
       allowServerFileTransfer: caps.allow_server_file_transfer,
       allowServerRevfsStorage: caps.allow_server_revfs_storage,
       maxFileTransferSizeMb: Number(caps.max_file_transfer_size_mb),
       revfsStorageQuotaMb: Number(caps.revfs_storage_quota_mb),
+      // Absent from the wire arrives as undefined (serde-wasm-bindgen); null here, said once.
+      revfsStorageRefusal: caps.revfs_storage_refusal ?? null,
       connection: connectionInfo,
     });
     return true;

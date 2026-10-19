@@ -38,9 +38,11 @@ export function FileManagerModals({ fm, v }: { fm: UseFileManagerContentResult; 
       />
 
       <RevfsDisabledModal
-        isOpen={fm.revfsDisabledModalOpen}
+        // Opened only on a refused offer (useDropUpload), whose reason it shows.
+        isOpen={fm.revfsDisabledModalOpen && fm.storageOffer.kind === 'refused'}
         onClose={() => fm.setRevfsDisabledModalOpen(false)}
         reason={fm.revfsDisabledReason}
+        explanation={fm.storageOffer.kind === 'refused' ? fm.storageOffer.reason : ''}
         onOpenSettings={() => {
           // The dedicated P2P chat-settings UI doesn't exist yet, so the
           // button visibly tells the user what to do via a toast.

@@ -3,6 +3,7 @@
  * known until GetServerCapabilities answers, and until then nothing offers it; a peer's is the
  * person's own setting for that peer. Every place that says so reads its words from here.
  */
+import type { ServerFeatureRefusal } from 'citadel-workspace-client-ts';
 export type StorageOffer =
   | { readonly kind: 'checking' }
   | { readonly kind: 'offered' }
@@ -16,3 +17,14 @@ export const CHECKING: StorageOffer = { kind: 'checking' };
 export const OFFERED: StorageOffer = { kind: 'offered' };
 
 export const offerOf = (takesFiles: boolean, refusal: string): StorageOffer => (takesFiles ? OFFERED : { kind: 'refused', reason: refusal });
+
+/**
+ * The server's own reason its storage takes no files, in words; the generic sentence only when
+ * it gave none (a server older than the reason).
+ */
+export function serverStorageRefusal(refusal: ServerFeatureRefusal | null): string {
+  if (refusal === null) return SERVER_STORAGE_OFF;
+  if (refusal === 'DisabledByConfig') return 'Server storage is turned off on this server.';
+  if (refusal === 'NoBackend') return 'The server has no storage backend.';
+  return `This server's ${refusal.BackendCannotStoreStreamedObjects.backend} storage cannot hold files.`;
+}
