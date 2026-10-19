@@ -5,7 +5,7 @@
  * caller's port, so the rule is tested against the real seam and the view against a stand-in.
  */
 import { useEffect, useState } from 'react';
-import { treeToKeep, type CachedWorkspaceTree } from '@/lib/offline-tree';
+import type { CachedWorkspaceTree } from '@/lib/offline-tree';
 import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 
 export type KeptTree =
@@ -37,20 +37,23 @@ export function useKeptTree(load: LoadKeptTree, account: bigint | null, linkDown
 export const loadKeptTree: LoadKeptTree = async (account: bigint): Promise<CachedWorkspaceTree | null> =>
   (await import('@/lib/document-replica-cache')).loadWorkspaceTree(account);
 
-export type SaveKeptTree = (account: bigint, tree: CachedWorkspaceTree) => Promise<void>;
+/** Keeps a node list the server sent, as of `now`; the rule for what is kept is treeToKeep's. */
+export type SaveKeptTree = (account: bigint, nodes: Readonly<Record<string, DomainNode>>, now: number) => Promise<void>;
 
 /**
- * Keeps each node list the server sends for this account, once it has arrived (never the empty
- * list of a page still loading). A failed write is reported, never thrown into the page.
+ * Keeps each node list the server sends for this account, once it has arrived (never the list
+ * of a page still loading). A failed write is reported, never thrown into the page.
  */
 export function useKeepWorkspaceTree(save: SaveKeptTree, account: bigint | undefined, nodes: Readonly<Record<string, DomainNode>>, loading: boolean): void {
   useEffect((): void => {
     if (account === undefined || loading) return;
-    const tree: CachedWorkspaceTree | null = treeToKeep(nodes, Date.now());
-    if (tree === null) return;
-    save(account, tree).catch((error: unknown): void => console.warn('[useKeepWorkspaceTree] Keeping the workspace tree on this device failed:', error));
+    save(account, nodes, Date.now()).catch((error: unknown): void => console.warn('[useKeepWorkspaceTree] Keeping the workspace tree on this device failed:', error));
   }, [save, account, nodes, loading]);
 }
 
-export const saveKeptTree: SaveKeptTree = async (account: bigint, tree: CachedWorkspaceTree): Promise<void> =>
-  (await import('@/lib/document-replica-cache')).saveWorkspaceTree(account, tree);
+/** Loaded on first use, with the rule, so the landing shell carries neither. */
+export const saveKeptTree: SaveKeptTree = async (account: bigint, nodes: Readonly<Record<string, DomainNode>>, now: number): Promise<void> => {
+  const [{ treeToKeep }, { saveWorkspaceTree }] = await Promise.all([import('@/lib/offline-tree'), import('@/lib/document-replica-cache')]);
+  const tree: CachedWorkspaceTree | null = treeToKeep(nodes, now);
+  if (tree !== null) await saveWorkspaceTree(account, tree);
+};

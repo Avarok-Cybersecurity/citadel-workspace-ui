@@ -191,8 +191,15 @@ const dist = join(root, 'dist');
  * 332.7. What remains (+1.1 KB) is what must run before render: capturing `?redirect=&server=`
  * before sign-in can drop it (pending-redirect.ts, 1,041 B), the no-link answer every ordinary
  * sign-in takes (resolve-here.ts, 607 B) and the landing page's sign-in prompt for a link (141 B).
+ *
+ * 334 -> 335 (2026-10-18), for opening a document from the kept workspace tree while the server
+ * link is down: r1 measured 334.6 with the tree rules (offline-tree.ts) eager in the landing
+ * chunk. They now load with the first save or read (hooks/use-kept-tree.ts; listed in
+ * DEFERRED_MODULES), which took it to 334.1. What remains is what the loader must decide before
+ * render on a reload with no connection: whether this device kept a tree, so the workspace opens
+ * offline instead of spinning on "Reconnecting" (useKeptTree and the loader rule).
  */
-const BUDGET_KB = 334;
+const BUDGET_KB = 335;
 
 /**
  * Modules that must stay OFF the critical path, checked against the source
@@ -214,6 +221,8 @@ const DEFERRED_MODULES = [
   'src/lib/share/resolve-pending-redirect.ts',
   'src/lib/share/target-rules.ts',
   'src/lib/workspace-service/secure-links-operations.ts',
+  // The kept workspace tree: its rules load with its first save or read (hooks/use-kept-tree.ts).
+  'src/lib/offline-tree.ts',
 ];
 
 /**
