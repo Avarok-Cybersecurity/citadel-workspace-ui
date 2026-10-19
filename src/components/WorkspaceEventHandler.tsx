@@ -131,7 +131,7 @@ export const WorkspaceEventHandler: React.FC<{
 
   // The tree as the server last listed it, kept on this device so a document opens while the
   // server is out of reach (lib/offline-tree.ts). Only a live answer is kept, never an empty one.
-  useKeepWorkspaceTree(saveKeptTree, tabUser?.cid, state.nodes, state.loading.nodes);
+  useKeepWorkspaceTree(saveKeptTree, state.nodes, state.loading.nodes);
 
   const handleWorkspaceInitialized = (): void => {
     setShowInitModal(false);

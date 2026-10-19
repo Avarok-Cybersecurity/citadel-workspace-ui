@@ -3,10 +3,16 @@
  * is down (the agent's reconnectingTo), and held as one of four answers: still reading, kept,
  * none kept, or kept but unreadable (said, never treated as none). The read goes through the
  * caller's port, so the rule is tested against the real seam and the view against a stand-in.
+ *
+ * The account is the tab's at the moment of each read and write (readTabIdentity), never one
+ * captured at mount: the handler that keeps the tree mounts before sign-in, and an account read
+ * then was none, so no tree was ever kept (CI run 39194273768).
  */
 import { useEffect, useState } from 'react';
 import type { CachedWorkspaceTree } from '@/lib/offline-tree';
 import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
+import { readTabIdentity } from '@/hooks/use-tab-identity';
+import type { TabIdentity } from '@/lib/tab-identity';
 
 export type KeptTree =
   | { readonly kind: 'unread' }
@@ -14,46 +20,57 @@ export type KeptTree =
   | { readonly kind: 'none' }
   | { readonly kind: 'unreadable'; readonly message: string };
 
-export type LoadKeptTree = (account: bigint) => Promise<CachedWorkspaceTree | null>;
+/** The tab's account's kept tree; null when none is kept or no account is signed in here. */
+export type LoadKeptTree = () => Promise<CachedWorkspaceTree | null>;
 
 const UNREAD: KeptTree = { kind: 'unread' };
 
-export function useKeptTree(load: LoadKeptTree, account: bigint | null, linkDown: boolean): KeptTree {
+export function useKeptTree(load: LoadKeptTree, linkDown: boolean): KeptTree {
   const [kept, setKept] = useState<KeptTree>(UNREAD);
   useEffect((): (() => void) | undefined => {
     setKept(UNREAD);
-    if (!linkDown || account === null) return undefined;
+    if (!linkDown) return undefined;
     let live: boolean = true;
-    load(account).then(
+    load().then(
       (tree: CachedWorkspaceTree | null): void => { if (live) setKept(tree === null ? { kind: 'none' } : { kind: 'kept', tree }); },
-      (error: unknown): void => { if (live) setKept({ kind: 'unreadable', message: error instanceof Error ? error.message : String(error) }); },
+      (error: unknown): void => {
+        const message: string = error instanceof Error ? error.message : String(error);
+        console.warn('[useKeptTree] The kept workspace tree could not be read:', message);
+        if (live) setKept({ kind: 'unreadable', message });
+      },
     );
     return (): void => { live = false; };
-  }, [load, account, linkDown]);
+  }, [load, linkDown]);
   return kept;
 }
 
 /** The device's own: through the local-record seam, loaded on first use so the shell stays light. */
-export const loadKeptTree: LoadKeptTree = async (account: bigint): Promise<CachedWorkspaceTree | null> =>
-  (await import('@/lib/document-replica-cache')).loadWorkspaceTree(account);
+export const loadKeptTree: LoadKeptTree = async (): Promise<CachedWorkspaceTree | null> => {
+  const me: TabIdentity = await readTabIdentity();
+  return me.cid === undefined ? null : (await import('@/lib/document-replica-cache')).loadWorkspaceTree(me.cid);
+};
 
 /** Keeps a node list the server sent, as of `now`; the rule for what is kept is treeToKeep's. */
-export type SaveKeptTree = (account: bigint, nodes: Readonly<Record<string, DomainNode>>, now: number) => Promise<void>;
+export type SaveKeptTree = (nodes: Readonly<Record<string, DomainNode>>, now: number) => Promise<void>;
 
 /**
  * Keeps each node list the server sends for this account, once it has arrived (never the list
  * of a page still loading). A failed write is reported, never thrown into the page.
  */
-export function useKeepWorkspaceTree(save: SaveKeptTree, account: bigint | undefined, nodes: Readonly<Record<string, DomainNode>>, loading: boolean): void {
+export function useKeepWorkspaceTree(save: SaveKeptTree, nodes: Readonly<Record<string, DomainNode>>, loading: boolean): void {
   useEffect((): void => {
-    if (account === undefined || loading) return;
-    save(account, nodes, Date.now()).catch((error: unknown): void => console.warn('[useKeepWorkspaceTree] Keeping the workspace tree on this device failed:', error));
-  }, [save, account, nodes, loading]);
+    if (loading) return;
+    save(nodes, Date.now()).catch((error: unknown): void => console.warn('[useKeepWorkspaceTree] Keeping the workspace tree on this device failed:', error));
+  }, [save, nodes, loading]);
 }
 
 /** Loaded on first use, with the rule, so the landing shell carries neither. */
-export const saveKeptTree: SaveKeptTree = async (account: bigint, nodes: Readonly<Record<string, DomainNode>>, now: number): Promise<void> => {
+export const saveKeptTree: SaveKeptTree = async (nodes: Readonly<Record<string, DomainNode>>, now: number): Promise<void> => {
   const [{ treeToKeep }, { saveWorkspaceTree }] = await Promise.all([import('@/lib/offline-tree'), import('@/lib/document-replica-cache')]);
   const tree: CachedWorkspaceTree | null = treeToKeep(nodes, now);
-  if (tree !== null) await saveWorkspaceTree(account, tree);
+  if (tree === null) return;
+  const me: TabIdentity = await readTabIdentity();
+  // A server's node list with no account on the tab to keep it under is not a state this page reaches quietly.
+  if (me.cid === undefined) throw new Error('a node list arrived with no account signed in on this tab');
+  await saveWorkspaceTree(me.cid, tree);
 };

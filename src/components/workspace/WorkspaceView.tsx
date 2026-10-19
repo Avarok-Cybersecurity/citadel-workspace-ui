@@ -37,7 +37,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId: nodeParam 
   const me: TabIdentity | null = useTabIdentity();
   // The kept tree, only while the agent says the server link is down; a live node always wins.
   const linkDown: boolean = useSyncExternalStore(reconnectingTo.subscribe, reconnectingTo.get) !== null;
-  const kept: KeptTree = useKeptTree(loadKeptTree, me?.cid ?? null, linkDown);
+  const kept: KeptTree = useKeptTree(loadKeptTree, linkDown);
   const shown: ShownNode = nodeId ? shownNode(nodeId, state.nodes, linkDown, kept.kind === 'kept' ? kept.tree : null) : { kind: 'none' };
 
   // Parse query parameters for P2P chat

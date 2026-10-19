@@ -7,8 +7,9 @@
  *
  * Real: the seam, the kept-tree hook, WorkspaceView, the sidebar and DocumentView. Doubled, each
  * because it is I/O this test does not have: `storage-utils` (a Map that round-trips through
- * structuredClone, as IndexedDB does; jsdom has no IndexedDB), `useTabIdentity` (the tab's
- * session read), `usePermission` (agent I/O) and BaseOffice (compiles MDX, mounts chat; only
+ * structuredClone, as IndexedDB does; jsdom has no IndexedDB), the tab's identity
+ * (`useTabIdentity`/`readTabIdentity`: the tab's IndexedDB session read, here a value the test
+ * signs in and out), `usePermission` (agent I/O) and BaseOffice (compiles MDX, mounts chat; only
  * whether it is chosen is under test).
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -25,7 +26,9 @@ import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 const store: Map<string, unknown> = vi.hoisted((): Map<string, unknown> => new Map<string, unknown>());
 vi.mock('@/lib/storage-utils', async () => (await import('@/lib/cdoc/collab/__tests__/doubles/memory-storage')).memoryStorageUtils(store));
 const ME: TabIdentity = vi.hoisted((): TabIdentity => ({ username: 'alice', cid: 11n }));
-vi.mock('@/hooks/use-tab-identity', () => ({ useTabIdentity: (): TabIdentity => ME }));
+/** Who the tab's session read finds now; signed in as ME unless a test says otherwise. */
+const signedIn: { now: TabIdentity } = vi.hoisted((): { now: TabIdentity } => ({ now: { username: 'alice', cid: 11n } }));
+vi.mock('@/hooks/use-tab-identity', () => ({ useTabIdentity: (): TabIdentity => ME, readTabIdentity: async (): Promise<TabIdentity> => signedIn.now }));
 vi.mock('@/hooks/use-permission', () => ({
   usePermission: (): UsePermissionResult => ({
     allowed: true, loading: false, reason: null, unanswered: false, answered: true, refresh: async (): Promise<void> => {},
@@ -52,7 +55,7 @@ const keptOf = (nodes: DomainNode[]): CachedWorkspaceTree => {
   return tree;
 };
 
-afterEach((): void => { store.clear(); reconnectingTo.set(null); });
+afterEach((): void => { store.clear(); reconnectingTo.set(null); signedIn.now = ME; });
 
 /** A reload with no connection: the server has listed nothing in this page's life. */
 async function reloadOffline(at: string, linkDown: boolean): Promise<void> {
@@ -64,11 +67,30 @@ async function reloadOffline(at: string, linkDown: boolean): Promise<void> {
 describe('the kept workspace tree', () => {
   it('is written each time the server lists the tree, and not while it is still loading', async () => {
     const live: Record<string, DomainNode> = Object.fromEntries([...ESTATE, PLAN].map((n: DomainNode) => [n.id, n]));
-    const hook: RenderHookResult<void, { loading: boolean }> = renderHook(({ loading }: { loading: boolean }): void => useKeepWorkspaceTree(saveKeptTree, 11n, live, loading), { initialProps: { loading: true as boolean } });
+    const hook: RenderHookResult<void, { loading: boolean }> = renderHook(({ loading }: { loading: boolean }): void => useKeepWorkspaceTree(saveKeptTree, live, loading), { initialProps: { loading: true as boolean } });
     await act(async (): Promise<void> => { await Promise.resolve(); });
     expect(store.has(workspaceTreeKey(11n))).toBe(false);
     hook.rerender({ loading: false });
     await waitFor(async (): Promise<void> => expect((await loadWorkspaceTree(11n))?.nodes).toEqual(live));
+  });
+
+  it('is kept under the account that signed in after the page loaded', async () => {
+    // The handler that keeps the tree mounts before sign-in: no account on the tab yet, and a
+    // list kept then has no account to go under (said, not kept under none).
+    vi.resetModules();
+    const fresh: typeof import('@/hooks/use-kept-tree') = await import('@/hooks/use-kept-tree');
+    const warned: unknown[] = [];
+    vi.spyOn(console, 'warn').mockImplementation((...args: unknown[]): void => { warned.push(args[1]); });
+    signedIn.now = {};
+    const before: Record<string, DomainNode> = Object.fromEntries(ESTATE.map((n: DomainNode) => [n.id, n]));
+    const hook: RenderHookResult<void, { nodes: Record<string, DomainNode> }> = renderHook(({ nodes }: { nodes: Record<string, DomainNode> }): void => fresh.useKeepWorkspaceTree(fresh.saveKeptTree, nodes, false), { initialProps: { nodes: before } });
+    await waitFor((): void => expect(warned).toHaveLength(1));
+    expect(store.has(workspaceTreeKey(11n))).toBe(false);
+    signedIn.now = ME;
+    const after: Record<string, DomainNode> = { ...before, plan: PLAN };
+    hook.rerender({ nodes: after });
+    await waitFor(async (): Promise<void> => expect((await loadWorkspaceTree(11n))?.nodes).toEqual(after));
+    vi.restoreAllMocks();
   });
 
   it('opens a document after a reload with the link down, labelled as the kept tree and its time', async () => {
@@ -96,8 +118,8 @@ describe('the kept workspace tree', () => {
 
   it('is neither read nor chosen while the link is up, each on its own', async () => {
     const asked: bigint[] = [];
-    const load: (account: bigint) => Promise<CachedWorkspaceTree | null> = async (account: bigint): Promise<CachedWorkspaceTree | null> => { asked.push(account); return keptOf([PLAN]); };
-    const hook: RenderHookResult<ReturnType<typeof useKeptTree>, unknown> = renderHook((): ReturnType<typeof useKeptTree> => useKeptTree(load, 11n, false));
+    const load: () => Promise<CachedWorkspaceTree | null> = async (): Promise<CachedWorkspaceTree | null> => { asked.push(11n); return keptOf([PLAN]); };
+    const hook: RenderHookResult<ReturnType<typeof useKeptTree>, unknown> = renderHook((): ReturnType<typeof useKeptTree> => useKeptTree(load, false));
     await act(async (): Promise<void> => { await Promise.resolve(); });
     expect(asked).toEqual([]);
     expect(hook.result.current).toEqual({ kind: 'unread' });
