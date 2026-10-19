@@ -4,6 +4,7 @@ import { describeError } from '@/lib/describe-error';
 import { useFileManagerSelectionHandlers } from './useFileManagerSelectionHandlers';
 import { useFileManagerDeleteHandlers } from './useFileManagerDeleteHandlers';
 import { toast } from "sonner";
+import type { StorageOffer } from "@/lib/revfs/storage-offer";
 import type { RevfsNode, TreeKey, RevfsFileMetadata } from "@/types/revfs-types";
 import { TreeScope } from "@/types/revfs-types";
 import { revfsService } from "@/lib/revfs";
@@ -40,7 +41,7 @@ interface HandlerDeps {
   myCid: bigint | null;
   storageUsed: number;
   storageQuota: number;
-  revfsEnabled: boolean;
+  storageOffer: StorageOffer;
   storageMode: TreeScope;
   selectedPeerCid: bigint | null;
   tree: RevfsNode | null;
@@ -63,7 +64,7 @@ export function useFileManagerHandlers({
   mkdir, rmdir, removeFile, downloadFile, uploadFile, rename, move, copy, refresh,
   cut, copyToClipboard, clearClipboard, clearSelection, selectAll,
   currentTreeKey, hasPasteItems, clipboard, isCut,
-  myCid, storageUsed, storageQuota, revfsEnabled, storageMode, selectedPeerCid,
+  myCid, storageUsed, storageQuota, storageOffer, storageMode, selectedPeerCid,
   tree, currentPath, filterText, fileInputRef,
   chooseUploadTarget, setRevfsDisabledReason, setRevfsDisabledModalOpen,
   setAttemptedFileSize, setStorageLimitModalOpen, inspect,
@@ -169,7 +170,7 @@ export function useFileManagerHandlers({
   // See useDropUpload: the quota a drop must fit is not a number the tree can
   // answer alone, because uploads already in the air are not in it yet.
   const handleDrop: (targetPath: string, files: FileList) => Promise<void> = useDropUpload({
-    myCid, revfsEnabled, storageMode, storageUsed, storageQuota, uploadFile, reportDelivery,
+    myCid, storageOffer, storageMode, storageUsed, storageQuota, uploadFile, reportDelivery,
     setRevfsDisabledReason, setRevfsDisabledModalOpen, setAttemptedFileSize, setStorageLimitModalOpen,
   });
 

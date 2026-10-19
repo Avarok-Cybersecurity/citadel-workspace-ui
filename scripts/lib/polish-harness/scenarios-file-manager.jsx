@@ -84,7 +84,7 @@ function Screen({ path = '/', view = 'list', selected = [], transfers = false, f
       <div style={{ height: '100vh', width: '100%' }} className="flex min-w-0 flex-col bg-background" data-testid="fm-screen">
         <FileManagerTopBar
           storage={storage} peers={[ADA, GRACE]} peersLoading={false} peerName={isPeer ? storageLabel : null} onOpenStorage={NOTHING}
-          folder={{ filterText: filter, onFilterChange: NOTHING, onNewFolder: NOTHING, onUpload: NOTHING, uploadDisabledReason: null }}
+          folder={{ filterText: filter, onFilterChange: NOTHING, onNewFolder: NOTHING, onUpload: NOTHING, upload: { kind: 'offered' } }}
           transfers={{ active: 1, open: transfers, onToggle: NOTHING }}
         />
         <FileManagerAddressBar

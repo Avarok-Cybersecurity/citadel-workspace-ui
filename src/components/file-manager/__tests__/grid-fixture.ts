@@ -24,7 +24,7 @@ export function gridProps(tree: RevfsNode, over: Partial<VFSContentGridProps>): 
     tree, currentPath: '/', view: 'list', actions: spyActions(), isP2P: false, storageName: 'Server Storage',
     pendingPaths: new Set<string>(), peerLabel: 'Bob', cutItemPaths: new Set<string>(), hasPasteItems: false,
     selectedPaths: new Set<string>(), onSelect: vi.fn(), onSelectAll: vi.fn(), onClearSelection: vi.fn(),
-    sortField: 'name', sortDirection: 'asc', filterText: '', onClearFilter: vi.fn(), uploadDisabledReason: null,
+    sortField: 'name', sortDirection: 'asc', filterText: '', onClearFilter: vi.fn(), upload: { kind: 'offered' },
     nameOf: (cid: bigint): string => `peer ${cid.toString()}`, now: 0,
     ...over,
   };

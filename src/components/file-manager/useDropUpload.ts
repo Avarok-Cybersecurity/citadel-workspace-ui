@@ -13,10 +13,12 @@ import { describeError } from '@/lib/describe-error';
 import { wouldExceedQuota } from '@/lib/revfs/quota-check';
 import { TreeScope, type RevfsFileMetadata } from '@/types/revfs-types';
 import { uploadRefusal } from './upload-refusal';
+import { SERVER_STORAGE_CHECKING, type StorageOffer } from '@/lib/revfs/storage-offer';
 
 export interface DropUploadDeps {
   myCid: bigint | null;
-  revfsEnabled: boolean;
+  /** Whether the open storage takes files; nothing is sent until it has said it does. */
+  storageOffer: StorageOffer;
   storageMode: TreeScope;
   storageUsed: number;
   storageQuota: number;
@@ -49,7 +51,8 @@ export function useDropUpload(
     if (!deps.myCid) { toast.error('Not connected'); return; }
     const refusal: string | null = uploadRefusal(targetPath);
     if (refusal) { toast.info(refusal); return; }
-    if (!deps.revfsEnabled) {
+    if (deps.storageOffer.kind === 'checking') { toast.info(SERVER_STORAGE_CHECKING); return; }
+    if (deps.storageOffer.kind === 'refused') {
       deps.setRevfsDisabledReason(deps.storageMode === TreeScope.Server ? 'server_disabled' : 'peer_disabled');
       deps.setRevfsDisabledModalOpen(true);
       return;

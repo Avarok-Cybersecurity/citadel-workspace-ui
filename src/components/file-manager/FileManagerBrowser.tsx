@@ -9,7 +9,7 @@ import { TreeScope } from '@/types/revfs-types';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useMotionTier } from '@/hooks/use-motion-tier';
 import { cn } from '@/lib/utils';
-import { uploadRefusal } from './upload-refusal';
+import { uploadAvailability } from './upload-refusal';
 import { VFSContentGrid } from './VFSContentGrid';
 import { VFSBulkBar } from './VFSBulkBar';
 import { VFSInspector, VFSInspectorSheet, type VFSInspectorProps } from './VFSInspector';
@@ -55,7 +55,7 @@ export function FileManagerBrowser({ fm, v, tree, footer }: FileManagerBrowserPr
           pendingPaths={fm.pendingPaths} peerLabel={fm.storageLabel} cutItemPaths={fm.cutItemPaths} hasPasteItems={fm.hasPasteItems}
           selectedPaths={fm.selectedPaths} onSelect={fm.selectItem} onSelectAll={fm.handleSelectAll} onClearSelection={fm.clearSelection}
           sortField={fm.sortField} sortDirection={fm.sortDirection} filterText={fm.filterText} onClearFilter={() => fm.setFilterText('')}
-          uploadDisabledReason={uploadRefusal(fm.currentPath)} nameOf={v.nameOf} now={now}
+          upload={uploadAvailability(fm.currentPath, fm.storageOffer)} nameOf={v.nameOf} now={now}
         />
         {footer}
       </div>

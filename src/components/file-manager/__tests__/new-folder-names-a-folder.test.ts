@@ -29,7 +29,7 @@ function newFolder(): (parent: string) => Promise<void> {
     uploadFile: mkdir, rename: mkdir, move: mkdir, copy: mkdir, refresh: async (): Promise<void> => {},
     cut: noop, copyToClipboard: noop, clearClipboard: noop, clearSelection: noop, selectAll: noop,
     currentTreeKey: null, hasPasteItems: false, clipboard: { sourceTreeKey: null, items: [] }, isCut: false,
-    myCid: 1n, storageUsed: 0, storageQuota: 1, revfsEnabled: true, storageMode: 'peer', selectedPeerCid: 2n,
+    myCid: 1n, storageUsed: 0, storageQuota: 1, storageOffer: { kind: 'offered' }, storageMode: 'peer', selectedPeerCid: 2n,
     tree: null, currentPath: '/', filterText: '', fileInputRef: { current: null },
     chooseUploadTarget: noop, setRevfsDisabledReason: noop, setRevfsDisabledModalOpen: noop,
     setAttemptedFileSize: noop, setStorageLimitModalOpen: noop, setPropertiesNode: noop,

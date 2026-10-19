@@ -67,7 +67,11 @@ test.describe.serial('A workspace .docx in Citadel Docs', () => {
     await expect(fmItem(page, 'Sent Files')).toBeVisible({ timeout: 30_000 });
     // Armed before the click, or the chooser event races it.
     const chooser = page.waitForEvent('filechooser', { timeout: 15_000 });
-    expect(await chooseFromNewMenu(page, 'upload'), 'New → Upload files should be offered').toBe(true);
+    // Offered only once the server has said it stores files; when it is not, the menu says why.
+    if (!(await chooseFromNewMenu(page, 'upload'))) {
+      const why: Locator = page.getByTestId('vfs-upload-unavailable');
+      throw new Error(`New → Upload files was not offered${await why.count() > 0 ? `: ${await why.innerText()}` : ''}`);
+    }
     await (await chooser).setFiles({ name, mimeType: DOCX_MIME, buffer: CORPUS_10P });
     // The file appears once the server has its bytes; a refused upload says why in an error
     // toast instead. Waiting on either, and failing on the refusal with its own words, says

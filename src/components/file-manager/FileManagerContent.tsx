@@ -11,7 +11,7 @@ import { useFileManagerContent, type UseFileManagerContentResult } from "./useFi
 import { useFileManagerView, refreshLabel, type FileManagerView } from './useFileManagerView';
 import { ConnectingScreen, LoadingScreen, ErrorScreen, UnknownPeerScreen } from "./FileManagerStatusScreens";
 import { fileManagerScreen, type FileManagerScreen } from "./file-manager-screen";
-import { uploadRefusal } from "./upload-refusal";
+import { uploadAvailability } from "./upload-refusal";
 import { FileManagerTopBar } from './FileManagerTopBar';
 import { FileManagerAddressBar } from './FileManagerAddressBar';
 import { FileManagerBrowser } from './FileManagerBrowser';
@@ -88,7 +88,7 @@ export const FileManagerContent: () => JSX.Element = (): JSX.Element => {
         folder={folder === null ? null : {
           filterText: fm.filterText, onFilterChange: fm.setFilterText,
           onNewFolder: () => v.actions.newFolder(fm.currentPath), onUpload: () => v.actions.upload(fm.currentPath),
-          uploadDisabledReason: uploadRefusal(fm.currentPath),
+          upload: uploadAvailability(fm.currentPath, fm.storageOffer),
         }}
         transfers={{ active: v.transfers.active, open: v.transfersOpen, onToggle: () => v.setTransfersOpen(!v.transfersOpen) }}
       />

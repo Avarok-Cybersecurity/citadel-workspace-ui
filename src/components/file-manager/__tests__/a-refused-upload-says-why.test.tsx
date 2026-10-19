@@ -22,6 +22,7 @@ import type { RevfsIO } from '@/lib/revfs/revfs-io';
 import type { RevfsIntent, RevfsIntentResult } from '@/types/revfs-intents';
 import { TreeScope, type RevfsFileMetadata } from '@/types/revfs-types';
 import { useDropUpload } from '../useDropUpload';
+import { SERVER_STORAGE_CHECKING } from '@/lib/revfs/storage-offer';
 
 const toasts: string[] = [];
 vi.mock('sonner', () => ({
@@ -54,7 +55,7 @@ describe('an upload the agent refuses', () => {
   it('tells the person the agent\'s reason, not only that the server did not accept it', async () => {
     const ops: FileOpsContext = serverOps();
     const { result } = renderHook(() => useDropUpload({
-      myCid: ME, revfsEnabled: true, storageMode: TreeScope.Server, storageUsed: 0, storageQuota: 100e6,
+      myCid: ME, storageOffer: { kind: 'offered' }, storageMode: TreeScope.Server, storageUsed: 0, storageQuota: 100e6,
       uploadFile: async (dir: string, name: string, metadata: RevfsFileMetadata, content: Uint8Array): Promise<boolean> => {
         await uploadFileToServer(ops, ME, dir, name, metadata, content);
         return true;
@@ -72,5 +73,26 @@ describe('an upload the agent refuses', () => {
     expect(toasts.filter((t: string): boolean => t.startsWith('error: '))).toEqual([
       `error: Failed to upload ten-pages.docx: The server did not accept "ten-pages.docx", so it has not been uploaded. ${REFUSAL}`,
     ]);
+  });
+});
+
+describe('a drop before the server has said whether it stores files', () => {
+  it('sends nothing, and says it is still checking', async () => {
+    const sent: string[] = [];
+    const { result } = renderHook(() => useDropUpload({
+      myCid: ME, storageOffer: { kind: 'checking' }, storageMode: TreeScope.Server, storageUsed: 0, storageQuota: 0,
+      uploadFile: async (_dir: string, name: string): Promise<boolean> => { sent.push(name); return true; },
+      reportDelivery: (): void => undefined,
+      setRevfsDisabledReason: (): void => undefined,
+      setRevfsDisabledModalOpen: (): void => undefined,
+      setAttemptedFileSize: (): void => undefined,
+      setStorageLimitModalOpen: (): void => undefined,
+    }));
+    const file: File = new File([new Uint8Array(3)], 'early.docx');
+    const files: FileList = { 0: file, length: 1, item: (): File => file, [Symbol.iterator]: function* (): Generator<File> { yield file; } } as unknown as FileList;
+    toasts.length = 0;
+    await act(async (): Promise<void> => { await result.current('/', files); });
+    expect(sent).toEqual([]);
+    expect(toasts).toEqual([`info: ${SERVER_STORAGE_CHECKING}`]);
   });
 });

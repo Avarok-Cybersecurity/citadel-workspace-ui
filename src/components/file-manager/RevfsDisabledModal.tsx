@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { PEER_STORAGE_OFF, SERVER_STORAGE_OFF } from '@/lib/revfs/storage-offer';
 
 type DisabledReason = 'peer_disabled' | 'server_disabled';
 
@@ -40,9 +41,7 @@ export function RevfsDisabledModal({
             Remote Storage Unavailable
           </DialogTitle>
           <DialogDescription className="text-muted-foreground">
-            {isPeerDisabled
-              ? 'P2P remote storage is not enabled for this peer.'
-              : 'Server storage is not available.'}
+            {isPeerDisabled ? PEER_STORAGE_OFF : SERVER_STORAGE_OFF}
           </DialogDescription>
         </DialogHeader>
 

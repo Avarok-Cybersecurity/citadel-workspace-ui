@@ -47,7 +47,7 @@ export type UseFileManagerContentResult = ReturnType<typeof useFileManagerHandle
   refresh: UseServerRevfsTreeResult['refresh'];
   storageUsed: UseServerRevfsTreeResult['storageUsed'];
   storageQuota: UseServerRevfsTreeResult['storageQuota'];
-  revfsEnabled: UseServerRevfsTreeResult['revfsEnabled'];
+  storageOffer: UseServerRevfsTreeResult['storageOffer'];
   pendingPaths: UseServerRevfsTreeResult['pendingPaths'];
   storageLabel: string;
   /** What the storage is called on screen: "Server Storage", "Shared with Bob". */
@@ -124,7 +124,7 @@ export function useFileManagerContent(): UseFileManagerContentResult {
   );
   const serverTree: UseServerRevfsTreeResult = useServerRevfsTree(storageMode === TreeScope.Server ? myCid : null);
   const activeTree: UseServerRevfsTreeResult = storageMode === TreeScope.Server ? serverTree : peerTree;
-  const { tree, loading, error, mkdir, rmdir, uploadFile, downloadFile, readPulledChunk, removeFile, rename, move, copy, refresh, storageUsed, storageQuota, revfsEnabled, pendingPaths } = activeTree;
+  const { tree, loading, error, mkdir, rmdir, uploadFile, downloadFile, readPulledChunk, removeFile, rename, move, copy, refresh, storageUsed, storageQuota, storageOffer, pendingPaths } = activeTree;
 
   const { clipboard, cut, copy: copyToClipboard, clear: clearClipboard, hasItems: hasPasteItems, isCut } = useVFSClipboard();
   const { selectedPaths, select: selectItem, selectAll, clearSelection } = useVFSSelection();
@@ -214,7 +214,7 @@ export function useFileManagerContent(): UseFileManagerContentResult {
     mkdir, rmdir, removeFile, downloadFile, uploadFile, rename, move, copy, refresh,
     cut, copyToClipboard, clearClipboard, clearSelection, selectAll,
     currentTreeKey, hasPasteItems, clipboard, isCut,
-    myCid, storageUsed, storageQuota, revfsEnabled, storageMode, selectedPeerCid,
+    myCid, storageUsed, storageQuota, storageOffer, storageMode, selectedPeerCid,
     tree, currentPath, filterText, fileInputRef,
     chooseUploadTarget: uploadTarget.choose, setRevfsDisabledReason, setRevfsDisabledModalOpen,
     setAttemptedFileSize, setStorageLimitModalOpen, inspect,
@@ -237,7 +237,7 @@ export function useFileManagerContent(): UseFileManagerContentResult {
     sortField, sortDirection, filterText, setFilterText,
     handleSortChange,
     cutItemPaths, hasPasteItems, selectedPaths, selectItem, clearSelection, selectPaths: selectAll,
-    revfsEnabled, pendingPaths,
+    storageOffer, pendingPaths,
     ...handlers,
   };
 }

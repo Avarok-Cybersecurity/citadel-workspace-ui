@@ -5,6 +5,7 @@
  * Wraps RevfsService with React state management.
  */
 
+import { offerOf, PEER_STORAGE_OFF, type StorageOffer } from '@/lib/revfs/storage-offer';
 import { debugLog } from '@/lib/debug-config';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { RevfsNode, RevfsFileMetadata } from '@/types/revfs-types';
@@ -32,11 +33,11 @@ export function useRevfsTree(myCid: bigint | null, peerCid: bigint | null): UseR
     return calculateStorageUsage(tree, TreeScope.Peer);
   }, [tree]);
 
-  const { revfsEnabled, actualQuota } = useMemo(() => {
-    if (!peerCid) return { revfsEnabled: false, actualQuota: DEFAULT_QUOTA_BYTES };
+  const { storageOffer, actualQuota } = useMemo((): { storageOffer: StorageOffer; actualQuota: number } => {
+    if (!peerCid) return { storageOffer: offerOf(false, PEER_STORAGE_OFF), actualQuota: DEFAULT_QUOTA_BYTES };
     const settings: FileTransferSettings = fileTransferService.getSettings(peerCid.toString());
     return {
-      revfsEnabled: settings.allowRevfsStorage,
+      storageOffer: offerOf(settings.allowRevfsStorage, PEER_STORAGE_OFF),
       actualQuota: settings.revfsQuota,
     };
   }, [peerCid]);
@@ -165,7 +166,7 @@ export function useRevfsTree(myCid: bigint | null, peerCid: bigint | null): UseR
     error,
     storageUsed,
     storageQuota: actualQuota,
-    revfsEnabled,
+    storageOffer,
     mkdir,
     rmdir,
     uploadFile,

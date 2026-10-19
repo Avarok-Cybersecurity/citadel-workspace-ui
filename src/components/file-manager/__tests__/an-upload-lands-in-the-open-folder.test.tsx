@@ -14,7 +14,8 @@ import { TreeScope } from '@/types/revfs-types';
 import { useUploadTarget, type UploadTarget } from '../useUploadTarget';
 import { FileManagerTopBar } from '../FileManagerTopBar';
 import { refreshLabel } from '../useFileManagerView';
-import { uploadRefusal } from '../upload-refusal';
+import { uploadAvailability } from '../upload-refusal';
+import { OFFERED } from '@/lib/revfs/storage-offer';
 
 function target(initial: string): { result: { current: UploadTarget }; rerender: (path: string) => void } {
   const { result, rerender } = renderHook((path: string): UploadTarget => useUploadTarget(path), { initialProps: initial });
@@ -52,7 +53,7 @@ function topBar(path: string): void {
   render(
     <FileManagerTopBar
       storage={{ kind: 'server' }} peers={[]} peersLoading={false} peerName={null} onOpenStorage={vi.fn()}
-      folder={{ filterText: '', onFilterChange: vi.fn(), onNewFolder: vi.fn(), onUpload: vi.fn(), uploadDisabledReason: uploadRefusal(path) }}
+      folder={{ filterText: '', onFilterChange: vi.fn(), onNewFolder: vi.fn(), onUpload: vi.fn(), upload: uploadAvailability(path, OFFERED) }}
       transfers={{ active: 0, open: false, onToggle: vi.fn() }}
     />,
   );

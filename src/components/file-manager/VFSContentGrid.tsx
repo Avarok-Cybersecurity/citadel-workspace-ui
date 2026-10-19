@@ -22,6 +22,7 @@ import { formatModified } from './item-format';
 import { useVFSKeyboardShortcuts } from './useVFSKeyboardShortcuts';
 import { LIST_COLUMNS, type VFSItemViewProps } from './vfs-item-view';
 import type { VFSItemActions } from './vfs-item-actions';
+import type { UploadAvailability } from './upload-refusal';
 
 export type { SortField, SortDirection };
 export type ContentView = 'list' | 'grid';
@@ -48,8 +49,8 @@ export interface VFSContentGridProps {
   sortDirection: SortDirection;
   filterText: string;
   onClearFilter: () => void;
-  /** Why the open folder takes no upload, or null. */
-  uploadDisabledReason: string | null;
+  /** Whether the open folder takes an upload, and why not. */
+  upload: UploadAvailability;
   /** Who uploaded a file, by name. */
   nameOf: (cid: bigint) => string;
   now: number;
@@ -67,7 +68,7 @@ export function VFSContentGrid(props: VFSContentGridProps): JSX.Element {
   const {
     tree, currentPath, view, actions, isP2P, storageName, pendingPaths, peerLabel, cutItemPaths, hasPasteItems,
     selectedPaths, onSelect, onSelectAll, onClearSelection, sortField, sortDirection, filterText, onClearFilter,
-    uploadDisabledReason, nameOf, now,
+    upload, nameOf, now,
   } = props;
   const [dragOver, setDragOver] = useState(false);
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
@@ -114,7 +115,7 @@ export function VFSContentGrid(props: VFSContentGridProps): JSX.Element {
       >
         {items.length === 0 && (filterText
           ? <VFSNoMatches filterText={filterText} onClearFilter={onClearFilter} />
-          : <VFSEmptyFolder folder={currentPath} uploadDisabledReason={uploadDisabledReason} onUpload={() => actions.upload(currentPath)} />)}
+          : <VFSEmptyFolder folder={currentPath} upload={upload} onUpload={() => actions.upload(currentPath)} />)}
         {items.length > 0 && view === 'list' && (
           <div className="overflow-hidden rounded-[6px] border border-border bg-card" aria-label="Items in this folder" role="group">
             <ListHeader />
