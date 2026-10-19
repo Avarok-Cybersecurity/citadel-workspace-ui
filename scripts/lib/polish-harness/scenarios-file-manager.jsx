@@ -67,7 +67,7 @@ function Screen({ path = '/', view = 'list', selected = [], transfers = false, f
     storageMode: isPeer ? TreeScope.Peer : TreeScope.Server, storageLabel, storageName, currentPath: path, missingItem: null,
     pendingPaths: new Set(isPeer ? ['/README'] : []), cutItemPaths: new Set(), hasPasteItems: false, selectedPaths,
     selectItem: NOTHING, handleSelectAll: NOTHING, clearSelection: NOTHING, sortField: 'name', sortDirection: 'asc',
-    filterText: filter, setFilterText: NOTHING,
+    filterText: filter, setFilterText: NOTHING, storageOffer: { kind: 'offered' },
   };
   const v = {
     view, actions: NO_ACTIONS, panel: selectionPanel(TREE, selectedPaths),
