@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useSyncExternalStore } from 'react';
 import { rosterDisplayName, selfDisplayName } from '@/lib/roster-display-name';
 import { useLocation } from 'react-router-dom';
 import { BaseOffice } from '../office/BaseOffice';
@@ -20,6 +20,10 @@ import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 import { useP2PChannelParam } from './use-p2p-channel-param';
 import { nodeAppState, type NodeAppState } from '@/lib/citadel-apps/node-app-metadata';
 import { DocumentView } from '../documents/DocumentView';
+import { OfflineKeptNode } from './OfflineKeptNode';
+import { reconnectingTo } from '@/lib/reconnect/server-reconnect';
+import { loadKeptTree, useKeptTree, type KeptTree } from '@/hooks/use-kept-tree';
+import { shownNode, type ShownNode } from '@/lib/offline-tree';
 
 interface WorkspaceViewProps {
   nodeId?: string | null;
@@ -31,6 +35,10 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId: nodeParam 
   const nodeId: string | null = nodeInView(nodeParam, state.nodes);
   const location: ReturnType<typeof useLocation> = useLocation();
   const me: TabIdentity | null = useTabIdentity();
+  // The kept tree, only while the agent says the server link is down; a live node always wins.
+  const linkDown: boolean = useSyncExternalStore(reconnectingTo.subscribe, reconnectingTo.get) !== null;
+  const kept: KeptTree = useKeptTree(loadKeptTree, me?.cid ?? null, linkDown);
+  const shown: ShownNode = nodeId ? shownNode(nodeId, state.nodes, linkDown, kept.kind === 'kept' ? kept.tree : null) : { kind: 'none' };
 
   // Parse query parameters for P2P chat
   const params: URLSearchParams = new URLSearchParams(location.search);
@@ -118,6 +126,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ nodeId: nodeParam 
   // Gated on the nodes having loaded: during the initial fetch `state.nodes` is
   // empty for every id, and announcing "no longer here" about a page that is
   // simply still arriving would be its own lie.
+  if (shown.kind === 'kept') return <OfflineKeptNode key={shown.node.id} node={shown.node} savedAt={shown.savedAt} />;
   if (nodeId && !node && !state.loading.nodes) {
     return <NodeNotFound nodeId={nodeId} />;
   }

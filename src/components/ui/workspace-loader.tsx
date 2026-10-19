@@ -15,6 +15,9 @@ import type { NavigateFunction } from 'react-router';
 import { reconnectingTo, signInAfterLoss, type SignInAfterLoss } from '@/lib/reconnect/server-reconnect';
 import { resolvePendingRedirect } from '@/lib/share/resolve-here';
 import { loaderView, shouldLeaveForConnect, type LoaderInputs, type LoaderView } from './workspace-loader-state';
+import { useTabIdentity } from '@/hooks/use-tab-identity';
+import type { TabIdentity } from '@/lib/tab-identity';
+import { loadKeptTree, useKeptTree, type KeptTree } from '@/hooks/use-kept-tree';
 
 
 interface WorkspaceLoaderProps {
@@ -45,6 +48,8 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
   })), [offerBack, leave]);
   // The agent's own word that it is bringing this session's server link back.
   const reconnectingServer: string | null = useSyncExternalStore(reconnectingTo.subscribe, reconnectingTo.get);
+  const me: TabIdentity | null = useTabIdentity();
+  const kept: KeptTree = useKeptTree(loadKeptTree, me?.cid ?? null, reconnectingServer !== null);
 
   // Sign-in for that account, not /connect's server picker: the session is gone and
   // nothing else here can bring it back.
@@ -111,6 +116,7 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
     workspaceDataTimeout,
     heldElsewhere: heldElsewhere.username !== null,
     reconnectingTo: reconnectingServer,
+    keptTree: kept.kind === 'kept',
   };
   const leaveForConnect: boolean = shouldLeaveForConnect(inputs);
 

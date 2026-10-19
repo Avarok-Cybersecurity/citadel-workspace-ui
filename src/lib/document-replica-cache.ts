@@ -13,6 +13,7 @@
  *   `#tree`                     the last-known workspace tree (no node: deletion never matches it)
  */
 import { dbDelete, dbGet, dbKeysWithPrefix, dbPut } from '@/lib/storage-utils';
+import { readCachedTree, type CachedWorkspaceTree } from '@/lib/offline-tree';
 
 const ROOT: string = 'cdoc-collab:';
 const RESERVED: string = '#';
@@ -71,3 +72,10 @@ export async function forgetDeletedNodes(nodeIds: readonly string[]): Promise<vo
   const deleted: ReadonlySet<string> = new Set<string>(nodeIds.filter(isNodeId));
   await forgetKeys((await dbKeysWithPrefix('keyValue', ROOT)).filter((key: string): boolean => deleted.has(nodeOf(key))));
 }
+
+/** The account's last-known workspace tree (lib/offline-tree.ts), or null when none is kept. */
+export async function loadWorkspaceTree(account: bigint): Promise<CachedWorkspaceTree | null> {
+  return readCachedTree(await localRecordGet(workspaceTreeKey(account)));
+}
+
+export const saveWorkspaceTree = (account: bigint, tree: CachedWorkspaceTree): Promise<void> => localRecordPut(workspaceTreeKey(account), tree);
