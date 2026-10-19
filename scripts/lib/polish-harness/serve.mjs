@@ -7,7 +7,7 @@
  * classes that decide spacing are the shipped ones. What a scenario fakes is its INPUT (a
  * roster, a message list), never the component.
  */
-import { build, preview } from 'vite';
+import { build, loadConfigFromFile, preview } from 'vite';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import react from '@vitejs/plugin-react-swc';
@@ -33,11 +33,17 @@ const stubWasmClient = () => ({
  * first render is the only render.
  */
 export async function serveHarness(port) {
+  // The cdoc worker is emitted as the app emits it (an ES module worker, vite.config.ts): a
+  // screen that can reach Citadel Docs (sharing a document reaches its sync) reaches the worker,
+  // and Vite's default IIFE worker cannot hold the glue's dynamic import.
+  const app = await loadConfigFromFile({ command: 'build', mode: 'production', isSsrBuild: false, isPreview: false }, resolve(APP_ROOT, 'vite.config.ts'));
+  if (app === null || app.config.worker === undefined) throw new Error('vite.config.ts gave no worker settings');
   const outDir = mkdtempSync(join(tmpdir(), 'polish-harness-'));
   await build({
     root: HERE,
     configFile: false,
     logLevel: 'error',
+    worker: app.config.worker,
     plugins: [react(), stubWasmClient()],
     css: { postcss: APP_ROOT },
     resolve: {
