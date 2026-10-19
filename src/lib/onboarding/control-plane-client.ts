@@ -31,6 +31,8 @@ export interface CreateTenantRequest {
   readonly interval?: BillingInterval;
   readonly seats?: number;
   readonly storage_blocks?: number;
+  /** 50-link packs for the workspace's shared pool; paid tiers only, like storage_blocks. */
+  readonly link_packs?: number;
   readonly turnstile_token: string;
   /** The Customer Terms version the person accepted; the control plane refuses any but the current one. */
   readonly accepted_customer_terms_version: number;

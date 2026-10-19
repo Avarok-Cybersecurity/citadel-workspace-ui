@@ -20,6 +20,7 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { config } from '../lib/config.js';
+import { waitForRegistrationToSettle } from '../lib/post-registration.js';
 import { isHiddenWithin, isVisibleWithin, waitForAppReady } from '../lib/index.js';
 
 // ============================================================================
@@ -134,7 +135,9 @@ async function registerUser(page: Page, username: string, password: string): Pro
       if (await submitBtn.isVisible()) {
         await submitBtn.click();
         submitted = true;
-        await sleep(5000);
+        // Answers "Secure your account" (a post-quantum server's key and
+        // recovery codes) and waits for the workspace, instead of a blind 5s.
+        await waitForRegistrationToSettle(page);
       }
     }
 

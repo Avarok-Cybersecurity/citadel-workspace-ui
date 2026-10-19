@@ -222,5 +222,14 @@ export function handleGeneratedVariants(
     return true;
   }
 
+  if (isVariant(response, 'SecureLinks')) {
+    // Not logged: a Created or Regenerated answer carries the only copy of a link's token.
+    // The Security list follows it (share/use-secure-links.ts); secure-links-operations.ts waits
+    // on the raw event for its own answer.
+    eventEmitter.emit('workspace:secure-links', { answer: response.SecureLinks });
+    eventEmitter.emit('workspace:raw-response', response);
+    return true;
+  }
+
   return false;
 }

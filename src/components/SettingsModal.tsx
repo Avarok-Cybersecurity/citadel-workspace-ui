@@ -11,12 +11,13 @@ import {
   AppearanceSettingsTab,
   PrivacySettingsTab,
   PermissionsSettingsTab,
+  SecuritySettingsTab,
 } from './settings';
-import { Settings, Wifi, Palette, Shield, Lock } from 'lucide-react';
+import { Settings, Wifi, Palette, Shield, Lock, KeyRound } from 'lucide-react';
 import { connectionManager } from '@/lib/connection';
 import type { CurrentConnectionInfo } from '@/lib/connection/types';
 
-export type SettingsTab = 'general' | 'connections' | 'appearance' | 'privacy' | 'permissions';
+export type SettingsTab = 'general' | 'connections' | 'appearance' | 'privacy' | 'permissions' | 'security';
 
 export interface SettingsModalProps {
   open: boolean;
@@ -44,7 +45,7 @@ export function SettingsModal({ open, onOpenChange, tab }: SettingsModalProps): 
             {/* Each trigger's text is hidden below `sm`, which left five
                 icon-only tabs with no accessible name on a phone. aria-label
                 gives them one at every width. */}
-            <TabsList className="grid w-full grid-cols-5 bg-input h-10 rounded-lg p-1">
+            <TabsList className="grid w-full grid-cols-6 bg-input h-10 rounded-lg p-1">
               <TabsTrigger value="general" aria-label="General" className={tabTriggerClass}>
                 <Settings className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">General</span>
@@ -77,6 +78,11 @@ export function SettingsModal({ open, onOpenChange, tab }: SettingsModalProps): 
                 <Lock className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Perms</span>
               </TabsTrigger>
+              {/* Last, so the tabs before it keep their places. */}
+              <TabsTrigger value="security" aria-label="Security" className={tabTriggerClass} data-testid="settings-tab-security">
+                <KeyRound className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Security</span>
+              </TabsTrigger>
             </TabsList>
             {/* The reason these two tabs are dimmed was only a hover title; a phone never showed it. */}
             {!isConnected && (
@@ -105,6 +111,10 @@ export function SettingsModal({ open, onOpenChange, tab }: SettingsModalProps): 
 
             <TabsContent value="permissions" className="mt-4 min-h-[300px]">
               <PermissionsSettingsTab />
+            </TabsContent>
+
+            <TabsContent value="security" className="mt-4 min-h-[300px]">
+              <SecuritySettingsTab />
             </TabsContent>
           </div>
         </Tabs>

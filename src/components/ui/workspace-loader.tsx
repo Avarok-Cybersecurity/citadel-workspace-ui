@@ -13,6 +13,7 @@ import { onThisTabDetached } from '@/lib/sessions/detached';
 import { useLeaveEndedSession, type LeaveEndedSession } from '@/components/use-leave-ended-session';
 import type { NavigateFunction } from 'react-router';
 import { reconnectingTo, signInAfterLoss, type SignInAfterLoss } from '@/lib/reconnect/server-reconnect';
+import { resolvePendingRedirect } from '@/lib/share/resolve-here';
 import { loaderView, shouldLeaveForConnect, type LoaderInputs, type LoaderView } from './workspace-loader-state';
 
 
@@ -119,12 +120,17 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
     navigate('/connect');
   }, [leaveForConnect, navigate, isDevMode]);
 
+  // Loaded: a secure link waiting since sign-in (a reload, an auto-claim) is opened now.
+  const view: LoaderView = loaderView(inputs);
+  useEffect(() => {
+    if (!isDevMode && view.kind === 'ready') void resolvePendingRedirect(navigate, null);
+  }, [view.kind, navigate, isDevMode]);
+
   if (isDevMode) {
     debugLog('WorkspaceLoader', 'Dev mode: Bypassing workspace loader');
     return <>{children}</>;
   }
 
-  const view: LoaderView = loaderView(inputs);
   if (view.kind === 'held-elsewhere') return heldElsewhere.notice;
   if (view.kind === 'spinner') {
     return <WorkspaceLoaderSpinner loadingMessage={view.message} showConnectButton={view.showConnectButton} />;

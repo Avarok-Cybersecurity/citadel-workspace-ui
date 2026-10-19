@@ -5,9 +5,8 @@ import { toast } from 'sonner';
 import { StorageLimitModal } from './StorageLimitModal';
 import { RevfsDisabledModal } from './RevfsDisabledModal';
 import { MoveToDialog } from './MoveToDialog';
-import { ShareDialog } from './ShareDialog';
+import { ShareLinkDialog } from '@/components/share/ShareLinkDialog';
 import { FilePreviewDialog } from '@/components/layout/sidebar/FilePreviewDialog';
-import { TreeScope } from '@/types/revfs-types';
 import type { UseFileManagerContentResult } from './useFileManagerContent';
 import type { FileManagerView } from './useFileManagerView';
 
@@ -51,7 +50,7 @@ export function FileManagerModals({ fm, v }: { fm: UseFileManagerContentResult; 
       />
 
       {fm.tree && <MoveToDialog tree={fm.tree} nodes={v.moving} onMove={(nodes, to) => { void fm.handleMove(nodes, to); }} onClose={v.closeMove} />}
-      <ShareDialog links={v.sharing} peerName={fm.storageMode === TreeScope.Peer && fm.peerRegistered ? fm.storageLabel : null} onClose={v.closeShare} />
+      <ShareLinkDialog subjects={v.sharing} onClose={v.closeShare} />
 
       <FilePreviewDialog
         file={fm.shownFile}

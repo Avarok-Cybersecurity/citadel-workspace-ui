@@ -8,7 +8,7 @@
 import React from 'react';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import { Button } from '@/components/ui/button';
-import { FolderOpen, Settings } from 'lucide-react';
+import { FolderOpen, Settings, Share2 } from 'lucide-react';
 import { CallEntryButtons } from '@/components/call/CallEntryButtons';
 import { MessagingLayerType } from '@/types/messaging-layer';
 import type { PeerPresence } from '@/lib/p2p';
@@ -34,6 +34,8 @@ interface P2PChatHeaderProps {
   onSettingsClick: () => void;
   /** The storage you share with this peer, in the file manager; null until you are registered peers. */
   onOpenFiles: (() => void) | null;
+  /** Share this conversation; omitted where sharing is not wired up. */
+  onShare?: () => void;
   /** Omitted where calling is not wired up, so the header stays usable. */
   call?: {
     canCall: boolean;
@@ -106,6 +108,7 @@ export function P2PChatHeader({
   supervisor,
   onSettingsClick,
   onOpenFiles,
+  onShare,
   call,
 }: P2PChatHeaderProps): JSX.Element {
   const statusDisplay: StatusDisplay = paused
@@ -169,6 +172,12 @@ export function P2PChatHeader({
           >
             <FolderOpen className="h-5 w-5" aria-hidden="true" />
           </Button>
+          {onShare && (
+            <Button variant="ghost" size="icon" onClick={onShare} aria-label={`Share the chat with ${peerName}`}
+              className="text-muted-foreground hover:text-foreground hover:bg-surface" data-testid="chat-share-button">
+              <Share2 className="h-5 w-5" aria-hidden="true" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"

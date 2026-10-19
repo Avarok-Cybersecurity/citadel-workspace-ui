@@ -37,6 +37,7 @@ const PERMISSION_DESCRIPTIONS: Record<Permission, string> = {
   [Permission.ViewMembers]: 'Can see everyone else who has access here, including people who reach it through a level above',
   [Permission.EditContent]: 'Can modify content',
   [Permission.EditMdx]: 'Can edit MDX documents',
+  [Permission.ShareSecureLinks]: 'Can make links that hide where they point and open only for the people chosen',
   [Permission.SendMessages]: 'Can send messages',
   [Permission.ReadMessages]: 'Can read messages',
   [Permission.UploadFiles]: 'Can upload files',

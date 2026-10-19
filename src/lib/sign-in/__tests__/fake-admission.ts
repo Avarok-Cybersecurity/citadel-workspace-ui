@@ -22,6 +22,17 @@ export class FakeAdmission {
   /** The slug a token must be bound to; null accepts any binding (a server that does not check). */
   workspace: string | null = null;
   readonly spent: Set<string> = new Set<string>();
+  /**
+   * What an `admission_required` refusal publishes as `admission_challenge` (a self-hosted
+   * server's check); undefined publishes nothing, as an older agent or a hosted server does.
+   * `unknown`, so a test can publish a malformed one.
+   */
+  challenge: unknown = undefined;
+
+  /** The refusal's extra fields for `reason`. */
+  published(reason: string): Record<string, unknown> {
+    return reason === 'admission_required' && this.challenge !== undefined ? { admission_challenge: this.challenge } : {};
+  }
 
   /** The refusal's reason_code, or null to let the request through. */
   check(token: unknown): 'admission_required' | 'admission_failed' | null {

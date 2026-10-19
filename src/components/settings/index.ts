@@ -3,3 +3,4 @@ export { ConnectionsSettingsTab } from './ConnectionsSettingsTab';
 export { AppearanceSettingsTab } from './AppearanceSettingsTab';
 export { PrivacySettingsTab } from './PrivacySettingsTab';
 export { PermissionsSettingsTab } from './PermissionsSettingsTab';
+export { SecuritySettingsTab } from './SecuritySettingsTab';

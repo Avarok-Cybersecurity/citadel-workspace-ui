@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { useLocation, useNavigate, type NavigateFunction } from 'react-router-dom';
 import {
-  parseFileManagerLocation, resolveStorage, fileManagerHref, fileManagerLink,
+  parseFileManagerLocation, resolveStorage, fileManagerHref,
   type FileManagerLocation, type FileManagerTarget, type StorageRef,
 } from '@/lib/file-manager-location';
 import { parentPath } from '@/lib/revfs/tree-queries';
@@ -28,8 +28,8 @@ export interface FileManagerPlace {
   /** Null when there is no folder to go back to, or nothing above. */
   back: (() => void) | null;
   up: (() => void) | null;
-  /** An absolute link to a folder, or to an item in it. */
-  linkTo: (path: string, item: string | null) => string | null;
+  /** Where a folder, or an item in it, is: what a link to it names. Null for unreadable storage. */
+  locate: (path: string, item: string | null) => FileManagerTarget | null;
 }
 
 function storageKey(storage: StorageRef): string {
@@ -79,12 +79,9 @@ export function useFileManagerPlace(myCid: bigint | null): FileManagerPlace {
   };
   const up: (() => void) | null = path === '/' ? null : (): void => openFolder(parentPath(path));
 
-  const linkTo: (at: string, item: string | null) => string | null = useCallback((at: string, item: string | null): string | null => {
-    if (openable === null) return null;
-    return fileManagerLink(window.location.origin, {
-      storage: openable, path: at, item, via: openable.kind === 'peer' ? myCid : null,
-    });
-  }, [openable, myCid]);
+  const locate: (at: string, item: string | null) => FileManagerTarget | null = useCallback((at: string, item: string | null): FileManagerTarget | null => (
+    openable === null ? null : { storage: openable, path: at, item, via: openable.kind === 'peer' ? myCid : null }
+  ), [openable, myCid]);
 
-  return { location, storage, path, openFolder, openStorage, back, up, linkTo };
+  return { location, storage, path, openFolder, openStorage, back, up, locate };
 }

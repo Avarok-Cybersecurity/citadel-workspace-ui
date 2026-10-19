@@ -61,7 +61,7 @@ const flows: Array<[string, Flow]> = [
   ['the previous-sessions bar', (toast): Promise<void> => switchToSession(BOB, {
     navigate: (): void => {}, toast, confirm: async (): Promise<boolean> => false, signInAs: (): void => {},
   })],
-  ['the login redirect', (toast): Promise<void> => redirectToExistingSession(BOB, { navigate: (): void => {}, toast, onNext: (): void => {} })],
+  ['the login redirect', (toast): Promise<void> => redirectToExistingSession(BOB, { toast, onNext: (): void => {} })],
 ];
 
 describe.each(flows)('switching sessions from %s', (_where: string, run: Flow): void => {

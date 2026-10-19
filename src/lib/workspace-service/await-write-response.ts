@@ -44,6 +44,8 @@ export const SUCCESS_RESPONSES: Record<string, readonly string[]> = {
   MessagingTrust: ['MessagingTrust'],
   // And Roles: a List is answered with the table, an edit with RoleChanged; roles-operations matches which.
   Roles: ['Roles'],
+  // And SecureLinks: secure-links-operations matches the kind, and the link, to the request.
+  SecureLinks: ['SecureLinks'],
   GetSignInSettings: ['SignInSettings'],
   UpdateSignInSettings: ['SignInSettings'],
   DeleteNode: ['NodeDeleted'],

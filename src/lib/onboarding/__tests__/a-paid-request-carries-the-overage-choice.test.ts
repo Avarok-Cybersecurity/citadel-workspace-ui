@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest';
 import { createTenantRequest } from '../create-request';
 import type { FlowDraft } from '../create-flow';
 
-const paid: FlowDraft = { displayName: 'Acme', slug: 'acme', plan: { tier: 'team', interval: 'month', seats: 3, storageBlocks: 0 } };
+const paid: FlowDraft = { displayName: 'Acme', slug: 'acme', plan: { tier: 'team', interval: 'month', seats: 3, storageBlocks: 0, linkPacks: 0 } };
 const free: FlowDraft = { ...paid, plan: { ...paid.plan, tier: 'free' } };
 
 describe('the create request', () => {

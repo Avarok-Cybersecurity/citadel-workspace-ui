@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, Settings } from "lucide-react";
+import { MessageSquare, Settings, Share2 } from "lucide-react";
 import { DisabledWithTooltip } from "@/components/ui/DisabledWithTooltip";
 import { SettingsModal } from "@/components/SettingsModal";
 import { useGuardedNavigate, type GuardedNavigate } from '@/hooks/use-guarded-navigate';
 import { OfficeBreadcrumbs } from './OfficeBreadcrumbs';
+import { useShareLauncher, type ShareLauncher } from '@/components/share/use-share-launcher';
 
 interface OfficeLayoutProps {
   title: string;
@@ -34,6 +35,7 @@ export const OfficeLayout = ({
 }: OfficeLayoutProps): JSX.Element => {
   const navigate: GuardedNavigate = useGuardedNavigate();
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const share: ShareLauncher = useShareLauncher();
 
   return (
     <div className="h-[calc(100dvh-3.5rem)] overflow-hidden bg-background">
@@ -42,6 +44,19 @@ export const OfficeLayout = ({
           {/* The page heading is the breadcrumbs' last segment. */}
           <OfficeBreadcrumbs nodeId={nodeId} current={title} />
           <div className="flex shrink-0 items-center space-x-2">
+            {nodeId !== null && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-foreground/80 hover:bg-primary-accent/15 hover:text-foreground"
+                onClick={() => share.open({ kind: 'node', nodeId, name: title })}
+                aria-label={`Share ${title}`}
+                title="Share"
+                data-testid="office-share"
+              >
+                <Share2 className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon"
@@ -104,6 +119,7 @@ export const OfficeLayout = ({
         </div>
       </div>
 
+      {share.dialog}
       {/* Settings modal triggered from content header */}
       <SettingsModal
         open={showSettingsModal}

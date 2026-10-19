@@ -3,6 +3,7 @@
  */
 
 import type { Page } from 'playwright';
+import { waitForRegistrationToSettle } from './post-registration.js';
 import { reportTimeout } from './screen-state.js';
 import { sleep } from './utils.js';
 import { UxIssueTracker } from './ux-tracker.js';
@@ -51,6 +52,15 @@ export async function closeAnyModals(page: Page, maxAttempts = 5): Promise<void>
       })
       .catch(() => '<gone>');
     console.log(`  closeAnyModals: Modal detected (attempt ${i + 1}/${maxAttempts}): ${what}`);
+
+    // "Secure your account" is not dismissable: Escape closes the card and
+    // leaves the join wizard behind it, whose Cancel discards the new account.
+    // It is answered instead, whichever path registered the account, and the
+    // wizard still painted during navigation is waited out, not escaped.
+    if (await page.getByTestId('post-registration').isVisible().catch(() => false)) {
+      await waitForRegistrationToSettle(page);
+      continue;
+    }
 
     // Strategy 1: Click Cancel or Close button inside the modal
     const cancelBtn = page.locator(
@@ -180,7 +190,11 @@ export async function waitForWorkspaceLoaded(page: Page, timeout = 60000): Promi
       // Additional check: if we're on a workspace URL and there's a sidebar element visible
       const currentUrl = page.url();
       if (currentUrl.includes('/workspace') || currentUrl.includes('/office')) {
-        const sidebar = page.locator('[data-sidebar="sidebar"], aside, nav').first();
+        // Only the workspace's own sidebar. The router navigates in a transition,
+        // so Landing stays on screen at /workspace until the lazy workspace chunk
+        // loads, and its legal-links <nav> once satisfied `aside, nav` there: specs
+        // were told "loaded" on the landing page and acted on nothing.
+        const sidebar = page.locator('[data-sidebar="sidebar"]').first();
         if (await sidebar.isVisible().catch(() => false)) {
           // Sidebar is visible - check for any content inside it
           const sidebarText = await sidebar.textContent().catch(() => '');

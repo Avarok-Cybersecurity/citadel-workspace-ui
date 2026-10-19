@@ -110,15 +110,15 @@ describe('a paid workspace', () => {
 
     await waitFor(() => expect(redirect).toHaveBeenCalledWith('https://checkout.stripe.com/c/pay/cs_test_9'));
     expect(fake.requests.at(-1)?.body).toEqual({
-      slug: 'acme', display_name: 'Acme', tier: 'team', interval: 'year', seats: 4, storage_blocks: 1, turnstile_token: 'token-1', accepted_customer_terms_version: SHOWN_CUSTOMER_TERMS_VERSION,
-      overage_billing: true,
+      slug: 'acme', display_name: 'Acme', tier: 'team', interval: 'year', seats: 4, storage_blocks: 1, link_packs: 0, turnstile_token: 'token-1',
+      accepted_customer_terms_version: SHOWN_CUSTOMER_TERMS_VERSION, overage_billing: true,
     });
     expect(loadDraft('acme')?.plan.seats).toBe(4);
     expect(loadDraft('acme')?.reservationToken).toBe('rt_first');
   });
 
   it('retries a cancelled Checkout under the same name, proving the reservation is its own', async () => {
-    saveDraft({ displayName: 'Acme', slug: 'acme', plan: { tier: 'team', interval: 'month', seats: 2, storageBlocks: 0 }, reservationToken: 'rt_first' });
+    saveDraft({ displayName: 'Acme', slug: 'acme', plan: { tier: 'team', interval: 'month', seats: 2, storageBlocks: 0, linkPacks: 0 }, reservationToken: 'rt_first' });
     const fake: ContractFake = contractFake();
     fake.createReplies.push({ status: 200, body: { checkout_url: 'https://checkout.stripe.com/c/pay/cs_test_10', reservation_token: 'rt_second' } });
     fake.policyReplies.push({ status: 200, body: POLICY_BODY });
@@ -164,7 +164,7 @@ describe('a paid workspace', () => {
   });
 
   it('says so, and offers the plan back, when Checkout was cancelled', async () => {
-    saveDraft({ displayName: 'Acme', slug: 'acme', plan: { tier: 'business', interval: 'month', seats: 5, storageBlocks: 0 } });
+    saveDraft({ displayName: 'Acme', slug: 'acme', plan: { tier: 'business', interval: 'month', seats: 5, storageBlocks: 0, linkPacks: 0 } });
     renderFlow(contractFake(), '/create?tenant=acme&canceled=1');
     expect(screen.getByTestId('checkout-cancelled')).toHaveTextContent('Nothing was charged');
     fireEvent.click(screen.getByTestId('cancelled-back-to-plans'));

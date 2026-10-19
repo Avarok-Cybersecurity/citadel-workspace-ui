@@ -22,6 +22,8 @@ import { useAgentGatedStep } from '@/hooks/use-agent-gate';
 import type { OnboardingIntentState } from '@/hooks/useOnboardingIntent';
 import { CreateWorkspaceCta } from '@/components/create-workspace/CreateWorkspaceCta';
 import { useLinkedLogin } from './use-account-link';
+import { usePendingRedirectSignIn } from './use-pending-redirect-sign-in';
+import { resolvePendingRedirect } from '@/lib/share/resolve-here';
 import { useJoinLink } from './use-join-link';
 import { useHasOrphanSessions } from './use-orphan-sessions';
 import { LazySettingsModal } from '@/components/LazySettingsModal';
@@ -63,17 +65,18 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
     setCurrentStep('security');
   };
   const handleSecurityBack = (): void => setCurrentStep('server');
-  const handleJoinNext = async (cid: string): Promise<void> => {
-    debugLog('Landing', `[Landing] handleJoinNext called with cid: ${cid}`);
+  // Both success paths: set the session up, then open the secure link the visitor came with, if any.
+  const finishAuth: (failTitle: string, failDetail: string) => (cid: string) => Promise<void> = (failTitle: string, failDetail: string) => async (cid: string): Promise<void> => {
+    debugLog('Landing', `[Landing] signed in with cid: ${cid}`);
     try {
       await postAuthSetup(BigInt(cid));
-      debugLog('Landing', '[Landing] Navigating to /office...');
-      navigate(getWorkspacePath());
+      await resolvePendingRedirect(navigate, getWorkspacePath());
     } catch (error) {
-      debugLog('Landing', 'Error during post-registration setup:', error);
-      toastError(toast, "Setup Failed", error instanceof Error ? error.message : "Failed to load workspace after registration");
+      debugLog('Landing', `${failTitle}:`, error);
+      toastError(toast, failTitle, error instanceof Error ? error.message : failDetail);
     }
   };
+  const handleJoinNext: (cid: string) => Promise<void> = finishAuth("Setup Failed", "Failed to load workspace after registration");
   const handleJoinBack = (): void => setCurrentStep('security');
   const beginWizard: () => void = useCallback((): void => {
     clearProfileDraft();
@@ -89,17 +92,9 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
   // Both buttons on this screen need the agent; see use-agent-gate.ts.
   const startLogin: () => void = useAgentGatedStep(setCurrentStep, 'login', 'none');
   const { linkedUsername, startPlainLogin } = useLinkedLogin(startLogin, currentStep === 'login');
-  const handleLoginNext = async (cid: string): Promise<void> => {
-    debugLog('Landing', `[Landing] handleLoginNext called with cid: ${cid}`);
-    try {
-      await postAuthSetup(BigInt(cid));
-      debugLog('Landing', '[Landing] Navigating to /office...');
-      navigate(getWorkspacePath());
-    } catch (error) {
-      debugLog('Landing', 'Error during post-login setup:', error);
-      toastError(toast, "Login Setup Failed", error instanceof Error ? error.message : "Failed to load workspace after login");
-    }
-  };
+  const handleLoginNext: (cid: string) => Promise<void> = finishAuth("Login Setup Failed", "Failed to load workspace after login");
+  // A secure link opened signed out: sign-in first, its server ready for a join.
+  usePendingRedirectSignIn(startLogin, setServerAddress);
 
   return (
     <div className="h-dvh flex items-center relative overflow-hidden bg-background">

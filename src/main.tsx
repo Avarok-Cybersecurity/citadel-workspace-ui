@@ -45,6 +45,7 @@ import { showStorageVersionRecovery } from './storage-version-recovery';
 import { startKeyboardInsetTracking } from '@/lib/pwa/keyboard-inset';
 import { watchDeployedVersion } from '@/lib/pwa/watch-deployed-version';
 import { browserSessionStorage, reloadKeepingDrafts, restoreHandedOffDrafts } from '@/lib/chat/draft-handoff';
+import { capturePendingRedirect } from '@/lib/share/pending-redirect';
 import { applyAppearanceSettings, loadAppearanceSettings } from './lib/appearance-settings';
 import { initPrivacySettingsSync } from './lib/privacy-settings';
 
@@ -199,6 +200,10 @@ try {
   // entry chunk's URL, which is what /version.json names (deployed-version.ts).
   restoreHandedOffDrafts(browserSessionStorage());
   watchDeployedVersion(import.meta.url);
+  // A secure link (`?redirect=&server=`), kept for after sign-in before any page reads the address.
+  capturePendingRedirect(window.location.search, browserSessionStorage(), (search: string): void => {
+    window.history.replaceState(window.history.state, '', `${window.location.pathname}${search ? `?${search}` : ''}${window.location.hash}`);
+  });
 
   const root: ReturnType<typeof createRoot> = createRoot(rootElement);
   root.render(<App />);

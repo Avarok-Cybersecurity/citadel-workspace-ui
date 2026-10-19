@@ -5,7 +5,7 @@
 import type { CreateTenantRequest } from './control-plane-client';
 import type { FlowDraft } from './create-flow';
 import { SHOWN_CUSTOMER_TERMS_VERSION } from '@/lib/terms/customer-terms';
-import { clampSeats, clampStorageBlocks, isPaid } from './tiers';
+import { clampLinkPacks, clampSeats, clampStorageBlocks, isPaid } from './tiers';
 
 /**
  * `overageBilling` is the visitor's own pick, undefined until they make one. A paid workspace
@@ -28,6 +28,7 @@ export function createTenantRequest(draft: FlowDraft, turnstileToken: string, ov
     interval: draft.plan.interval,
     seats: clampSeats(draft.plan.tier, draft.plan.seats),
     storage_blocks: clampStorageBlocks(draft.plan.tier, draft.plan.storageBlocks),
+    link_packs: clampLinkPacks(draft.plan.tier, draft.plan.linkPacks),
     overage_billing: overageBilling,
   };
 }

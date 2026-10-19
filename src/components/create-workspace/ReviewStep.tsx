@@ -79,6 +79,9 @@ export function ReviewStep({ displayName, slug, plan, onBack, overage, onSubmit 
         <Row label="Plan" value={paid ? `${tierById(plan.tier).name}, billed per ${per}` : 'Free'} testId="review-plan" />
         {paid && <Row label="Seats" value={String(plan.seats)} />}
         {paid && plan.storageBlocks > 0 && <Row label="Extra storage" value={`${plan.storageBlocks * STORAGE_ADDON.gbPerBlock} GB`} />}
+        {paid && q.sharedLinks > 0 && (
+          <Row label="Extra secure links" value={`${q.sharedLinks.toLocaleString('en-US')}, shared by the workspace`} testId="review-link-packs" />
+        )}
         <Row label="Total" value={paid ? `${formatUsd(q.totalCents)} / ${per}` : 'Free'} testId="review-total" />
       </dl>
 
