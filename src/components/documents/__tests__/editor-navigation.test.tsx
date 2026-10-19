@@ -46,12 +46,19 @@ describe('the caret stays in view', () => {
 
   it('lets the person scroll away from a caret that has not moved', async () => {
     const m: Mounted = await mount('main-thread');
-    await longDocument(m);
+    // Long enough that the first page leaves the painted window (the view and two pages around it).
+    await act(async () => { await m.editor.execute({ name: 'insertText', text: 'line\n'.repeat(400) }); });
+    await settled(m.editor);
     key(m.input, 'Home', { ctrlKey: true });
+    // A selected first line: its rectangles are drawn only for the pages in view, so the answer
+    // to a viewport report is a new state (without them) whose caret has not moved. A caret
+    // alone would get no new state at all (a-result-that-changes-nothing-tells-no-one).
+    key(m.input, 'End', { shiftKey: true });
     await settled(m.editor);
     await waitFor(() => expect(caretTop(m)).toBeLessThan(region().scrollTop + VIEWPORT));
-    const away: number = region().scrollTop + 3 * VIEWPORT;
+    const away: number = region().scrollTop + 8 * VIEWPORT;
     const before: EditorState = m.editor.state;
+    expect(before.selectionRects).not.toEqual([]);
     act(() => {
       region().scrollTop = away;
       region().dispatchEvent(new Event('scroll'));

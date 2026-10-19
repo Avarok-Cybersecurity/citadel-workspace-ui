@@ -31,6 +31,7 @@ import { RecordWriter } from './wire/record-writer';
 import type { ExportedFile, ExportTarget, ImportReport } from './file-formats';
 import type { EditorResults } from '../worker/editor-protocol';
 import { PeerSet } from './peer-set';
+import { sameValue } from './same-value';
 
 export interface EditorSessionDeps {
   readonly client: CdocClient;
@@ -144,13 +145,18 @@ export class EditorSession implements EditorController, EditorView {
     if (r.dirtyPages.length > 0) await this.deps.renderer.invalidate(r.dirtyPages);
     const countChanged: boolean = r.pageCount !== this.current.pageCount;
     if (countChanged) this.sizes = (await this.deps.client.request({ kind: 'pageSizes' })).pageSizes;
-    this.current = {
+    const next: EditorState = {
       anchor: r.anchor, head: r.head, caret: r.caret, selectionRects: r.selectionRects, caretPage: r.caret?.page ?? null,
       pageCount: r.pageCount, composing, caretFormatting: r.formatting, created: r.created, selectionText: r.selectionText,
     };
+    // A result that changes nothing (most viewport reports while scrolling) keeps the state and
+    // tells no one: every listener (the ribbon, the overlays, presence) would redo its work for
+    // the same values, once per scrolled frame.
+    const moved: boolean = !sameValue(next, this.current);
+    if (moved) this.current = next;
     if (local && r.update.length > 0) this.events.emit('change', { update: r.update, dirtyPages: r.dirtyPages });
     if (countChanged || r.dirtyPages.length > 0) this.events.emit('pages', { pageCount: r.pageCount, dirtyPages: r.dirtyPages });
-    this.events.emit('selection', this.current);
+    if (moved) this.events.emit('selection', this.current);
     return this.current;
   }
 
