@@ -5,7 +5,7 @@
  */
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type Context, type MutableRefObject } from 'react';
 import { toast } from 'sonner';
-import type { CaretFormatting, EditorCommand, EditorState, SelectionText } from '@/lib/cdoc/editor/controller';
+import type { CaretFormatting, EditorCommand, EditorState, SelectionText, Story } from '@/lib/cdoc/editor/controller';
 import type { ActionGate } from '@/hooks/use-permission-result';
 import { describeError } from '@/lib/describe-error';
 import type { RibbonEditor } from './editor-context';
@@ -26,6 +26,8 @@ export interface Ribbon {
   readonly caret: CaretFormatting;
   /** The selection's text as the last result carried it; null with no editor. */
   readonly selection: SelectionText | null;
+  /** The story the selection is in (the body, a header or footer, a footnote); null with no editor. */
+  readonly story: Story | null;
   readonly environment: RibbonEnvironment;
   /** Groups collapse into one button each (phone width). */
   readonly compact: boolean;
@@ -117,6 +119,7 @@ export function useRibbonValue(editor: RibbonEditor | null, state: EditorState |
       readReason,
       caret: state?.caretFormatting ?? UNKNOWN,
       selection: state?.selectionText ?? null,
+      story: state?.story ?? null,
       environment,
       compact,
       run: (command: EditorCommand, what: string): Promise<void> => attempt(what, (live: RibbonEditor): Promise<EditorState> => live.execute(command)),

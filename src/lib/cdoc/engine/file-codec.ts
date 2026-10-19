@@ -11,7 +11,7 @@ import type { DocumentSource } from '../document-source';
 import type { ConversionReport, ExportedFile } from '../editor/file-formats';
 import type { CdocWasm, FileExport, ImageStore } from './cdoc-wasm-api';
 import type { DocumentExportTarget } from './editor-files';
-import { MD_READ_OPTIONS, TXT_READ_OPTIONS } from './engine-limits';
+import { MD_READ_OPTIONS, PACKAGE_READ_OPTIONS, TXT_READ_OPTIONS } from './engine-limits';
 
 export interface ImportedFile {
   readonly pmJson: string;
@@ -41,8 +41,8 @@ export function importFile(wasm: CdocWasm, format: DocsImportFormat, bytes: Uint
   try {
     switch (format) {
       case 'docx':
-      case 'dotx': return imported(wasm.docx_to_pm(bytes, images), images);
-      case 'odt': return imported(wasm.odt_to_pm(bytes, images), images);
+      case 'dotx': return imported(wasm.docx_to_pm(bytes, images, JSON.stringify(PACKAGE_READ_OPTIONS)), images);
+      case 'odt': return imported(wasm.odt_to_pm(bytes, images, JSON.stringify(PACKAGE_READ_OPTIONS)), images);
       case 'md': return imported(wasm.md_to_pm(decodeText(bytes, format), JSON.stringify(MD_READ_OPTIONS)), images);
       case 'txt': return imported(wasm.txt_to_pm(decodeText(bytes, format), JSON.stringify(TXT_READ_OPTIONS)), images);
     }

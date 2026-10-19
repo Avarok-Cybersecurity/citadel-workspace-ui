@@ -1,5 +1,5 @@
 /**
- * Bounds-checked reads over a DataView, in the encodings of `docs/display-list.md` v2
+ * Bounds-checked reads over a DataView, in the encodings of `docs/display-list.md` v5
  * § Conventions: little-endian fixed integers, `uv` (LEB128, ≤ 5 bytes, fits 32 bits), `zz`
  * (zigzag over `uv`) and `str` (`uv` length + UTF-8). Nothing is copied: the reader walks the
  * caller's buffer.
@@ -127,6 +127,22 @@ export class ByteReader {
 
   str(): string {
     return this.utf8().text;
+  }
+
+  /** The next `len` bytes as a reader of their own; this one moves past them. */
+  take(len: number): ByteReader {
+    this.need(len);
+    const sub: ByteReader = new ByteReader(this.view, this.pos, this.pos + len);
+    this.pos += len;
+    return sub;
+  }
+
+  /** The next `len` bytes, in place. */
+  bytes(len: number): Uint8Array {
+    this.need(len);
+    const at: number = this.pos;
+    this.pos += len;
+    return new Uint8Array(this.view.buffer, this.view.byteOffset + at, len);
   }
 
   /** A `str` with its UTF-8 bytes, for a reader that indexes it by byte offset. */

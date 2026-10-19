@@ -94,10 +94,11 @@ describe('the v4 editor members', () => {
     expect(pagesWith(moved)).toEqual([0]);
   });
 
-  it('refuses a result of another version, and a count its bytes cannot hold, by name', () => {
+  it('refuses a result of another version, 4 and 5 included, and a count its bytes cannot hold, by name', () => {
     const cde = (version: number, ...rest: number[]): Uint8Array => Uint8Array.from([0x43, 0x44, 0x45, version, ...rest]);
-    expect(() => decodeResult(cde(3))).toThrow(/CDE version 3; this UI reads version 4/);
+    expect(() => decodeResult(cde(5))).toThrow(/CDE version 5; this UI reads version 6/);
+    expect(() => decodeResult(cde(4))).toThrow(/CDE version 4; this UI reads version 6/);
     // An empty update, then 2^28 dirty pages claimed with nothing after them.
-    expect(() => decodeResult(cde(4, 0x00, 0x80, 0x80, 0x80, 0x80, 0x01))).toThrow(/the dirty pages claims 268435456 entries, but only 0 bytes remain/);
+    expect(() => decodeResult(cde(6, 0x00, 0x80, 0x80, 0x80, 0x80, 0x01))).toThrow(/the dirty pages claims 268435456 entries, but only 0 bytes remain/);
   });
 });

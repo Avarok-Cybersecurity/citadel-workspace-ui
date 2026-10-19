@@ -20,19 +20,21 @@ export interface RibbonMenuProps {
   readonly widthPx: number;
   /** Why the menu cannot open now, beyond the ribbon's own reason. */
   readonly unavailable?: string | null;
+  /** The trigger shows as pressed when one of the choices is the current one (Numbering in a numbered list). */
+  readonly pressed?: PressedState;
   /** Called each time the menu opens. */
   readonly onOpen?: () => void;
   /** The choices; `close` shuts the menu, before the chosen command runs. */
   readonly children: (close: () => void) => ReactNode;
 }
 
-export function RibbonMenu({ testId, label, icon, text, widthPx, unavailable, onOpen, children }: RibbonMenuProps): JSX.Element {
+export function RibbonMenu({ testId, label, icon, text, widthPx, unavailable, pressed, onOpen, children }: RibbonMenuProps): JSX.Element {
   const [open, setOpen] = useState<boolean>(false);
   const { returnFocus } = useRibbon();
   return (
     <Popover open={open} onOpenChange={(next: boolean): void => { setOpen(next); if (next) onOpen?.(); }}>
       <PopoverTrigger asChild>
-        <RibbonButton testId={`${testId}-open`} label={label} icon={icon} text={text} unavailable={unavailable} />
+        <RibbonButton testId={`${testId}-open`} label={label} icon={icon} text={text} unavailable={unavailable} pressed={pressed} />
       </PopoverTrigger>
       <PopoverContent align="start" collisionPadding={16} className="max-h-[min(480px,70vh)] overflow-y-auto p-2" style={{ width: widthPx }}
         // The document, not the trigger, takes focus back, as after any ribbon command.

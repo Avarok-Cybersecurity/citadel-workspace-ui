@@ -6,7 +6,7 @@
  */
 import type { CdocWasm, EditorHandle, EditorSealedFonts, FileExport, ImageStore, ImportedEditor } from './cdoc-wasm-api';
 import type { ExportTarget, ImportFormat } from '../editor/file-formats';
-import { MAX_IMAGE_BYTES, MD_READ_OPTIONS, TXT_READ_OPTIONS } from './engine-limits';
+import { MAX_IMAGE_BYTES, MD_READ_OPTIONS, PACKAGE_READ_OPTIONS, TXT_READ_OPTIONS } from './engine-limits';
 
 export interface OpenedFromFile {
   readonly handle: EditorHandle;
@@ -23,7 +23,7 @@ export interface WrittenFile {
 
 function importOptions(format: ImportFormat): object {
   switch (format) {
-    case 'docx': case 'odt': return {};
+    case 'docx': case 'odt': return PACKAGE_READ_OPTIONS;
     case 'md': return MD_READ_OPTIONS;
     case 'txt': return TXT_READ_OPTIONS;
   }

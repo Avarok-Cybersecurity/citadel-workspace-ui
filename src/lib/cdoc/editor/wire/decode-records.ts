@@ -157,11 +157,19 @@ export function decodeAddedImage(bytes: Uint8Array): AddedImage {
   return { contentId, kind, width, height };
 }
 
-export function decodeCollected(bytes: Uint8Array): { readonly units: number; readonly deletes: number } {
+/** What a collection removed, and the waiting operations it dropped (a later diff re-sends them). */
+export interface Collected {
+  readonly units: number;
+  readonly deletes: number;
+  readonly pending: number;
+}
+
+export function decodeCollected(bytes: Uint8Array): Collected {
   const r: RecordReader = new RecordReader(bytes);
-  r.magic('CDG', 1);
+  r.magic('CDG', 2);
   const units: number = r.uv();
   const deletes: number = r.uv();
+  const pending: number = r.uv();
   r.end();
-  return { units, deletes };
+  return { units, deletes, pending };
 }

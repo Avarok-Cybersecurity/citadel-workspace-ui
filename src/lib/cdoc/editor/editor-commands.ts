@@ -31,6 +31,19 @@ export type Mark = 'bold' | 'italic' | 'underline' | 'strike' | 'subscript' | 's
 export type CaretGranularity = 'char' | 'word' | 'lineBoundary' | 'line' | 'paragraph' | 'document';
 /** Word's built-in list templates (SetNumberingKind). */
 export type ListKind = 'bullet' | 'decimal' | 'lowerLetter' | 'upperLetter' | 'lowerRoman' | 'upperRoman';
+/** A section's header or footer. */
+export type Furniture = 'header' | 'footer';
+/** Which of a section's headers (or footers): the default, the first page's, the even pages'. */
+export type HeaderFooterKind = 'default' | 'firstPage' | 'evenPages';
+
+/**
+ * The story the selection is in (result record v6): the body, a section's header or footer,
+ * or a footnote's body. A selection never spans two.
+ */
+export type Story =
+  | { readonly kind: 'body' }
+  | { readonly kind: Furniture; readonly section: number; readonly which: HeaderFooterKind }
+  | { readonly kind: 'footnote'; readonly id: number };
 
 export type EditorCommand =
   | { readonly name: 'insertText'; readonly text: string }
@@ -71,7 +84,14 @@ export type EditorCommand =
   | { readonly name: 'removeLink' }
   | { readonly name: 'insertComment'; readonly comment: CommentValue }
   | { readonly name: 'replace'; readonly from: EditorPosition; readonly to: EditorPosition; readonly text: string }
+  /** The story the caret is in: the body, or the header, footer or footnote being edited. */
   | { readonly name: 'selectAll' }
+  /** The caret at the start of a section's header or footer, adding an empty one if it has none. */
+  | { readonly name: 'editHeaderFooter'; readonly furniture: Furniture; readonly section: number; readonly which: HeaderFooterKind }
+  /** The caret at the start of a footnote's body (after insertNewFootnote, its `created` id). */
+  | { readonly name: 'goToFootnote'; readonly id: number }
+  /** Leaves a header, footer or footnote for the body; in the body it does nothing. */
+  | { readonly name: 'returnToBody' }
   | { readonly name: 'setSelection'; readonly anchor: EditorPosition; readonly head: EditorPosition }
   /** Deletes the selection as one undo step (copy its text first); a caret fails. */
   | { readonly name: 'cut' }
@@ -129,6 +149,9 @@ export const COMMAND_OPCODES: { readonly [N in EditorCommandName]: number } = {
   selectAll: 0x31,
   setSelection: 0x32,
   cut: 0x33,
+  editHeaderFooter: 0x34,
+  goToFootnote: 0x35,
+  returnToBody: 0x36,
   undo: 0x40,
   redo: 0x41,
   breakUndoGroup: 0x42,

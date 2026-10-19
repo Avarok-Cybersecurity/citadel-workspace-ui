@@ -1,12 +1,12 @@
 /**
- * Home › Paragraph's lists (SetNumberingKind at the caret's list level) and Home › Styles,
+ * Home › Paragraph's lists (SetNumberingKind at the caret's list level, the current one shown) and Home › Styles,
  * which offers the document's own paragraph styles, read from the editor each time it opens.
  */
-import { screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import type { CaretFormatting } from '@/lib/cdoc/editor/controller';
-import { FakeEditor, knownCaret } from './fake-editor';
+import { editorState, FakeEditor, knownCaret } from './fake-editor';
 import { MAY_EDIT, renderRibbon } from './render-ribbon';
 
 function setUp(caret: CaretFormatting): { editor: FakeEditor; user: UserEvent } {
@@ -29,6 +29,26 @@ describe('lists', () => {
       { name: 'setNumberingKind', kind: 'bullet', level: 2 },
       { name: 'setNumberingKind', kind: 'upperRoman', level: 2 },
     ]));
+  });
+
+  it('shows the current list: Bullets in a bulleted one, Numbering and its choice in a numbered one, mixed across lists', async () => {
+    const { editor, user } = setUp(knownCaret({}, { numbering: { numId: 3, level: 1 } }, {}, undefined, { kind: 'bullet', level: 1 }));
+    expect(screen.getByTestId('ribbon-bullets')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('ribbon-numbering-open')).toHaveAttribute('aria-pressed', 'false');
+    act((): void => editor.report(editorState(knownCaret({}, { numbering: { numId: 4, level: 0 } }, {}, undefined, { kind: 'lowerRoman', level: 0 }))));
+    expect(screen.getByTestId('ribbon-bullets')).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByTestId('ribbon-numbering-open')).toHaveAttribute('aria-pressed', 'true');
+    await user.click(screen.getByTestId('ribbon-numbering-open'));
+    expect(await screen.findByTestId('ribbon-numbering-lowerRoman')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('ribbon-numbering-decimal')).toHaveAttribute('aria-pressed', 'false');
+    await user.keyboard('{Escape}');
+    act((): void => editor.report(editorState(knownCaret({}, {}, { list: true }, undefined, { kind: 'decimal', level: 0 }))));
+    expect(screen.getByTestId('ribbon-bullets')).toHaveAttribute('aria-pressed', 'mixed');
+    expect(screen.getByTestId('ribbon-numbering-open')).toHaveAttribute('aria-pressed', 'mixed');
+    // A list the templates do not describe (an imported one) presses neither.
+    act((): void => editor.report(editorState(knownCaret({}, { numbering: { numId: 9, level: 0 } }, {}, undefined, { kind: 'custom', level: 0 }))));
+    expect(screen.getByTestId('ribbon-bullets')).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByTestId('ribbon-numbering-open')).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('ends a list with No list, whatever its kind', async () => {

@@ -5,6 +5,7 @@
  * out of wasm memory, so it owns its buffer and can be transferred.
  */
 import type { CdocWasm, EditorHandle, EditorSealedFonts, ImageStore } from './cdoc-wasm-api';
+import type { PendingLimits } from './engine-limits';
 import type { EditorOrigin } from '../editor/controller';
 import type { DocumentExportTarget } from './editor-files';
 import { openFromFile, writeFile, type OpenedFromFile, type WrittenFile } from './editor-files';
@@ -62,8 +63,8 @@ export class EditorEngine {
     return this.handle.request(record);
   }
 
-  applyRemote(update: Uint8Array): Uint8Array {
-    return this.handle.applyRemote(update);
+  applyRemote(update: Uint8Array, limits: PendingLimits): Uint8Array {
+    return this.handle.applyRemote(update, limits.maxOps, limits.maxBytes);
   }
 
   /** The display list of exactly `pages`. */

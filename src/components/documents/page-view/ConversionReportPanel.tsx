@@ -1,6 +1,8 @@
 /**
  * A conversion report, shown: a summary line that is always visible, and every entry behind a
  * disclosure button (keyboard and touch, 44 px). Nothing in the report is left out or merged.
+ * Each entry leads with its plain-language label; the summary counts the losses whose severity
+ * is major, the ones that change what a reader sees (docs/loss-report.md in citadel-docs).
  */
 import { useId, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
@@ -15,13 +17,15 @@ interface ConversionReportPanelProps {
 }
 
 function lossText(loss: ConversionLoss): string {
-  if (loss.kind === 'macros') return `Macros removed, never run: ${loss.part} (${loss.bytes.toString()} bytes)`;
-  return `${loss.what} — ${loss.part}${loss.count > 1 ? ` (${loss.count} times)` : ''}`;
+  if (loss.kind === 'macros') return `${loss.label}, never run: ${loss.part} (${loss.bytes.toString()} bytes)`;
+  return `${loss.label}: ${loss.what} — ${loss.part}${loss.count > 1 ? ` (${loss.count} times)` : ''}`;
 }
 
 function summary(report: ConversionReport): string {
   const parts: string[] = [];
-  if (report.losses.length > 0) parts.push(`${report.losses.length} ${report.losses.length === 1 ? 'thing' : 'things'} could not be carried over`);
+  const major: number = report.losses.filter((loss: ConversionLoss) => loss.severity === 'major').length;
+  const visible: string = major === 0 ? '' : ` (${major} ${major === 1 ? 'changes' : 'change'} what you see)`;
+  if (report.losses.length > 0) parts.push(`${report.losses.length} ${report.losses.length === 1 ? 'thing' : 'things'} could not be carried over${visible}`);
   if (report.problems.length > 0) parts.push(`${report.problems.length} ${report.problems.length === 1 ? 'problem' : 'problems'} found`);
   return parts.length === 0 ? 'nothing was lost.' : `${parts.join(', ')}.`;
 }

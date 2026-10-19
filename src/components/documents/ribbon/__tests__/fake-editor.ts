@@ -8,7 +8,7 @@
  * an editor in a browser page with no cdoc worker.
  */
 import type { AddedImage, CaretFormatting, DocumentStyle, EditorCommand, EditorEventName, EditorEvents, EditorPosition, EditorState } from '@/lib/cdoc/editor/controller';
-import type { KnownFormatting, ParagraphKey, RunKey } from '@/lib/cdoc/editor/caret-formatting';
+import type { KnownFormatting, ListState, ParagraphKey, RunKey } from '@/lib/cdoc/editor/caret-formatting';
 import type { PageSetup, ParagraphProperties, RunPropertiesPatch } from '@/lib/cdoc/editor/model-values';
 import type { RibbonEditor } from '../editor-context';
 
@@ -23,16 +23,22 @@ export const A4_NORMAL: PageSetup = {
   pageNumbering: { format: 'decimal' },
 };
 
-/** Formatting the engine reports, with direct values equal to the effective ones and nothing mixed unless named. */
+/**
+ * Formatting the engine reports, with direct values equal to the effective ones and nothing
+ * mixed unless named. Not a list item unless `list` names one: most ribbon tests are about
+ * paragraphs outside a list, so that is the case that needs no argument.
+ */
 export function knownCaret(
   run: RunPropertiesPatch,
   paragraph: ParagraphProperties,
-  mixed: { readonly run?: readonly RunKey[]; readonly paragraph?: readonly ParagraphKey[] } = {},
+  mixed: { readonly run?: readonly RunKey[]; readonly paragraph?: readonly ParagraphKey[]; readonly list?: boolean } = {},
   section: PageSetup = A4_NORMAL,
+  list: ListState | null = null,
 ): KnownFormatting {
   return {
     known: true, run, runDirect: run, paragraph, paragraphDirect: paragraph,
     runMixed: new Set<RunKey>(mixed.run ?? []), paragraphMixed: new Set<ParagraphKey>(mixed.paragraph ?? []), section,
+    list, listMixed: mixed.list ?? false,
   };
 }
 
@@ -49,7 +55,7 @@ const NOWHERE: EditorPosition = new Uint8Array([0, 0]) as EditorPosition;
 export function editorState(caretFormatting: CaretFormatting, overrides: Partial<EditorState> = {}): EditorState {
   return {
     anchor: NOWHERE, head: NOWHERE, caret: null, selectionRects: [], caretPage: 0, pageCount: 1, composing: false, caretFormatting,
-    created: [], selectionText: { complete: true, text: '' }, ...overrides,
+    created: [], selectionText: { complete: true, text: '' }, story: { kind: 'body' }, ...overrides,
   };
 }
 

@@ -42,9 +42,10 @@ export class EditorHandle {
      */
     addImage(bytes: Uint8Array, max_bytes: number): Uint8Array;
     /**
-     * Applies a peer's update; returns the result record.
+     * Applies a peer's update; returns the result record. Buffers at most `max_pending_ops`
+     * waiting operations and `max_pending_bytes` bytes (no default; docs/edit-commands.md).
      */
-    applyRemote(update: Uint8Array): Uint8Array;
+    applyRemote(update: Uint8Array, max_pending_ops: number, max_pending_bytes: number): Uint8Array;
     /**
      * This replica's awareness record.
      */
@@ -77,8 +78,8 @@ export class EditorHandle {
     /**
      * A new document from a file of `kind` (`docx`, `odt`, `md` or `txt`) as client
      * `client` (a `BigInt`); embedded images of at most `max_image_bytes` each are held by
-     * their content ids. Options JSON: `{}` for `docx` and `odt`, the `md_to_pm` and
-     * `txt_to_pm` options for `md` and `txt`.
+     * their content ids. Options JSON: `{"limits": <ReadLimits>}` for `docx` and
+     * `odt`, the `md_to_pm` and `txt_to_pm` options for `md` and `txt`.
      */
     static fromDocument(bytes: Uint8Array, kind: string, options_json: string, client: bigint, fonts: EditorSealedFonts, max_image_bytes: number): ImportedEditor;
     /**
@@ -299,9 +300,10 @@ export function check_pm(pm_json: string): void;
 
 /**
  * A `.docx`, `.dotx`, `.docm` or `.dotm` to JSON `{"pm", "report", "problems", "kind"}`;
- * images go into `images`, macros are refused and reported.
+ * images go into `images`, macros are refused and reported. Options JSON:
+ * `{"limits": <ReadLimits>}` (docs/edit-commands.md has values sized for a browser).
  */
-export function docx_to_pm(bytes: Uint8Array, images: ImageStore): string;
+export function docx_to_pm(bytes: Uint8Array, images: ImageStore, options_json: string): string;
 
 /**
  * That face's metrics as the 8-byte record (`unitsPerEm`, ascender, descender, line gap).
@@ -339,9 +341,9 @@ export function model_to_pm(model_json: string): string;
 
 /**
  * A `.odt` or `.ott` to JSON `{"pm", "report", "problems", "kind"}`; images go into
- * `images`.
+ * `images`. Options JSON: `{"limits": <ReadLimits>}`.
  */
-export function odt_to_pm(bytes: Uint8Array, images: ImageStore): string;
+export function odt_to_pm(bytes: Uint8Array, images: ImageStore, options_json: string): string;
 
 /**
  * ProseMirror JSON to a CRDT snapshot written as `client`, for moving a stored document onto
@@ -429,14 +431,14 @@ export interface InitOutput {
     readonly blank_model_json: () => [number, number];
     readonly blank_pm_json: () => [number, number];
     readonly check_pm: (a: number, b: number) => [number, number];
-    readonly docx_to_pm: (a: number, b: number, c: number) => [number, number, number, number];
+    readonly docx_to_pm: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
     readonly editorfonts_addFont: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
     readonly editorfonts_addPatterns: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly editorfonts_aliasFont: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly editorfonts_new: (a: number, b: number) => number;
     readonly editorfonts_seal: (a: number) => number;
     readonly editorhandle_addImage: (a: number, b: number, c: number, d: number) => [number, number, number, number];
-    readonly editorhandle_applyRemote: (a: number, b: number, c: number) => [number, number, number, number];
+    readonly editorhandle_applyRemote: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
     readonly editorhandle_awareness: (a: number) => [number, number];
     readonly editorhandle_blank: (a: bigint, b: number) => [number, number, number];
     readonly editorhandle_drawnImages: (a: number, b: number) => void;
@@ -479,7 +481,7 @@ export interface InitOutput {
     readonly migrated_reportJson: (a: number) => [number, number];
     readonly migrated_snapshot: (a: number) => [number, number];
     readonly model_to_pm: (a: number, b: number) => [number, number, number, number];
-    readonly odt_to_pm: (a: number, b: number, c: number) => [number, number, number, number];
+    readonly odt_to_pm: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
     readonly pm_to_crdt_snapshot: (a: number, b: number, c: bigint) => [number, number, number];
     readonly pm_to_display_list: (a: number, b: number, c: number) => [number, number, number, number];
     readonly pm_to_display_list_pages: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];

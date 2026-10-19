@@ -182,6 +182,8 @@ export function paintPage(env: PagePaintEnv, page: PageOps): LinkArea[] {
         break;
       }
       case 'clipPop': ctx.restore(); break;
+      // Where the page's text came from, for an editor; nothing to draw.
+      case 'caretLines': break;
     }
   }
   return links;

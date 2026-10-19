@@ -58,8 +58,8 @@ describe('opening a file by its kind', () => {
     const outcome: OpenedDocument = await freshClient().request({ kind: 'open', source: { kind: 'file', format: 'docx', bytes: fixture('poi-simple-macro.docm') } });
     expect(outcome.kind).toBe('refused');
     expect(refusedMacros(outcome.report)).toEqual([
-      { kind: 'macros', part: 'word/vbaData.xml', bytes: 809n },
-      { kind: 'macros', part: 'word/vbaProject.bin', bytes: 12800n },
+      { kind: 'macros', part: 'word/vbaData.xml', bytes: 809n, severity: 'info', label: 'Macros removed' },
+      { kind: 'macros', part: 'word/vbaProject.bin', bytes: 12800n, severity: 'info', label: 'Macros removed' },
     ]);
   });
 

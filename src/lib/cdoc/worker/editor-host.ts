@@ -5,6 +5,7 @@
  */
 import type { CdocEngine } from '../engine/cdoc-engine';
 import type { EditorEngine } from '../engine/editor-engine';
+import { PENDING_LIMITS } from '../engine/engine-limits';
 import type { EditorRequestBody, EditorResults } from './editor-protocol';
 
 export type EditorSessionRequest = Exclude<EditorRequestBody, { kind: 'editorOpen' } | { kind: 'invalidatePages' }>;
@@ -20,7 +21,7 @@ export async function openEditor(engine: CdocEngine, req: Extract<EditorRequestB
 export function serveEditor(engine: CdocEngine, editor: EditorEngine, req: EditorSessionRequest): EditorResults[EditorSessionRequest['kind']] | Promise<EditorResults['exportAs']> {
   switch (req.kind) {
     case 'apply': return { result: editor.request(req.record) };
-    case 'applyRemote': return { result: editor.applyRemote(req.update) };
+    case 'applyRemote': return { result: editor.applyRemote(req.update, PENDING_LIMITS) };
     case 'hitTest': return { position: editor.hitTest(req.page, req.x, req.y) };
     case 'snapshot': return { snapshot: editor.snapshot() };
     case 'awareness': return { record: editor.awareness() };

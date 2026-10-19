@@ -6,7 +6,7 @@ import { act, screen, waitFor } from '@testing-library/react';
 import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import type { CaretFormatting } from '@/lib/cdoc/editor/controller';
-import { FakeEditor, knownCaret } from './fake-editor';
+import { editorState, FakeEditor, knownCaret } from './fake-editor';
 import { FIXED_ENVIRONMENT, MAY_EDIT, renderRibbon } from './render-ribbon';
 import { MAX_PICTURE_BYTES } from '../picture';
 
@@ -162,19 +162,58 @@ describe('the Insert ribbon', () => {
     expect(editor.sent).toEqual([]);
   });
 
-  it('inserts a footnote under an id the editor picks, each break kind, and a symbol', async () => {
+  it('inserts a footnote under an id the editor picks and goes to it, each break kind, and a symbol', async () => {
     const { editor, user } = setUp('Ada');
+    // What InsertNewFootnote answers: the id the editor picked (the fake answers every command with its state).
+    editor.state = editorState(PLAIN, { created: [{ kind: 'footnote', id: 7 }] });
     await openTab(user, 'insert');
     await user.click(screen.getByTestId('ribbon-insert-footnote'));
+    await waitFor((): void => expect(editor.sent).toEqual([{ name: 'insertNewFootnote' }, { name: 'goToFootnote', id: 7 }]));
+    editor.state = editorState(PLAIN);
     for (const kind of ['page', 'column', 'line']) await user.click(screen.getByTestId(`ribbon-insert-break-${kind}`));
     await user.click(screen.getByTestId('ribbon-insert-symbol'));
     await user.click(await screen.findByTestId('ribbon-symbol-a9'));
     await waitFor((): void => expect(editor.sent).toEqual([
       { name: 'insertNewFootnote' },
+      { name: 'goToFootnote', id: 7 },
       { name: 'insertBreak', kind: 'page' },
       { name: 'insertBreak', kind: 'column' },
       { name: 'insertBreak', kind: 'line' },
       { name: 'insertText', text: '©' },
     ]));
+  });
+
+  it('says so, and goes nowhere, when the editor reports no footnote id', async () => {
+    const { editor, user } = setUp('Ada');
+    await openTab(user, 'insert');
+    await user.click(screen.getByTestId('ribbon-insert-footnote'));
+    await waitFor((): void => expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent('Could not insert the footnote. the editor reported no footnote id'));
+    expect(editor.sent).toEqual([{ name: 'insertNewFootnote' }]);
+  });
+
+  it('edits the header and the footer, and the bar says where the cursor is drawn and leads back', async () => {
+    const { editor, user } = setUp('Ada');
+    await openTab(user, 'insert');
+    await user.click(screen.getByTestId('ribbon-edit-header'));
+    await user.click(screen.getByTestId('ribbon-edit-footer'));
+    await waitFor((): void => expect(editor.sent).toEqual([
+      { name: 'editHeaderFooter', furniture: 'header', section: 0, which: 'default' },
+      { name: 'editHeaderFooter', furniture: 'footer', section: 0, which: 'default' },
+    ]));
+    expect(screen.queryByTestId('docs-story-bar')).toBeNull();
+    act((): void => editor.report(editorState(PLAIN, { story: { kind: 'footer', section: 2, which: 'evenPages' } })));
+    expect(screen.getByTestId('docs-story-bar')).toHaveTextContent('Editing the footer (even pages) of section 3. It shows on every page of the section; its cursor and selection are drawn on the first of them.');
+    expect(screen.getByTestId('ribbon-edit-footer')).toHaveAttribute('aria-pressed', 'true');
+    // From a footer, Header edits that footer's section.
+    await user.click(screen.getByTestId('ribbon-edit-header'));
+    await user.click(screen.getByTestId('docs-story-back'));
+    await waitFor((): void => expect(editor.sent.slice(2)).toEqual([
+      { name: 'editHeaderFooter', furniture: 'header', section: 2, which: 'default' },
+      { name: 'returnToBody' },
+    ]));
+    act((): void => editor.report(editorState(PLAIN, { story: { kind: 'footnote', id: 4 } })));
+    expect(screen.getByTestId('docs-story-bar')).toHaveTextContent('Editing a footnote.');
+    act((): void => editor.report(editorState(PLAIN)));
+    expect(screen.queryByTestId('docs-story-bar')).toBeNull();
   });
 });

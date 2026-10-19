@@ -1,5 +1,5 @@
 /**
- * Where each glyph of a run stands, in Pt100 page space (`docs/display-list.md` v2 § Placing a
+ * Where each glyph of a run stands, in Pt100 page space (`docs/display-list.md` v5 § Placing a
  * GLYPH_RUN). Visitor-shaped so painting a run allocates nothing.
  */
 import type { Op } from './types';

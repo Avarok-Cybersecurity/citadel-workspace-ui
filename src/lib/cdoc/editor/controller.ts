@@ -3,7 +3,7 @@
  * Layout) call commands by name, read the selection and caret, and listen for changes; the
  * collaboration wiring relays updates and awareness. The editor itself (cdoc-edit's
  * EditorHandle) runs in the cdoc worker; every command becomes one request record of
- * citadel-docs docs/edit-commands.md (version 2), whose opcode COMMAND_OPCODES names.
+ * citadel-docs docs/edit-commands.md (version 6), whose opcode COMMAND_OPCODES names.
  *
  * EditorCommand is the single source: `commands` and `execute` are both derived from it, so a
  * command added there is a type error until it has an opcode and both surfaces carry it.
@@ -13,12 +13,14 @@ import type { CommandOf, EditorCommand, EditorCommandName, EditorPosition, PageR
 import type { CaretFormatting } from './caret-formatting';
 import type { ExportedFile, ExportTarget, ImportFormat, ImportReport } from './file-formats';
 import type { PeerOverlay } from './peer-overlay';
-import type { Created, SelectionText } from './wire/decode-result';
+import type { Created, RemoteReport, SelectionText } from './wire/decode-result';
+import type { Story } from './editor-commands';
 import type { DocumentStyle } from './wire/decode-v4-records';
+import type { Collected } from './wire/decode-records';
 
 export type { DocumentStyle } from './wire/decode-v4-records';
 
-export type { Created, SelectionText } from './wire/decode-result';
+export type { Created, MissingUnit, RemoteReport, SelectionText } from './wire/decode-result';
 
 export * from './editor-commands';
 
@@ -41,6 +43,17 @@ export interface EditorState {
   readonly created: readonly Created[];
   /** The selection's plain text, for Copy and Cut; empty for a caret. */
   readonly selectionText: SelectionText;
+  /**
+   * The story the selection is in. A header or footer shown on many pages is one story: its
+   * caret and selection are drawn on the first of those pages only (cdoc-edit).
+   */
+  readonly story: Story;
+}
+
+/** A peer's update applied: the state after it, and what it left waiting (null: nothing). */
+export interface RemoteApplied {
+  readonly state: EditorState;
+  readonly remote: RemoteReport;
 }
 
 /** A peer's caret and selection mapped onto this replica's pages. */
@@ -120,8 +133,12 @@ export interface EditorController {
    * to one computed against the document before.
    */
   selectAt(page: number, x: Pt100, y: Pt100, how: SelectAt): Promise<EditorState>;
-  /** Applies a peer's CRDT update; emits `pages` and `selection`, never `change`. */
-  applyRemote(update: Uint8Array): Promise<EditorState>;
+  /**
+   * Applies a peer's CRDT update; emits `pages` and `selection`, never `change`. Operations that
+   * wait for a unit this replica lacks are buffered within PENDING_LIMITS; `remote` says what
+   * waits and how many the limits dropped, either of which asks for a diff against stateVector().
+   */
+  applyRemote(update: Uint8Array): Promise<RemoteApplied>;
   /** The full CRDT snapshot, to persist or to seed a joining peer. */
   snapshot(): Promise<Uint8Array>;
   /** This replica's awareness record, to relay as is. */
@@ -141,7 +158,7 @@ export interface EditorController {
    * every peer holds everything this replica holds; the collaboration session decides when.
    * The undo history ends.
    */
-  collectGarbage(known: readonly Uint8Array[]): Promise<{ readonly units: number; readonly deletes: number }>;
+  collectGarbage(known: readonly Uint8Array[]): Promise<Collected>;
   /**
    * Holds an image file (PNG or JPEG, read from its signature) of at most `maxBytes` bytes, and
    * resolves with its content id and pixel size; `insertImage` then places it. Store the bytes

@@ -10,7 +10,7 @@ import { createEditorOpener, newReplicaId } from '../editor-opener';
 import type { EditorSession } from '../editor-session';
 import type { AddedImage, EditorOrigin } from '../controller';
 import { createHash } from 'node:crypto';
-import { decodeAwareness } from '../wire/decode-records';
+import { decodeAwareness, type Collected } from '../wire/decode-records';
 
 /** The smallest PNG: a 1x1 transparent pixel. */
 const PNG_1X1: Uint8Array = Uint8Array.from(Buffer.from(
@@ -58,7 +58,7 @@ describe('the editor opener', () => {
     await a.execute({ name: 'deleteBackward', unit: 'word' });
     await b.applyRemote(await a.encodeDiff(await b.stateVector()));
     await expect(a.collectGarbage([])).rejects.toThrow();
-    const collected: { readonly units: number; readonly deletes: number } = await a.collectGarbage([await b.stateVector()]);
+    const collected: Collected = await a.collectGarbage([await b.stateVector()]);
     expect(collected.units).toBeGreaterThan(0);
   });
 

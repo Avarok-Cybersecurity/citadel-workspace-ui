@@ -19,11 +19,12 @@ import {
   type EditorPosition,
   type EditorState,
   type PeerView,
+  type RemoteApplied,
   type SelectAt,
 } from './controller';
 import { Emitter } from './emitter';
 import { encodeCommand } from './wire/encode-command';
-import { decodeAddedImage, decodeAwareness, decodeCollected, decodePeerView, decodePosition, type Awareness } from './wire/decode-records';
+import { decodeAddedImage, decodeAwareness, decodeCollected, decodePeerView, decodePosition, type Awareness, type Collected } from './wire/decode-records';
 import { decodeResult, type EditorResult } from './wire/decode-result';
 import { decodeChunks, decodeStyles, type DocumentStyle } from './wire/decode-v4-records';
 import { readExportReport, readImportReport } from './file-reports';
@@ -79,7 +80,7 @@ export class EditorSession implements EditorController, EditorView {
     return new EditorSession(deps, {
       anchor: own.anchor, head: own.head, caret: view.caret, selectionRects: view.selectionRects,
       caretPage: view.caret?.page ?? null, pageCount, composing: false, caretFormatting: { known: false },
-      created: [], selectionText: { complete: true, text: '' },
+      created: [], selectionText: { complete: true, text: '' }, story: { kind: 'body' },
     }, opened.pageSizes, from.kind === 'bytes' && opened.importReportJson !== null ? readImportReport(opened.importReportJson, from.format) : null);
   }
 
@@ -134,10 +135,12 @@ export class EditorSession implements EditorController, EditorView {
     });
   }
 
-  applyRemote(update: Uint8Array): Promise<EditorState> {
-    return this.serial(async (): Promise<EditorState> => {
+  applyRemote(update: Uint8Array): Promise<RemoteApplied> {
+    return this.serial(async (): Promise<RemoteApplied> => {
       const { result } = await this.deps.client.request({ kind: 'applyRemote', update: update.slice() });
-      return this.adopt(decodeResult(result), false, this.current.composing);
+      const decoded: EditorResult = decodeResult(result);
+      if (decoded.remote === null) throw new Error('editor record: an applyRemote result has no remote section');
+      return { state: await this.adopt(decoded, false, this.current.composing), remote: decoded.remote };
     });
   }
 
@@ -147,7 +150,7 @@ export class EditorSession implements EditorController, EditorView {
     if (countChanged) this.sizes = (await this.deps.client.request({ kind: 'pageSizes' })).pageSizes;
     const next: EditorState = {
       anchor: r.anchor, head: r.head, caret: r.caret, selectionRects: r.selectionRects, caretPage: r.caret?.page ?? null,
-      pageCount: r.pageCount, composing, caretFormatting: r.formatting, created: r.created, selectionText: r.selectionText,
+      pageCount: r.pageCount, composing, caretFormatting: r.formatting, created: r.created, selectionText: r.selectionText, story: r.story,
     };
     // A result that changes nothing (most viewport reports while scrolling) keeps the state and
     // tells no one: every listener (the ribbon, the overlays, presence) would redo its work for
@@ -189,7 +192,7 @@ export class EditorSession implements EditorController, EditorView {
     return this.serial(async (): Promise<Uint8Array[]> => decodeChunks((await this.deps.client.request({ kind: 'encodeDiffChunked', sv, maxBytes })).record));
   }
 
-  collectGarbage(known: readonly Uint8Array[]): Promise<{ readonly units: number; readonly deletes: number }> {
+  collectGarbage(known: readonly Uint8Array[]): Promise<Collected> {
     const w: RecordWriter = new RecordWriter().uv(known.length);
     for (const sv of known) w.bytes(sv);
     return this.serial(async () => decodeCollected((await this.deps.client.request({ kind: 'gc', known: w.finish() })).record));

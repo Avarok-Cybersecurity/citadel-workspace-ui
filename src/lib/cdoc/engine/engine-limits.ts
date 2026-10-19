@@ -22,5 +22,41 @@ export const MD_READ_OPTIONS: { readonly textWidth: number; readonly imageWidth:
   imageHeight: 33848,
 };
 
+/**
+ * applyRemote's buffer for operations waiting on a dependency (docs/edit-commands.md): 10 000
+ * operations and 8 MiB hold any honest gap many times over. What is over is dropped, never
+ * lost: it is not in the state vector, so the next diff sends it again.
+ */
+export interface PendingLimits {
+  readonly maxOps: number;
+  readonly maxBytes: number;
+}
+export const PENDING_LIMITS: PendingLimits = { maxOps: 10_000, maxBytes: 8 * 1024 * 1024 };
+
+/**
+ * DOCX and ODT reads (cdoc_pkg::ReadLimits; every field required): what a package may inflate
+ * and parse in a tab. The read holds the file, its inflated parts and the document at once, so
+ * the 128 MiB total is what keeps a tab alive; one part at 64 MiB, compression past 100 KiB at
+ * most 100:1, elements nested 256 deep, 5000 parts.
+ */
+export const READ_LIMITS: {
+  readonly maxParts: number;
+  readonly maxPartBytes: number;
+  readonly maxTotalBytes: number;
+  readonly maxRatio: number;
+  readonly ratioGraceBytes: number;
+  readonly maxDepth: number;
+} = {
+  maxParts: 5000,
+  maxPartBytes: 64 * 1024 * 1024,
+  maxTotalBytes: 128 * 1024 * 1024,
+  maxRatio: 100,
+  ratioGraceBytes: 100 * 1024,
+  maxDepth: 256,
+};
+
+/** The options a DOCX or ODT read takes (docx_to_pm, odt_to_pm, EditorHandle.fromDocument). */
+export const PACKAGE_READ_OPTIONS: { readonly limits: typeof READ_LIMITS } = { limits: READ_LIMITS };
+
 /** Plain-text import: a single newline is a line break, a blank line a new paragraph. */
 export const TXT_READ_OPTIONS: { readonly singleNewline: 'break' | 'space' } = { singleNewline: 'break' };

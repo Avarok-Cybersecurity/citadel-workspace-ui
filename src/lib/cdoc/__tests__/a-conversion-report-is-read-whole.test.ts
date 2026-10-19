@@ -7,17 +7,25 @@ import { describe, expect, it } from 'vitest';
 import { ConversionReportError, isLossless, readConversionReport, refusedMacros } from '../conversion-report';
 import type { ConversionReport } from '../editor/file-formats';
 
+/** A valid severity and label, so each refusal below is for the reason it names. */
+const TIER: { readonly severity: 'info'; readonly label: string } = { severity: 'info', label: 'x' };
+
 describe('reading a conversion report', () => {
   it('reads counted losses and refused macros, macro sizes as bigint', () => {
     const report: ConversionReport = readConversionReport(
-      { losses: [{ part: 'word/document.xml', what: 'w:rPr/w:spacing', count: 18 }, { part: 'word/vbaProject.bin', bytes: 11264 }] },
+      {
+        losses: [
+          { part: 'word/document.xml', what: 'w:rPr/w:spacing', count: 18, severity: 'minor', label: 'Character spacing simplified' },
+          { part: 'word/vbaProject.bin', bytes: 11264, severity: 'info', label: 'Macros removed' },
+        ],
+      },
       ['a style names a missing base'],
     );
     expect(report.losses).toEqual([
-      { kind: 'counted', part: 'word/document.xml', what: 'w:rPr/w:spacing', count: 18 },
-      { kind: 'macros', part: 'word/vbaProject.bin', bytes: 11264n },
+      { kind: 'counted', part: 'word/document.xml', what: 'w:rPr/w:spacing', count: 18, severity: 'minor', label: 'Character spacing simplified' },
+      { kind: 'macros', part: 'word/vbaProject.bin', bytes: 11264n, severity: 'info', label: 'Macros removed' },
     ]);
-    expect(refusedMacros(report)).toEqual([{ kind: 'macros', part: 'word/vbaProject.bin', bytes: 11264n }]);
+    expect(refusedMacros(report)).toEqual([{ kind: 'macros', part: 'word/vbaProject.bin', bytes: 11264n, severity: 'info', label: 'Macros removed' }]);
     expect(isLossless(report)).toBe(false);
   });
 
@@ -28,9 +36,9 @@ describe('reading a conversion report', () => {
 
   it.each([
     ['no losses array', {}, []],
-    ['a loss without a part', { losses: [{ what: 'x', count: 1 }] }, []],
-    ['a loss of neither shape', { losses: [{ part: 'p', count: 1 }] }, []],
-    ['a negative macro size', { losses: [{ part: 'p', bytes: -1 }] }, []],
+    ['a loss without a part', { losses: [{ what: 'x', count: 1, ...TIER }] }, []],
+    ['a loss of neither shape', { losses: [{ part: 'p', count: 1, ...TIER }] }, []],
+    ['a negative macro size', { losses: [{ part: 'p', bytes: -1, ...TIER }] }, []],
     ['problems that are not strings', { losses: [] }, [1]],
   ])('refuses %s', (_name: string, report: unknown, problems: unknown) => {
     expect(() => readConversionReport(report, problems)).toThrow(ConversionReportError);

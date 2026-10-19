@@ -40,7 +40,7 @@ fn report(name: &str, bytes: &[u8]) -> String {
     let mut out = format!("{{\"name\":\"{name}\",\"faces\":{},\"pages\":[", view.faces().len());
     for slot in 0..view.page_count() {
         let page = view.page(slot).expect("page");
-        let mut c = [0u64; 11];
+        let mut c = [0u64; 12];
         let (mut text_sum, mut glyphs, mut first_pens, mut first_text, mut text_bytes) = (0i64, 0u64, String::new(), String::new(), 0usize);
         for op in page.ops() {
             let k = match op {
@@ -54,7 +54,7 @@ fn report(name: &str, bytes: &[u8]) -> String {
                     if record { let _ = write!(first_pens, "{pen}"); }
                     text_bytes += text.len();
                     5 }
-                OpView::Image { .. } => 6, OpView::Link { .. } => 7, OpView::ClipPush(_) => 8, OpView::ClipPop => 9, OpView::SigField { .. } => 10,
+                OpView::Image { .. } => 6, OpView::Link { .. } => 7, OpView::ClipPush(_) => 8, OpView::ClipPop => 9, OpView::SigField { .. } => 10, OpView::CaretLines(_) => 11,
             };
             c[k] += 1;
         }

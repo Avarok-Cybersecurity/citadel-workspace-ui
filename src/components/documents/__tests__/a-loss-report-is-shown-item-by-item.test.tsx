@@ -18,7 +18,11 @@ import { keepBlankReplica } from '../blank-replica';
 // Any fixed instant: nothing is downloaded here.
 const FILES: RecordingDocumentFiles = recordingDocumentFiles('2026-10-18T00:00:00Z');
 const LOSSY: ConversionReport = {
-  losses: [{ kind: 'counted', part: 'word/document.xml', what: 'w:rPr/w:spacing', count: 18 }, { kind: 'counted', part: 'word/styles.xml', what: 'w:latentStyles', count: 1 }, { kind: 'macros', part: 'word/vbaProject.bin', bytes: 12800n }],
+  losses: [
+    { kind: 'counted', part: 'word/document.xml', what: 'w:rPr/w:spacing', count: 18, severity: 'minor', label: 'Character formatting simplified' },
+    { kind: 'counted', part: 'word/document.xml', what: 'w:object', count: 1, severity: 'major', label: 'Embedded object not carried' },
+    { kind: 'macros', part: 'word/vbaProject.bin', bytes: 12800n, severity: 'info', label: 'Macros removed' },
+  ],
   problems: ['a style names a missing base'],
 };
 
@@ -29,13 +33,13 @@ const bar = (importReport: ConversionReport): void => {
 describe('the import report', () => {
   it('summarises, then lists every loss and problem when asked', () => {
     bar(LOSSY);
-    expect(screen.getByRole('region', { name: 'Opening report.docx' })).toHaveTextContent('Opening report.docx: 3 things could not be carried over, 1 problem found.');
+    expect(screen.getByRole('region', { name: 'Opening report.docx' })).toHaveTextContent('Opening report.docx: 3 things could not be carried over (1 changes what you see), 1 problem found.');
     const list: HTMLElement = screen.getByRole('list', { hidden: true });
     expect(list).not.toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Show details' }));
     expect(list).toBeVisible();
     expect(Array.from(list.querySelectorAll('li'), (li: HTMLLIElement) => li.textContent)).toEqual([
-      'w:rPr/w:spacing — word/document.xml (18 times)', 'w:latentStyles — word/styles.xml',
+      'Character formatting simplified: w:rPr/w:spacing — word/document.xml (18 times)', 'Embedded object not carried: w:object — word/document.xml',
       'Macros removed, never run: word/vbaProject.bin (12800 bytes)', 'Problem: a style names a missing base',
     ]);
     expect(screen.getByRole('button', { name: 'Hide details' })).toHaveAttribute('aria-expanded', 'true');

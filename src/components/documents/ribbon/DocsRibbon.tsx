@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { CdocFontFaces } from './CdocFontFaces';
 import { HomeRibbon } from './HomeRibbon';
 import { InsertRibbon } from './InsertRibbon';
+import { StoryBar } from './HeaderFooter';
 import { LayoutRibbon } from './LayoutRibbon';
 import { useEditorController, useEditorState, type RibbonEditor } from './editor-context';
 import { RibbonContext, useRibbonValue, type Ribbon } from './ribbon-context';
@@ -72,6 +73,7 @@ export function DocsRibbon({ edit, commentAuthor, environment }: DocsRibbonProps
           <TabsContent value="home" tabIndex={-1} className="mt-1"><HomeRibbon /></TabsContent>
           <TabsContent value="insert" tabIndex={-1} className="mt-1"><InsertRibbon commentAuthor={commentAuthor} /></TabsContent>
           <TabsContent value="layout" tabIndex={-1} className="mt-1"><LayoutRibbon /></TabsContent>
+          <StoryBar />
           {compact && status}
         </Tabs>
       </TooltipProvider>

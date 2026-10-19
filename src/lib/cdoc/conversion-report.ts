@@ -4,9 +4,10 @@
  * report this side cannot read is an error, never an empty report.
  *
  * A loss is either counted (`{part, what, count}`) or refused macros (`{part, bytes}`), told
- * apart by their fields exactly as citadel-docs serialises cdoc_model::Loss (untagged).
+ * apart by their fields exactly as citadel-docs serialises cdoc_model::Loss (untagged); each
+ * carries its `severity` and `label` (docs/loss-report.md).
  */
-import type { ConversionLoss, ConversionReport } from './editor/file-formats';
+import type { ConversionLoss, ConversionReport, LossSeverity } from './editor/file-formats';
 
 /** The report of a document that was not converted: opened blank, or from Docs' own JSON. */
 export const NOT_CONVERTED: ConversionReport = { losses: [], problems: [] };
@@ -20,13 +21,19 @@ export class ConversionReportError extends Error {
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 
+const SEVERITIES: readonly LossSeverity[] = ['info', 'minor', 'major'];
+const isSeverity = (value: unknown): value is LossSeverity => SEVERITIES.some((s: LossSeverity): boolean => s === value);
+
 function lossOf(value: unknown, index: number): ConversionLoss {
   if (!isRecord(value) || typeof value.part !== 'string') throw new ConversionReportError(`loss ${index} has no part`);
+  const { severity, label } = value;
+  if (!isSeverity(severity)) throw new ConversionReportError(`loss ${index} has no severity`);
+  if (typeof label !== 'string') throw new ConversionReportError(`loss ${index} has no label`);
   if (typeof value.what === 'string' && typeof value.count === 'number' && Number.isInteger(value.count)) {
-    return { kind: 'counted', part: value.part, what: value.what, count: value.count };
+    return { kind: 'counted', part: value.part, what: value.what, count: value.count, severity, label };
   }
   if (typeof value.bytes === 'number' && Number.isInteger(value.bytes) && value.bytes >= 0) {
-    return { kind: 'macros', part: value.part, bytes: BigInt(value.bytes) };
+    return { kind: 'macros', part: value.part, bytes: BigInt(value.bytes), severity, label };
   }
   throw new ConversionReportError(`loss ${index} is neither counted nor refused macros`);
 }

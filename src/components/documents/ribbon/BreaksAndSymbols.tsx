@@ -1,11 +1,14 @@
 /**
- * Breaks (page, column, line: InsertBreak), Footnote (InsertNewFootnote: the editor picks its id) and
- * Symbol (a small picker that types the character with InsertText).
+ * Breaks (page, column, line: InsertBreak), Footnote (InsertNewFootnote: the editor picks its id,
+ * then GoToFootnote with that id, since the insert leaves the caret in the body and the note is
+ * what the person types next, as in Word) and Symbol (a small picker that types the character
+ * with InsertText).
  */
 import { useState } from 'react';
 import { Asterisk, Columns2, Omega, SeparatorHorizontal, WrapText, type LucideIcon } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import type { BreakKind } from '@/lib/cdoc/editor/controller';
+import type { BreakKind, Created, EditorState } from '@/lib/cdoc/editor/controller';
+import type { RibbonEditor } from './editor-context';
 import { cn } from '@/lib/utils';
 import { RIBBON_CONTROL, RibbonButton, type Shortcut } from './RibbonButton';
 import { RibbonToolbar } from './RibbonToolbar';
@@ -39,10 +42,16 @@ export function BreakButtons({ idPrefix }: { idPrefix: string }): JSX.Element {
 }
 
 export function FootnoteButton(): JSX.Element {
-  const { run }: Ribbon = useRibbon();
+  const { attempt }: Ribbon = useRibbon();
+  const insert = async (editor: RibbonEditor): Promise<void> => {
+    const inserted: EditorState = await editor.execute({ name: 'insertNewFootnote' });
+    const made: Created | undefined = inserted.created.find((c: Created): boolean => c.kind === 'footnote');
+    if (made === undefined) throw new Error('the editor reported no footnote id');
+    await editor.execute({ name: 'goToFootnote', id: made.id });
+  };
   return (
     <RibbonButton testId="ribbon-insert-footnote" label="Insert footnote" icon={Asterisk} text="Footnote"
-      onPress={(): void => { void run({ name: 'insertNewFootnote' }, 'insert the footnote'); }} />
+      onPress={(): void => { void attempt('insert the footnote', insert); }} />
   );
 }
 

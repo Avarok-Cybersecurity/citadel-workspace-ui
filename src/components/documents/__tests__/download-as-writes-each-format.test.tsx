@@ -63,7 +63,7 @@ describe('Download as…', () => {
     expect(text(files.saved[0].bytes)).not.toContain('{');
     const report: HTMLElement = await screen.findByTestId('docs-export-report');
     expect(report).toHaveTextContent('Downloaded Quarterly plan.md: 1 thing could not be carried over.');
-    expect(within(report).getByText('section page setup — markdown')).toBeInTheDocument();
+    expect(within(report).getByText('Layout simplified: section page setup — markdown')).toBeInTheDocument();
   });
 
   it('announces progress and the download, keeps focus on the trigger and the document in view of assistive tech', async () => {

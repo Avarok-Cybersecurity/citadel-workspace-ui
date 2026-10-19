@@ -36,8 +36,9 @@ describe('gc before a snapshot', () => {
   it('collects when alone, and the snapshot shrinks', async () => {
     const alone: number = await churnThenSnapshot({ gcBeforeSnapshot: 'whenAlone' }, false);
     const uncollected: number = await churnThenSnapshot({ gcBeforeSnapshot: 'never' }, false);
-    // Each collected unit and delete is several bytes; 50 of each is far over this margin.
-    expect(alone).toBeLessThan(uncollected - 4 * CHURN);
+    // 50 collected units and 50 deletes: at least a byte each. Snapshot layout 2 (citadel-docs
+    // 2e2f761) gap-codes clocks, so a churned run costs about 2 bytes a character, not several.
+    expect(alone).toBeLessThan(uncollected - 2 * CHURN);
   });
 
   it('does not collect while another peer is present', async () => {
@@ -49,6 +50,6 @@ describe('gc before a snapshot', () => {
   it('never collects when configured never, even alone', async () => {
     const never: number = await churnThenSnapshot({ gcBeforeSnapshot: 'never' }, false);
     const alone: number = await churnThenSnapshot({ gcBeforeSnapshot: 'whenAlone' }, false);
-    expect(never).toBeGreaterThan(alone + 4 * CHURN);
+    expect(never).toBeGreaterThan(alone + 2 * CHURN);
   });
 });

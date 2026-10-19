@@ -1,8 +1,10 @@
 /**
- * The "CDE" result record, version 4 (docs/edit-commands.md): what every request and remote
+ * The "CDE" result record, version 6 (docs/edit-commands.md): what every request and remote
  * update returns. Version 2 appended the caret's formatting, version 3 what the request
  * created under ids the editor picked, version 4 the caret's section and the selection's
- * plain text. Only version 4 is read; any other is refused by name.
+ * plain text, version 5 what a remote update left waiting, and version 6 the list where the
+ * selection starts (in the formatting) and the story the selection is in. Only version 6 is
+ * read; any other is refused by name.
  */
 import type { EditorPosition, PageRect } from '../controller';
 import type { KnownFormatting } from '../caret-formatting';
@@ -10,8 +12,12 @@ import type { PageSetup } from '../model-values';
 import { RecordReader } from './decode-records';
 import { map, readFormatting } from './decode-formatting';
 import { RecordError } from './record-writer';
+import { readRemote, readStory, type RemoteReport } from './decode-story';
+import type { Story } from '../editor-commands';
 
-export const RESULT_VERSION: number = 4;
+export type { MissingUnit, RemoteReport } from './decode-story';
+
+export const RESULT_VERSION: number = 6;
 
 /** Something a request made under an id the editor picked (InsertNewFootnote, SetNumberingKind). */
 export interface Created {
@@ -39,6 +45,9 @@ export interface EditorResult {
   readonly formatting: KnownFormatting;
   readonly created: readonly Created[];
   readonly selectionText: SelectionText;
+  /** What an applyRemote left waiting; null for a request's result. */
+  readonly remote: RemoteReport | null;
+  readonly story: Story;
 }
 
 const CREATED_KINDS: readonly Created['kind'][] = ['footnote', 'numbering'];
@@ -76,6 +85,8 @@ export function decodeResult(bytes: Uint8Array): EditorResult {
   // The model's PageSetup serde shape; cdoc-edit is its authority.
   const section: PageSetup = map(r.bytesField(), 'section') as unknown as PageSetup;
   const text: SelectionText = selectionText(r);
+  const remote: RemoteReport | null = readRemote(r);
+  const story: Story = readStory(r);
   r.end();
-  return { update, dirtyPages, pageCount, anchor, head, caret, selectionRects, formatting: { ...formatting, section }, created: made, selectionText: text };
+  return { update, dirtyPages, pageCount, anchor, head, caret, selectionRects, formatting: { ...formatting, section }, created: made, selectionText: text, remote, story };
 }

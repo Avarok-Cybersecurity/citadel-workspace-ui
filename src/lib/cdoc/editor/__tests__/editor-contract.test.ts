@@ -17,6 +17,7 @@ const DOCUMENTED: ReadonlyArray<readonly [number, string]> = [
   [0x13, 'InsertColumnLeft'], [0x14, 'InsertColumnRight'], [0x15, 'DeleteRow'], [0x16, 'DeleteColumn'],
   [0x17, 'DeleteTable'], [0x18, 'MergeCells'], [0x20, 'InsertImage'], [0x21, 'InsertFootnote'], [0x25, 'InsertNewFootnote'], [0x26, 'InsertImageFitted'], [0x22, 'InsertLink'],
   [0x23, 'RemoveLink'], [0x24, 'InsertComment'], [0x30, 'Replace'], [0x31, 'SelectAll'], [0x32, 'SetSelection'], [0x33, 'Cut'],
+  [0x34, 'EditHeaderFooter'], [0x35, 'GoToFootnote'], [0x36, 'ReturnToBody'],
   [0x40, 'Undo'], [0x41, 'Redo'], [0x42, 'BreakUndoGroup'], [0x43, 'MoveCaret'], [0x44, 'SelectWord'],
   [0x45, 'SelectParagraph'], [0x50, 'CompositionStart'], [0x51, 'CompositionUpdate'], [0x52, 'CompositionCommit'],
   [0x53, 'CompositionCancel'],

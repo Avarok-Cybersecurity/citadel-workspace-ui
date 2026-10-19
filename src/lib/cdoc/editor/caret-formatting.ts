@@ -1,10 +1,21 @@
 /**
- * Formatting where the selection starts, from the result record (v4) (docs/edit-commands.md):
+ * Formatting where the selection starts, from the result record (v6) (docs/edit-commands.md):
  * for a collapsed selection what the next typed text gets, for a range its first character's.
  * The ribbons render pressed states from the effective (cascaded) values and the
  * indeterminate state (aria-pressed="mixed") from the mixed sets.
  */
 import type { PageSetup, ParagraphProperties, RunPatch, RunPropertiesPatch } from './model-values';
+import type { ListKind } from './editor-commands';
+
+/**
+ * The list the paragraph where the selection starts belongs to (result record v6): which
+ * built-in template its definition is, or `custom` for any other (an imported list, or one
+ * edited level by level), and the paragraph's level, 0..=8.
+ */
+export interface ListState {
+  readonly kind: ListKind | 'custom';
+  readonly level: number;
+}
 
 /** Bit order of the run_mixed set: bit i is RUN_KEYS[i]. */
 export const RUN_KEYS = [
@@ -42,6 +53,10 @@ export interface KnownFormatting {
   readonly paragraphMixed: ReadonlySet<ParagraphKey>;
   /** The caret's section: what Page Setup shows (result record v4). */
   readonly section: PageSetup;
+  /** Null for a paragraph that is not a list item. */
+  readonly list: ListState | null;
+  /** Another selected paragraph has a different list kind or level, or none: Bullets and Numbering show mixed. */
+  readonly listMixed: boolean;
 }
 
 /**

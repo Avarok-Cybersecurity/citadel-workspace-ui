@@ -118,14 +118,17 @@ export class EditorHandle {
         return v2;
     }
     /**
-     * Applies a peer's update; returns the result record.
+     * Applies a peer's update; returns the result record. Buffers at most `max_pending_ops`
+     * waiting operations and `max_pending_bytes` bytes (no default; docs/edit-commands.md).
      * @param {Uint8Array} update
+     * @param {number} max_pending_ops
+     * @param {number} max_pending_bytes
      * @returns {Uint8Array}
      */
-    applyRemote(update) {
+    applyRemote(update, max_pending_ops, max_pending_bytes) {
         const ptr0 = passArray8ToWasm0(update, wasm.__wbindgen_malloc);
         const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.editorhandle_applyRemote(this.__wbg_ptr, ptr0, len0);
+        const ret = wasm.editorhandle_applyRemote(this.__wbg_ptr, ptr0, len0, max_pending_ops, max_pending_bytes);
         if (ret[3]) {
             throw takeFromExternrefTable0(ret[2]);
         }
@@ -225,8 +228,8 @@ export class EditorHandle {
     /**
      * A new document from a file of `kind` (`docx`, `odt`, `md` or `txt`) as client
      * `client` (a `BigInt`); embedded images of at most `max_image_bytes` each are held by
-     * their content ids. Options JSON: `{}` for `docx` and `odt`, the `md_to_pm` and
-     * `txt_to_pm` options for `md` and `txt`.
+     * their content ids. Options JSON: `{"limits": <ReadLimits>}` for `docx` and
+     * `odt`, the `md_to_pm` and `txt_to_pm` options for `md` and `txt`.
      * @param {Uint8Array} bytes
      * @param {string} kind
      * @param {string} options_json
@@ -898,30 +901,34 @@ export function check_pm(pm_json) {
 
 /**
  * A `.docx`, `.dotx`, `.docm` or `.dotm` to JSON `{"pm", "report", "problems", "kind"}`;
- * images go into `images`, macros are refused and reported.
+ * images go into `images`, macros are refused and reported. Options JSON:
+ * `{"limits": <ReadLimits>}` (docs/edit-commands.md has values sized for a browser).
  * @param {Uint8Array} bytes
  * @param {ImageStore} images
+ * @param {string} options_json
  * @returns {string}
  */
-export function docx_to_pm(bytes, images) {
-    let deferred3_0;
-    let deferred3_1;
+export function docx_to_pm(bytes, images, options_json) {
+    let deferred4_0;
+    let deferred4_1;
     try {
         const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
         const len0 = WASM_VECTOR_LEN;
         _assertClass(images, ImageStore);
-        const ret = wasm.docx_to_pm(ptr0, len0, images.__wbg_ptr);
-        var ptr2 = ret[0];
-        var len2 = ret[1];
+        const ptr1 = passStringToWasm0(options_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.docx_to_pm(ptr0, len0, images.__wbg_ptr, ptr1, len1);
+        var ptr3 = ret[0];
+        var len3 = ret[1];
         if (ret[3]) {
-            ptr2 = 0; len2 = 0;
+            ptr3 = 0; len3 = 0;
             throw takeFromExternrefTable0(ret[2]);
         }
-        deferred3_0 = ptr2;
-        deferred3_1 = len2;
-        return getStringFromWasm0(ptr2, len2);
+        deferred4_0 = ptr3;
+        deferred4_1 = len3;
+        return getStringFromWasm0(ptr3, len3);
     } finally {
-        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
     }
 }
 
@@ -1081,30 +1088,33 @@ export function model_to_pm(model_json) {
 
 /**
  * A `.odt` or `.ott` to JSON `{"pm", "report", "problems", "kind"}`; images go into
- * `images`.
+ * `images`. Options JSON: `{"limits": <ReadLimits>}`.
  * @param {Uint8Array} bytes
  * @param {ImageStore} images
+ * @param {string} options_json
  * @returns {string}
  */
-export function odt_to_pm(bytes, images) {
-    let deferred3_0;
-    let deferred3_1;
+export function odt_to_pm(bytes, images, options_json) {
+    let deferred4_0;
+    let deferred4_1;
     try {
         const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
         const len0 = WASM_VECTOR_LEN;
         _assertClass(images, ImageStore);
-        const ret = wasm.odt_to_pm(ptr0, len0, images.__wbg_ptr);
-        var ptr2 = ret[0];
-        var len2 = ret[1];
+        const ptr1 = passStringToWasm0(options_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.odt_to_pm(ptr0, len0, images.__wbg_ptr, ptr1, len1);
+        var ptr3 = ret[0];
+        var len3 = ret[1];
         if (ret[3]) {
-            ptr2 = 0; len2 = 0;
+            ptr3 = 0; len3 = 0;
             throw takeFromExternrefTable0(ret[2]);
         }
-        deferred3_0 = ptr2;
-        deferred3_1 = len2;
-        return getStringFromWasm0(ptr2, len2);
+        deferred4_0 = ptr3;
+        deferred4_1 = len3;
+        return getStringFromWasm0(ptr3, len3);
     } finally {
-        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
     }
 }
 

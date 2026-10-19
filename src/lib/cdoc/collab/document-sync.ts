@@ -6,7 +6,7 @@
  * only ever touched by one step at a time.
  */
 import type { DocumentRefusal, DocumentsRequest, DocumentsResponse, DocumentSnapshot } from 'citadel-workspace-client-ts';
-import type { EditorController, EditorOrigin } from '../editor/controller';
+import type { EditorController, EditorOrigin, RemoteApplied } from '../editor/controller';
 import { LogCursor } from './log-cursor';
 import { Outbox, type PendingUpdate } from './outbox';
 import type { CachedDocument, DocumentSessionConfig, DocumentSessionPorts } from './ports';
@@ -178,13 +178,18 @@ export class DocumentSync {
     const editor: EditorController | null = this.editorNow;
     if (!editor) return;
     try {
-      await editor.applyRemote(fromWire(update));
+      this.checkWaiting(await editor.applyRemote(fromWire(update)), `apply update ${seq}`);
     } catch (cause: unknown) {
       // Reported, then stepped over: holding the cursor here would stall this replica on one
       // peer's unreadable update for good, and pulling again would fetch the same bytes.
       this.host.report({ kind: 'editorFailed', operation: `apply update ${seq}`, cause });
     }
     this.cursor.advance(seq);
+  }
+
+  /** Reports an applied update that left operations waiting or dropped (nothing applied in log order should). */
+  private checkWaiting(applied: RemoteApplied, operation: string): void {
+    if (applied.remote.missing !== null || applied.remote.dropped > 0n) this.host.report({ kind: 'updatesWaiting', operation, ...applied.remote });
   }
 
   /** Opens or re-opens from the snapshot; false when it cannot be read. */
@@ -197,7 +202,7 @@ export class DocumentSync {
     const reopened: EditorController | null = previous ? this.editorNow : null;
     if (!reopened) return true;
     try {
-      for (const entry of this.outbox.all()) await reopened.applyRemote(entry.update.slice());
+      for (const entry of this.outbox.all()) this.checkWaiting(await reopened.applyRemote(entry.update.slice()), 'carry unacknowledged edits into the re-opened replica');
     } catch (cause: unknown) {
       this.host.report({ kind: 'editorFailed', operation: 'carry unacknowledged edits into the re-opened replica', cause });
     }

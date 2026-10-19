@@ -1,5 +1,5 @@
 /**
- * A decoded display list (`docs/display-list.md` v3). Every coordinate, length and size is
+ * A decoded display list (`docs/display-list.md` v5). Every coordinate, length and size is
  * Pt100 (hundredths of a point), page space, y down. Colours are packed `0xRRGGBBAA`, straight
  * alpha.
  */
@@ -27,6 +27,15 @@ export interface FaceKey {
   readonly italic: boolean;
 }
 
+/**
+ * Which glyph a character is predicted to be (§ Face table, the char table): an index into the
+ * face's glyph table. A direct table for ASCII (-1: none), a map for the rest.
+ */
+export interface CharTable {
+  readonly ascii: Int32Array;
+  readonly other: ReadonlyMap<number, number>;
+}
+
 export interface Face {
   readonly faceId: number;
   readonly family: string;
@@ -34,6 +43,15 @@ export interface Face {
   readonly italic: boolean;
   readonly unitsPerEm: number;
   readonly glyphs: readonly GlyphMetric[];
+  readonly chars: CharTable;
+}
+
+/** One face at one size (§ Strike table): per glyph-table index, its glyph id and base advance (Pt100). */
+export interface Strike {
+  readonly faceId: number;
+  readonly size: number;
+  readonly ids: Uint16Array;
+  readonly bases: Int32Array;
 }
 
 export interface PageEntry {
@@ -67,6 +85,8 @@ export interface DocumentTable {
 export interface DisplayList {
   readonly view: DataView;
   readonly faces: readonly Face[];
+  /** By strike id, as runs name them. */
+  readonly strikes: readonly Strike[];
   readonly strings: readonly string[];
   readonly document: DocumentTable;
   /** In slot order; a partial list holds only some page numbers. */
@@ -75,6 +95,7 @@ export interface DisplayList {
   readonly indexEnd: number;
 }
 
+/** A run's face and size, from the strike it names. */
 export interface RunHead {
   readonly faceId: number;
   readonly size: number;
@@ -122,7 +143,9 @@ export type Op =
   /** An unsigned signature field: the PDF writes a form field; a page painter draws nothing. */
   | { readonly kind: 'sigField'; readonly rect: Rect; readonly fieldId: string; readonly role: string }
   | { readonly kind: 'clipPush'; readonly rect: Rect }
-  | { readonly kind: 'clipPop' };
+  | { readonly kind: 'clipPop' }
+  /** A page's lines of document text, for an editor; checked, painted by nobody. */
+  | { readonly kind: 'caretLines'; readonly lines: number };
 
 export type OpKind = Op['kind'];
 

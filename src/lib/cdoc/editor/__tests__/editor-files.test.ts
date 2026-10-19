@@ -8,7 +8,9 @@ import { inProcessRuntime, type TestRuntime } from '../../__tests__/wasm-rig';
 import { createEditorOpener } from '../editor-opener';
 import type { EditorSession } from '../editor-session';
 import type { EditorOrigin } from '../controller';
-import type { ExportedFile } from '../file-formats';
+import type { ConversionLoss, ExportedFile } from '../file-formats';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 function opener(): (from: EditorOrigin) => Promise<EditorSession> {
   let next: number = 1;
@@ -55,6 +57,13 @@ describe('files in and out of the editor', () => {
     const dotx: ExportedFile = await a.exportAs({ format: 'dotx' });
     const reopened: EditorSession = await opener()({ kind: 'bytes', bytes: dotx.bytes, format: 'docx' });
     expect(reopened.importReport?.kind).toBe('template');
+  });
+
+  it('reports each loss with its severity and plain-language label: a GIF it cannot draw is minor', async () => {
+    const bytes: Uint8Array = new Uint8Array(readFileSync(join(__dirname, '..', '..', '__tests__', 'fixtures', 'png-jpeg-gif.docx')));
+    const opened: EditorSession = await opener()({ kind: 'bytes', bytes, format: 'docx' });
+    const gif: ConversionLoss | undefined = opened.importReport?.losses.find((l: ConversionLoss): boolean => l.kind === 'counted' && /GIF/.test(l.what));
+    expect(gif).toMatchObject({ kind: 'counted', severity: 'minor', label: expect.stringMatching(/\S/) as unknown as string });
   });
 
   it('refuses a file that is not what its format says, by name', async () => {
