@@ -124,9 +124,9 @@ describe('the kept workspace tree', () => {
 
   it('survives a node\'s removal sweep, even one naming its segment', async () => {
     await saveWorkspaceTree(11n, keptOf([...ESTATE, PLAN]));
-    // A deletion the server names is data: one naming '#tree' is still not the account's sign-out.
-    await forgetDeletedNodes(['plan', '#tree']);
-    await forgetNodeDocuments(11n, ['plan', '#tree']);
+    // A deletion the server names is data: one naming '#tree' or '' is still not the account's sign-out.
+    await forgetDeletedNodes(['plan', '#tree', '']);
+    await forgetNodeDocuments(11n, ['plan', '#tree', '']);
     expect(store.has(workspaceTreeKey(11n))).toBe(true);
   });
 
