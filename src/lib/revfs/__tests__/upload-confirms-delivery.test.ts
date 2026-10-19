@@ -93,7 +93,7 @@ describe('a RE-VFS upload', () => {
     dispatchAck(requestId());
     tick(requestId(), { Fail: 'peer declined' });
 
-    expect(await pending).toEqual({ type: 'backend-send-file', success: false });
+    expect(await pending).toEqual({ type: 'backend-send-file', success: false, reason: 'peer declined' });
   });
 
   it('fails on SendFileRequestFailure', async () => {
@@ -102,7 +102,7 @@ describe('a RE-VFS upload', () => {
 
     emit({ SendFileRequestFailure: { request_id: requestId(), message: 'no peer' } });
 
-    expect(await pending).toEqual({ type: 'backend-send-file', success: false });
+    expect(await pending).toEqual({ type: 'backend-send-file', success: false, reason: 'no peer' });
   });
 
   it("ignores another transfer's completion tick", async () => {
@@ -147,6 +147,6 @@ describe('a RE-VFS upload', () => {
 
     await vi.advanceTimersByTimeAsync(31_000);
 
-    expect(await pending).toEqual({ type: 'backend-send-file', success: false });
+    expect(await pending).toEqual({ type: 'backend-send-file', success: false, reason: 'Nothing answered for 30 s.' });
   });
 });

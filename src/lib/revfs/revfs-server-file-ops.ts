@@ -68,9 +68,8 @@ export async function uploadFileToServer(
     virtualDir: byteKey,
   });
 
-  if (result.type !== 'backend-send-file' || !result.success) {
-    throw new Error(`The server did not accept "${fileName}". It has not been uploaded.`);
-  }
+  if (result.type !== 'backend-send-file') throw new Error(`the upload of "${fileName}" was answered with ${result.type}`);
+  if (!result.success) throw new Error(`The server did not accept "${fileName}", so it has not been uploaded. ${result.reason}`);
 
   const serverMetadata: RevfsFileMetadata = {
     ...metadata,

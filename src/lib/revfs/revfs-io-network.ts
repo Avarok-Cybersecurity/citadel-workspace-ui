@@ -87,7 +87,7 @@ export async function backendSendFile(
       timeout = setTimeout(() => {
         eventEmitter.off('websocket-message', handleMessage);
         debugLog('RevfsIO', 'backendSendFile timed out');
-        resolve({ type: 'backend-send-file', success: false });
+        resolve({ type: 'backend-send-file', success: false, reason: `Nothing answered for ${BACKEND_TIMEOUT_MS / 1000} s.` });
       }, BACKEND_TIMEOUT_MS);
     };
 
@@ -133,7 +133,8 @@ export async function backendSendFile(
         }
         if (status === 'Fail' || (status !== null && typeof status === 'object' && 'Fail' in status)) {
           debugLog('RevfsIO', 'backendSendFile transfer failed');
-          settle({ type: 'backend-send-file', success: false });
+          const said: unknown = typeof status === 'object' ? status.Fail : undefined;
+          settle({ type: 'backend-send-file', success: false, reason: typeof said === 'string' && said !== '' ? said : 'The transfer failed.' });
           return;
         }
         // Progress (TransferBeginning / TransferTick): still alive.
@@ -144,7 +145,7 @@ export async function backendSendFile(
       const failure: { request_id?: string; message?: string; } | undefined = msg.SendFileRequestFailure as { request_id?: string; message?: string } | undefined;
       if (failure?.request_id === requestId) {
         debugLog('RevfsIO', 'backendSendFile failed:', failure.message);
-        settle({ type: 'backend-send-file', success: false });
+        settle({ type: 'backend-send-file', success: false, reason: typeof failure.message === 'string' && failure.message !== '' ? failure.message : 'The agent refused the upload without a reason.' });
       }
     };
 
@@ -155,7 +156,7 @@ export async function backendSendFile(
       clearTimeout(timeout);
       eventEmitter.off('websocket-message', handleMessage);
       debugLog('RevfsIO', 'backendSendFile request error:', error);
-      resolve({ type: 'backend-send-file', success: false });
+      resolve({ type: 'backend-send-file', success: false, reason: error instanceof Error ? error.message : String(error) });
     });
   });
 }

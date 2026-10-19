@@ -66,9 +66,8 @@ export async function uploadFileToPeer(
     virtualDir: byteKey,
   });
 
-  if (result.type !== 'backend-send-file' || !result.success) {
-    throw new Error(`"${fileName}" could not be sent to the peer. It has not been uploaded.`);
-  }
+  if (result.type !== 'backend-send-file') throw new Error(`the upload of "${fileName}" was answered with ${result.type}`);
+  if (!result.success) throw new Error(`"${fileName}" could not be sent to the peer, so it has not been uploaded. ${result.reason}`);
 
   // The key the bytes were stored under, recorded at upload time — see
   // uploadFileToServer for why this must not be re-derived from node.path.

@@ -68,7 +68,9 @@ export type RevfsIntentResult =
   | { type: 'load-tree'; tree: RevfsNode | null; unreadable?: boolean }
   | { type: 'persist-pending-ops'; success: boolean }
   | { type: 'load-pending-ops'; ops: RevfsPendingOp[] }
-  | { type: 'backend-send-file'; success: boolean; virtualDir?: string }
+  | { type: 'backend-send-file'; success: true; virtualDir?: string }
+  /** `reason`: what refused or lost the upload, in words a person can act on (the agent's own when it gave one). */
+  | { type: 'backend-send-file'; success: false; reason: string }
   | { type: 'backend-download-file'; success: boolean; downloadPath?: string }
   | { type: 'backend-delete-file'; success: boolean }
   | { type: 'backend-read-pulled-chunk'; answer: ReadChunkAnswer };

@@ -69,7 +69,13 @@ test.describe.serial('A workspace .docx in Citadel Docs', () => {
     const chooser = page.waitForEvent('filechooser', { timeout: 15_000 });
     expect(await chooseFromNewMenu(page, 'upload'), 'New → Upload files should be offered').toBe(true);
     await (await chooser).setFiles({ name, mimeType: DOCX_MIME, buffer: CORPUS_10P });
-    await expect(fmItem(page, name)).toBeVisible({ timeout: 30_000 });
+    // The file appears once the server has its bytes; a refused upload says why in an error
+    // toast instead. Waiting on either, and failing on the refusal with its own words, says
+    // which, rather than timing out on a file that will never come.
+    const refused: Locator = page.locator('[data-sonner-toast][data-type="error"]').filter({ hasText: `Failed to upload ${name}` });
+    await expect(fmItem(page, name).or(refused)).toBeVisible({ timeout: 30_000 });
+    if (await refused.count() > 0) throw new Error(`the upload was refused: ${await refused.first().innerText()}`);
+    await expect(fmItem(page, name)).toBeVisible();
     // Offered once the upload is stored on the server, not while it is still pending.
     await expect.poll(() => offersDocs(page, name), { timeout: 60_000, message: `"${name}" should offer Open in Citadel Docs once stored` }).toBe(true);
   });
