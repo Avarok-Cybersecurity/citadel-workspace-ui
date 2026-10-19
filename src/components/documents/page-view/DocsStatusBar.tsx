@@ -4,10 +4,12 @@
  */
 import { Minus, Plus } from 'lucide-react';
 import type { PageStatus } from '../PageView';
+import { usePageStatus, type PageStatusStore } from './page-status';
 import { MAX_ZOOM, MIN_ZOOM, ZOOM_STEP, clampZoom, zoomBySteps, zoomPercent } from './zoom';
 
 interface DocsStatusBarProps {
-  readonly status: PageStatus | null;
+  /** Where the reader is; subscribed here, so a scroll re-renders the status bar alone. */
+  readonly status: PageStatusStore;
   /** E.g. that an edit's hyphenation applies after reopening; null for none. */
   readonly notice: string | null;
   readonly zoom: number;
@@ -16,7 +18,8 @@ interface DocsStatusBarProps {
 
 const STEP_BUTTON: string = 'inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-foreground/10 hover:text-foreground disabled:opacity-40';
 
-export function DocsStatusBar({ status, notice, zoom, onZoomChange }: DocsStatusBarProps): JSX.Element {
+export function DocsStatusBar({ status: store, notice, zoom, onZoomChange }: DocsStatusBarProps): JSX.Element {
+  const status: PageStatus | null = usePageStatus(store);
   return (
     <div className="flex min-w-0 items-center justify-between gap-3 text-xs text-muted-foreground" data-testid="docs-status-bar">
       <p aria-live="polite" data-testid="docs-page-status">{status === null ? 'Opening…' : `Page ${status.current} of ${status.total}`}</p>

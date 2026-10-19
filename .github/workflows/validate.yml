@@ -174,6 +174,9 @@ jobs:
           - { name: UI sweep geometry, run: 'npm run check:ui-sweep' }
           # Text sharpness on pixels: the shipped editor at 1x and 2x, against fillText.
           - { name: Docs text crispness, run: 'npm run check:docs-crispness' }
+          # Frame times scrolling the 500-page bench document at 4x CPU throttling (a GitHub runner,
+          # never the shared Mac): at most 5% of frames past 16.7 ms, ONLYOFFICE's share there.
+          - { name: Docs scroll frames, run: 'npm run check:cdoc-scroll-perf' }
     # jsdom has no layout, so a hover card lying across the rows above it, or a message pressed
     # against the bubble over it, passes every unit test. This serves the real components and
     # asserts bounding boxes, in Chromium (the engine this job installs).

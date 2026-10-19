@@ -10,6 +10,7 @@ import type { PageRenderer } from '@/lib/cdoc/paint/page-renderer';
 import { deviceScale } from '@/lib/cdoc/paint/units';
 import { PageColumn, type PageStatus } from './page-view/PageColumn';
 import { useEditorSurface, type EditorSurface, type EditorSurfaceOptions } from './page-view/use-editor-surface';
+import type { PaintAhead } from './page-view/warm-pages';
 
 export interface EditorPageViewProps {
   readonly editor: EditorSession;
@@ -19,15 +20,16 @@ export interface EditorPageViewProps {
   readonly onZoomChange: (zoom: number) => void;
   readonly onPageStatus: (status: PageStatus) => void;
   readonly input: EditorSurfaceOptions;
+  readonly paintAhead: PaintAhead;
 }
 
-export function EditorPageView({ editor, renderer, zoom, dpr, onZoomChange, onPageStatus, input }: EditorPageViewProps): JSX.Element {
+export function EditorPageView({ editor, renderer, zoom, dpr, onZoomChange, onPageStatus, input, paintAhead }: EditorPageViewProps): JSX.Element {
   const scroller: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
   const surface: EditorSurface = useEditorSurface(editor, scroller, deviceScale(zoom, dpr), input);
   return (
     <PageColumn
       renderer={renderer} sizes={surface.pageSizes} zoom={zoom} dpr={dpr} onZoomChange={onZoomChange}
-      onPageStatus={onPageStatus} scroller={scroller} editing={surface}
+      onPageStatus={onPageStatus} scroller={scroller} editing={surface} paintAhead={paintAhead}
     >
       <textarea
         ref={surface.textarea}

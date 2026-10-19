@@ -47,6 +47,23 @@ function caretAt(ctx: Ctx2D, r: PageRect, scale: DeviceScale, cssPx: number): { 
   return { x: p.x, y: p.y };
 }
 
+/**
+ * Whether each layer draws anything on its page. A layer that draws nothing keeps no backing
+ * store at all (PageOverlays sizes it 0×0), so a page scrolled into view allocates and clears
+ * no full-page bitmaps for an empty selection, no peers and a caret elsewhere.
+ */
+export function drawsSelection(scene: OverlayScene): boolean {
+  return scene.selection.some(onPage(scene.page)) || scene.peers.some((p: PeerPresence): boolean => p.view.selectionRects.some(onPage(scene.page)));
+}
+
+export function drawsPeers(scene: OverlayScene): boolean {
+  return scene.peers.some((p: PeerPresence): boolean => p.view.caret !== null && p.view.caret.page === scene.page);
+}
+
+export function drawsCaret(scene: OverlayScene): boolean {
+  return scene.caret !== null && scene.caret.page === scene.page;
+}
+
 export function paintSelectionLayer(ctx: Ctx2D, width: number, height: number, scene: OverlayScene, style: OverlayStyle): void {
   ctx.clearRect(0, 0, width, height);
   for (const peer of scene.peers) {

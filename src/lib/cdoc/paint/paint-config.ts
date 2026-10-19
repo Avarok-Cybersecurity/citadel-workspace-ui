@@ -21,6 +21,23 @@ export const RASTERIZER_OPTIONS: RasterizerOptions = {
   imageCacheBytes: 128 * 1024 * 1024,
 };
 
+/**
+ * Page paints in flight at once, across every page of a view. One: the worker paints one page
+ * at a time anyway, so a second in flight only queues there, where it can no longer be put
+ * behind a page that has just come into view (PaintQueue orders them here).
+ */
+export const PAINT_CONCURRENCY: number = 1;
+
+/**
+ * Pages kept painted either side of the view once painted, and painted ahead when idle. Two: a
+ * page bitmap is 3.6 MB at 1x and 14 MB at 2x for A4, so the window holds about 100 MB at 2x
+ * on top of the pages in view; scrolling back within it never repaints.
+ */
+export const PAINT_AHEAD_PAGES: number = 2;
+
+/** Canvases mounted per idle tick when painting ahead: each is a transfer and a paint, so one. */
+export const PAINT_AHEAD_MOUNTS_PER_TICK: number = 1;
+
 /** How long a face or pattern fetch may take before the open fails instead of hanging. */
 export const ASSET_FETCH_TIMEOUT_MS: number = 30_000;
 

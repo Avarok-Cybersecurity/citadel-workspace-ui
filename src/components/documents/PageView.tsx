@@ -9,6 +9,7 @@ import type { CdocClient } from '@/lib/cdoc/worker/cdoc-client';
 import type { PageRenderer } from '@/lib/cdoc/paint/page-renderer';
 import { messageOf, PageColumn, type PageStatus } from './page-view/PageColumn';
 import { NotOpened, type OriginalFile } from './NotOpened';
+import type { PaintAhead } from './page-view/warm-pages';
 
 export { PAGE_GAP_PX, type PageStatus } from './page-view/PageColumn';
 
@@ -27,6 +28,7 @@ export interface PageViewProps {
   readonly onOpened: (outcome: OpenOutcome) => void;
   /** The file the document came from, offered for download if the engine refuses to open it. */
   readonly original: OriginalFile | null;
+  readonly paintAhead: PaintAhead;
 }
 
 type Opened =
@@ -40,7 +42,7 @@ const MACROS_REFUSED: string = 'This file contains macros, which Citadel Docs ne
 /** A file's bytes move to the worker; the copy moves, so the caller's stay usable for a reopen. */
 const movableSource = (source: DocumentSource): DocumentSource => (source.kind === 'file' ? { ...source, bytes: source.bytes.slice() } : source);
 
-export function PageView({ client, renderer, source, zoom, dpr, onZoomChange, onPageStatus, onOpened, original }: PageViewProps): JSX.Element {
+export function PageView({ client, renderer, source, zoom, dpr, onZoomChange, onPageStatus, onOpened, original, paintAhead }: PageViewProps): JSX.Element {
   const scroller: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
   const [opened, setOpened] = useState<Opened>({ kind: 'opening' });
   // The latest callback, so a caller passing a new function each render does not reopen the document.
@@ -76,7 +78,7 @@ export function PageView({ client, renderer, source, zoom, dpr, onZoomChange, on
   return (
     <PageColumn
       renderer={renderer} sizes={opened.kind === 'open' ? opened.sizes : null} zoom={zoom} dpr={dpr}
-      onZoomChange={onZoomChange} onPageStatus={onPageStatus} scroller={scroller} editing={null}
+      onZoomChange={onZoomChange} onPageStatus={onPageStatus} scroller={scroller} editing={null} paintAhead={paintAhead}
     >
       {null}
     </PageColumn>

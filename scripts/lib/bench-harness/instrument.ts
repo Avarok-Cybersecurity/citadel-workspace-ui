@@ -9,6 +9,7 @@
 import type { EditorSession } from '@/lib/cdoc/editor/editor-session';
 import type { PaintOutcome } from '@/lib/cdoc/paint/page-rasterizer';
 import type { PageRenderer } from '@/lib/cdoc/paint/page-renderer';
+import type { PaintPriority } from '@/lib/cdoc/paint/paint-queue';
 
 export interface BenchState {
   readonly painted: number[];
@@ -60,9 +61,9 @@ export function keystrokePaint(win: Window & BenchWindow): KeystrokePaint {
       unmount: (slot: number): void => inner.unmount(slot),
       reset: (): void => inner.reset(),
       invalidate: (pages: readonly number[]): Promise<void> => inner.invalidate(pages),
-      paint: async (slot: number, pageNumber: number, zoom: number, dpr: number): Promise<PaintOutcome> => {
+      paint: async (slot: number, pageNumber: number, zoom: number, dpr: number, priority: PaintPriority): Promise<PaintOutcome> => {
         const issuedAt: number = win.performance.now();
-        const outcome: PaintOutcome = await inner.paint(slot, pageNumber, zoom, dpr);
+        const outcome: PaintOutcome = await inner.paint(slot, pageNumber, zoom, dpr, priority);
         settle(issuedAt);
         return outcome;
       },

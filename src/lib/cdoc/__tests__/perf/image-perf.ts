@@ -44,13 +44,13 @@ export async function measureImagePage(keystrokes: number, cached: boolean): Pro
   const bytes: Uint8Array = new Uint8Array(readFileSync(DOCX));
   const editor: EditorSession = await EditorSession.open({ client, renderer }, 1n, { kind: 'bytes', bytes, format: 'docx' });
   await renderer.mount(0, {} as HTMLCanvasElement);
-  await renderer.paint(0, 0, 1, 2);
+  await renderer.paint(0, 0, 1, 2, 'visible');
   const firstPaint: number = decodes;
   const times: number[] = [];
   for (let i: number = 0; i < keystrokes; i++) {
     const t: number = performance.now();
     await editor.execute({ name: 'insertText', text: 'e' });
-    await renderer.paint(0, 0, 1, 2);
+    await renderer.paint(0, 0, 1, 2, 'visible');
     times.push(performance.now() - t);
   }
   return { keystrokes, p50Ms: percentile(times, 0.5), p95Ms: percentile(times, 0.95), decodesPerKeystroke: (decodes - firstPaint) / keystrokes };

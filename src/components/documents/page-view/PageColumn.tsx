@@ -1,6 +1,6 @@
 /**
- * The scrolling column of pages both page views share: lays the pages out, paints only the
- * pages in view, one either side, and handles zoom gestures. Zoom and DPR are the caller's
+ * The scrolling column of pages both page views share: lays the pages out, keeps the pages in
+ * view and a warm window around them painted (use-warm-pages.ts), and handles zoom gestures. Zoom and DPR are the caller's
  * (explicit); Ctrl/⌘+wheel and Ctrl/⌘ +, −, 0 ask the caller to change zoom. The column is a
  * focusable region, so the keyboard scrolls it, and "Page N of M" goes to `onPageStatus`.
  * An editable view adds per-page repaint revisions and overlay scenes (`editing`).
@@ -12,7 +12,9 @@ import type { OverlayScene } from '@/lib/cdoc/paint/overlay-painter';
 import type { PageRect } from '@/lib/cdoc/editor/controller';
 import type { OverlayContextOf } from './PageOverlays';
 import { PageCanvas } from './PageCanvas';
-import { currentPage, deviceResidue, layoutPages, pageLeft, pagePointBy, revealScrollTop, visiblePages, type PageBox, type PageLayout } from './page-layout';
+import { currentPage, deviceResidue, layoutPages, pageLeft, pagePointBy, revealScrollTop, type PageBox, type PageLayout } from './page-layout';
+import { useWarmPages, type WarmPages } from './use-warm-pages';
+import type { PaintAhead } from './warm-pages';
 import type { PagePoint } from '@/lib/cdoc/editor/input/pointer';
 import { INITIAL_ZOOM, zoomBySteps, zoomByWheel } from './zoom';
 
@@ -20,8 +22,6 @@ import { INITIAL_ZOOM, zoomBySteps, zoomByWheel } from './zoom';
 export const PAGE_GAP_PX: number = 24;
 /** Room kept between the caret and the viewport's top or bottom when it is scrolled into view, CSS px. */
 const CARET_MARGIN_PX: number = 24;
-/** Pages painted beyond the visible ones, each side. */
-const OVERSCAN_PAGES: number = 1;
 
 export interface PageStatus {
   readonly current: number;
@@ -34,7 +34,7 @@ export interface ColumnEditing {
   readonly overlayContext: OverlayContextOf;
   /** The local caret: the hidden textarea sits there, so an IME's candidate window does too. */
   readonly caret: PageRect | null;
-  /** The pages painted now (the visible ones and one each side), whenever that set changes. */
+  /** The pages painted now (the visible ones and the warm ones around them), whenever that set changes. */
   readonly onPaintedPages: (pages: readonly number[]) => void;
   /** The local caret's blink phase. */
   readonly caretShown: boolean;
@@ -55,6 +55,8 @@ export interface PageColumnProps {
   readonly scroller: RefObject<HTMLDivElement>;
   /** Null for a read-only view. */
   readonly editing: ColumnEditing | null;
+  /** How far around the view pages stay painted, and when the ones ahead are painted. */
+  readonly paintAhead: PaintAhead;
   /** Rendered inside the scrolling region (the editor's hidden textarea). */
   readonly children: ReactNode;
 }
@@ -83,12 +85,17 @@ function caretBox(layout: PageLayout, caret: PageRect | null, columnWidth: numbe
   return box === undefined ? undefined : place(box, columnWidth, origin, dpr);
 }
 
+function samePlace(a: PageRect | null, b: PageRect | null): boolean {
+  if (a === null || b === null) return a === b;
+  return a.page === b.page && a.rect.x === b.rect.x && a.rect.y === b.rect.y && a.rect.height === b.rect.height;
+}
+
 function caretAnchor(placed: Placed | undefined, caret: PageRect | null, scale: DeviceScale): { top: number; left: number } {
   if (caret === null || placed === undefined) return { top: 0, left: 0 };
   return { top: placed.top + caret.rect.y * scale.css, left: placed.left + caret.rect.x * scale.css };
 }
 
-export function PageColumn({ renderer, sizes, zoom, dpr, onZoomChange, onPageStatus, scroller, editing, children }: PageColumnProps): JSX.Element {
+export function PageColumn({ renderer, sizes, zoom, dpr, onZoomChange, onPageStatus, scroller, editing, paintAhead, children }: PageColumnProps): JSX.Element {
   const [viewport, setViewport] = useState<{ readonly top: number; readonly height: number; readonly width: number }>({ top: 0, height: 0, width: 0 });
   const column: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
   const [origin, setOrigin] = useState<ColumnOrigin>({ left: 0, top: 0 });
@@ -176,10 +183,11 @@ export function PageColumn({ renderer, sizes, zoom, dpr, onZoomChange, onPageSta
   };
 
   // The caret stays in view after every command: a move that takes it off screen scrolls to it.
-  // Only a new caret does; a zoom or a relayout under a caret the person scrolled away from does not.
+  // Only a caret that moved does; a zoom, a relayout, or a state that left it where it was (every
+  // viewport report answers with one) under a caret the person scrolled away from does not.
   const revealed: MutableRefObject<PageRect | null> = useRef<PageRect | null>(null);
   useEffect((): void => {
-    if (revealed.current === caret) return;
+    if (samePlace(revealed.current, caret)) return;
     revealed.current = caret;
     const el: HTMLDivElement | null = scroller.current;
     const box: PageBox | undefined = caret === null || layout === null ? undefined : layout.boxes[caret.page];
@@ -193,7 +201,8 @@ export function PageColumn({ renderer, sizes, zoom, dpr, onZoomChange, onPageSta
   const [paintError, setPaintError] = useState<string | null>(null);
   const onPaintError: (error: unknown) => void = useCallback((error: unknown): void => setPaintError(messageOf(error)), []);
 
-  const painted: readonly PageBox[] = layout === null ? [] : visiblePages(layout, viewport.top, viewport.height, OVERSCAN_PAGES).map((n: number) => layout.boxes[n]);
+  const warm: WarmPages = useWarmPages(layout, viewport.top, viewport.height, paintAhead);
+  const painted: readonly PageBox[] = layout === null ? [] : warm.pages.map((n: number) => layout.boxes[n]);
   const columnWidth: number = Math.max(layout?.width ?? 0, viewport.width);
   const paintedKey: string = painted.map((box: PageBox): number => box.pageNumber).join(',');
   const onPaintedPages: ((pages: readonly number[]) => void) | null = editing?.onPaintedPages ?? null;
@@ -219,7 +228,7 @@ export function PageColumn({ renderer, sizes, zoom, dpr, onZoomChange, onPageSta
           {painted.map((box: PageBox) => (
             <PageCanvas
               key={box.pageNumber} renderer={renderer} placed={place(box, columnWidth, origin, dpr)} zoom={zoom} dpr={dpr} pageCount={total}
-              onPaintError={onPaintError} revision={editing?.revisionOf(box.pageNumber) ?? 0}
+              onPaintError={onPaintError} revision={editing?.revisionOf(box.pageNumber) ?? 0} priority={warm.visible.has(box.pageNumber) ? 'visible' : 'ahead'}
               overlay={editing === null || sizes === null ? null : {
                 width: sizes[2 * box.pageNumber], height: sizes[2 * box.pageNumber + 1],
                 scene: editing.sceneOf(box.pageNumber, deviceScale(zoom, dpr)), contextOf: editing.overlayContext, caretShown: editing.caretShown,

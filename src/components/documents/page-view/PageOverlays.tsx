@@ -4,7 +4,7 @@
  * page canvas, so a highlight and the glyphs under it use the same pixel grid.
  */
 import { useLayoutEffect, useRef, type RefObject } from 'react';
-import { paintCaretLayer, paintPeerLayer, paintSelectionLayer, type OverlayScene } from '@/lib/cdoc/paint/overlay-painter';
+import { drawsCaret, drawsPeers, drawsSelection, paintCaretLayer, paintPeerLayer, paintSelectionLayer, type OverlayScene, type OverlayStyle } from '@/lib/cdoc/paint/overlay-painter';
 import { OVERLAY_STYLE } from '@/lib/cdoc/paint/paint-config';
 import { deviceScale, pageSizePx, type DeviceScale } from '@/lib/cdoc/paint/units';
 import type { Ctx2D } from '@/lib/cdoc/paint/canvas-port';
@@ -22,10 +22,15 @@ export interface PageOverlaysProps {
   readonly caretShown: boolean;
 }
 
-function sized(canvas: HTMLCanvasElement, w: number, h: number, contextOf: OverlayContextOf): Ctx2D {
+type LayerPainter = (ctx: Ctx2D, width: number, height: number, scene: OverlayScene, style: OverlayStyle) => void;
+
+/** Paints one layer at the page's device size, or, when it draws nothing, frees its bitmap (0×0). */
+function layer(canvas: HTMLCanvasElement, draws: boolean, size: { readonly w: number; readonly h: number }, scene: OverlayScene, paint: LayerPainter, contextOf: OverlayContextOf): void {
+  const w: number = draws ? size.w : 0;
+  const h: number = draws ? size.h : 0;
   if (canvas.width !== w) canvas.width = w;
   if (canvas.height !== h) canvas.height = h;
-  return contextOf(canvas);
+  if (draws) paint(contextOf(canvas), w, h, scene, OVERLAY_STYLE);
 }
 
 export function PageOverlays({ width, height, scene, contextOf, caretShown }: PageOverlaysProps): JSX.Element {
@@ -41,9 +46,9 @@ export function PageOverlays({ width, height, scene, contextOf, caretShown }: Pa
     const now: OverlayScene = { page, scale, selection: rects, caret: caretRect, peers: presences };
     const size: { readonly w: number; readonly h: number } = pageSizePx(width, height, scale);
     if (selection.current === null || peers.current === null || caret.current === null) return;
-    paintSelectionLayer(sized(selection.current, size.w, size.h, contextOf), size.w, size.h, now, OVERLAY_STYLE);
-    paintPeerLayer(sized(peers.current, size.w, size.h, contextOf), size.w, size.h, now, OVERLAY_STYLE);
-    paintCaretLayer(sized(caret.current, size.w, size.h, contextOf), size.w, size.h, now, OVERLAY_STYLE);
+    layer(selection.current, drawsSelection(now), size, now, paintSelectionLayer, contextOf);
+    layer(peers.current, drawsPeers(now), size, now, paintPeerLayer, contextOf);
+    layer(caret.current, drawsCaret(now), size, now, paintCaretLayer, contextOf);
   }, [width, height, page, zoom, dpr, rects, caretRect, presences, contextOf]);
 
   return (

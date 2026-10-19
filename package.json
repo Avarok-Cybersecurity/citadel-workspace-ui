@@ -41,7 +41,8 @@
     "check:toast-header": "node scripts/check-toast-clears-header.mjs",
     "check:captured-vs-failed": "node scripts/check-captured-is-not-failed.mjs",
     "check:assertions": "node scripts/check-assertions-can-fail.mjs",
-    "check:cdoc-paint-perf": "node scripts/check-cdoc-paint-perf.mjs"
+    "check:cdoc-paint-perf": "node scripts/check-cdoc-paint-perf.mjs",
+    "check:cdoc-scroll-perf": "node scripts/check-cdoc-scroll-perf.mjs"
   },
   "dependencies": {
     "@avarok/citadel-protocol-types": "^0.14.0",

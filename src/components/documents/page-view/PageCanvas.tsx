@@ -11,6 +11,7 @@ import { useEffect, useRef, useState, type MutableRefObject, type RefObject } fr
 import type { LinkArea } from '@/lib/cdoc/paint/page-painter';
 import type { PageRenderer } from '@/lib/cdoc/paint/page-renderer';
 import { RASTERIZER_OPTIONS } from '@/lib/cdoc/paint/paint-config';
+import type { PaintPriority } from '@/lib/cdoc/paint/paint-queue';
 import { cn } from '@/lib/utils';
 import { PageOverlays, type PageOverlaysProps } from './PageOverlays';
 
@@ -23,6 +24,8 @@ interface PageCanvasProps {
   readonly pageCount: number;
   readonly onPaintError: (error: unknown) => void;
   readonly revision: number;
+  /** In view or painted ahead; read when a paint is asked for, so a page scrolling into view is not repainted for it. */
+  readonly priority: PaintPriority;
   /** Null for a page nobody edits: no overlays at all. */
   readonly overlay: PageOverlaysProps | null;
 }
@@ -34,7 +37,9 @@ interface Mounted {
 
 let nextSlot: number = 0;
 
-export function PageCanvas({ renderer, placed, zoom, dpr, pageCount, onPaintError, revision, overlay }: PageCanvasProps): JSX.Element {
+export function PageCanvas({ renderer, placed, zoom, dpr, pageCount, onPaintError, revision, priority, overlay }: PageCanvasProps): JSX.Element {
+  const priorityNow: MutableRefObject<PaintPriority> = useRef<PaintPriority>(priority);
+  priorityNow.current = priority;
   const host: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
   const mounted: MutableRefObject<Mounted | null> = useRef<Mounted | null>(null);
   const [links, setLinks] = useState<readonly LinkArea[]>([]);
@@ -63,7 +68,7 @@ export function PageCanvas({ renderer, placed, zoom, dpr, pageCount, onPaintErro
     if (m === null) return undefined;
     let live: boolean = true;
     m.ready
-      .then(() => renderer.paint(m.slot, pageNumber, zoom, dpr))
+      .then(() => renderer.paint(m.slot, pageNumber, zoom, dpr, priorityNow.current))
       .then((outcome) => {
         if (live) setLinks(outcome.links);
       })

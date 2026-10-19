@@ -86,11 +86,14 @@ describe('a buffer cut short after page N', () => {
   const n: number = 41;
   const cut: Uint8Array = new Uint8Array(bytes.subarray(0, full.pages[n].offset + full.pages[n].length));
 
-  it('still opens and serves pages 0..=N exactly as the full buffer does', () => {
+  // Every page 0..=N by its op sequence, and the first page and page N (the one ending at the cut)
+  // op for op. Deep-comparing all 42 cost 1.3 s locally, nearly all of it toEqual (decoding all
+  // 100 pages takes 64 ms), and timed out at 5 s on a slow CI runner.
+  it('still opens and serves pages 0..=N as the full buffer does', () => {
     const partial: DisplayList = openDisplayList(cut);
-    for (let slot: number = 0; slot <= n; slot++) {
-      expect(decodePage(partial, slot).ops).toEqual(decodePage(full, slot).ops);
-    }
+    const kinds = (list: DisplayList, slot: number): string => decodePage(list, slot).ops.map((o: { readonly kind: string }): string => o.kind).join(' ');
+    for (let slot: number = 0; slot <= n; slot++) expect(kinds(partial, slot), `page slot ${slot}`).toBe(kinds(full, slot));
+    for (const slot of [0, n]) expect(decodePage(partial, slot).ops).toEqual(decodePage(full, slot).ops);
   });
 
   it('refuses page N + 1, which it does not hold', () => {

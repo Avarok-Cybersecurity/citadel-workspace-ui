@@ -26,6 +26,9 @@ import type { EditorController, EditorOrigin } from '@/lib/cdoc/editor/controlle
 import type { EditorSurfaceOptions } from './page-view/use-editor-surface';
 import type { Ctx2D } from '@/lib/cdoc/paint/canvas-port';
 import { DocsStatusBar } from './page-view/DocsStatusBar';
+import { pageStatusStore, type PageStatusStore } from './page-view/page-status';
+import type { PaintAhead } from './page-view/warm-pages';
+import { PAINT_AHEAD_MOUNTS_PER_TICK, PAINT_AHEAD_PAGES } from '@/lib/cdoc/paint/paint-config';
 import { useHyphenationNotice, type Delay } from './page-view/use-hyphenation-notice';
 import { useDevicePixelRatio } from './page-view/use-device-pixel-ratio';
 import { INITIAL_ZOOM } from './page-view/zoom';
@@ -80,6 +83,21 @@ const browserDelay: Delay = (ms: number, task: () => void): (() => void) => {
   return (): void => window.clearTimeout(id);
 };
 
+/**
+ * Idle time where the browser reports it; Safari has no requestIdleCallback, and there the task
+ * waits a frame and a half instead, behind whatever input and paint that frame had.
+ */
+const SAFARI_IDLE_DELAY_MS: number = 25;
+const browserIdle = (task: () => void): (() => void) => {
+  if (typeof window.requestIdleCallback === 'function') {
+    const id: number = window.requestIdleCallback(task);
+    return (): void => window.cancelIdleCallback(id);
+  }
+  const id: number = window.setTimeout(task, SAFARI_IDLE_DELAY_MS);
+  return (): void => window.clearTimeout(id);
+};
+const PAINT_AHEAD: PaintAhead = { warmPages: PAINT_AHEAD_PAGES, mountsPerTick: PAINT_AHEAD_MOUNTS_PER_TICK, idle: browserIdle };
+
 const browserFrame = (task: () => void): (() => void) => {
   const id: number = window.requestAnimationFrame(task);
   return (): void => window.cancelAnimationFrame(id);
@@ -88,10 +106,10 @@ const browserFrame = (task: () => void): (() => void) => {
 export default function DocsCanvas({ documentSource, loadRuntime, keepReplica, statusBar, edit, commentAuthor, title, files, original }: DocsCanvasProps): JSX.Element {
   const [state, setState] = useState<Runtime>({ kind: 'loading' });
   const [zoom, setZoom] = useState<number>(INITIAL_ZOOM);
-  const [status, setStatus] = useState<PageStatus | null>(null);
+  const status: PageStatusStore = useMemo(pageStatusStore, []);
   const dpr: number = useDevicePixelRatio();
   const ribbonEnvironment: RibbonEnvironment = useMemo(browserRibbonEnvironment, []);
-  const onPageStatus: (next: PageStatus) => void = useCallback((next: PageStatus): void => setStatus(next), []);
+  const onPageStatus: (next: PageStatus) => void = status.set;
   const [editError, setEditError] = useState<string | null>(null);
   const overlayContext: ((canvas: HTMLCanvasElement) => Ctx2D) | null = state.kind === 'ready' ? state.runtime.overlayContext : null;
   // The caret blinks unless motion is off (the OS asks for reduced motion, or the Animations setting).
@@ -170,11 +188,11 @@ export default function DocsCanvas({ documentSource, loadRuntime, keepReplica, s
       </EditorControllerContext.Provider>
       {state.kind === 'ready' && <DocsDocumentBar title={title} files={files} importReport={importReport} refused={outcome?.kind === 'refused'} exporter={exporter} />}
       {state.kind === 'ready' && state.editor !== null && input !== null && (
-        <EditorPageView editor={state.editor} renderer={state.runtime.renderer} zoom={zoom} dpr={dpr} onZoomChange={setZoom} onPageStatus={onPageStatus} input={input} />
+        <EditorPageView editor={state.editor} renderer={state.runtime.renderer} zoom={zoom} dpr={dpr} onZoomChange={setZoom} onPageStatus={onPageStatus} input={input} paintAhead={PAINT_AHEAD} />
       )}
       {editError !== null && <p role="alert" className="border-t p-2 text-sm text-destructive">That edit was not made. {editError}</p>}
       {state.kind === 'ready' && state.editor === null && (
-        <PageView client={state.runtime.client} renderer={state.runtime.renderer} source={documentSource} zoom={zoom} dpr={dpr} onZoomChange={setZoom} onPageStatus={onPageStatus} onOpened={onOpened} original={original} />
+        <PageView client={state.runtime.client} renderer={state.runtime.renderer} source={documentSource} zoom={zoom} dpr={dpr} onZoomChange={setZoom} onPageStatus={onPageStatus} onOpened={onOpened} original={original} paintAhead={PAINT_AHEAD} />
       )}
       {state.kind === 'loading' && <p role="status" className="m-auto text-sm text-muted-foreground">Loading Citadel Docs…</p>}
       {state.kind === 'failed' && <p role="alert" className="m-auto p-6 text-sm text-destructive">Citadel Docs could not start. {state.message}</p>}

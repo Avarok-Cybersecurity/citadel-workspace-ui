@@ -83,9 +83,17 @@ describe.each(['worker', 'main-thread'] as const)('the caret, with the %s render
     await settled(m.editor);
     await act(async () => { await m.editor.execute({ name: 'selectAll' }); });
     await settled(m.editor);
+    // A layer with nothing to draw holds no bitmap: sized 0×0, which also wipes what it held.
+    expect([caretCanvas().width, caretCanvas().height]).toEqual([0, 0]);
+  });
+
+  it('gives the caret layer a page-sized bitmap while it draws the caret', async () => {
+    const m: Mounted = await mount(mode);
+    type(m.input, 'here');
+    await settled(m.editor);
+    expect(caretCanvas().width).toBeGreaterThan(0);
     const calls: readonly { readonly name: string }[] = m.runtime.overlays.get(caretCanvas())?.calls ?? [];
-    const sinceClear: readonly { readonly name: string }[] = calls.slice(calls.map((c) => c.name).lastIndexOf('clearRect') + 1);
-    expect(sinceClear.filter((c) => c.name === 'fillRect')).toEqual([]);
+    expect(calls.map((c) => c.name)).toContain('fillRect');
   });
 });
 

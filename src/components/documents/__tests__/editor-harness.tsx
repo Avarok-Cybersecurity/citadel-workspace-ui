@@ -10,6 +10,7 @@ import { EditorSession } from '@/lib/cdoc/editor/editor-session';
 import { EditorPageView } from '../EditorPageView';
 import type { EditorOrigin } from '@/lib/cdoc/editor/controller';
 import { ManualFrames, ManualRepeat } from './manual-clock';
+import { PAINT_AHEAD_MOUNTS_PER_TICK, PAINT_AHEAD_PAGES } from '@/lib/cdoc/paint/paint-config';
 
 const VIEWPORT_PX: number = 800;
 
@@ -36,6 +37,8 @@ export interface Mounted {
   /** The caret's blink clock and the frames a drag scrolls on, stepped by the test. */
   readonly blink: ManualRepeat;
   readonly frames: ManualFrames;
+  /** The idle ticks pages are painted ahead on, stepped by the test. */
+  readonly idle: ManualFrames;
 }
 
 export interface MountOptions {
@@ -53,6 +56,7 @@ export async function mount(mode: 'worker' | 'main-thread', options: Partial<Mou
   const { clipboard: clipboardPolicy, from, reducedMotion }: MountOptions = { ...USUAL, ...options };
   const blink: ManualRepeat = new ManualRepeat();
   const frames: ManualFrames = new ManualFrames();
+  const idle: ManualFrames = new ManualFrames();
   const runtime: TestRuntime = inProcessRuntime(mode);
   const editor: EditorSession = await EditorSession.open({ client: runtime.client, renderer: runtime.renderer }, 11n, from);
   const errors: unknown[] = [];
@@ -68,11 +72,12 @@ export async function mount(mode: 'worker' | 'main-thread', options: Partial<Mou
         },
         caretBlink: { phaseMs: 530, repeat: blink.repeat, reducedMotion }, frame: frames.frame,
       }}
+      paintAhead={{ warmPages: PAINT_AHEAD_PAGES, mountsPerTick: PAINT_AHEAD_MOUNTS_PER_TICK, idle: idle.frame }}
     />,
   );
   const input: HTMLTextAreaElement = await screen.findByTestId('editor-input') as HTMLTextAreaElement;
   await waitFor(() => expect(runtime.painted.some((t) => t.sizes.length > 0)).toBe(true));
-  return { clipboard, runtime, editor, errors, input, blink, frames };
+  return { clipboard, runtime, editor, errors, input, blink, frames, idle };
 }
 
 export function type(input: HTMLElement, text: string): void {

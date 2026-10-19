@@ -11,7 +11,7 @@ import { key, mount, settled, statedViewport, type Mounted } from './editor-harn
 import { layoutPages, type PageLayout } from '../page-view/page-layout';
 import { PAGE_GAP_PX } from '../page-view/PageColumn';
 import { deviceScale, type DeviceScale } from '@/lib/cdoc/paint/units';
-import type { PageRect } from '@/lib/cdoc/editor/controller';
+import type { EditorState, PageRect } from '@/lib/cdoc/editor/controller';
 
 statedViewport();
 const VIEWPORT: number = 800;
@@ -42,6 +42,27 @@ describe('the caret stays in view', () => {
     await settled(m.editor);
     await waitFor(() => expect(region().scrollTop).toBeLessThanOrEqual(caretTop(m)));
     expect(caretTop(m)).toBeLessThan(VIEWPORT);
+  });
+
+  it('lets the person scroll away from a caret that has not moved', async () => {
+    const m: Mounted = await mount('main-thread');
+    await longDocument(m);
+    key(m.input, 'Home', { ctrlKey: true });
+    await settled(m.editor);
+    await waitFor(() => expect(caretTop(m)).toBeLessThan(region().scrollTop + VIEWPORT));
+    const away: number = region().scrollTop + 3 * VIEWPORT;
+    const before: EditorState = m.editor.state;
+    act(() => {
+      region().scrollTop = away;
+      region().dispatchEvent(new Event('scroll'));
+    });
+    // The pages in view change, so the editor is told and answers with a new state whose caret
+    // is where it was: that answer must not scroll the view back to it.
+    act(() => m.frames.run());
+    await waitFor(() => expect(m.editor.state).not.toBe(before));
+    await settled(m.editor);
+    expect(m.editor.state.caret).toEqual(before.caret);
+    expect(region().scrollTop).toBe(away);
   });
 });
 
