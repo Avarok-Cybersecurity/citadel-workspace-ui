@@ -1,0 +1,67 @@
+/**
+ * The messages between an app instance's handle (main thread) and its worker. Every message that
+ * makes the worker run guest code carries a `seq` and is answered by `done` with that seq (or by
+ * `loaded`/`trapped`); guest code the worker runs on its own (a reply that became ready) is
+ * bracketed by `busy` and `done`. The handle's watchdog times exactly those. The worker never receives a
+ * MessagePort, and the only thing it posts to is this channel.
+ */
+import type { AbiGroup } from './abi';
+import { isCborMap, type CborMap } from './cbor';
+import type { Capability } from './capabilities';
+import type { IhttpFrame, IhttpPeer } from './ihttp-types';
+import type { HostPolicy } from './limits';
+import type { PortAnswer } from './ports';
+
+export interface LoadMessage {
+  readonly kind: 'load';
+  readonly seq: number;
+  readonly module: WebAssembly.Module;
+  readonly appId: string;
+  readonly granted: readonly Capability[];
+  readonly memory: { readonly initialPages: number; readonly maxPages: number };
+  /** CBOR AppContext, handed to app_init. */
+  readonly context: Uint8Array;
+  readonly policy: HostPolicy;
+}
+
+export type ToWorker =
+  | LoadMessage
+  | { readonly kind: 'event'; readonly seq: number; readonly event: Uint8Array }
+  | { readonly kind: 'frame'; readonly seq: number; readonly dtMs: number }
+  /** Runs no guest code itself: the reply reaches the guest in a later busy...done drain. */
+  | { readonly kind: 'port_reply'; readonly id: number; readonly answer: PortAnswer }
+  | { readonly kind: 'ihttp'; readonly seq: number; readonly peer: IhttpPeer; readonly frame: IhttpFrame }
+  | { readonly kind: 'canvas'; readonly canvas: OffscreenCanvas };
+
+export type FromWorker =
+  | { readonly kind: 'done'; readonly seq: number }
+  /** The worker is about to run guest code on its own initiative (negative seq); `done` follows. */
+  | { readonly kind: 'busy'; readonly seq: number }
+  | { readonly kind: 'loaded'; readonly seq: number; readonly status: number }
+  | { readonly kind: 'trapped'; readonly seq: number; readonly message: string }
+  | { readonly kind: 'port_call'; readonly id: number; readonly group: AbiGroup; readonly op: number; readonly args: CborMap }
+  | { readonly kind: 'ihttp_out'; readonly peer: IhttpPeer; readonly frame: IhttpFrame };
+
+const TO_WORKER: ReadonlySet<string> = new Set<ToWorker['kind']>(['load', 'event', 'frame', 'port_reply', 'ihttp', 'canvas']);
+const FROM_WORKER: ReadonlySet<string> = new Set<FromWorker['kind']>(['done', 'busy', 'loaded', 'trapped', 'port_call', 'ihttp_out']);
+
+export function isToWorker(value: unknown): value is ToWorker {
+  return isCborMap(value) && typeof value.kind === 'string' && TO_WORKER.has(value.kind);
+}
+
+export function isFromWorker(value: unknown): value is FromWorker {
+  return isCborMap(value) && typeof value.kind === 'string' && FROM_WORKER.has(value.kind);
+}
+
+/** The worker's end of the channel, captured before the scrub removes it from `self`. */
+export interface WorkerChannel {
+  readonly post: (message: FromWorker) => void;
+  readonly listen: (handler: (message: unknown) => void) => void;
+}
+
+/** The handle's end: a Worker, or in tests anything with the same three methods. */
+export interface HostChannel {
+  postMessage(message: ToWorker, transfer: Transferable[]): void;
+  addEventListener(type: 'message', listener: (event: MessageEvent<unknown>) => void): void;
+  terminate(): void;
+}
