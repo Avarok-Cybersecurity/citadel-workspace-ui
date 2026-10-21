@@ -14,11 +14,20 @@ import { isEnterCommit } from '@/lib/keyboard-commit';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
 import { DOC_TITLE_MAX_LENGTH } from '@/lib/live-document-store/doc-title';
+import type { CitadelAppId } from '@/lib/citadel-apps/registry';
+import { CitadelAppPicker } from '@/components/documents/CitadelAppPicker';
+
+/** A chat document as the dialog submits it: the app it opens in, its title, and the typed seed. */
+export interface NewChatDocumentInput {
+  app: CitadelAppId;
+  title: string;
+  initialContent: string;
+}
 
 interface LiveDocumentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreateDocument: (title: string, initialContent: string) => void;
+  onCreateDocument: (input: NewChatDocumentInput) => Promise<void>;
   initialContent?: string;
 }
 
@@ -29,11 +38,13 @@ export function LiveDocumentModal({
   initialContent = '',
 }: LiveDocumentModalProps): JSX.Element {
   const [title, setTitle] = useState('');
+  // Nothing preselected, as in the workspace's New document: no document is made in an app nobody chose.
+  const [app, setApp] = useState<CitadelAppId | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
   const handleCreate = async (): Promise<void> => {
-    if (!title.trim()) return;
+    if (!title.trim() || app === null) return;
     // The Create button is disabled while in flight, but the Enter path below
     // bypassed the button entirely: two Enters during a slow create made two
     // documents.
@@ -42,8 +53,9 @@ export function LiveDocumentModal({
     setIsCreating(true);
     setCreateError(null);
     try {
-      await onCreateDocument(title.trim(), initialContent);
+      await onCreateDocument({ app, title: title.trim(), initialContent });
       setTitle('');
+      setApp(null);
       onClose();
     } catch (error) {
       debugLog('LiveDocumentModal', 'Failed to create document:', error);
@@ -56,7 +68,7 @@ export function LiveDocumentModal({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent): void => {
-    if (isEnterCommit(e) && title.trim()) {
+    if (isEnterCommit(e) && title.trim() && app !== null) {
       runAsyncSetup(handleCreate);
     }
   };
@@ -69,15 +81,17 @@ export function LiveDocumentModal({
             <div className="p-2 rounded-lg bg-primary/20">
               <FileText className="h-5 w-5 text-primary-accent" />
             </div>
-            <DialogTitle className="text-lg font-semibold">Create Live Document</DialogTitle>
+            <DialogTitle className="text-lg font-semibold">New document</DialogTitle>
           </div>
           <DialogDescription className="text-muted-foreground">
-            Enter a title for your collaborative document. Both you and your peer will be able to edit it in real-time.
+            Choose the app it opens in and give it a title. You and your peer can both edit it at the same time.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="py-4">
+        <div className="grid gap-4 py-2">
+          <CitadelAppPicker site="chat" value={app} onChange={setApp} testId="live-doc-app" />
           <Input
+            aria-label="Document title"
             placeholder="Document title..."
             data-testid="live-doc-title"
             maxLength={DOC_TITLE_MAX_LENGTH}
@@ -91,7 +105,7 @@ export function LiveDocumentModal({
             // eslint-disable-next-line jsx-a11y/no-autofocus
             autoFocus
           />
-          <p className="text-xs text-muted-foreground mt-2">
+          <p className="-mt-2 text-xs text-muted-foreground">
             This will send a live document invitation to your peer.
           </p>
         </div>
@@ -113,7 +127,7 @@ export function LiveDocumentModal({
           <Button
             data-testid="live-doc-create"
             onClick={handleCreate}
-            disabled={!title.trim() || isCreating}
+            disabled={!title.trim() || app === null || isCreating}
             className="bg-primary text-primary-foreground"
           >
             {isCreating ? 'Creating...' : 'Create & Send'}

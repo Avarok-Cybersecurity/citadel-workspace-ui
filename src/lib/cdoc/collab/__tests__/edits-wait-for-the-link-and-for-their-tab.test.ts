@@ -129,7 +129,7 @@ describe('two tabs of one account on one device', () => {
 });
 
 describe('edits the server will not take', () => {
-  it('stay on this device, named unsaved, and warn on unload only while not yet written there', async () => {
+  it('stay on this device, named refused, and warn on unload only while not yet written there', async () => {
     store.clear();
     const d: Device = await device();
     const alice: RealTab = await d.open(ALICE, { autoSaveWhenUnset: false });
@@ -140,7 +140,7 @@ describe('edits the server will not take', () => {
     await d.settle(alice);
     // One denial per refused Append, each named (the notice's toast id folds them into one).
     expect(new Set(alice.problems.map((p) => p.problem.kind))).toEqual(new Set(['permissionDenied']));
-    expect(saveStatus(alice.session.saveInputs)).toBe('unsavedOnDevice');
+    expect(saveStatus(alice.session.saveInputs)).toBe('refused');
     expect(warnsOnUnload(alice.session.saveInputs)).toBe(false);
     expect(heldKeys()).toHaveLength(1);
   });

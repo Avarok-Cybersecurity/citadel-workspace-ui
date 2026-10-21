@@ -42,8 +42,9 @@ if (import.meta.env.DEV) {
 import './lib/multi-instance';
 import { startInstallPromptCapture } from '@/components/pwa/install-prompt-store';
 import { showStorageVersionRecovery } from './storage-version-recovery';
+import { REJECTION_TAG, WINDOW_ERROR_TAG } from './lib/telemetry/window-error-tags';
 import { startKeyboardInsetTracking } from '@/lib/pwa/keyboard-inset';
-import { watchDeployedVersion } from '@/lib/pwa/watch-deployed-version';
+import { watchThisBuild } from '@/lib/pwa/watch-deployed-version';
 import { browserSessionStorage, reloadKeepingDrafts, restoreHandedOffDrafts } from '@/lib/chat/draft-handoff';
 import { capturePendingRedirect } from '@/lib/share/pending-redirect';
 import { applyAppearanceSettings, loadAppearanceSettings } from './lib/appearance-settings';
@@ -88,9 +89,9 @@ void import('./lib/p2p').then((m) => {
   void m.p2pMessengerManager.waitForReady().then((): void => m.startRetentionSweeper());
 });
 
-// Global error handlers
+// Global error handlers; their lines reach opt-in diagnostic logs (lib/telemetry/console-capture).
 window.addEventListener('error', (e) => {
-  console.error('[MAIN ERROR]', {
+  console.error(WINDOW_ERROR_TAG, {
     message: e.error?.message || e.message,
     filename: e.filename,
     lineno: e.lineno,
@@ -100,7 +101,7 @@ window.addEventListener('error', (e) => {
 });
 
 window.addEventListener('unhandledrejection', (e) => {
-  console.error('[MAIN REJECTION]', {
+  console.error(REJECTION_TAG, {
     reason: e.reason,
     promise: e.promise
   });
@@ -121,7 +122,6 @@ window.addEventListener('unhandledrejection', (e) => {
     showStorageVersionRecovery();
   }
 });
-
 
 try {
   const rootElement: HTMLElement | null = document.getElementById("root");
@@ -199,10 +199,10 @@ try {
   startInstallPromptCapture();
   startKeyboardInsetTracking();
   // Drafts carried across a reload the app asked for, back before any composer
-  // mounts; and the SW-independent deploy check. `import.meta.url` here is the
-  // entry chunk's URL, which is what /version.json names (deployed-version.ts).
+  // mounts; and the SW-independent deploy and stale-tab checks. `import.meta.url` here is
+  // the entry chunk's URL, which is what /version.json names (deployed-version.ts).
   restoreHandedOffDrafts(browserSessionStorage());
-  watchDeployedVersion(import.meta.url);
+  watchThisBuild(import.meta.url);
   // A secure link (`?redirect=&server=`), kept for after sign-in before any page reads the address.
   capturePendingRedirect(window.location.search, browserSessionStorage(), (search: string): void => {
     window.history.replaceState(window.history.state, '', `${window.location.pathname}${search ? `?${search}` : ''}${window.location.hash}`);

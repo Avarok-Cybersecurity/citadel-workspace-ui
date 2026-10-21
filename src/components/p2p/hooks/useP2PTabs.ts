@@ -17,13 +17,15 @@ import * as Y from 'yjs';
 import { ChatTab, MESSAGES_TAB, createLiveDocumentTab } from '../ChatTabBar';
 import type { DocumentMetadata } from '@/lib/live-document-store/types';
 import type { Dispatch, SetStateAction } from 'react';
+import { citadelApp, creatableIn } from '@/lib/citadel-apps/registry';
+import type { NewChatDocumentInput } from '../LiveDocumentModal';
 
 interface UseP2PTabsOptions {
   peerCid: bigint;
   currentUserCid?: bigint;
 }
 
-export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions): { tabs: ChatTab[]; activeTabId: string; activeTabIdRef: MutableRefObject<string>; tabsWithUnread: { hasUnread: boolean; id: string; type: "messages" | "live_document"; title: string; documentId?: string; }[]; activeTab: ChatTab | undefined; setMessagesHasUnread: Dispatch<SetStateAction<boolean>>; handleTabSelect: (tabId: string) => void; handleCloseTab: (tabId: string) => void; handleOpenDocument: (docId: string, title: string) => void; handleCreateDocument: (title: string, initialContent: string) => Promise<void>; handleRenameDocument: (documentId: string, title: string) => Promise<void>; } {
+export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions): { tabs: ChatTab[]; activeTabId: string; activeTabIdRef: MutableRefObject<string>; tabsWithUnread: { hasUnread: boolean; id: string; type: "messages" | "live_document"; title: string; documentId?: string; }[]; activeTab: ChatTab | undefined; setMessagesHasUnread: Dispatch<SetStateAction<boolean>>; handleTabSelect: (tabId: string) => void; handleCloseTab: (tabId: string) => void; handleOpenDocument: (docId: string, title: string) => void; handleCreateDocument: (input: NewChatDocumentInput) => Promise<void>; handleRenameDocument: (documentId: string, title: string) => Promise<void>; } {
   const [tabs, setTabs] = useState<ChatTab[]>([MESSAGES_TAB]);
   const [activeTabId, setActiveTabId] = useState('messages');
   const [messagesHasUnread, setMessagesHasUnread] = useState(false);
@@ -105,10 +107,12 @@ export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions): { ta
     }
   }, [tabs, currentUserCid, peerCid]);
 
-  const handleCreateDocument: (title: string, initialContent: string) => Promise<void> = useCallback(async (title: string, initialContent: string): Promise<void> => {
+  const handleCreateDocument: (input: NewChatDocumentInput) => Promise<void> = useCallback(async ({ app, title, initialContent }: NewChatDocumentInput): Promise<void> => {
     // Was `if (!currentUserCid) return;` — a success-shaped no-op that closed
     // the modal and cleared the compose box having created nothing.
     if (!currentUserCid) throw new Error('Cannot create a document before the session has a CID');
+    // The picker offers only apps a chat can make; this refuses one a caller got around it with.
+    if (!creatableIn(citadelApp(app), 'chat')) throw new Error(`${citadelApp(app).name} documents cannot be made in a chat yet.`);
 
     // The typed message, which this parameter used to ignore entirely.
     // The creator seeds the title into the document so the CRDT carries it from

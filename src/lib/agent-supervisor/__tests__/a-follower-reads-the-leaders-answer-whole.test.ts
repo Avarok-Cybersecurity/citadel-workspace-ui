@@ -16,33 +16,40 @@ afterEach((): void => { vi.restoreAllMocks(); });
 describe('the follower\'s reading of the leader\'s ack', () => {
   it('takes both capabilities', async (): Promise<void> => {
     leaderSays({ agentIlm: true, supervisesP2p: true });
-    expect(await askLeaderForCapabilities()).toEqual({ agentIlm: true, supervisesP2p: true, noticesHeard: false, stagesUploads: false });
+    expect(await askLeaderForCapabilities()).toEqual({ agentIlm: true, supervisesP2p: true, noticesHeard: false, stagesUploads: false, takesConsole: false });
     leaderSays({ agentIlm: false, supervisesP2p: true });
-    expect(await askLeaderForCapabilities()).toEqual({ agentIlm: false, supervisesP2p: true, noticesHeard: false, stagesUploads: false });
+    expect(await askLeaderForCapabilities()).toEqual({ agentIlm: false, supervisesP2p: true, noticesHeard: false, stagesUploads: false, takesConsole: false });
     leaderSays({ agentIlm: true, supervisesP2p: false });
-    expect(await askLeaderForCapabilities()).toEqual({ agentIlm: true, supervisesP2p: false, noticesHeard: false, stagesUploads: false });
+    expect(await askLeaderForCapabilities()).toEqual({ agentIlm: true, supervisesP2p: false, noticesHeard: false, stagesUploads: false, takesConsole: false });
   });
 
   it('reads a leader that predates the capability as not supervising', async (): Promise<void> => {
     leaderSays({ agentIlm: true });
-    expect(await askLeaderForCapabilities()).toEqual({ agentIlm: true, supervisesP2p: false, noticesHeard: false, stagesUploads: false });
+    expect(await askLeaderForCapabilities()).toEqual({ agentIlm: true, supervisesP2p: false, noticesHeard: false, stagesUploads: false, takesConsole: false });
   });
 
   it('takes whether the agent stages uploads', async (): Promise<void> => {
     leaderSays({ agentIlm: true, supervisesP2p: false, stagesUploads: true });
-    expect(await askLeaderForCapabilities()).toEqual({ agentIlm: true, supervisesP2p: false, noticesHeard: false, stagesUploads: true });
+    expect(await askLeaderForCapabilities()).toEqual({ agentIlm: true, supervisesP2p: false, noticesHeard: false, stagesUploads: true, takesConsole: false });
   });
 
   it('takes whether a notifier is attached to the agent, and a leader that does not say as none', async (): Promise<void> => {
-    leaderSays({ agentIlm: true, supervisesP2p: false, noticesHeard: true, stagesUploads: false });
-    expect(await askLeaderForCapabilities()).toEqual({ agentIlm: true, supervisesP2p: false, noticesHeard: true, stagesUploads: false });
+    leaderSays({ agentIlm: true, supervisesP2p: false, noticesHeard: true, stagesUploads: false, takesConsole: false });
+    expect(await askLeaderForCapabilities()).toEqual({ agentIlm: true, supervisesP2p: false, noticesHeard: true, stagesUploads: false, takesConsole: false });
     leaderSays({ agentIlm: true, supervisesP2p: false });
-    expect(await askLeaderForCapabilities()).toEqual({ agentIlm: true, supervisesP2p: false, noticesHeard: false, stagesUploads: false });
+    expect(await askLeaderForCapabilities()).toEqual({ agentIlm: true, supervisesP2p: false, noticesHeard: false, stagesUploads: false, takesConsole: false });
+  });
+
+  it('takes whether the agent takes console lines, and a leader that does not say as no', async (): Promise<void> => {
+    leaderSays({ agentIlm: true, supervisesP2p: false, takesConsole: true });
+    expect((await askLeaderForCapabilities()).takesConsole).toBe(true);
+    leaderSays({ agentIlm: true, supervisesP2p: false, takesConsole: 'yes' });
+    expect((await askLeaderForCapabilities()).takesConsole).toBe(false);
   });
 
   it('reads an empty ack as neither', async (): Promise<void> => {
     leaderSays(undefined);
-    expect(await askLeaderForCapabilities()).toEqual({ agentIlm: false, supervisesP2p: false, noticesHeard: false, stagesUploads: false });
+    expect(await askLeaderForCapabilities()).toEqual({ agentIlm: false, supervisesP2p: false, noticesHeard: false, stagesUploads: false, takesConsole: false });
   });
 
   it('fails when the leader could not answer', async (): Promise<void> => {

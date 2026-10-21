@@ -24,6 +24,8 @@ export async function serveDocsHarness(port) {
     mode: 'production',
     esbuild: app.config.esbuild,
     worker: app.config.worker,
+    // The app's build constants (__BUILD_SEQ__, vite.config.ts), which shipped modules read when they load.
+    define: app.config.define,
     assetsInclude: app.config.assetsInclude,
     configFile: false,
     logLevel: 'error',

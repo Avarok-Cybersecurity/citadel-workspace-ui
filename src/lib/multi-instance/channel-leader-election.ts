@@ -10,21 +10,28 @@ import { instanceManager } from './instance-manager';
 import { debugLog } from '@/lib/debug-config';
 import { INTERVAL } from '../timeout-constants';
 import type { ChannelMessage } from './channel-types';
+import { readEnvelope, type ChannelEnvelope } from './channel-envelope';
+import { outranks, ownRank, type LeaderRank } from './version-skew';
+import { refusesToLead } from './tab-staleness';
+import { admitLeaderEpoch, beginLeadership, followEpoch, outbid } from './leadership-epoch';
+import { onLegacyClaim, onLegacyHeartbeat } from './legacy-v1-put-down';
+import { sendHeartbeat, type LeaderElectionState } from './leadership-signals';
+
+export { relinquishLeadership, sendHeartbeat, type LeaderElectionState } from './leadership-signals';
 
 const HEARTBEAT_INTERVAL_MS: number = INTERVAL.HEARTBEAT_MS;
 const LEADER_TIMEOUT_MS: number = INTERVAL.LEADER_TIMEOUT_MS;
 
-export interface LeaderElectionState {
-  lastLeaderHeartbeat: number;
-  leaderCheckInterval: ReturnType<typeof setInterval> | null;
-  heartbeatInterval: ReturnType<typeof setInterval> | null;
-  initTime: number;
-  send: (message: Omit<ChannelMessage, 'senderInstanceId' | 'timestamp'> & { senderInstanceId?: string; timestamp?: number }) => void;
-}
-
+/**
+ * Every rule below compares builds before tabs: a newer build leads (`outranks`, version-skew.ts),
+ * and a tab whose build is superseded never takes leadership (tab-staleness.ts). A message with
+ * no envelope is from a protocol-1 build and goes to legacy-v1-put-down.ts instead.
+ */
 export function handleLeaderElection(state: LeaderElectionState, message: ChannelMessage): void {
   const payload: Record<string, unknown> | undefined = message.payload as Record<string, unknown> | undefined;
   if (payload?.isLeader) {
+    const envelope: ChannelEnvelope | null = readEnvelope(message);
+    if (envelope === null) return onLegacyClaim(state, message);
     const theirId: bigint = BigInt((payload.instanceIdBigInt as string) || '0');
     const myId: bigint = instanceManager.instanceIdAsBigInt;
 
@@ -47,8 +54,8 @@ export function handleLeaderElection(state: LeaderElectionState, message: Channe
     // every cross-tab message dropped.) Reclaiming is cheap and correct
     // because if the other tab really is newer, we still hold the live
     // sessionStorage instance id from before the remount.
-    if (myId < theirId) {
-      debugLog('InstanceChannel', `[InstanceChannel] Rejecting leader claim from ${message.senderInstanceId} - we are older (my ${myId} < their ${theirId}); reclaiming leadership`);
+    if (outranks(ownRank(myId), { seq: envelope.seq, id: theirId }) && !refusesToLead()) {
+      debugLog('InstanceChannel', `[InstanceChannel] Rejecting leader claim from ${message.senderInstanceId} - we outrank it (my ${myId} vs their ${theirId}); reclaiming leadership`);
       tryBecomeLeader(state);
       return;
     }
@@ -64,6 +71,7 @@ export function handleLeaderElection(state: LeaderElectionState, message: Channe
     }
 
     // No established leader (or current leader timed out) - accept this claim
+    withdrawChallenge(state);
     instanceManager.setLeader(false, message.senderInstanceId);
     state.lastLeaderHeartbeat = Date.now();
 
@@ -91,17 +99,27 @@ export function handleLeaderHeartbeat(state: LeaderElectionState, message: Chann
   // legitimately needs to take over (e.g. original leader crashed) still
   // does so via tryBecomeLeader after LEADER_TIMEOUT_MS of no heartbeat —
   // that path is unaffected.
+  const envelope: ChannelEnvelope | null = readEnvelope(message);
+  if (envelope === null) return onLegacyHeartbeat(state, message);
+  const me: LeaderRank = ownRank(instanceManager.instanceIdAsBigInt);
+  let theirId: bigint;
+  try { theirId = BigInt(message.senderInstanceId); } catch { theirId = 0n; }
+  const them: LeaderRank = { seq: envelope.seq, id: theirId };
   if (instanceManager.isLeader) {
-    const myId: bigint = instanceManager.instanceIdAsBigInt;
-    let theirId: bigint;
-    try { theirId = BigInt(message.senderInstanceId); } catch { theirId = 0n; }
-    if (myId <= theirId) {
-      debugLog('InstanceChannel', `Split-brain with ${message.senderInstanceId}: keeping leadership (we are older: my ${myId} <= their ${theirId})`);
+    if (!outranks(them, me)) {
+      debugLog('InstanceChannel', `Split-brain with ${message.senderInstanceId}: keeping leadership (they do not outrank us)`);
+      outbid(envelope.epoch); // Followers that took theirs come back to ours.
       sendHeartbeat(state);
       return;
     }
-    debugLog('InstanceChannel', `Split-brain with ${message.senderInstanceId}: yielding leadership (they are older: their ${theirId} < my ${myId})`);
+    debugLog('InstanceChannel', `Split-brain with ${message.senderInstanceId}: yielding leadership (they outrank us)`);
+    followEpoch(envelope.epoch);
     // Fall through to demote self.
+  } else if (!admitLeaderEpoch(envelope.epoch)) {
+    debugLog('InstanceChannel', `Ignoring heartbeat from ${message.senderInstanceId}: epoch ${envelope.epoch} is older than the leadership followed`);
+    return;
+  } else if (outranks(them, me)) {
+    withdrawChallenge(state); // A leader that outranks us answered: it would win the split-brain above.
   }
 
   state.lastLeaderHeartbeat = Date.now();
@@ -143,12 +161,20 @@ export function startLeaderElection(state: LeaderElectionState): void {
   }, INITIAL_WAIT_MS);
 }
 
+/**
+ * Against a leader that went quiet, challenge, and lead only if no older leader answers. A
+ * background leader's heartbeats come about once a minute, so it looks dead; leading at once
+ * claimed sessions and opened a socket that its prompt answer (rule 1) closed again, every few
+ * seconds. With no leader ever heard (first tab, or after a goodbye) there is nobody to answer.
+ */
 export function tryBecomeLeader(state: LeaderElectionState): void {
-  const myId: bigint = instanceManager.instanceIdAsBigInt;
-
   if (instanceManager.isLeader) {
     debugLog('InstanceChannel', '[InstanceChannel] Already leader, staying leader');
     sendHeartbeat(state);
+    return;
+  }
+  if (refusesToLead()) {
+    debugLog('InstanceChannel', '[InstanceChannel] Not claiming leadership: this tab runs a superseded build');
     return;
   }
 
@@ -162,10 +188,9 @@ export function tryBecomeLeader(state: LeaderElectionState): void {
   } else {
     debugLog('InstanceChannel', '[InstanceChannel] No heartbeat ever received, claiming leadership');
   }
-
-  instanceManager.setLeader(true, instanceManager.instanceId);
-  state.lastLeaderHeartbeat = Date.now();
-
+  if (state.challenge !== null) return;
+  const myId: bigint = instanceManager.instanceIdAsBigInt;
+  const heardALeader: boolean = state.lastLeaderHeartbeat > 0;
   state.send({
     type: 'leader-election',
     targetInstanceId: '*',
@@ -173,57 +198,24 @@ export function tryBecomeLeader(state: LeaderElectionState): void {
     timestamp: Date.now(),
     payload: { isLeader: true, instanceIdBigInt: myId.toString() },
   });
+  if (!heardALeader) return lead(state, myId);
+  state.challenge = setTimeout((): void => {
+    state.challenge = null;
+    if (!instanceManager.isLeader && !refusesToLead()) lead(state, myId);
+  }, INTERVAL.LEADER_CHALLENGE_MS);
+}
 
+function withdrawChallenge(state: LeaderElectionState): void {
+  if (state.challenge !== null) clearTimeout(state.challenge);
+  state.challenge = null;
+}
+
+function lead(state: LeaderElectionState, myId: bigint): void {
+  beginLeadership();
+  instanceManager.setLeader(true, instanceManager.instanceId);
+  state.lastLeaderHeartbeat = Date.now();
   eventEmitter.emit('instance:leader-changed', { isLeader: true, leaderId: instanceManager.instanceId });
   eventEmitter.emit('leader-changed', { isLeader: true, leaderId: instanceManager.instanceId });
-
   debugLog('InstanceChannel', `[InstanceChannel] Became leader (ID: ${myId})`);
   sendHeartbeat(state);
-}
-
-/**
- * Give up leadership this tab cannot actually serve.
- *
- * Promotion is handled by an `async` listener, and `emit` calls handlers
- * synchronously — so a rejection from `createWebSocketAsLeader` escapes the
- * emitter's own try/catch and nothing observes it. The tab stayed `isLeader`,
- * kept winning every subsequent election (the first branch of `tryBecomeLeader`
- * short-circuits for an existing leader), and answered every request from every
- * tab in the browser with "WebSocket not ready" — forever, because there was no
- * self-demotion path anywhere. A leader that cannot serve never yielded, since
- * the yield branch only fires on a competing heartbeat that never comes.
- *
- * Broadcasting goodbye makes the other tabs re-elect within ~100ms rather than
- * waiting out LEADER_TIMEOUT_MS.
- */
-export function relinquishLeadership(state: LeaderElectionState): void {
-  if (!instanceManager.isLeader) return;
-
-  debugLog('InstanceChannel', 'Relinquishing leadership: this tab cannot serve it');
-  instanceManager.setLeader(false, '');
-
-  // Our own cooldown, not a claim about anyone else: `tryBecomeLeader` refuses
-  // to challenge within LEADER_TIMEOUT_MS of this stamp, so the tab that just
-  // failed does not immediately re-claim and fail again. Other tabs keep their
-  // own clocks and are unaffected.
-  state.lastLeaderHeartbeat = Date.now();
-
-  state.send({
-    type: 'instance-goodbye',
-    targetInstanceId: '*',
-    senderInstanceId: instanceManager.instanceId,
-    timestamp: Date.now(),
-  });
-
-  eventEmitter.emit('instance:leader-changed', { isLeader: false, leaderId: '' });
-  eventEmitter.emit('leader-changed', { isLeader: false, leaderId: '' });
-}
-
-export function sendHeartbeat(state: LeaderElectionState): void {
-  state.send({
-    type: 'leader-heartbeat',
-    targetInstanceId: '*',
-    senderInstanceId: instanceManager.instanceId,
-    timestamp: Date.now(),
-  });
 }

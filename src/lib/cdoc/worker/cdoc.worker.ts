@@ -15,9 +15,11 @@ import { canvasTarget, domCanvasPort } from '../paint/dom-canvas-port';
 import { ASSET_FETCH_TIMEOUT_MS, RASTERIZER_OPTIONS } from '../paint/paint-config';
 import { CdocHost, type HostReply } from './cdoc-host';
 import { isCdocRequest, type CdocResponse } from './protocol';
+import type { EngineLoadMessage } from './engine-load';
+import type { ByteProgress } from '@/lib/app-loading/load-stage';
 
 interface WorkerScope {
-  postMessage(message: CdocResponse, transfer: Transferable[]): void;
+  postMessage(message: CdocResponse | EngineLoadMessage, transfer: Transferable[]): void;
   addEventListener(type: 'message', listener: (event: MessageEvent<unknown>) => void): void;
 }
 
@@ -29,7 +31,10 @@ const host: CdocHost = new CdocHost({
       FONT_MANIFEST, fetchFontSource(CDOC_FONT_BASE_URL, ASSET_FETCH_TIMEOUT_MS),
       PATTERN_MANIFEST, fetchPatternSource(CDOC_PATTERN_BASE_URL, ASSET_FETCH_TIMEOUT_MS),
     );
-    return new CdocEngine(await loadCdocEditorWasm(), assets, new PdfWriter(loadCdocPdfWasm, assets));
+    const downloading = (bytes: ByteProgress): void => scope.postMessage({ engineLoad: { kind: 'downloading', bytes } }, []);
+    const engine: CdocEngine = new CdocEngine(await loadCdocEditorWasm(downloading), assets, new PdfWriter(loadCdocPdfWasm, assets));
+    scope.postMessage({ engineLoad: { kind: 'ready' } }, []);
+    return engine;
   },
   port: domCanvasPort(),
   rasterizer: RASTERIZER_OPTIONS,

@@ -14,6 +14,15 @@ export const CITADEL_APP_IDS = ['docs', 'pdf', 'latex'] as const;
 
 export type CitadelAppId = (typeof CITADEL_APP_IDS)[number];
 
+/**
+ * Every place a document can be made: the workspace tree's New document, and a chat's document
+ * shared with the peer. Each place offers the app picker (CitadelAppPicker) over the apps that
+ * can be made there; the creation-site test fails for a place that writes a document without it.
+ */
+export const DOCUMENT_CREATION_SITES = ['workspaceTree', 'chat'] as const;
+
+export type DocumentCreationSite = (typeof DOCUMENT_CREATION_SITES)[number];
+
 export interface CitadelApp {
   id: CitadelAppId;
   name: string;
@@ -21,8 +30,8 @@ export interface CitadelApp {
   icon: ComponentType<{ className?: string }>;
   /** Extensions, without the dot, of the files this app opens. */
   fileExtensions: readonly string[];
-  /** Whether a document can be created in it yet; unavailable apps are listed as coming soon. */
-  available: boolean;
+  /** Where a document can be created in it yet; elsewhere it is listed as coming soon. */
+  createdIn: readonly DocumentCreationSite[];
 }
 
 export const CITADEL_APPS: readonly CitadelApp[] = [
@@ -32,7 +41,7 @@ export const CITADEL_APPS: readonly CitadelApp[] = [
     description: 'Rich documents: headings, lists, tables and comments.',
     icon: FileText,
     fileExtensions: ['cdoc', ...DOCS_IMPORT_FORMATS],
-    available: true,
+    createdIn: ['workspaceTree', 'chat'],
   },
   {
     id: 'pdf',
@@ -40,7 +49,7 @@ export const CITADEL_APPS: readonly CitadelApp[] = [
     description: 'View, annotate and sign PDF files.',
     icon: FileType,
     fileExtensions: ['pdf'],
-    available: false,
+    createdIn: [],
   },
   {
     id: 'latex',
@@ -48,7 +57,7 @@ export const CITADEL_APPS: readonly CitadelApp[] = [
     description: 'Typeset papers and equations from LaTeX source.',
     icon: Sigma,
     fileExtensions: ['tex'],
-    available: false,
+    createdIn: [],
   },
 ];
 
@@ -61,4 +70,9 @@ export function citadelApp(id: CitadelAppId): CitadelApp {
   const app: CitadelApp | undefined = CITADEL_APPS.find((a: CitadelApp): boolean => a.id === id);
   if (!app) throw new Error(`Citadel App '${id}' has no registry entry`);
   return app;
+}
+
+/** Whether a document in `app` can be made at `site` now. */
+export function creatableIn(app: CitadelApp, site: DocumentCreationSite): boolean {
+  return app.createdIn.includes(site);
 }

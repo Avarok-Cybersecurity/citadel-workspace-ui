@@ -19,6 +19,12 @@ import type { DocumentEditing } from './use-docs-document';
 import type { OriginalFile } from './NotOpened';
 import { DocumentSaveControls, saveShortcut } from './save/DocumentSaveControls';
 import type { SaveControl } from './save/save-control';
+import { AppLoadingPane } from '@/components/app-loading/AppLoadingPane';
+import { browserClock } from '@/lib/browser-clock';
+import { SAVE_INDICATOR_TIMING } from '@/lib/document-save/save-indicator-timing';
+import type { LoadStage } from '@/lib/app-loading/load-stage';
+
+const APP_CODE_LOADING: LoadStage = { kind: 'app' };
 
 const DocsCanvas: LazyExoticComponent<(props: DocsCanvasProps) => JSX.Element> = lazy(() => import('./DocsCanvas'));
 
@@ -54,13 +60,13 @@ export function DocumentHost({ nodeId, appId, title, permissions, documentSource
   const onSaveKey: ((event: KeyboardEvent<HTMLElement>) => void) | undefined = saveShortcut(save);
   return (
     <div className="flex h-full min-w-0 flex-col bg-background" data-testid="document-host" data-node-id={nodeId} data-app={appId}>
-      <header className="flex min-w-0 items-center gap-3 border-b border-border px-4 py-3 sm:px-6">
+      <header className="flex min-w-0 flex-wrap items-center gap-3 border-b border-border px-4 py-3 sm:px-6">
         <Icon className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-lg font-semibold text-foreground" title={title}>{title}</h1>
-          <p className="text-xs text-muted-foreground">{app.name}</p>
+          <p className="truncate text-xs text-muted-foreground">{app.name}</p>
         </div>
-        {save !== null && <DocumentSaveControls control={save} />}
+        {save !== null && <DocumentSaveControls control={save} clock={browserClock} timing={SAVE_INDICATOR_TIMING} />}
       </header>
       {!permissions.edit.enabled && (
         <p role="status" data-testid="document-read-only" className="border-b border-border px-4 py-2 text-sm text-muted-foreground sm:px-6">
@@ -69,7 +75,7 @@ export function DocumentHost({ nodeId, appId, title, permissions, documentSource
       )}
       {appId === 'docs' ? (
         <section aria-label={`${app.name} editor`} data-testid="document-editor-region" className="flex min-h-0 flex-1 flex-col" onKeyDownCapture={onSaveKey}>
-          <Suspense fallback={<p role="status" className="m-auto text-sm text-muted-foreground">Loading {app.name}…</p>}>
+          <Suspense fallback={<AppLoadingPane appName={app.name} stage={APP_CODE_LOADING} />}>
             <DocsCanvas documentSource={documentSource} loadRuntime={loadCdocRuntime} editing={editing} statusBar={statusBar} edit={permissions.edit} commentAuthor={commentAuthor} title={title} files={files} original={original} />
           </Suspense>
         </section>

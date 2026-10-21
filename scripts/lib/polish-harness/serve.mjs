@@ -44,6 +44,8 @@ export async function serveHarness(port) {
     configFile: false,
     logLevel: 'error',
     worker: app.config.worker,
+    // The app's build constants (__BUILD_SEQ__, vite.config.ts), which shipped modules read when they load.
+    define: app.config.define,
     plugins: [react(), stubWasmClient()],
     css: { postcss: APP_ROOT },
     resolve: {

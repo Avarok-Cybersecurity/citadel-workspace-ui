@@ -53,7 +53,7 @@ function stickyLeaderClaims(requestId: string): void {
   // broadcast; the stubs exist only to satisfy the signature.
   dispatchChannelMessage(
     message,
-    { lastLeaderHeartbeat: 0, leaderCheckInterval: null, heartbeatInterval: null, initTime: Date.now(), send: (): void => {} },
+    { lastLeaderHeartbeat: 0, leaderCheckInterval: null, heartbeatInterval: null, initTime: Date.now(), challenge: null, send: (): void => {} },
     (): void => {},
   );
 }

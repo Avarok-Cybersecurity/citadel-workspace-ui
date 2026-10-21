@@ -198,8 +198,18 @@ const dist = join(root, 'dist');
  * DEFERRED_MODULES), which took it to 334.1. What remains is what the loader must decide before
  * render on a reload with no connection: whether this device kept a tree, so the workspace opens
  * offline instead of spinning on "Reconnecting" (useKeptTree and the loader rule).
+ *
+ * 335 -> 338 (2026-10-21), for tabs of different builds in one browser (the channel envelope):
+ * the base measured 335.0, this 337.3. What did not have to be on the landing path was moved off
+ * it: the kill switch loads only when /version.json pulls it (lib/pwa/kill-switch.ts; listed in
+ * DEFERRED_MODULES), which took it to 337.2. What remains has to run from the first message on
+ * the channel, before any page renders: the envelope, the epoch fence, the ranking of builds and
+ * the protocol-1 put-down in the election (+1.4 KB, app-services), and the stale tab's banner and
+ * hidden-tab reload with its safety registry (+0.7 KB, index). The stale response is not deferred
+ * on purpose: a stale tab is the one whose lazy chunks may be gone, and a failed chunk load
+ * reloads at once (main.tsx), during a call or an upload, which is what it exists to avoid.
  */
-const BUDGET_KB = 335;
+const BUDGET_KB = 338;
 
 /**
  * Modules that must stay OFF the critical path, checked against the source
@@ -230,6 +240,11 @@ const DEFERRED_MODULES = [
   'src/lib/at-rest/agent-root-store.ts',
   // Its shapes and errors too: the kept-tree hook reads the lock lazily (hooks/use-kept-tree.ts).
   'src/lib/at-rest/at-rest-shape.ts',
+  // The kill switch loads only when /version.json pulls it (lib/pwa/watch-deployed-version.ts).
+  'src/lib/pwa/kill-switch.ts',
+  // Console capture for opt-in diagnostic logs: it runs while a workspace is open (TermsGate),
+  // and does nothing until a consent answer allows uploads (lib/telemetry/console-capture).
+  'src/lib/telemetry/console-capture/capture.ts',
 ];
 
 /**

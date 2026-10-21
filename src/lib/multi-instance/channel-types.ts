@@ -5,6 +5,7 @@
  */
 
 import type { ProxyResponseData } from './outbound-queue';
+import type { ChannelEnvelope } from './channel-envelope';
 
 export const CHANNEL_NAME: "citadel-instance-channel" = 'citadel-instance-channel';
 
@@ -48,4 +49,6 @@ export interface ChannelMessage {
   status?: 'processed' | 'error';
   error?: string;
   data?: ProxyResponseData; // Typed data for acknowledgments
+  /** The sender's build and leadership (channel-envelope.ts); absent from a protocol-1 build. */
+  v?: ChannelEnvelope;
 }

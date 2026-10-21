@@ -38,7 +38,7 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); });
 
 const announceFrom = (instanceId: string, cid: bigint | null): void => {
-  const state: LeaderElectionState = { lastLeaderHeartbeat: 0, leaderCheckInterval: null, heartbeatInterval: null, initTime: 0, send: (): void => undefined };
+  const state: LeaderElectionState = { lastLeaderHeartbeat: 0, leaderCheckInterval: null, heartbeatInterval: null, initTime: 0, challenge: null, send: (): void => undefined };
   handleInstanceAnnounce(state, { type: 'instance-announce', targetInstanceId: '*', senderInstanceId: instanceId, timestamp: 0, payload: { cid } });
 };
 

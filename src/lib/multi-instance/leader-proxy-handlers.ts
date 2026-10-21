@@ -128,7 +128,6 @@ export async function handleAgentCapabilitiesProxy(
   request: ProxyRequest,
   sendAck: SendAckFn
 ): Promise<void> {
-  const { agentHostsConversations, agentSupervisesP2p, agentStagesUploads, agentNativePicker, noticesHeard } = await import('../agent-conversations/capabilities');
-  const [agentIlm, supervisesP2p, stagesUploads, nativePicker]: [boolean, boolean, boolean, boolean | undefined] = await Promise.all([agentHostsConversations(), agentSupervisesP2p(), agentStagesUploads(), agentNativePicker()]);
-  sendAck(request.senderInstanceId, request.requestId, 'processed', undefined, { agentIlm, supervisesP2p, stagesUploads, nativePicker, noticesHeard: noticesHeard.get() });
+  const { agentCapabilities, noticesHeard } = await import('../agent-conversations/capabilities');
+  sendAck(request.senderInstanceId, request.requestId, 'processed', undefined, { ...(await agentCapabilities()), noticesHeard: noticesHeard.get() });
 }

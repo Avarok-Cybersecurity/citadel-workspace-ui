@@ -8,6 +8,9 @@
  *   document (check-cdoc-scroll-perf.mjs).
  * - `?offset=<css px>` shifts the host right by that much (fractional values included),
  *   standing in for whatever the app's sidebar and header widths add.
+ * - `?save=controls`: the title bar's save controls over a control no session binds;
+ *   `window.docsHarnessSaveInputs(inputs)` sets where the edits are, for the geometry check
+ *   (check-docs-pane-states.mjs) to step the status through every state.
  */
 import { createRoot, type Root } from 'react-dom/client';
 import '@/index.css';
@@ -19,6 +22,14 @@ import type { EditorOrigin } from '@/lib/cdoc/editor/controller';
 import { loadCdocRuntime } from '@/lib/cdoc/runtime-loader';
 import { browserDocumentFiles } from '@/lib/document-files';
 import { keepBlankReplica } from '@/components/documents/blank-replica';
+import { saveControl, type BindableSaveControl } from '@/components/documents/save/save-control';
+import type { SaveInputs } from '@/lib/document-save/save-status';
+
+declare global {
+  interface Window {
+    docsHarnessSaveInputs?: (inputs: SaveInputs) => void;
+  }
+}
 
 const root: HTMLElement | null = document.getElementById('root');
 if (root === null) throw new Error('the harness page has no #root');
@@ -52,7 +63,9 @@ function keepFile(url: string): ReplicaKeeper {
   };
 }
 
-const EDITING: DocumentEditing = { kind: 'replica', keep: doc === null ? keepBlankReplica : keepFile(doc), save: null };
+const save: BindableSaveControl | null = params.get('save') === 'controls' ? saveControl('harness') : null;
+if (save !== null) window.docsHarnessSaveInputs = (inputs: SaveInputs): void => save.inputs.set(inputs);
+const EDITING: DocumentEditing = { kind: 'replica', keep: doc === null ? keepBlankReplica : keepFile(doc), save };
 const app: Root = createRoot(root);
 app.render(
   // min-h-0: #root is a flex column (index.css), and a flex item does not shrink below its

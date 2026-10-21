@@ -10,16 +10,12 @@ import { type AckResult } from './outbound-queue';
 import { debugLog, debugEnabled } from '@/lib/debug-config';
 import { describeForwarded } from '@/lib/p2p/message-fingerprint';
 import { CHANNEL_NAME, type ChannelMessage } from './channel-types';
-import type { LeaderElectionState } from './channel-leader-election';
-import {
-  relinquishLeadership as relinquish,
-  startLeaderElection,
-} from './channel-leader-election';
+import { relinquishLeadership as relinquish, startLeaderElection, type LeaderElectionState } from './channel-leader-election';
 import { replayOutboundRequest } from './channel-messaging';
 import { setupPageDepartureHandlers } from './channel-lifecycle';
-
-
-
+import { ownEnvelope } from './channel-envelope';
+import { envelopeEpoch } from './leadership-epoch';
+import { admitByVersion } from './version-skew';
 // Re-export types for consumers
 export type { ChannelMessage, ChannelMessageType } from './channel-types';
 
@@ -34,7 +30,7 @@ class InstanceChannel {
       lastLeaderHeartbeat: 0,
       leaderCheckInterval: null,
       heartbeatInterval: null,
-      initTime: Date.now(),
+      initTime: Date.now(), challenge: null,
       send: (msg): void => this.send(msg),
     };
     this.initialize();
@@ -103,7 +99,8 @@ class InstanceChannel {
 
       // Gated by DOCUMENT, not instance id — see instance-identity.ts.
       if (!acceptInbound(message, instanceManager.instanceId, this.identityRepair)) return;
-      if (!this.isMessageForUs(message)) return;
+      // Another build's traffic is read, or not, by its envelope: see version-skew.ts.
+      if (!admitByVersion(message) || !this.isMessageForUs(message)) return;
       this.handleMessage(message);
     };
 
@@ -116,7 +113,7 @@ class InstanceChannel {
     const target: string = message.targetInstanceId;
     if (target === '*' || target === 'broadcast') return true;
     if (target === 'leader') return instanceManager.isLeader;
-    return target === instanceManager.instanceId;
+    return instanceManager.isOwnInstanceId(target);
   }
 
   private handleMessage(message: ChannelMessage): void {
@@ -159,6 +156,7 @@ class InstanceChannel {
       senderInstanceId: message.senderInstanceId || instanceManager.instanceId,
       senderDocumentNonce: documentNonce,
       timestamp: message.timestamp || Date.now(),
+      v: ownEnvelope(envelopeEpoch(instanceManager.isLeader)),
     };
 
     try {
@@ -187,7 +185,7 @@ class InstanceChannel {
     // locally. BroadcastChannel never delivers to the posting context, so that
     // ack vanished — the entry survived, checkTimeouts re-fired it every 5s, and
     // each retry re-executed the request, which then reported as failed.
-    if (targetInstanceId === instanceManager.instanceId) {
+    if (instanceManager.isOwnInstanceId(targetInstanceId)) {
       handleOutboundAck({
         ...message,
         senderInstanceId: instanceManager.instanceId,

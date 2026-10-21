@@ -14,6 +14,8 @@ export interface SaveControl {
   setAutoSave(on: boolean): Promise<void>;
   /** The open session's account; null while none is open. */
   account(): bigint | null;
+  /** Writes this tab's held edits to this device again, after a write failed. */
+  keepAgain(): Promise<void>;
   lockedCopiesHoldEdits(): Promise<boolean>;
   removeLockedCopies(): Promise<void>;
 }
@@ -35,6 +37,7 @@ export function saveControl(nodeId: string): BindableSaveControl {
     save: (): Promise<void> => live().save(),
     setAutoSave: (on: boolean): Promise<void> => live().setAutoSave(on),
     account: (): bigint | null => session?.account ?? null,
+    keepAgain: (): Promise<void> => live().keepAgain(),
     lockedCopiesHoldEdits: (): Promise<boolean> => live().lockedCopiesHoldEdits(),
     removeLockedCopies: (): Promise<void> => live().removeLockedCopies(),
     bind: (opened: DocumentSession): (() => void) => {

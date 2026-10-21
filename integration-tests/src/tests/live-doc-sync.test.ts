@@ -82,6 +82,8 @@ async function createLiveDoc(page: Page, username: string, docTitle: string): Pr
   const titleInput = page.locator('input[placeholder="Document title..."]');
   if (await isVisibleWithin(titleInput, 3000)) {
     console.log('  Found title input, filling...');
+    // The dialog preselects no app (CitadelAppPicker), so Create stays disabled until one is chosen.
+    await page.getByTestId('live-doc-app').locator('button[value="docs"]').click();
     await titleInput.fill(docTitle);
     await sleep(500);
 

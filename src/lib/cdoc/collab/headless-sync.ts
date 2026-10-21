@@ -14,7 +14,8 @@ import { DocumentSession } from './document-session';
 import type { Clock, DocumentCache, DocumentSessionPorts, HeldEdits } from './ports';
 import { R1_COLLABORATION } from './replica-keeper';
 import type { SaveInputs } from '@/lib/document-save/save-status';
-import { browserClock, randomClientSeqBase, workspaceCollabPorts } from './workspace-ports';
+import { randomClientSeqBase, workspaceCollabPorts } from './workspace-ports';
+import { browserClock } from '@/lib/browser-clock';
 import { WRITE_RESPONSE_TIMEOUT_MS } from '@/lib/workspace-service/await-write-response';
 
 export type HeadlessOutcome = 'nothingHeld' | 'synced' | 'stillHeld';

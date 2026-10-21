@@ -8,6 +8,7 @@
 import { eventEmitter } from '../event-emitter';
 import { outboundQueue, type AckResult, type ProxyResponseData } from './outbound-queue';
 import { TIMEOUT } from '@/lib/timeout-constants';
+import { isInert } from './tab-staleness';
 
 type OutboundMessage = Parameters<typeof import('./instance-channel').instanceChannel.send>[0];
 
@@ -17,6 +18,8 @@ export function sendToLeader(
   requestId?: string,
 ): Promise<AckResult> {
   const id: string = requestId || crypto.randomUUID();
+  // Another tab speaks a protocol this build cannot: it is read-only until reloaded.
+  if (isInert()) return Promise.resolve({ status: 'error', error: 'This tab is out of date. Reload it to continue.' });
 
   return new Promise((resolve) => {
     outboundQueue.enqueue(payload, id);

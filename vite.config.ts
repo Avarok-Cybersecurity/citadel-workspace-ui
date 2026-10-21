@@ -6,7 +6,7 @@ import react from "@vitejs/plugin-react-swc";
 import { VitePWA } from 'vite-plugin-pwa';
 import path from "path";
 import { stripWsPrefix } from "./src/lib/websocket-service/proxy-path";
-import { manifestForBuild } from "./src/lib/pwa/version-manifest";
+import { manifestForBuild, minSeqFromEnv } from "./src/lib/pwa/version-manifest";
 import { VERSION_MANIFEST_PATH } from "./src/lib/pwa/deployed-version";
 import { KIT_MANIFEST } from "./src/pwa/kit-manifest.generated";
 import { serviceChunkFor, sharedServiceDependencyChunkFor } from "./src/build/service-chunks";
@@ -90,6 +90,12 @@ const agentProxy = {
 };
 
 /**
+ * This build's clock, `__BUILD_SEQ__` in the bundle and `seq` in `/version.json`: tabs of one
+ * browser compare it to agree that the newest build leads (src/lib/multi-instance/build-identity.ts).
+ */
+const BUILD_SEQ: number = Math.floor(Date.now() / 1000);
+
+/**
  * Emit `/version.json` so an open page can tell that a newer build is deployed
  * without a service worker (see src/lib/pwa/deployed-version.ts for why, and why the entry
  * chunk is the id).
@@ -105,7 +111,8 @@ function versionManifestPlugin(): Plugin {
     generateBundle(_options: unknown, bundle: Record<string, OutputAsset | OutputChunk>): void {
       if (base === null) this.error('version.json: the config was never resolved');
       try {
-        this.emitFile({ type: 'asset', fileName: VERSION_MANIFEST_PATH.slice(1), source: manifestForBuild(bundle, base) });
+        const minSeq: number | null = minSeqFromEnv(process.env.CITADEL_MIN_BUILD_SEQ, BUILD_SEQ);
+        this.emitFile({ type: 'asset', fileName: VERSION_MANIFEST_PATH.slice(1), source: manifestForBuild(bundle, base, { seq: BUILD_SEQ, minSeq }) });
       } catch (error: unknown) {
         this.error(error instanceof Error ? error.message : String(error));
       }
@@ -116,6 +123,7 @@ function versionManifestPlugin(): Plugin {
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   return {
+    define: { __BUILD_SEQ__: JSON.stringify(BUILD_SEQ) },
     plugins: [
       react(),
       versionManifestPlugin(),

@@ -14,9 +14,13 @@ describe('the save status', () => {
     ['AutoSave off, kept on the device', held({ autoSave: false }), 'savedToDevice'],
     ['AutoSave off, Save pressed', held({ autoSave: false, syncRequested: true }), 'saving'],
     ['AutoSave off, Save pressed offline', held({ autoSave: false, syncRequested: true, link: 'down' }), 'offline'],
-    ['a write to the device in flight', held({ local: 'writing' }), 'unsavedOnDevice'],
+    // Every keystroke starts one, and it takes milliseconds: a save under way, not unsaved.
+    ['a write to the device in flight, AutoSave on', held({ local: 'writing' }), 'saving'],
+    ['a write to the device in flight, AutoSave off', held({ autoSave: false, local: 'writing' }), 'saving'],
+    ['this device keeps no copy at all', held({ local: 'unavailable' }), 'unsavedOnDevice'],
     ['a write to the device failed', held({ autoSave: false, local: 'failed' }), 'unsavedOnDevice'],
-    ['the server refuses the edits', held({ halted: true }), 'unsavedOnDevice'],
+    ['the server refuses the edits, kept here', held({ halted: true }), 'refused'],
+    ['the server refuses the edits, and this device could not keep them', held({ halted: true, local: 'failed' }), 'unsavedOnDevice'],
     ['copies kept here are locked', { ...AT_REST, locked: true }, 'locked'],
     ['locked, edits written here and on their way', held({ locked: true }), 'locked'],
     ['locked, and edits not yet written here: losing them comes first', held({ locked: true, local: 'failed' }), 'unsavedOnDevice'],
@@ -27,19 +31,23 @@ describe('the save status', () => {
   it('warns on unload only when edits are neither acknowledged nor written to this device', () => {
     expect(warnsOnUnload(held({ local: 'writing' }))).toBe(true);
     expect(warnsOnUnload(held({ local: 'failed' }))).toBe(true);
+    expect(warnsOnUnload(held({ local: 'unavailable' }))).toBe(true);
     expect(warnsOnUnload(held({ autoSave: false }))).toBe(false);
     expect(warnsOnUnload(held({ halted: true }))).toBe(false);
     expect(warnsOnUnload({ ...AT_REST, local: 'failed' })).toBe(false);
   });
 
-  it('has words for every status', () => {
-    expect(SAVE_STATUS_TEXT).toEqual({
-      saved: 'Saved',
+  it('has a label and what it means for every status', () => {
+    const labels: Record<string, string> = Object.fromEntries(Object.entries(SAVE_STATUS_TEXT).map(([status, words]) => [status, words.label]));
+    expect(labels).toEqual({
+      saved: 'All changes saved',
       saving: 'Saving…',
-      offline: 'Offline: changes will sync when you\'re back online',
+      offline: 'Offline',
       savedToDevice: 'Saved to this device',
-      unsavedOnDevice: 'Unsaved changes on this device',
+      unsavedOnDevice: 'Not saved to this device',
+      refused: 'Not saved',
       locked: 'Locked on this device',
     });
+    for (const words of Object.values(SAVE_STATUS_TEXT)) expect(words.detail.length).toBeGreaterThan(words.label.length);
   });
 });

@@ -24,6 +24,8 @@ function harness(served: () => unknown, online: boolean = true): Harness {
   let deploys: number = 0;
   const io: VersionWatchIO = {
     runningEntry: RUNNING,
+    // Any seq: these manifests carry no kill switch (kill-switch tests cover minSeq).
+    runningSeq: 1000,
     origin: ORIGIN,
     intervalMs: 600_000,
     fetchManifest: async (): Promise<unknown> => served(),
@@ -32,6 +34,7 @@ function harness(served: () => unknown, online: boolean = true): Harness {
     setInterval: (fn: () => void): unknown => { tick = fn; return 1; },
     clearInterval: (): void => { tick = (): void => undefined; },
     onNewDeploy: (): void => { deploys += 1; },
+    onKillSwitch: (): void => { throw new Error('no manifest here names a minSeq'); },
   };
   return { io, wake: (): void => wake(), tick: (): void => tick(), deploys: (): number => deploys };
 }
@@ -45,7 +48,7 @@ describe('telling a new build from the running one', () => {
   });
 
   it('treats anything that is not a manifest as no news', () => {
-    expect(readDeployedEntry(JSON.parse(versionManifest('/assets/index-b.js')))).toBe('/assets/index-b.js');
+    expect(readDeployedEntry(JSON.parse(versionManifest({ entry: '/assets/index-b.js', seq: 1 })))).toBe('/assets/index-b.js');
     for (const body of [null, 'index.html', {}, { entry: '' }, { entry: 7 }]) {
       expect(readDeployedEntry(body)).toBeNull();
     }
@@ -64,11 +67,11 @@ describe('the build names its entry', () => {
       a: chunk('assets/index-bbbb2222.js', '/app/index.html', true),
       b: chunk('assets/Landing-cccc.js', '/app/src/pages/Landing.tsx', false),
     };
-    expect(JSON.parse(manifestForBuild(bundle, '/'))).toEqual({ entry: '/assets/index-bbbb2222.js' });
+    expect(JSON.parse(manifestForBuild(bundle, '/', { seq: 1700000000, minSeq: null }))).toEqual({ entry: '/assets/index-bbbb2222.js', seq: 1700000000 });
   });
 
   it('refuses a build it cannot identify', () => {
-    expect(() => manifestForBuild({}, '/')).toThrow(/found 0/);
+    expect(() => manifestForBuild({}, '/', { seq: 1, minSeq: null })).toThrow(/found 0/);
   });
 });
 

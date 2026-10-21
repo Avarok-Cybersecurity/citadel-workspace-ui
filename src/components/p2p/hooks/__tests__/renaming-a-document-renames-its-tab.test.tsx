@@ -28,7 +28,7 @@ const { registerMountedDoc, mirrorTitle } = await import('@/lib/live-document-st
 
 async function openedDoc(): Promise<{ result: { current: ReturnType<typeof useP2PTabs> }; docId: string }> {
   const hook: ReturnType<typeof renderHook<ReturnType<typeof useP2PTabs>, unknown>> = renderHook(() => useP2PTabs({ peerCid: 7n, currentUserCid: 9n }));
-  await act(async () => { await hook.result.current.handleCreateDocument('Draft', ''); });
+  await act(async () => { await hook.result.current.handleCreateDocument({ app: 'docs', title: 'Draft', initialContent: '' }); });
   const docId: string = hook.result.current.tabs[1].documentId ?? '';
   return { result: hook.result, docId };
 }

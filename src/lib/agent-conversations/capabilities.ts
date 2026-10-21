@@ -44,6 +44,8 @@ export interface AgentCapabilities {
    * picker as it always was.
    */
   nativePicker?: boolean;
+  /** The agent takes this window's console lines into its opt-in diagnostic logs (`browser_console`). */
+  takesConsole: boolean;
 }
 
 /** What the leader tells a follower: its agent's capabilities, and `noticesHeard` as it stands. */
@@ -91,7 +93,7 @@ export function watchGreeting(): Greeting {
     observe: (message: unknown): void => {
       const greeting: Record<string, unknown> | undefined = inner(message, 'ServiceConnectionAccepted');
       if (greeting) agentFacts.set(readGreetingFacts(greeting));
-      if (greeting) settle({ agentIlm: greeting.agent_ilm === true, supervisesP2p: greetingSupervises(greeting), stagesUploads: greeting.stages_uploads === true, nativePicker: typeof greeting.native_picker === 'boolean' ? greeting.native_picker : undefined });
+      if (greeting) settle({ agentIlm: greeting.agent_ilm === true, supervisesP2p: greetingSupervises(greeting), stagesUploads: greeting.stages_uploads === true, nativePicker: typeof greeting.native_picker === 'boolean' ? greeting.native_picker : undefined, takesConsole: greeting.browser_console === true });
       // The socket's every message passes here; the agent's change of notifier is one.
       const heard: Record<string, unknown> | undefined = inner(message, 'NoticesHeardNotification');
       if (heard) noticesHeard.set(heard.heard === true);
@@ -171,10 +173,11 @@ export function registerCapabilityRoute(r: CapabilityRoute): void {
   });
 }
 
-function capabilities(): Promise<AgentCapabilities> {
+/** Everything the agent said it does for this browser; waits until it has said. */
+export function agentCapabilities(): Promise<AgentCapabilities> {
   if (decided) return decided;
   // No websocket service in this context (a test, a page without one): no agent to host anything.
-  if (!route) return Promise.resolve({ agentIlm: false, supervisesP2p: false, stagesUploads: false });
+  if (!route) return Promise.resolve({ agentIlm: false, supervisesP2p: false, stagesUploads: false, takesConsole: false });
   // The leader's own socket has not declared yet: its answer is the one.
   if (route.isLeader()) return new Promise<AgentCapabilities>((resolve, reject) => { leaderWaiters.push((a) => a.then(resolve, reject)); });
   const asked: Promise<AgentCapabilities> = route.askLeader().then(
@@ -195,22 +198,22 @@ function capabilities(): Promise<AgentCapabilities> {
 
 /** Whether this browser's messaging goes through the agent. */
 export function agentHostsConversations(): Promise<boolean> {
-  return capabilities().then((c: AgentCapabilities): boolean => c.agentIlm);
+  return agentCapabilities().then((c: AgentCapabilities): boolean => c.agentIlm);
 }
 
 /** Whether the agent dials and heals this browser's peer links; waits until the agent has said. */
 export function agentSupervisesP2p(): Promise<boolean> {
-  return capabilities().then((c: AgentCapabilities): boolean => c.supervisesP2p);
+  return agentCapabilities().then((c: AgentCapabilities): boolean => c.supervisesP2p);
 }
 
 /** Whether the agent stages browser files in chunks; waits until the agent has said. */
 export function agentStagesUploads(): Promise<boolean> {
-  return capabilities().then((c: AgentCapabilities): boolean => c.stagesUploads);
+  return agentCapabilities().then((c: AgentCapabilities): boolean => c.stagesUploads);
 }
 
 /** Whether the agent can open a native file dialog: undefined when it did not say. */
 export function agentNativePicker(): Promise<boolean | undefined> {
-  return capabilities().then((c: AgentCapabilities): boolean | undefined => c.nativePicker);
+  return agentCapabilities().then((c: AgentCapabilities): boolean | undefined => c.nativePicker);
 }
 
 /** The socket this answer was for is gone; the next socket declares again. */

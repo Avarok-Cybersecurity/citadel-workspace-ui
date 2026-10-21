@@ -28,13 +28,22 @@ function crateVersion(constant: string): number {
   return Number(version?.[1]);
 }
 
+/** Each document's effective date: the terms and the notice changed for browser console logs. */
+const EFFECTIVE: Readonly<Record<LegalDocumentId, string>> = {
+  terms: 'October 21, 2026',
+  'customer-terms': 'October 14, 2026',
+  privacy: 'October 21, 2026',
+  dpa: 'October 14, 2026',
+  subprocessors: 'October 14, 2026',
+};
+
 describe.each(LEGAL_DOCUMENTS.map((doc: LegalDocument): [LegalDocumentId, LegalDocument] => [doc.id, doc]))('the bundled %s', (id: LegalDocumentId, doc: LegalDocument) => {
   it.skipIf(!present)("is the crate's text, byte for byte", () => {
     expect(doc.text).toBe(readFileSync(join(TYPES, CRATE_FILE[id]), 'utf8'));
   });
   it('states its own title and effective date', () => {
     expect(doc.title).toMatch(/^Citadel Workspace /);
-    expect(doc.effective).toBe('October 14, 2026');
+    expect(doc.effective).toBe(EFFECTIVE[id]);
   });
 });
 
