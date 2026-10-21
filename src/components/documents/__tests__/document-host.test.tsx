@@ -59,7 +59,7 @@ describe('DocumentHost', () => {
     save.inputs.set({ autoSave: true, link: 'up', unacknowledged: 0, syncRequested: false, local: 'written', halted: false, locked: false });
     render(<DocumentHost {...EDITABLE} editing={{ kind: 'replica', keep: keepBlankReplica, save }} />);
     const header: HTMLElement = screen.getByRole('banner');
-    expect(within(header).getByTestId('docs-save-status')).toHaveTextContent('Saved');
+    expect(within(header).getByTestId('docs-save-status')).toHaveAttribute('data-status', 'saved');
     const region: HTMLElement = screen.getByRole('region', { name: 'Citadel Docs editor' });
     // Kept from the browser's "save page", whatever there is to save.
     expect(fireEvent.keyDown(region, { key: 's', ctrlKey: true })).toBe(false);

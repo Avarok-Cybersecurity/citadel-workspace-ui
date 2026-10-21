@@ -6,8 +6,8 @@
  */
 import type { LinkState } from '@/lib/cdoc/collab/ports';
 
-/** How far this device's write of the held edits has got. */
-export type LocalWrite = 'written' | 'writing' | 'failed';
+/** How far this device's write of the held edits has got; `unavailable`: this device keeps no copy at all. */
+export type LocalWrite = 'written' | 'writing' | 'failed' | 'unavailable';
 
 export interface SaveInputs {
   readonly autoSave: boolean;
@@ -26,23 +26,33 @@ export interface SaveInputs {
 export type SaveStatus =
   /** The server holds every edit. */
   | 'saved'
-  /** Edits are on their way to the server. */
+  /** Edits are on their way: to the server, or (a moment) to this device's copy. */
   | 'saving'
   /** Edits are due to go, and will once the link is back. */
   | 'offline'
   /** AutoSave is off: edits are kept on this device until a Save. */
   | 'savedToDevice'
-  /** Edits not yet written to this device, or that the server will not take: closing loses or strands them. */
+  /** Edits this device could not keep a copy of: closing the page loses them. */
   | 'unsavedOnDevice'
+  /** The server refused this session's writes; the edits are kept on this device, unsent. */
+  | 'refused'
   /** Copies kept on this device cannot be opened here: they are sealed and no key is to be had. */
   | 'locked';
 
+/**
+ * A write to this device in flight is `saving`, not `unsavedOnDevice`: it takes milliseconds and
+ * happens on every keystroke, so calling it unsaved made the title bar flicker as people typed.
+ * (Closing the page during it still warns: warnsOnUnload reads `local` itself.)
+ */
 export function saveStatus(inputs: SaveInputs): SaveStatus {
-  if (inputs.unacknowledged > 0 && (inputs.local !== 'written' || inputs.halted)) return 'unsavedOnDevice';
+  const held: boolean = inputs.unacknowledged > 0;
+  if (held && (inputs.local === 'failed' || inputs.local === 'unavailable')) return 'unsavedOnDevice';
+  if (held && inputs.halted) return 'refused';
   if (inputs.locked) return 'locked';
-  if (inputs.unacknowledged === 0) return 'saved';
-  if (inputs.autoSave || inputs.syncRequested) return inputs.link === 'up' ? 'saving' : 'offline';
-  return 'savedToDevice';
+  if (!held) return 'saved';
+  const sending: boolean = inputs.autoSave || inputs.syncRequested;
+  if (sending && inputs.link === 'down') return 'offline';
+  return sending || inputs.local === 'writing' ? 'saving' : 'savedToDevice';
 }
 
 /** Closing now would lose edits: some are neither acknowledged nor written to this device. */

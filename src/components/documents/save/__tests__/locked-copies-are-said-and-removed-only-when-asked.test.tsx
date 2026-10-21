@@ -49,9 +49,10 @@ describe('copies on this device that cannot be opened here', () => {
     const control: ReturnType<typeof saveControl> = saveControl(fresh.NODE);
     control.bind(tab.session);
     await act(async (): Promise<void> => { await tab.session.open(); await kernel.settle([tab.session]); });
-    render(<DocumentSaveControls control={control} />);
+    const { SAVE_INDICATOR_TIMING } = await import('@/lib/document-save/save-indicator-timing');
+    render(<DocumentSaveControls control={control} clock={clock} timing={SAVE_INDICATOR_TIMING} />);
 
-    await waitFor((): void => { expect(screen.getByTestId('docs-save-status').textContent).toBe('Locked on this device'); });
+    await waitFor((): void => { expect(screen.getByTestId('docs-save-status-label').textContent).toBe('Locked on this device'); });
     expect(tab.problems).toEqual([]);
     const closedTabsEdits: string = `cdoc-collab:${fresh.ALICE.toString()}:${fresh.NODE}#edits:tab-closed`;
     expect(device.records.has(closedTabsEdits)).toBe(true);
@@ -63,7 +64,7 @@ describe('copies on this device that cannot be opened here', () => {
 
     await act(async (): Promise<void> => { fireEvent.click(screen.getByTestId('docs-locked-confirm-remove')); });
     await waitFor((): void => { expect(device.records.has(closedTabsEdits)).toBe(false); });
-    await waitFor((): void => { expect(screen.getByTestId('docs-save-status').textContent).toBe('Saved'); });
+    await waitFor((): void => { expect(screen.getByTestId('docs-save-status-label').textContent).toBe('All changes saved'); });
     expect(screen.queryByTestId('docs-locked-discard')).toBeNull();
   });
 });

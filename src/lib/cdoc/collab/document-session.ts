@@ -106,6 +106,11 @@ export class DocumentSession {
     return this.ports.cache.loadEdits(this.config.nodeId).then((): boolean => false, (error: unknown): boolean => isRecordLocked(error));
   }
 
+  /** Writes this tab's held edits to this device again: Try again, after a write failed. */
+  keepAgain(): Promise<void> {
+    return this.queue.run((): Promise<void> => this.sync.keepAgain());
+  }
+
   /** Removes the copies this device cannot open (asked first, by the caller) and keeps this tab's again. */
   async removeLockedCopies(): Promise<void> {
     if (this.ports.cache) await this.ports.cache.forget(this.config.nodeId);

@@ -9,19 +9,13 @@ import { usernameAvatarColor } from '@/lib/avatar-color';
 import type { HexColor } from '../editor/model-values';
 import { workspaceDocumentsTransport } from './documents-transport';
 import type { EditorOpener } from '../editor/controller';
-import type { Clock, DocumentSessionPorts, DocumentsTransport, PeerIdentity } from './ports';
+import type { DocumentSessionPorts, DocumentsTransport, PeerIdentity } from './ports';
 import { indexedDbDocumentCache } from './document-cache';
 import { browserInstanceLocks } from './instance-locks';
 import { DOCUMENTS_RELAY_LIMITS } from './relay-limits';
 import { RequestPacer, type DocumentPacing } from './request-pacer';
+import { browserClock } from '@/lib/browser-clock';
 
-export const browserClock: Clock = {
-  now: (): number => performance.now(),
-  after: (ms: number, fn: () => void): (() => void) => {
-    const handle: ReturnType<typeof setTimeout> = setTimeout(fn, ms);
-    return (): void => clearTimeout(handle);
-  },
-};
 
 export const rosterIdentity: PeerIdentity = (cid: bigint): { readonly name: string; readonly color: HexColor } => ({
   name: rosterPeerName(cid),
