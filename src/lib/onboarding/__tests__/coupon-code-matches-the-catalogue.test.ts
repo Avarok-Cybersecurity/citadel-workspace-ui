@@ -28,7 +28,11 @@ function readCoupons(): CouponsBlock | undefined {
 
 const coupons: CouponsBlock | undefined = readCoupons();
 
-describe.skipIf(coupons === undefined)(`the coupon code shape matches ${CATALOGUE} "coupons" (skipped: no such block here)`, () => {
+const TITLE: string = coupons === undefined
+  ? `SKIPPED: ${CATALOGUE} has no "coupons" block to compare the code shape with`
+  : `the coupon code shape matches ${CATALOGUE} "coupons"`;
+
+describe.skipIf(coupons === undefined)(TITLE, () => {
   it('uses the catalogue code_shape, character for character', () => {
     expect(COUPON_CODE_SHAPE.source).toBe(coupons?.code_shape);
   });
