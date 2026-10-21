@@ -21,6 +21,8 @@ const VIEWPORTS = [{ name: 'desktop', width: 1280, height: 900 }, { name: 'phone
 const WASM = '**/cdoc/cdoc_wasm_editor_bg.wasm';
 /** Sub-pixel: layout snaps to device pixels, and a control that moved has moved by whole pixels. */
 const STILL_PX = 0.5;
+/** Extra letter-spacing standing for a wider font than the dev machine's (CI's Linux face drew the status words ~12% wider). */
+const WIDER_FACE_EM = 0.08;
 
 const AT_REST = { autoSave: true, link: 'up', unacknowledged: 0, syncRequested: false, local: 'written', halted: false, locked: false };
 const STATES = {
@@ -88,6 +90,8 @@ async function saveStates(browser, viewport) {
   const context = await browser.newContext({ viewport });
   const page = await context.newPage();
   await page.goto(`${harness.origin}/?save=controls`);
+  // A narrower face than the one on this machine would hide a wrap that another platform's wider one shows: draw the words wider.
+  await page.addStyleTag({ content: `html { letter-spacing: ${WIDER_FACE_EM}em; }` });
   await page.waitForFunction(() => typeof window.docsHarnessSaveInputs === 'function');
   const step = async (name) => {
     await page.evaluate((inputs) => window.docsHarnessSaveInputs(inputs), STATES[name]);

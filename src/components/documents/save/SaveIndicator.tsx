@@ -12,11 +12,9 @@
 import { useState, type ComponentType, type MouseEvent, type PointerEvent } from 'react';
 import { AlertTriangle, HardDrive, Lock, WifiOff } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import type { Clock } from '@/lib/cdoc/collab/ports';
 import type { SaveStatus } from '@/lib/document-save/save-status';
 import { SAVE_STATUS_TEXT, type SaveStatusWords } from '@/lib/document-save/save-status-text';
-import { isQuietSaveStatus, type SaveIndicatorTiming } from '@/lib/document-save/visible-save-state';
-import { useVisibleSave } from './use-visible-save';
+import { isQuietSaveStatus } from '@/lib/document-save/visible-save-state';
 
 type Icon = ComponentType<{ className?: string }>;
 
@@ -62,15 +60,21 @@ const LOOK: Readonly<Record<SaveStatus, Look>> = {
 };
 
 interface SaveIndicatorProps {
-  readonly status: SaveStatus;
-  /** A phone-width title bar: the short words, or the icon alone (the details are a tap away). */
+  /** What the title bar shows now (visible-save-state.ts decides; the caller owns the clock). */
+  readonly shown: SaveStatus;
+  /** A phone-width title bar: the icon alone here, its short words on a row of their own (SaveStatusLine). */
   readonly compact: boolean;
-  readonly clock: Clock;
-  readonly timing: SaveIndicatorTiming;
 }
 
-export function SaveIndicator({ status, compact, clock, timing }: SaveIndicatorProps): JSX.Element {
-  const shown: SaveStatus = useVisibleSave(status, clock, timing);
+/** On a phone the words never sit beside the switches: their width would depend on the font and could wrap the controls. */
+export const wordsOnTheirOwnRow = (shown: SaveStatus, compact: boolean): boolean => compact && shown !== 'saved';
+
+/** The short words of a state that needs the person, drawn under a phone's title-bar controls. */
+export function SaveStatusLine({ shown }: { readonly shown: SaveStatus }): JSX.Element {
+  return <span data-testid="docs-save-status-label" className={`inline-flex min-h-[28px] items-center gap-[6px] text-sm ${LOOK[shown].tone}`}>{SAVE_STATUS_TEXT[shown].short}</span>;
+}
+
+export function SaveIndicator({ shown, compact }: SaveIndicatorProps): JSX.Element {
   const [open, setOpen] = useState<boolean>(false);
   const words: SaveStatusWords = SAVE_STATUS_TEXT[shown];
   const look: Look = LOOK[shown];
@@ -78,7 +82,8 @@ export function SaveIndicator({ status, compact, clock, timing }: SaveIndicatorP
   const calm: boolean = shown === 'saving' || isQuietSaveStatus(shown);
   // The cloud alone says "saved"; every other state says itself in words, at phone width in its
   // short form, or (the calm ones) by its icon with the words a tap away.
-  const drawn: string | null = shown === 'saved' ? null : compact ? words.short : words.label;
+  const drawn: string | null = shown === 'saved' ? null : words.label;
+  const inRow: boolean = wordsOnTheirOwnRow(shown, compact);
   return (
     <>
       {/* Announced on a change of what is shown, never per keystroke; what needs the person, with what it means. */}
@@ -103,7 +108,7 @@ export function SaveIndicator({ status, compact, clock, timing }: SaveIndicatorP
             >
               <span className={`inline-flex min-h-[28px] items-center gap-[6px] ${look.tone}`}>
                 <span aria-hidden="true" className="inline-flex shrink-0"><Glyph className="h-4 w-4" /></span>
-                <span className={drawn === null ? 'sr-only' : ''} data-testid="docs-save-status-label">{drawn ?? words.label}</span>
+                {!inRow && <span className={drawn === null ? 'sr-only' : ''} data-testid="docs-save-status-label">{drawn ?? words.label}</span>}
               </span>
             </button>
           </TooltipTrigger>

@@ -14,9 +14,10 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { canSave, saveStatus, warnsOnUnload, type SaveInputs, type SaveStatus } from '@/lib/document-save/save-status';
 import { RETRY_DEVICE_WRITE_TEXT } from '@/lib/document-save/save-status-text';
 import type { SaveIndicatorTiming } from '@/lib/document-save/visible-save-state';
+import { useVisibleSave } from './use-visible-save';
 import type { Clock } from '@/lib/cdoc/collab/ports';
 import type { SaveControl } from './save-control';
-import { SaveIndicator } from './SaveIndicator';
+import { SaveIndicator, SaveStatusLine, wordsOnTheirOwnRow } from './SaveIndicator';
 import { AtRestSwitch } from './AtRestSwitch';
 import { LockedCopiesActions } from './LockedCopiesActions';
 
@@ -48,7 +49,18 @@ export function DocumentSaveControls({ control, clock, timing }: DocumentSaveCon
     return (): void => window.removeEventListener('beforeunload', warn);
   }, [warns]);
   if (inputs === null) return null;
+  return <LoadedControls control={control} inputs={inputs} clock={clock} timing={timing} compact={compact} switchId={switchId} />;
+}
+
+interface LoadedProps extends DocumentSaveControlsProps {
+  readonly inputs: SaveInputs;
+  readonly compact: boolean;
+  readonly switchId: string;
+}
+
+function LoadedControls({ control, inputs, clock, timing, compact, switchId }: LoadedProps): JSX.Element {
   const status: SaveStatus = saveStatus(inputs);
+  const shown: SaveStatus = useVisibleSave(status, clock, timing);
   const account: bigint | null = control.account();
   const actions: JSX.Element | null = status === 'locked'
     ? <LockedCopiesActions control={control} linkUp={inputs.link === 'up'} />
@@ -63,7 +75,7 @@ export function DocumentSaveControls({ control, clock, timing }: DocumentSaveCon
     <>
       <div className="ml-auto flex shrink-0 items-center gap-[12px]" data-testid="docs-save-controls">
         {!compact && actions}
-        <SaveIndicator status={status} compact={compact} clock={clock} timing={timing} />
+        <SaveIndicator shown={shown} compact={compact} />
         <div className="flex items-center gap-[8px]">
           <Switch id={switchId} checked={inputs.autoSave} data-testid="docs-autosave" onCheckedChange={(on: boolean): void => attempt(control.setAutoSave(on), 'change AutoSave')} />
           <label htmlFor={switchId} className="text-sm text-foreground">AutoSave</label>
@@ -79,9 +91,14 @@ export function DocumentSaveControls({ control, clock, timing }: DocumentSaveCon
           Save
         </button>
       </div>
-      {/* A phone has no room beside the title for what a state offers: it takes a row of its own
-          under the title bar's (which wraps), and the controls above stay where they were. */}
-      {compact && actions !== null && <div className="order-last flex basis-full justify-end gap-[12px]" data-testid="docs-save-actions">{actions}</div>}
+      {/* A phone has no room beside the title for the state's words or what it offers: they take a row of
+          their own under the title bar's (which wraps), and the controls above stay where they were. */}
+      {wordsOnTheirOwnRow(shown, compact) && (
+        <div className="order-last flex basis-full items-center justify-end gap-[12px]" data-testid="docs-save-row">
+          <SaveStatusLine shown={shown} />
+          {actions !== null && <div className="flex gap-[12px]" data-testid="docs-save-actions">{actions}</div>}
+        </div>
+      )}
     </>
   );
 }
