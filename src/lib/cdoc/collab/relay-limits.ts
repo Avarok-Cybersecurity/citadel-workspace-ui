@@ -16,13 +16,19 @@ export interface DocumentsRelayLimits {
   readonly maxAwarenessBytes: number;
   /** `awareness_per_second`: awareness payloads one session may send per second. */
   readonly awarenessPerSecond: number;
+  /** `appends_per_second`: Appends one account may send per second, over all its documents. */
+  readonly appendsPerSecond: number;
+  /** `pulls_per_second`: Pulls one account may send per second, over all its documents. */
+  readonly pullsPerSecond: number;
 }
 
 export const DOCUMENTS_RELAY_LIMITS: DocumentsRelayLimits = {
   maxUpdateBytes: 65_536,
   maxSnapshotBytes: 4_194_304,
   maxAwarenessBytes: 4_096,
-  awarenessPerSecond: 20,
+  awarenessPerSecond: 10,
+  appendsPerSecond: 10,
+  pullsPerSecond: 10,
 };
 
 /**

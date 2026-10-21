@@ -3,6 +3,7 @@
  * refuses, denies, or sends in a format this client does not read is reported, never dropped.
  * Real replicas; the log starts from one shared base at seq 1 (doubles/real-replicas.ts).
  */
+import { DOCUMENTS_RELAY_LIMITS } from '../relay-limits';
 import { describe, expect, it } from 'vitest';
 import type { EditorSession } from '../../editor/editor-session';
 import { CDOC_CRDT_DOC_VERSION } from '../relay-limits';
@@ -94,7 +95,7 @@ describe('what the session reports', () => {
 
   it('refuses locally an update over the limit it shares with the server, and never sends it', async () => {
     const { kernel, clock } = await newDocument({});
-    const alice: RealTab = openTab(kernel, clock, ALICE, { limits: { maxUpdateBytes: 8, maxSnapshotBytes: 4_194_304, maxAwarenessBytes: 4_096, awarenessPerSecond: 20 } }, realReplicas(), null);
+    const alice: RealTab = openTab(kernel, clock, ALICE, { limits: { ...DOCUMENTS_RELAY_LIMITS, maxUpdateBytes: 8 } }, realReplicas(), null);
     await alice.session.open();
     await kernel.settle([alice.session]);
     await typeInto(alice.replica(), 'a');

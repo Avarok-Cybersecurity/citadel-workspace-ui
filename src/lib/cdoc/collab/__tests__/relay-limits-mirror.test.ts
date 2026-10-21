@@ -28,6 +28,8 @@ describe('the relay limits this client respects', () => {
       maxSnapshotBytes: table.get('max_snapshot_bytes'),
       maxAwarenessBytes: table.get('max_awareness_bytes'),
       awarenessPerSecond: table.get('awareness_per_second'),
+      appendsPerSecond: table.get('appends_per_second'),
+      pullsPerSecond: table.get('pulls_per_second'),
     }).toEqual(DOCUMENTS_RELAY_LIMITS);
   });
 });

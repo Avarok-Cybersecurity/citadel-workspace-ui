@@ -11,6 +11,9 @@ import type { ManualClock } from './doubles/manual-clock';
 import { realReplicas, typeInto } from './doubles/real-replicas';
 import type { ScriptedKernel } from './doubles/scripted-kernel';
 
+/** Past the pacer's interval twice over, so the next move is sent at once (awareness-pacer.ts). */
+const PAST_THE_INTERVAL_MS: number = 2 * Math.ceil(1000 / DOCUMENTS_RELAY_LIMITS.awarenessPerSecond);
+
 type RealTab = Tab<EditorSession>;
 type Aware = { readonly cid: bigint; readonly request: { Awareness: { payload: number[] } } };
 
@@ -62,7 +65,7 @@ describe('awareness', () => {
   it('draws a peer with its member name and colour, and re-derives it when the page repaints', async () => {
     const { kernel, clock, alice, bob } = await pair();
     await typeInto(bob.replica(), 'abc');
-    clock.advance(100);
+    clock.advance(PAST_THE_INTERVAL_MS);
     await kernel.settle([alice.session, bob.session]);
     expect(alice.peers.at(-1)?.map((p) => ({ name: p.name, color: p.color }))).toEqual([{ name: 'Bob', color: '#10B981' }]);
     expect(bobOnAlice(alice)).toEqual([expect.objectContaining({ page: 0 })]);
@@ -86,7 +89,7 @@ describe('awareness', () => {
   it('moves a peer\'s caret when this replica repaints the page under it, with no new record', async () => {
     const { kernel, clock, alice, bob } = await pair();
     await typeInto(bob.replica(), 'abc');
-    clock.advance(100);
+    clock.advance(PAST_THE_INTERVAL_MS);
     await kernel.settle([alice.session, bob.session]);
     const before: number | undefined = (bobOnAlice(alice)[0] as { rect: { x: number } } | null)?.rect.x;
     // Bob hears nothing more, so he sends no newer record: only Alice's repaint can move him.
