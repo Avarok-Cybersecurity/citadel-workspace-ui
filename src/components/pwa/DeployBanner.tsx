@@ -13,6 +13,7 @@ const TITLE: Record<DeployNotice['reason'], string> = {
   waiting: 'Update available',
   deployed: 'Update available',
   'activated-elsewhere': 'Updated in another window',
+  stale: 'This tab is out of date',
 };
 
 /**

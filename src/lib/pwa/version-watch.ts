@@ -1,10 +1,12 @@
-import { isNewDeploy, readDeployedEntry } from './deployed-version';
+import { isNewDeploy, readDeployedEntry, readDeployedSeqs } from './deployed-version';
 import { offerDeployNotice } from './deploy-notice';
 import { debugLog } from '@/lib/debug-config';
 
 /** Everything the watch touches outside itself, so it runs under a test without a browser. */
 export interface VersionWatchIO {
   readonly runningEntry: string;
+  /** This build's seq (build-identity.ts), compared with the manifest's kill switch. */
+  readonly runningSeq: number;
   readonly origin: string;
   readonly intervalMs: number;
   /** The parsed manifest, or null when there is none to read. */
@@ -15,18 +17,26 @@ export interface VersionWatchIO {
   setInterval: (fn: () => void, ms: number) => unknown;
   clearInterval: (handle: unknown) => void;
   onNewDeploy: () => void;
+  /** The manifest's `minSeq` is above this build's seq: it must not keep running. */
+  onKillSwitch: () => void;
 }
 
-/** Start checking; returns the stop function. Reports a deploy once. */
+/** Start checking; returns the stop function. Reports a deploy once, and the kill switch once. */
 export function startVersionWatch(io: VersionWatchIO): () => void {
   let reported: boolean = false;
+  let killed: boolean = false;
   let inFlight: boolean = false;
 
   const check = (): void => {
-    if (reported || inFlight || !io.isOnline()) return;
+    if ((reported && killed) || inFlight || !io.isOnline()) return;
     inFlight = true;
     void io.fetchManifest()
       .then((body: unknown): void => {
+        const { minSeq } = readDeployedSeqs(body);
+        if (!killed && minSeq !== null && io.runningSeq < minSeq) {
+          killed = true;
+          io.onKillSwitch();
+        }
         if (reported || !isNewDeploy(io.runningEntry, readDeployedEntry(body), io.origin)) return;
         reported = true;
         io.onNewDeploy();

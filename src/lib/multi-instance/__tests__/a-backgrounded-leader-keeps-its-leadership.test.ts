@@ -14,7 +14,8 @@
  * Real: the election (both tabs' own instance managers and event buses, one module graph per
  * tab). Stood in, because a test has one page:
  * - the BroadcastChannel between the tabs: a delivery of each tab's message to the other's
- *   election handlers on the next task, as channel-message-dispatch routes those two types;
+ *   election handlers on the next task, as channel-message-dispatch routes those two types,
+ *   stamped with the tab's envelope as InstanceChannel.send stamps it (both tabs one build);
  * - the browser's throttling of the background leader: its heartbeat interval is a minute.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -46,6 +47,8 @@ async function openTab(): Promise<Tab> {
   const election: typeof import('../channel-leader-election') = await import('../channel-leader-election');
   const { instanceManager } = await import('../instance-manager');
   const { eventEmitter } = await import('@/lib/event-emitter');
+  const { ownEnvelope } = await import('../channel-envelope');
+  const { envelopeEpoch } = await import('../leadership-epoch');
   const tab: Tab = {
     election,
     manager: instanceManager,
@@ -55,7 +58,10 @@ async function openTab(): Promise<Tab> {
       lastLeaderHeartbeat: 0, leaderCheckInterval: null, heartbeatInterval: null, initTime: Date.now(), challenge: null,
       send: (m: Omit<ChannelMessage, 'senderInstanceId' | 'timestamp'> & { senderInstanceId?: string; timestamp?: number }): void => {
         if (!tab.reachable) return;
-        const message: ChannelMessage = { ...m, senderInstanceId: m.senderInstanceId ?? instanceManager.instanceId, timestamp: Date.now() } as ChannelMessage;
+        const message: ChannelMessage = {
+          ...m, senderInstanceId: m.senderInstanceId ?? instanceManager.instanceId, timestamp: Date.now(),
+          v: ownEnvelope(envelopeEpoch(instanceManager.isLeader)),
+        } as ChannelMessage;
         for (const other of tabs) if (other !== tab) setTimeout((): void => deliver(other, message), 0);
       },
     } as LeaderElectionState,

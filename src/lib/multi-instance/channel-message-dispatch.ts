@@ -25,6 +25,7 @@ import { eventEmitter } from '../event-emitter';
 import { claimedFromChannel, SESSION_CLAIMED, type ClaimedEvent } from './claim-relay';
 import { noticesHeardFromChannel } from './notices-heard-relay';
 import { noticesHeard } from '../agent-conversations/capabilities';
+import { isFromAnOlderLeadership } from './version-skew';
 
 export function dispatchChannelMessage(
   message: ChannelMessage,
@@ -65,13 +66,13 @@ export function dispatchChannelMessage(
     case 'notices-heard': {
       // The leader holds what its own socket said; a follower takes the leader's word.
       const heard: boolean | null = noticesHeardFromChannel(message.payload);
-      if (heard !== null && !instanceManager.isLeader) noticesHeard.set(heard);
+      if (heard !== null && !instanceManager.isLeader && !isFromAnOlderLeadership(message)) noticesHeard.set(heard);
       break;
     }
     case 'agent-socket': {
       // The leader applies its own report; a stale one from a demoted tab is not news here.
       const state: AgentSocketState | null = readAgentSocketState(message.payload);
-      if (state && !instanceManager.isLeader) applyLeaderSocketReport(state);
+      if (state && !instanceManager.isLeader && !isFromAnOlderLeadership(message)) applyLeaderSocketReport(state);
       break;
     }
   }

@@ -12,6 +12,9 @@ import type { WorkspaceService } from './lib/workspace-service';
 import type { NotificationService } from './lib/notification-service';
 
 declare global {
+  /** Unix seconds at which this build was made; see multi-instance/build-identity.ts. */
+  const __BUILD_SEQ__: number;
+
   interface Window {
     __p2pRegistrationService?: P2PRegistrationService;
     __p2pAutoConnectService?: P2PAutoConnectService;

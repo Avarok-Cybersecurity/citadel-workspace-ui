@@ -8,6 +8,7 @@
  * port is stage-port.ts.
  */
 import { planChunks, stagingRefusal, STAGE_CHUNK_BYTES, type ChunkSpan } from './chunk-plan';
+import { holdReload } from '@/lib/pwa/reload-safety';
 
 export interface StageChunk {
   uploadId: string;
@@ -34,6 +35,19 @@ export async function stageFile(file: Readable, port: StagePort, onProgress: Sta
   if (refusal !== null) throw new Error(refusal);
   const uploadId: string = port.newUploadId();
   const spans: ChunkSpan[] = planChunks(file.size, STAGE_CHUNK_BYTES);
+  // Only this page holds the file's bytes: a reload now would lose the upload.
+  const releaseReload: () => void = holdReload('upload');
+  try {
+    await stageSpans(file, port, onProgress, signal, uploadId, spans);
+  } finally {
+    releaseReload();
+  }
+  return uploadId;
+}
+
+async function stageSpans(
+  file: Readable, port: StagePort, onProgress: StageProgress, signal: AbortSignal, uploadId: string, spans: ChunkSpan[],
+): Promise<void> {
   for (const span of spans) {
     if (signal.aborted) throw new Error('Cancelled before the file was ready.');
     const data: Uint8Array = new Uint8Array(await file.slice(span.offset, span.offset + span.length).arrayBuffer());
@@ -46,5 +60,4 @@ export async function stageFile(file: Readable, port: StagePort, onProgress: Sta
     }
     onProgress(held, file.size);
   }
-  return uploadId;
 }

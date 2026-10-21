@@ -16,6 +16,7 @@ import { rosterPeerName } from '@/lib/roster-peer-name';
 import { toast } from 'sonner';
 import { startCall as runStartCall } from './start-call';
 import { useCallInterest } from './use-call-interest';
+import { useCallHoldsReload } from './use-call-holds-reload';
 import { useCallCapability } from './use-call-capability';
 import { CAMERA_UNAVAILABLE, MIC_UNAVAILABLE, SCREEN_SHARE_STOPPED } from './media-unavailable';
 import { useLiveVideoQuality } from './use-live-video-quality';
@@ -62,6 +63,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
     toast.error(captureFailure.message);
   }, [captureFailure]);
   useCallInterest(selfCid, call);
+  useCallHoldsReload(call);
   const { capability } = useCallCapability({ call, isLeaderTab: useIsLeaderTab() });
 
   const { managerRef, sessionRef, teardown, ensureManager, ensureSession } = useCallRuntime({

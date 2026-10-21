@@ -11,12 +11,9 @@ import { installLeadershipListener } from './leadership-listener';
 import { leaderInboundHandler } from './leader-inbound-handler';
 import { eventEmitter } from '../event-emitter';
 import { debugLog, errorLog } from '../debug-config';
-import {
-  setupDisconnectionHandler as setupDisconnection,
-  setupSessionReleaseHandler as setupSessionRelease,
-  closeLeaderSocket,
-} from './leader-socket-teardown';
-import { instanceManager, leaderOutboundHandler } from '../multi-instance';
+import { setupDisconnectionHandler as setupDisconnection, setupSessionReleaseHandler as setupSessionRelease, closeLeaderSocket } from './leader-socket-teardown';
+import { instanceChannel, instanceManager, leaderOutboundHandler } from '../multi-instance';
+import { assertMayOpenSocket } from '../multi-instance/tab-staleness';
 import { INTERVAL } from '../timeout-constants';
 import type { ReconnectBackoff } from './reconnect-backoff';
 import { LeaderReconnect, broadcastAgentSocketState } from './leader-reconnect';
@@ -149,6 +146,8 @@ export class WebSocketInitialization {
     // socket while the first is still live. closeLeaderClient waits on it too.
     if (this.leaderClient) return this.leaderClient;
     if (this.creating) return this.creating;
+    // A superseded build never opens the browser's socket (tab-staleness.ts).
+    assertMayOpenSocket((): void => instanceChannel.relinquishLeadership());
     this.creating = this.doCreateWebSocketAsLeader().finally(() => {
       this.creating = null;
     });
