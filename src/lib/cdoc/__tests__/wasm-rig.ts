@@ -22,6 +22,8 @@ import { RASTERIZER_OPTIONS } from '../paint/paint-config';
 import type { CanvasPort, PaintTarget } from '../paint/canvas-port';
 import { MainThreadPageRenderer, WorkerPageRenderer, type PageRenderer } from '../paint/page-renderer';
 import type { CdocRuntime } from '../runtime';
+import { createValueStore, type ValueStore } from '@/lib/value-store';
+import type { EngineLoad } from '../worker/engine-load';
 import type { EditorOrigin } from '../editor/controller';
 import { InProcessCdocClient } from '../worker/clients';
 import { recordingContext, recordingPort, recordingTarget, type Recorder, type RecordingPort, type RecordingTarget } from '../paint/__tests__/recording-canvas';
@@ -138,5 +140,7 @@ export function inProcessRuntime(renderer: 'worker' | 'main-thread'): TestRuntim
     if (rec === undefined) overlays.set(canvas, (rec = recordingContext(canvas.dataset.layer ?? 'overlay')));
     return rec.ctx;
   };
-  return { client, renderer: pages, painted, overlays, overlayContext, images: (renderer === 'worker' ? hostPort : pagePort).images };
+  // In process there is no worker download to report: the engine reads as ready from the start.
+  const engineLoad: ValueStore<EngineLoad> = createValueStore<EngineLoad>('test-engine-load', { kind: 'ready' });
+  return { client, renderer: pages, painted, overlays, overlayContext, engineLoad, images: (renderer === 'worker' ? hostPort : pagePort).images };
 }

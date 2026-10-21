@@ -11,9 +11,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getEntityMetadata } from '@/lib/entity-type-registry';
-import { CITADEL_APPS, isCitadelAppId, type CitadelApp, type CitadelAppId } from '@/lib/citadel-apps/registry';
+import type { CitadelAppId } from '@/lib/citadel-apps/registry';
 import { describeFailure } from '@/lib/failure-message';
 import { ChoiceList, type Choice } from './ChoiceList';
+import { CitadelAppPicker } from './CitadelAppPicker';
 import type { DocumentPlacement } from './document-placement';
 
 export interface NewDocumentInput {
@@ -28,14 +29,6 @@ interface NewDocumentDialogProps {
   onCreate: (input: NewDocumentInput) => Promise<void>;
   onClose: () => void;
 }
-
-const APP_CHOICES: readonly Choice[] = CITADEL_APPS.map((app: CitadelApp): Choice => ({
-  value: app.id,
-  label: app.name,
-  detail: app.description,
-  icon: app.icon,
-  unavailable: app.available ? null : 'Coming soon',
-}));
 
 function levelChoices(types: readonly string[]): Choice[] {
   return types.map((type: string): Choice => {
@@ -81,13 +74,7 @@ export function NewDocumentDialog({ parentName, placement, onCreate, onClose }: 
             <p role="status" data-testid="new-document-blocked" className="text-sm text-muted-foreground">{placement.reason}</p>
           ) : (
             <>
-              <ChoiceList
-                legend="App"
-                choices={APP_CHOICES}
-                value={app}
-                onChange={(value: string): void => { if (isCitadelAppId(value)) setApp(value); }}
-                testId="new-document-app"
-              />
+              <CitadelAppPicker site="workspaceTree" value={app} onChange={setApp} testId="new-document-app" />
               {placement.kind === 'pick' && (
                 <ChoiceList legend="Level" choices={levelChoices(placement.types)} value={pickedType} onChange={setPickedType} testId="new-document-level" />
               )}

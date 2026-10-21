@@ -39,6 +39,9 @@ export async function createLiveDoc(
     await takeScreenshot(page, `${username}_live_doc_dialog_missing`);
     return false;
   }
+  // The dialog preselects no app (CitadelAppPicker), so Create stays disabled until one is chosen.
+  // The rows' own testids are composed (ChoiceList), so the app is taken by the radio's value.
+  await page.getByTestId('live-doc-app').locator('button[value="docs"]').click();
   await nameInput.fill(docName);
   await sleep(300);
   await page.getByTestId('live-doc-create').first().click();

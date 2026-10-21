@@ -6,7 +6,7 @@
  * DocumentHost imports this lazily, and this reaches cdoc only through `loadRuntime`, so neither
  * is in the shell's bundle.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { isStaticSource, type DocumentSource } from '@/lib/cdoc/document-source';
 import type { CdocRuntimeFactory } from '@/lib/cdoc/runtime-loader';
@@ -36,6 +36,11 @@ import type { ActionGate } from '@/hooks/use-permission-result';
 import { DocsRibbon } from './ribbon/DocsRibbon';
 import { EditorControllerContext } from './ribbon/editor-context';
 import { browserRibbonEnvironment, type RibbonEnvironment } from './ribbon/ribbon-environment';
+import { AppLoadingPane } from '@/components/app-loading/AppLoadingPane';
+import type { EngineLoad } from '@/lib/cdoc/worker/engine-load';
+import type { ValueStore } from '@/lib/value-store';
+import { docsLoadStage } from './docs-load-stage';
+import { citadelApp } from '@/lib/citadel-apps/registry';
 
 export interface DocsCanvasProps {
   readonly documentSource: DocumentSource;
@@ -54,6 +59,7 @@ export interface DocsCanvasProps {
   readonly original: OriginalFile | null;
 }
 
+const DOCS_APP_NAME: string = citadelApp('docs').name;
 const MACROS_REFUSED: string = 'This file contains macros, which Citadel Docs never runs or keeps, so it is not opened here. The file itself is unchanged.';
 
 const browserRepeat: Repeat = (ms: number, tick: () => void): (() => void) => {
@@ -86,8 +92,17 @@ const browserFrame = (task: () => void): (() => void) => {
   return (): void => window.cancelAnimationFrame(id);
 };
 
+const NO_ENGINE_YET = (): (() => void) => (): void => undefined;
+const NO_ENGINE = (): null => null;
+
+/** The engine's download while the document opens; null before the runtime exists. */
+function useEngineLoad(store: ValueStore<EngineLoad> | null): EngineLoad | null {
+  return useSyncExternalStore<EngineLoad | null>(store?.subscribe ?? NO_ENGINE_YET, store?.get ?? NO_ENGINE);
+}
+
 export default function DocsCanvas({ documentSource, loadRuntime, editing, statusBar, edit, commentAuthor, title, files, original }: DocsCanvasProps): JSX.Element {
   const doc: DocsDocument = useDocsDocument(loadRuntime, documentSource, editing);
+  const engineLoad: EngineLoad | null = useEngineLoad(doc.kind === 'opening' ? doc.runtime.engineLoad : null);
   const [zoom, setZoom] = useState<number>(INITIAL_ZOOM);
   const status: PageStatusStore = useMemo(pageStatusStore, []);
   const dpr: number = useDevicePixelRatio();
@@ -151,7 +166,7 @@ export default function DocsCanvas({ documentSource, loadRuntime, editing, statu
         ? <NotOpened original={original} why={MACROS_REFUSED} testId="page-view-refused" />
         : <p role="alert" data-testid="page-view-refused" className="p-6 text-sm text-foreground">{MACROS_REFUSED}</p>)}
       {doc.kind === 'failed' && doc.stage === 'open' && <OpenFailed message={doc.message} />}
-      {doc.kind === 'loading' && <p role="status" className="m-auto text-sm text-muted-foreground">Loading Citadel Docs…</p>}
+      {(doc.kind === 'loading' || doc.kind === 'opening') && <AppLoadingPane appName={DOCS_APP_NAME} stage={docsLoadStage(engineLoad)} />}
       {doc.kind === 'failed' && doc.stage === 'start' && <p role="alert" className="m-auto p-6 text-sm text-destructive">Citadel Docs could not start. {doc.message}</p>}
       {statusBar !== null && showsPages && createPortal(<DocsStatusBar status={status} notice={notice} zoom={zoom} onZoomChange={setZoom} />, statusBar)}
     </>

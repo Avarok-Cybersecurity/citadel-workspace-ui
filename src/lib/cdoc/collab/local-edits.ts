@@ -39,7 +39,7 @@ export class LocalEdits {
     this.instance = config.clientSeqBase.toString();
     this.autoSaveNow = config.autoSaveWhenUnset;
     // With nowhere to keep them, edits not yet acknowledged are only in this tab.
-    this.local = cache ? 'written' : 'failed';
+    this.local = cache ? 'written' : 'unavailable';
   }
 
   get autoSave(): boolean {
