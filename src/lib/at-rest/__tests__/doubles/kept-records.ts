@@ -1,7 +1,8 @@
 /**
  * One account's records of every kind, written and read through the production writers and
  * readers (the document cache, the kept edit answer, the kept tree), on a page loaded fresh:
- * `page()` resets the modules, as a reload does, so nothing held in memory survives it.
+ * `page()` resets the modules, as a reload does, so nothing held in memory survives it, and
+ * provides the agent double again, as the reloaded page's boot does.
  */
 import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 import type { CachedDocument, DeviceChoices, DocumentCache, HeldEdits } from '@/lib/cdoc/collab/ports';
@@ -22,6 +23,7 @@ export interface Page {
 export async function page(): Promise<Page> {
   const { vi } = await import('vitest');
   vi.resetModules();
+  await (await import('./device-records')).provideAgentDouble();
   const seam: Page['seam'] = await import('@/lib/document-replica-cache');
   const { indexedDbDocumentCache } = await import('@/lib/cdoc/collab/document-cache');
   const { memoryLocks } = await import('@/lib/cdoc/collab/__tests__/doubles/memory-device');

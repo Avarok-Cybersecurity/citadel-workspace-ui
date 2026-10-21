@@ -29,7 +29,6 @@ const ME: TabIdentity = vi.hoisted((): TabIdentity => ({ username: 'alice', cid:
 /** Who the tab's session read finds now; signed in as ME unless a test says otherwise. */
 const signedIn: { now: TabIdentity } = vi.hoisted((): { now: TabIdentity } => ({ now: { username: 'alice', cid: 11n } }));
 // The agent's root store (its I/O edge): it holds no root, so a sealed record has no key here.
-vi.mock('@/lib/at-rest/agent-root-store', async () => (await import('@/lib/at-rest/__tests__/doubles/device-records')).agentStore());
 vi.mock('@/hooks/use-tab-identity', () => ({ useTabIdentity: (): TabIdentity => ME, readTabIdentity: async (): Promise<TabIdentity> => signedIn.now }));
 vi.mock('@/hooks/use-permission', () => ({
   usePermission: (): UsePermissionResult => ({
@@ -42,6 +41,7 @@ vi.mock('@/components/office/BaseOffice', () => ({
 
 const { WorkspaceView } = await import('../WorkspaceView');
 const { loadKeptTree, saveKeptTree, useKeepWorkspaceTree, useKeptTree } = await import('@/hooks/use-kept-tree');
+await (await import('@/lib/at-rest/__tests__/doubles/device-records')).provideAgentDouble();
 const { forgetAccountDocuments, forgetDeletedNodes, forgetNodeDocuments, loadWorkspaceTree, saveWorkspaceTree, workspaceTreeKey } = await import('@/lib/document-replica-cache');
 
 function Page(): JSX.Element {

@@ -11,12 +11,11 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AT_REST_EXPLANATION, AT_REST_REFUSED_UNREACHABLE } from '@/lib/at-rest/at-rest-copy';
 import { isAtRestEnvelope } from '@/lib/at-rest/at-rest-shape';
-import { agent, device, resetDoubles } from '@/lib/at-rest/__tests__/doubles/device-records';
+import { agent, device, provideAgentDouble, resetDoubles } from '@/lib/at-rest/__tests__/doubles/device-records';
 import { AtRestSwitch } from '../AtRestSwitch';
 
 const { toastError } = vi.hoisted(() => ({ toastError: vi.fn() }));
 vi.mock('@/lib/storage-utils', async () => (await import('@/lib/at-rest/__tests__/doubles/device-records')).browserStore());
-vi.mock('@/lib/at-rest/agent-root-store', async () => (await import('@/lib/at-rest/__tests__/doubles/device-records')).agentStore());
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: toastError } }));
 
 // A new account per test: a key derived once stays in memory for the page, as it should.
@@ -28,8 +27,9 @@ function both(): void {
   render(<><AtRestSwitch account={account} place="titleBar" /><AtRestSwitch account={account} place="settings" /></>);
 }
 
-beforeEach((): void => {
+beforeEach(async (): Promise<void> => {
   resetDoubles();
+  await provideAgentDouble();
   toastError.mockClear();
   account += 1n;
   device.records.set(kept(), { autoSave: false });

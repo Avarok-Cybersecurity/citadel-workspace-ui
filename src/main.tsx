@@ -48,6 +48,7 @@ import { browserSessionStorage, reloadKeepingDrafts, restoreHandedOffDrafts } fr
 import { capturePendingRedirect } from '@/lib/share/pending-redirect';
 import { applyAppearanceSettings, loadAppearanceSettings } from './lib/appearance-settings';
 import { initPrivacySettingsSync } from './lib/privacy-settings';
+import { provideAtRestRootStore, type AtRestRootStore } from './lib/at-rest/root-store-port';
 
 // Before render, so the user's font size, sidebar width, avatar and motion
 // choices are in place for the first paint rather than snapping into effect
@@ -65,6 +66,8 @@ applyAppearanceSettings(loadAppearanceSettings());
 // sending them until it was reloaded -- the switch reads off, and the promise
 // it makes is broken in the tab the user is not looking at.
 initPrivacySettingsSync();
+// Encryption at rest keeps its root in the agent; the store loads with the first root needed.
+provideAtRestRootStore(async (): Promise<AtRestRootStore> => (await import('./lib/at-rest/agent-root-store')).agentRootStore);
 
 // Construct the P2P messenger during boot so its 'websocket-message'
 // subscription — the gate the inbound router acks forwarded messages on —

@@ -15,7 +15,6 @@ import { agent, device, resetDoubles, storedAnywhere } from './doubles/device-re
 import { ACCOUNT, EVERYTHING, NODE, TOKEN, keepEverything, page, readEverything, type Page } from './doubles/kept-records';
 
 vi.mock('@/lib/storage-utils', async () => (await import('./doubles/device-records')).browserStore());
-vi.mock('@/lib/at-rest/agent-root-store', async () => (await import('./doubles/device-records')).agentStore());
 
 const MODE_KEY: string = `cdoc-collab:${ACCOUNT.toString()}:#at-rest`;
 const records = (): [string, unknown][] => [...device.records.entries()].filter(([key]: [string, unknown]): boolean => key !== MODE_KEY);

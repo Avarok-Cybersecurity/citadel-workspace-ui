@@ -9,11 +9,11 @@
  * finished on the next open (the seam's resumeOnce). Reads accept both shapes meanwhile.
  *
  * The record key lives in memory only, derived per account from the root the agent keeps
- * (agent-root-store.ts); the root's bytes are cleared once the key is derived.
+ * (through root-store-port.ts); the root's bytes are cleared once the key is derived.
  */
 import { dbGet, dbKeysWithPrefix, dbPut, dbReplaceIf } from '@/lib/storage-utils';
 import { accountRecordsPrefix, atRestModeKey, recordPlace } from '@/lib/document-replica-cache';
-import { agentRootStore } from './agent-root-store';
+import { atRestRootStore, type AtRestRootStore } from './root-store-port';
 import { AT_REST_REFUSED_LOCKED, AT_REST_REFUSED_UNREACHABLE } from './at-rest-copy';
 import { AtRestRefusedError, RecordLockedError, isAtRestEnvelope, readAtRestMode, type AtRestEnvelope, type AtRestMode } from './at-rest-shape';
 import { SealedRecordError, deriveRecordKey, newRoot, openValue, recordAad, sameValue, sealValue } from './record-crypto';
@@ -31,13 +31,14 @@ function aadOf(key: string): Uint8Array<ArrayBuffer> {
 async function keyFor(account: bigint, make: boolean): Promise<CryptoKey | null> {
   const known: CryptoKey | undefined = keys.get(account);
   if (known) return known;
-  let root: Uint8Array | null = await agentRootStore.read(account);
+  const store: AtRestRootStore = await atRestRootStore();
+  let root: Uint8Array | null = await store.read(account);
   if (root === null) {
     if (!make) return null;
     root = newRoot();
-    await agentRootStore.write(account, root);
+    await store.write(account, root);
     // Kept only once the agent hands the same bytes back: a write lost on the way is no root.
-    const kept: Uint8Array | null = await agentRootStore.read(account);
+    const kept: Uint8Array | null = await store.read(account);
     if (kept === null || !sameBytes(kept, root)) throw new Error('the agent did not keep the encryption root');
   }
   try {
@@ -159,5 +160,5 @@ export async function resume(account: bigint): Promise<void> {
 /** Sign-out: the root leaves the agent and the key leaves memory. */
 export async function forgetRoot(account: bigint): Promise<void> {
   keys.delete(account);
-  await agentRootStore.remove(account);
+  await (await atRestRootStore()).remove(account);
 }

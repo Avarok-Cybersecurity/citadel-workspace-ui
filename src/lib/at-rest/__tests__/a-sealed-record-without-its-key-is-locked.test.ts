@@ -1,19 +1,18 @@
 /**
  * A sealed record this page cannot open reads as LOCKED, never as data and never as nothing:
  * with no key here (a new page whose agent does not answer, or whose root is gone), and when a
- * sealed value is moved to another record's key. Turning encryption off is refused while any
+ * sealed value is moved to another record's key, or on a page given no store for the agent-held key. Turning encryption off is refused while any
  * record is locked; sign-out removes sealed records, the kept tree, the setting and the root.
  *
  * Doubles only at the two I/O edges (doubles/device-records.ts).
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AT_REST_REFUSED_LOCKED } from '../at-rest-copy';
+import { AT_REST_REFUSED_LOCKED, AT_REST_REFUSED_UNREACHABLE } from '../at-rest-copy';
 import { isRecordLocked } from '../at-rest-shape';
 import { agent, device, resetDoubles } from './doubles/device-records';
 import { ACCOUNT, NODE, OTHER_NODE, keepEverything, page, type Page } from './doubles/kept-records';
 
 vi.mock('@/lib/storage-utils', async () => (await import('./doubles/device-records')).browserStore());
-vi.mock('@/lib/at-rest/agent-root-store', async () => (await import('./doubles/device-records')).agentStore());
 
 const key = (record: string): string => `cdoc-collab:${ACCOUNT.toString()}:${record}`;
 
@@ -45,6 +44,15 @@ describe('a sealed record with no key on this page', () => {
     expect(await outcome(p.cache.loadChoices(NODE))).toBe('locked');
     expect(await outcome(p.access.lastKnownEditAnswer(ACCOUNT, NODE))).toBe('locked');
     expect(await outcome(p.seam.loadWorkspaceTree(ACCOUNT))).toBe('locked');
+  });
+
+  it('reads as locked on a page given no store for the agent-held key, and is not turned on there', async () => {
+    await sealedEverything();
+    vi.resetModules();
+    const seam: typeof import('@/lib/document-replica-cache') = await import('@/lib/document-replica-cache');
+    expect(await outcome(seam.loadWorkspaceTree(ACCOUNT))).toBe('locked');
+    await expect(seam.setDocumentsAtRest(ACCOUNT + 1n, true)).rejects.toThrow(AT_REST_REFUSED_UNREACHABLE);
+    expect(await seam.documentsAtRest(ACCOUNT + 1n)).toBe(false);
   });
 
   it('reads as locked when the root it was sealed with is gone, and is never written over plainly', async () => {

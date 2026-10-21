@@ -10,16 +10,16 @@
  */
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { agent, device, resetDoubles } from '@/lib/at-rest/__tests__/doubles/device-records';
+import { agent, device, provideAgentDouble, resetDoubles } from '@/lib/at-rest/__tests__/doubles/device-records';
 
 vi.mock('@/lib/storage-utils', async () => (await import('@/lib/at-rest/__tests__/doubles/device-records')).browserStore());
-vi.mock('@/lib/at-rest/agent-root-store', async () => (await import('@/lib/at-rest/__tests__/doubles/device-records')).agentStore());
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 const utf8 = (text: string): Uint8Array => new TextEncoder().encode(text);
 
 /** Copies kept by an earlier page, sealed, and then the agent's root for them gone. */
 async function lockedCopies(account: bigint, nodeId: string): Promise<void> {
+  await provideAgentDouble();
   const { indexedDbDocumentCache } = await import('@/lib/cdoc/collab/document-cache');
   const { memoryLocks } = await import('@/lib/cdoc/collab/__tests__/doubles/memory-device');
   const seam: typeof import('@/lib/document-replica-cache') = await import('@/lib/document-replica-cache');
@@ -28,6 +28,7 @@ async function lockedCopies(account: bigint, nodeId: string): Promise<void> {
   await seam.setDocumentsAtRest(account, true);
   agent.roots.clear();
   vi.resetModules();
+  await provideAgentDouble();
 }
 
 beforeEach((): void => { resetDoubles(); });
