@@ -39,7 +39,8 @@ export function resetDoubles(): void {
 
 export function browserStore(): Record<string, unknown> {
   const base: Record<string, unknown> = memoryStorageUtils(device.records);
-  const replaceIf = base.dbReplaceIf as (s: string, k: string, unchanged: (current: unknown) => boolean, v: unknown) => Promise<boolean>;
+  type ReplaceIf = (s: string, k: string, unchanged: (current: unknown) => boolean, v: unknown) => Promise<boolean>;
+  const replaceIf: ReplaceIf = base.dbReplaceIf as ReplaceIf;
   return {
     ...base,
     dbReplaceIf: (s: string, k: string, unchanged: (current: unknown) => boolean, v: unknown): Promise<boolean> => {
