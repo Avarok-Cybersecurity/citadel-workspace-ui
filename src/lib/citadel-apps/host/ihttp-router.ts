@@ -1,0 +1,74 @@
+/**
+ * Internal HTTP for one app instance (R4.4), pure over an injected clock: the streams it serves
+ * (ihttp-served.ts) and the calls it makes (ihttp-called.ts).
+ *
+ * Frames carry no direction bit, so stream ids are scoped per (peer, direction): a served stream
+ * and a call are separate state and never close, limit or count against each other. And because
+ * an inbound Body/End/Cancel/Credit could otherwise name either, the router never lets the two
+ * share an id with the same app: a call may not open an id a caller of that app already holds
+ * with us, and a caller may not open an id we hold on a call to its app (`stream_id_in_use`).
+ * With that, an inbound non-head frame belongs to exactly one direction.
+ */
+import type { Address } from '../sdk/generated/Address';
+import type { Caller } from '../sdk/generated/Caller';
+import type { IhttpFrame } from '../sdk/generated/IhttpFrame';
+import { addressApp, CalledStreams } from './ihttp-called';
+import { cancel, deny, allow, type RouterAction, type Verdict } from './ihttp-common';
+import type { RoutePattern } from './ihttp-routes';
+import { ServedStreams } from './ihttp-served';
+import type { IhttpLimits } from './limits';
+
+export type { RouterAction, Verdict };
+
+export class IhttpRouter {
+  private readonly served: ServedStreams;
+  private readonly called: CalledStreams;
+
+  constructor(appId: string, limits: IhttpLimits) {
+    this.served = new ServedStreams(appId, limits);
+    this.called = new CalledStreams(limits);
+  }
+
+  /** The advertised table; an empty one makes every request unrouted. */
+  setRoutes(routes: readonly RoutePattern[]): void {
+    this.served.routes = routes;
+  }
+
+  get liveStreams(): number {
+    return this.served.size + this.called.size;
+  }
+
+  /** A frame from a peer, as its session vouches for it. */
+  inbound(peer: Caller, f: IhttpFrame, now: number): RouterAction[] {
+    const kind: IhttpFrame['kind'] = f.kind;
+    if (typeof kind === 'object' && 'RequestHead' in kind) {
+      if (this.called.has(peer.app_id, f.stream)) return [cancel(peer, f.stream, 'stream_id_in_use')];
+      return this.served.open(peer, f.stream, kind.RequestHead, now);
+    }
+    if (this.served.has(peer, f.stream)) return this.served.inbound(peer, f);
+    if (this.called.has(peer.app_id, f.stream)) return this.called.inbound(peer, f);
+    return [cancel(peer, f.stream, 'unknown_stream')];
+  }
+
+  /** IhttpRespond: the app's frame on a stream it serves. */
+  respond(peer: Caller, f: IhttpFrame): Verdict {
+    return this.served.respond(peer, f);
+  }
+
+  /** IhttpCall: the app's frame on a call it makes. */
+  call(to: Address, f: IhttpFrame, now: number): Verdict {
+    return this.called.outbound(to, f, now, this.served.usesId(addressApp(to), f.stream));
+  }
+
+  /** IhttpConsumed: the app read one body chunk of `stream`; grant its sender one more credit. */
+  consumed(peer: Caller, stream: bigint): Verdict {
+    if (this.served.has(peer, stream)) return allow(this.served.consumed(peer, stream));
+    const credit: RouterAction[] | null = this.called.consumed(peer, stream);
+    return credit === null ? deny({ policy: 'unknown_stream' }, []) : allow(credit);
+  }
+
+  /** Cancels every stream past its deadline, both ways. */
+  tick(now: number): RouterAction[] {
+    return [...this.served.tick(now), ...this.called.tick(now)];
+  }
+}
