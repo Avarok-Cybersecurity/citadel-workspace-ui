@@ -37,7 +37,7 @@ describe('after the Live Doc dialog closes', () => {
   it('the next message is sent as text once a document was created', async () => {
     const compose: Compose = setup();
     act(() => compose.result.current.handleMessageTypeChange('live_document'));
-    await act(async () => { await compose.result.current.handleDocCreate('Notes', ''); });
+    await act(async () => { await compose.result.current.handleDocCreate({ app: 'docs', title: 'Notes', initialContent: '' }); });
 
     expect(compose.result.current.messageType).toBe('text');
     await typeAndSend(compose, 'hello');
