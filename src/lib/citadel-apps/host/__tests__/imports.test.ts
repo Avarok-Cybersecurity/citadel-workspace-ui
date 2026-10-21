@@ -4,7 +4,7 @@
  * fake port and coming back through a pending handle.
  */
 import { describe, expect, it } from 'vitest';
-import { ABI_ERR, ABI_GROUPS, ABI_NAMESPACE, type AbiGroup } from '../abi';
+import { ABI_ERROR, ABI_GROUPS, ABI_NAMESPACE, type AbiGroup } from '../abi';
 import { decodeCbor, encodeCbor } from '../cbor';
 import type { Capability } from '../capabilities';
 import { Dispatcher } from '../dispatch';
@@ -21,7 +21,7 @@ import { op } from './wasm-builder';
 const withNodes = (rec: Recorder): HostPorts => ({ nodes: fakeNodes(rec) });
 const REQUEST_AT = 100;
 const REPLY_AT = 4096;
-const request: Uint8Array = encodeCbor({ id: 'n1' });
+const request: Uint8Array = encodeCbor({ node_id: 'n1' });
 
 /** init: handle = nodes(1, req) -> mem[0]; mem[4] = reply_read(handle, REPLY_AT, 256). event: re-read. */
 function readerModule(): Uint8Array {
@@ -47,9 +47,10 @@ async function instantiate(granted: readonly Capability[], ports: (rec: Recorder
   const grant: ReadonlySet<Capability> = new Set<Capability>(granted);
   const dispatcher: Dispatcher = new Dispatcher({
     granted: new Set<Capability>(['canvas', 'ui', 'events', 'navigate', 'log', ...granted]), policy: STANDARD_HOST_POLICY,
-    clock: new ManualClock(), invoker: directInvoker(ports(rec)), router: new IhttpRouter('a.b', STANDARD_HOST_POLICY.ihttp), routerActions: () => {},
+    clock: new ManualClock(), invoker: directInvoker(ports(rec)), router: new IhttpRouter('a.b', STANDARD_HOST_POLICY.ihttp), pageUrl: 'https://work.avarok.net/', routerActions: () => {},
   });
-  const sink: CallSink = { call: (g, o, r) => dispatcher.call(g, o, r), replies: new ReplyTable(8), replyReady: (h: number) => ready.push(h) };
+  const clock: ManualClock = new ManualClock();
+  const sink: CallSink = { call: (g, o, r) => dispatcher.call(g, o, r), replies: new ReplyTable(8, STANDARD_HOST_POLICY.replyTtlMs, clock.now), replyReady: (h: number) => ready.push(h) };
   const { instance } = await WebAssembly.instantiate(readerModule(), buildImports(grant, memory, sink)) as unknown as WebAssembly.WebAssemblyInstantiatedSource;
   return { memory, exports: instance.exports, ready, rec };
 }
@@ -72,12 +73,12 @@ describe('a real module calling through the imports', () => {
   it('control: granted, the call reaches the fake port and the reply arrives through a pending handle', async () => {
     const live: Live = await instantiate(['nodes.read'], withNodes);
     (live.exports.app_init as (p: number, l: number) => number)(0, 0);
-    expect(i32At(live.memory, 4)).toBe(ABI_ERR.pending);
+    expect(i32At(live.memory, 4)).toBe(ABI_ERROR.PENDING);
     await new Promise<void>((r) => setTimeout(r, 0));
     expect(live.ready).toEqual([i32At(live.memory, 0)]);
     (live.exports.app_event as (p: number, l: number) => void)(0, 0);
-    expect(replyAt(live.memory)).toEqual({ ok: { id: 'n1', name: 'Board' } });
-    expect(live.rec.calls).toEqual([{ method: 'nodes.read', args: { id: 'n1' } }]);
+    expect(replyAt(live.memory)).toMatchObject({ ok: { node_id: 'n1', name: 'Board' } });
+    expect(live.rec.calls).toEqual([{ method: 'NodeGet', args: { node_id: 'n1' } }]);
   });
 });
 
@@ -85,7 +86,8 @@ describe('the import object directly', () => {
   type Fn = (...a: number[]) => number;
   const ns = (granted: readonly Capability[], sink: Partial<CallSink> = {}): { fns: Record<string, Fn>; memory: WebAssembly.Memory; replies: ReplyTable } => {
     const memory: WebAssembly.Memory = new WebAssembly.Memory({ initial: 1, maximum: 1 });
-    const replies: ReplyTable = new ReplyTable(2);
+    // TTL far beyond the test: these cases are about the ABI codes, not expiry (reply-table.test.ts).
+    const replies: ReplyTable = new ReplyTable(2, 60_000, new ManualClock().now);
     const full: CallSink = { call: () => ({ now: encodeCbor({ ok: 1 }) }), replies, replyReady: () => {}, ...sink };
     const imports: WebAssembly.Imports = buildImports(new Set<Capability>(granted), memory, full);
     return { fns: imports[ABI_NAMESPACE] as unknown as Record<string, Fn>, memory, replies };
@@ -111,20 +113,20 @@ describe('the import object directly', () => {
 
   it('pointers outside memory, unknown handles, small buffers and exhausted handles are ABI errors', () => {
     const { fns } = ns(['nodes.read']);
-    expect(fns.nodes(1, 65_530, 100)).toBe(ABI_ERR.badRequest);
-    expect(fns.nodes(1, -1, 4)).toBe(ABI_ERR.badRequest);
-    expect(fns.reply_read(12345, 0, 64)).toBe(ABI_ERR.unknownHandle);
+    expect(fns.nodes(1, 65_530, 100)).toBe(ABI_ERROR.BAD_REQUEST);
+    expect(fns.nodes(1, -1, 4)).toBe(ABI_ERROR.BAD_REQUEST);
+    expect(fns.reply_read(12345, 0, 64)).toBe(ABI_ERROR.UNKNOWN_HANDLE);
     const h: number = fns.nodes(1, 0, 0);
-    expect(fns.reply_read(h, 0, 1)).toBe(ABI_ERR.bufferTooSmall);
-    expect(fns.reply_read(h, 65_535, 64)).toBe(ABI_ERR.badRequest);
+    expect(fns.reply_read(h, 0, 1)).toBe(ABI_ERROR.BUFFER_TOO_SMALL);
+    expect(fns.reply_read(h, 65_535, 64)).toBe(ABI_ERROR.BAD_REQUEST);
     fns.nodes(1, 0, 0);
-    expect(fns.nodes(1, 0, 0)).toBe(ABI_ERR.handlesExhausted);
+    expect(fns.nodes(1, 0, 0)).toBe(ABI_ERROR.HANDLES_EXHAUSTED);
     expect(fns.reply_read(h, 0, 64)).toBeGreaterThan(0);
-    expect(fns.reply_read(h, 0, 64)).toBe(ABI_ERR.unknownHandle);
+    expect(fns.reply_read(h, 0, 64)).toBe(ABI_ERROR.UNKNOWN_HANDLE);
   });
 
   it('a sink that throws becomes badRequest, never an exception in the guest', () => {
     const { fns } = ns(['nodes.read'], { call: () => { throw new Error('boom'); } });
-    expect(fns.nodes(1, 0, 0)).toBe(ABI_ERR.badRequest);
+    expect(fns.nodes(1, 0, 0)).toBe(ABI_ERROR.BAD_REQUEST);
   });
 });

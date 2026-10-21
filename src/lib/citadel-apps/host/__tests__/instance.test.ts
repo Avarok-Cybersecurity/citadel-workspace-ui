@@ -1,9 +1,11 @@
 /**
  * An instance end to end with the production worker host (in-process, real MessageChannel): it
- * loads, fails init, traps when memory growth passes the maximum, reaches a granted port through
- * the main thread's re-check and gets its reply as a reply_ready event, and is capped per page.
+ * loads, fails init, traps when memory growth passes the maximum, gets fresh zeroed memory,
+ * reaches a granted port through the main thread's re-check and gets its reply as a reply_ready
+ * event, logs to the page, and is capped per page.
  */
 import { afterEach, describe, expect, it } from 'vitest';
+import type { AppEvent } from '../../sdk/generated/AppEvent';
 import { encodeCbor } from '../cbor';
 import type { Capability } from '../capabilities';
 import { inspectArtifact, type LoadVerdict } from '../inspect';
@@ -11,8 +13,8 @@ import { AppInstance, launchAppInstance, type Launch, type LaunchOptions } from 
 import { InstanceSlots } from '../instance-slots';
 import { STANDARD_HOST_POLICY } from '../limits';
 import type { HostPorts } from '../ports';
-import { appModule, growOrTrap, importIndex, type AppModuleOptions } from './app-fixtures';
-import { fakeStorage, fakeUi, type Recorder } from './fakes';
+import { appModule, fixtureContext, growOrTrap, importIndex, type AppModuleOptions } from './app-fixtures';
+import { fakeLog, fakeStorage, fakeUi, type Recorder } from './fakes';
 import { inProcess, realClock, until, type InProcess } from './in-process';
 import { op } from './wasm-builder';
 
@@ -22,15 +24,17 @@ afterEach(() => {
   rigs = [];
 });
 
-async function launch(bytes: Uint8Array, opts: { granted?: Capability[]; declared?: Capability[]; ports?: HostPorts; slots?: InstanceSlots; maxPages?: number } = {}): Promise<{ launch: Launch; rig: InProcess }> {
+interface Opts { granted?: Capability[]; declared?: Capability[]; ports?: HostPorts; slots?: InstanceSlots; maxPages?: number }
+
+async function launch(bytes: Uint8Array, opts: Opts = {}): Promise<{ launch: Launch; rig: InProcess }> {
   const granted: ReadonlySet<Capability> = new Set<Capability>(opts.granted ?? []);
   const declared: ReadonlySet<Capability> = new Set<Capability>(opts.declared ?? opts.granted ?? []);
   const verdict: LoadVerdict = await inspectArtifact(bytes, declared, opts.maxPages ?? 16);
-  if (!verdict.ok) throw new Error(`fixture refused: ${verdict.refusal.code}`);
+  if (!verdict.ok) throw new Error(`fixture refused: ${verdict.reasons.join(', ')}`);
   const rig: InProcess = inProcess();
   rigs.push(rig);
   const options: LaunchOptions = {
-    appId: 'com.acme.test', module: verdict.module, granted, context: encodeCbor({ install_id: 'i-1' }),
+    appId: 'com.acme.test', module: verdict.module, granted, context: fixtureContext([...granted]), pageUrl: 'https://work.avarok.net/workspace',
     memory: { initialPages: verdict.memory.minPages, maxPages: opts.maxPages ?? 16 }, policy: STANDARD_HOST_POLICY,
     ports: opts.ports ?? {}, clock: realClock, slots: opts.slots ?? new InstanceSlots(8), spawn: rig.spawn,
   };
@@ -41,6 +45,7 @@ const running = (l: Launch): AppInstance => {
   if (!l.ok) throw new Error('not launched');
   return l.instance;
 };
+const action = (id: string): AppEvent => ({ ui_action: { id } });
 
 describe('lifecycle', () => {
   it('the clean module loads and runs', async () => {
@@ -64,50 +69,85 @@ describe('memory', () => {
   it('growing past the host maximum traps the instance (control: growing within it keeps running)', async () => {
     const within: AppInstance = running((await launch(grower(1), { maxPages: 2 })).launch);
     await until(() => within.state === 'running', 2000);
-    within.postEvent({ grow: 1 });
+    within.postEvent(action('grow'));
     const past: AppInstance = running((await launch(grower(2), { maxPages: 2 })).launch);
     await until(() => past.state === 'running', 2000);
-    past.postEvent({ grow: 2 });
+    past.postEvent(action('grow'));
     await until(() => past.state === 'stopped-trapped', 2000);
     expect(past.trapMessage).toMatch(/unreachable/);
+    expect(past.trapMemoryPages).toBe(1);
     await new Promise<void>((r) => setTimeout(r, 50));
     expect(within.state).toBe('running');
   });
+
+  it('each instance gets fresh zeroed memory (control: the same instance reads back what it wrote)', async () => {
+    const MARK = 40_000;
+    // init: status = mem[MARK]; mem[MARK] = 0x55; return status. event: init's status again, via a second init-like read.
+    const init: number[] = [...op.i32(MARK), 0x28, 0x02, 0x00, ...op.i32(MARK), ...op.i32(0x55), ...op.store];
+    const first: AppInstance = running((await launch(appModule({ init }))).launch);
+    await until(() => first.state !== 'loading', 2000);
+    expect(first.initStatus).toBe(0);
+    const second: AppInstance = running((await launch(appModule({ init }))).launch);
+    await until(() => second.state !== 'loading', 2000);
+    expect(second.initStatus).toBe(0);
+    const twice: number[] = [...op.i32(MARK), ...op.i32(0x55), ...op.store, ...op.i32(MARK), 0x28, 0x02, 0x00];
+    const control: AppInstance = running((await launch(appModule({ init: twice }))).launch);
+    await until(() => control.state !== 'loading', 2000);
+    expect(control.initStatus).toBe(0x55);
+  });
 });
 
-/** event: if len > 40, forward to storage.get; else the first time only, forward to ui.toast. */
+const KV_AT = 1024;
+const TOAST_AT = 2048;
+const kvGet: Uint8Array = encodeCbor({ backend: 'user', key: 'k' });
+const toast: Uint8Array = encodeCbor({ text: 'got it' });
+
+/** event: the first time, storage KvGet; the next (its reply_ready), ui ShowToast; then nothing. */
 function forwarder(): Uint8Array {
   const base: AppModuleOptions = { groups: ['storage', 'ui'] };
-  const toStorage: number[] = [...op.i32(1), ...op.localGet(0), ...op.localGet(1), ...op.call(importIndex(base, 'storage')), ...op.drop];
-  const toUi: number[] = [...op.i32(4), ...op.localGet(0), ...op.localGet(1), ...op.call(importIndex(base, 'ui')), ...op.drop];
-  const once: number[] = [...op.i32(16), 0x28, 0x02, 0x00, 0x45, 0x04, 0x40, ...op.i32(16), ...op.i32(1), ...op.store, ...toUi, 0x0b];
-  const event: number[] = [...op.localGet(1), ...op.i32(40), 0x4b, 0x04, 0x40, ...toStorage, 0x05, ...once, 0x0b];
-  return appModule({ ...base, event });
+  const call = (group: 'storage' | 'ui', n: number, at: number, len: number): number[] =>
+    [...op.i32(n), ...op.i32(at), ...op.i32(len), ...op.call(importIndex(base, group)), ...op.drop];
+  const state: number[] = [...op.i32(16), 0x28, 0x02, 0x00];
+  const setState = (n: number): number[] => [...op.i32(16), ...op.i32(n), ...op.store];
+  const event: number[] = [
+    ...state, 0x45, 0x04, 0x40, ...setState(1), ...call('storage', 1, KV_AT, kvGet.byteLength),
+    0x05, ...state, ...op.i32(1), 0x46, 0x04, 0x40, ...setState(2), ...call('ui', 4, TOAST_AT, toast.byteLength), 0x0b, 0x0b,
+  ];
+  return appModule({ ...base, event, data: [{ offset: KV_AT, bytes: kvGet }, { offset: TOAST_AT, bytes: toast }] });
 }
 
 describe('ports through the worker boundary', () => {
-  const big = { backend: 'user', key: 'k', pad: 'x'.repeat(40) };
-
   it('a granted call reaches the fake port and its reply arrives as a reply_ready event', async () => {
     const rec: Recorder = { calls: [] };
     const ports: HostPorts = { storage: fakeStorage(rec), ui: fakeUi(rec) };
     const i: AppInstance = running((await launch(forwarder(), { granted: ['storage.user'], ports })).launch);
     await until(() => i.state === 'running', 2000);
-    i.postEvent(big);
+    i.postEvent(action('go'));
     await until(() => rec.calls.length === 2, 2000);
-    expect(rec.calls[0]).toEqual({ method: 'storage.get', args: big });
-    expect(rec.calls[1].method).toBe('ui.toast');
-    expect(rec.calls[1].args).toMatchObject({ reply_ready: { handle: expect.any(Number) } });
+    expect(rec.calls).toEqual([{ method: 'KvGet', args: { backend: 'user', key: 'k' } }, { method: 'ShowToast', args: { text: 'got it' } }]);
+    await new Promise<void>((r) => setTimeout(r, 50));
+    expect(rec.calls.length).toBe(2);
   });
 
-  it('control: declared but not granted, the storage port is never reached', async () => {
+  it('control: declared but not granted, the storage port is never reached and no reply_ready follows', async () => {
     const rec: Recorder = { calls: [] };
     const ports: HostPorts = { storage: fakeStorage(rec), ui: fakeUi(rec) };
     const i: AppInstance = running((await launch(forwarder(), { granted: [], declared: ['storage.user'], ports })).launch);
     await until(() => i.state === 'running', 2000);
-    i.postEvent(big);
+    i.postEvent(action('go'));
     await new Promise<void>((r) => setTimeout(r, 100));
-    expect(rec.calls.filter((c) => c.method.startsWith('storage'))).toEqual([]);
+    expect(rec.calls).toEqual([]);
+  });
+
+  it('log answers in the worker and reaches the page LogPort', async () => {
+    const base: AppModuleOptions = { groups: ['log'] };
+    const line: Uint8Array = encodeCbor({ level: 'info', message: 'hello' });
+    const init: number[] = [...op.i32(1), ...op.i32(KV_AT), ...op.i32(line.byteLength), ...op.call(importIndex(base, 'log')), ...op.drop, ...op.i32(0)];
+    const rec: Recorder = { calls: [] };
+    const i: AppInstance = running((await launch(appModule({ ...base, init, data: [{ offset: KV_AT, bytes: line }] }), { ports: { log: fakeLog(rec) } })).launch);
+    await until(() => rec.calls.length === 1, 2000);
+    expect(rec.calls).toEqual([{ method: 'LogWrite', args: { level: 'info', message: 'hello' } }]);
+    expect(i.state).toBe('running');
   });
 });
 

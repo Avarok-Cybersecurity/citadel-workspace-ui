@@ -1,165 +1,96 @@
 /**
  * Everything an app can reach, as interfaces the page injects (SBIO): the dispatcher is pure over
- * these, tests pass fakes, and the real transports (agent KV, kernel AppsRequest::Call, agent
- * AppFetch, the P2P ihttp envelope) are later streams. A port that is not injected answers
- * `{refused: {unavailable: <port>}}`; nothing here has a default implementation.
+ * these, tests pass fakes, and the real transports (agent KV and AppFetch, kernel
+ * AppsRequest::Call, the P2P ihttp envelope) are later streams. A port that is not injected
+ * answers `{refused: {unavailable: <port>}}`; nothing here has a default implementation.
  *
- * Every call method takes the call's decoded CBOR arguments and answers a PortAnswer. The
- * arguments are a CBOR map, typed loosely on purpose until `citadel-app-sdk-types` exports the
- * HostCall shapes (ts-rs); each port validates the fields it reads and answers `{refused:
- * {policy: "bad_arguments"}}` for a shape it does not accept. Identity, scope and storage
+ * Each port method is named by its generated op and typed by the generated `OpArgs` / `OpReplies`;
+ * the dispatcher has already decoded and checked the arguments. Identity, scope and storage
  * namespace are NEVER read from the arguments: the port binds them from the install record.
  */
-import type { CborMap } from './cbor';
-import type { IhttpFrame, IhttpPeer } from './ihttp-types';
+import type { OpArgs, OpReplies } from '../sdk/generated/AbiConstants';
+import type { Caller } from '../sdk/generated/Caller';
+import type { HostReply } from '../sdk/generated/HostReply';
+import type { IhttpFrame } from '../sdk/generated/IhttpFrame';
+import type { Refused } from '../sdk/generated/Refused';
+import type { OpName } from './op-args';
 
-/** Why a call was not carried out (R4.6 `Refused`), serde externally tagged, snake_case. */
-export type Refused =
-  | 'ungranted'
-  | { readonly unavailable: string }
-  | { readonly limit: string }
-  | { readonly policy: string }
-  | { readonly remote: number };
+export type { Refused, HostReply };
 
-export type PortAnswer = { readonly ok: unknown } | { readonly refused: Refused };
+export type PortAnswer<T = unknown> = HostReply<T>;
 
-/** A port may answer at once (the canvas, the log) or later (anything crossing a thread or a socket). */
-export type PortReply = PortAnswer | Promise<PortAnswer>;
+/** A port may answer at once (the canvas) or later (anything crossing a thread or a socket). */
+export type PortReply<T = unknown> = PortAnswer<T> | Promise<PortAnswer<T>>;
 
-export type PortCall = (args: CborMap) => PortReply;
+export type OpHandler<N extends OpName> = (args: OpArgs[N]) => PortReply<OpReplies[N]>;
 
+type Port<N extends OpName> = { readonly [K in N]: OpHandler<K> };
+
+export type CanvasPort = Port<'CanvasMeasure' | 'CanvasDraw' | 'MeasureText'>;
+export type UiPort = Port<'SetToolbar' | 'OpenMenu' | 'ShowDialog' | 'ShowToast' | 'RequestHeight'>;
+export type EventsPort = Port<'Subscribe' | 'RequestFrames'>;
+export type NodesPort = Port<'NodeGet' | 'NodeChildren' | 'NodeReadMdx' | 'NodeCreate' | 'NodeRename' | 'NodeMove'>;
+export type MdPort = Port<'MdReadZone' | 'MdReplaceZone' | 'MdAppend'>;
+export type FilesPort = Port<'FilesList' | 'FilesRead' | 'FilesWrite' | 'FilesDelete'>;
+export type ChatPort = Port<'ChatRecent' | 'ChatSend'>;
+export type MembersPort = Port<'MembersList'>;
 /** storage.user / scope / node / local KV; `args.backend` names which. */
-export interface StoragePort {
-  readonly get: PortCall;
-  readonly set: PortCall;
-  readonly setMany: PortCall;
-  readonly delete: PortCall;
-  readonly list: PortCall;
-}
-
-export interface BlobPort {
-  readonly put: PortCall;
-  readonly get: PortCall;
-  readonly delete: PortCall;
-}
-
+export type StoragePort = Port<'KvGet' | 'KvSet' | 'KvSetMany' | 'KvDelete' | 'KvList'>;
+export type BlobPort = Port<'BlobPut' | 'BlobGet' | 'BlobDelete'>;
+/** storage.files: the server file store under /apps/<app>/<scope>/. */
+export type StoreFilesPort = Port<'StoreFileWrite' | 'StoreFileRead' | 'StoreFileList'>;
 /** Egress from the member's own machine via the local agent's AppFetch; absent without an agent. */
-export interface HostNetPort {
-  readonly fetch: PortCall;
-}
-
+export type HostNetPort = Port<'HostFetch' | 'HostFetchOpen' | 'NetStreamRead' | 'NetStreamClose'>;
 /** Egress from the workspace server (kernel EgressFetcher), metered as bytes_in. */
-export interface ServerNetPort {
-  readonly fetch: PortCall;
+export type ServerNetPort = Port<'ServerFetch'>;
+/** Host-mediated; the port requires a live user gesture and refuses `{policy: "no_gesture"}`. */
+export type ClipboardPort = Port<'ClipboardReadText' | 'ClipboardWriteText'>;
+export type NotifyPort = Port<'Notify'>;
+/** The CRDT relay; first-party key only (the install grant decides, not this port). */
+export type DocumentsPort = Port<'DocOpen' | 'DocApply' | 'DocPull'>;
+export type LogPort = Port<'LogWrite'>;
+
+/** Internal links only: the dispatcher classifies the href first and hands over a router path. */
+export interface NavigatePort {
+  readonly currentUrl: () => string;
+  readonly open: (routerPath: string) => PortReply<null>;
 }
 
 /** One inbound internal-HTTP frame, with the caller the session (never the app) vouches for. */
 export interface InboundIhttpFrame {
-  readonly from: IhttpPeer;
+  readonly from: Caller;
   readonly frame: IhttpFrame;
 }
 
 export interface IhttpPort {
   /** AppsRequest::AdvertiseService (and the ILM IHTTP flag) for these routes. */
-  readonly advertise: PortCall;
-  /** A frame back to a caller on a stream this instance serves (the router admitted it first). */
-  readonly respond: (peer: IhttpPeer, frame: IhttpFrame) => PortReply;
-  /** A client frame to an InternalHttpServer: `{to: Address, frame}`; the kernel/session re-checks `to`. */
-  readonly call: PortCall;
+  readonly IhttpServe: OpHandler<'IhttpServe'>;
+  /** A client frame to an InternalHttpServer; the session/kernel re-checks `to`. */
+  readonly IhttpCall: OpHandler<'IhttpCall'>;
+  /** A frame back to a peer on a stream the router admitted (responses, credit, cancels). */
+  readonly respond: (peer: Caller, frame: IhttpFrame) => PortReply<null>;
   /** Inbound frames for this instance's install; returns the unsubscribe. */
   readonly onFrame: (listener: (inbound: InboundIhttpFrame) => void) => () => void;
 }
 
-export interface NodesPort {
-  readonly read: PortCall;
-  readonly children: PortCall;
-  readonly create: PortCall;
-  readonly rename: PortCall;
-  readonly move: PortCall;
-}
-
-export interface MdPort {
-  readonly replaceRegion: PortCall;
-  readonly append: PortCall;
-}
-
-export interface FilesPort {
-  readonly read: PortCall;
-  readonly list: PortCall;
-  readonly write: PortCall;
-}
-
-export interface ChatPort {
-  readonly read: PortCall;
-  readonly send: PortCall;
-}
-
-export interface MembersPort {
-  readonly list: PortCall;
-  readonly presence: PortCall;
-}
-
-/** Host-mediated; the port requires a live user gesture and refuses `{policy: "no_gesture"}`. */
-export interface ClipboardPort {
-  readonly read: PortCall;
-  readonly write: PortCall;
-}
-
-export interface NotifyPort {
-  readonly toast: PortCall;
-}
-
-/** Internal links only: the dispatcher classifies the href first and hands over a router path. */
-export interface NavigatePort {
-  readonly currentUrl: () => string;
-  readonly open: (routerPath: string) => PortReply;
-}
-
-/** Host-rendered chrome from data (strings become text nodes, badged with the app's name). */
-export interface UiPort {
-  readonly setToolbar: PortCall;
-  readonly openMenu: PortCall;
-  readonly dialog: PortCall;
-  readonly toast: PortCall;
-  readonly requestHeight: PortCall;
-}
-
-/** The instance's OffscreenCanvas, drawn in the worker. */
-export interface CanvasPort {
-  readonly draw: PortCall;
-  readonly size: PortCall;
-}
-
-export interface EventsPort {
-  readonly setInterest: PortCall;
-}
-
-/** The CRDT relay; first-party key only (the install grant decides, not this port). */
-export interface DocumentsPort {
-  readonly relay: PortCall;
-}
-
-export interface LogPort {
-  readonly write: PortCall;
-}
-
 export interface HostPorts {
-  readonly storage?: StoragePort;
-  readonly blob?: BlobPort;
-  readonly hostNet?: HostNetPort;
-  readonly serverNet?: ServerNetPort;
-  readonly ihttp?: IhttpPort;
+  readonly canvas?: CanvasPort;
+  readonly ui?: UiPort;
+  readonly events?: EventsPort;
+  readonly navigate?: NavigatePort;
   readonly nodes?: NodesPort;
   readonly md?: MdPort;
   readonly files?: FilesPort;
   readonly chat?: ChatPort;
   readonly members?: MembersPort;
+  readonly storage?: StoragePort;
+  readonly blob?: BlobPort;
+  readonly storeFiles?: StoreFilesPort;
+  readonly hostNet?: HostNetPort;
+  readonly serverNet?: ServerNetPort;
+  readonly ihttp?: IhttpPort;
   readonly clipboard?: ClipboardPort;
   readonly notify?: NotifyPort;
-  readonly navigate?: NavigatePort;
-  readonly ui?: UiPort;
-  readonly canvas?: CanvasPort;
-  readonly events?: EventsPort;
   readonly documents?: DocumentsPort;
   readonly log?: LogPort;
 }

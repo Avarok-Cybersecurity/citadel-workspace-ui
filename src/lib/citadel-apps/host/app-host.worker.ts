@@ -31,25 +31,35 @@ const clock: DispatchClock = {
   },
 };
 
-function surfaceOf(canvas: OffscreenCanvas): CanvasSurface | null {
+function surfaceOf(canvas: OffscreenCanvas, dpr: number): CanvasSurface | null {
   const ctx: OffscreenCanvasRenderingContext2D | null = canvas.getContext('2d');
   if (ctx === null) return null;
   return {
     get width(): number { return canvas.width; },
     get height(): number { return canvas.height; },
+    dpr,
     get fillStyle(): string | CanvasGradient | CanvasPattern { return ctx.fillStyle; },
     set fillStyle(v: string | CanvasGradient | CanvasPattern) { ctx.fillStyle = v; },
+    get strokeStyle(): string | CanvasGradient | CanvasPattern { return ctx.strokeStyle; },
+    set strokeStyle(v: string | CanvasGradient | CanvasPattern) { ctx.strokeStyle = v; },
+    get lineWidth(): number { return ctx.lineWidth; },
+    set lineWidth(v: number) { ctx.lineWidth = v; },
     get font(): string { return ctx.font; },
     set font(v: string) { ctx.font = v; },
-    clearRect: (x: number, y: number, w: number, h: number): void => ctx.clearRect(x, y, w, h),
     fillRect: (x: number, y: number, w: number, h: number): void => ctx.fillRect(x, y, w, h),
+    strokeRect: (x: number, y: number, w: number, h: number): void => ctx.strokeRect(x, y, w, h),
+    beginPath: (): void => ctx.beginPath(),
+    moveTo: (x: number, y: number): void => ctx.moveTo(x, y),
+    lineTo: (x: number, y: number): void => ctx.lineTo(x, y),
+    stroke: (): void => ctx.stroke(),
     fillText: (text: string, x: number, y: number): void => ctx.fillText(text, x, y),
+    measureText: (text: string): { readonly width: number } => ({ width: ctx.measureText(text).width }),
   };
 }
 
 const survivors: string[] = scrubAmbientAuthority(self, AMBIENT_AUTHORITY);
 if (survivors.length > 0) {
-  channel.post({ kind: 'trapped', seq: 0, message: `the worker could not remove ${survivors.join(', ')}` });
+  channel.post({ kind: 'trapped', seq: 0, message: `the worker could not remove ${survivors.join(', ')}`, memoryPages: 0 });
 } else {
   startWorkerHost(channel, clock, surfaceOf);
 }

@@ -46,6 +46,12 @@ export interface HostPolicy {
   readonly maxReplyBytes: number;
   /** Replies issued and not yet read, per instance. */
   readonly maxLiveReplies: number;
+  /**
+   * A READY reply the guest has not read within this long is released. The guest SDK abandons a
+   * reply it cannot reserve memory for (no ABI call releases a handle), so without this a reply
+   * the app can never read would hold host memory until the instance ends.
+   */
+  readonly replyTtlMs: number;
   readonly maxLogBytes: number;
   readonly ihttp: IhttpLimits;
 }
@@ -88,6 +94,7 @@ export const STANDARD_HOST_POLICY: HostPolicy = {
   maxRequestBytes: STANDARD_IHTTP_LIMITS.maxRequestBodyBytes + ENVELOPE_BYTES,
   maxReplyBytes: STANDARD_IHTTP_LIMITS.maxResponseBodyBytes + ENVELOPE_BYTES,
   maxLiveReplies: 64,
+  replyTtlMs: 2000,
   maxLogBytes: 4 * 1024,
   ihttp: STANDARD_IHTTP_LIMITS,
 };

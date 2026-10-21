@@ -1,21 +1,23 @@
 /**
- * One host call, from the guest's request bytes to CBOR reply bytes: rate limits, size caps, op
- * lookup, argument decoding, the capability check, the ihttp router's gate, then the port. Pure over
- * an injected clock, invoker and router sink. It NEVER throws: every failure is a reply the guest
- * can read, so nothing a port or a hostile request does unwinds into the module.
+ * One host call, from the guest's request bytes to CBOR reply bytes, in the reference host's
+ * order: the request size cap, the op lookup (`unknown_op`), the argument schema
+ * (`bad_arguments`), the capability (`ungranted`), then the host's own gates (rate limits,
+ * navigation, the ihttp router) and the port. Pure over an injected clock, invoker and router
+ * sink. It NEVER throws: every failure is a reply the guest can read.
  *
- * Replies are `{ok: value}` or `{refused: Refused}` (R4.6), serde externally tagged, snake_case.
+ * Replies are `{ok: value}` or `{refused: Refused}` (generated `HostReply`).
  */
 import type { AbiGroup } from './abi';
-import { decodeCbor, encodeCbor, isCborMap, type CborMap, type Decoded } from './cbor';
+import { decodeCbor, encodeCbor, f32, isCborMap, type CborMap, type Decoded } from './cbor';
 import type { Capability } from './capabilities';
-import { respondArgs } from './ihttp-codec';
-import type { IhttpRouter, OutboundVerdict, RouterAction } from './ihttp-router';
+import type { IhttpRouter, RouterAction, Verdict } from './ihttp-router';
 import { parseRoutes, type ParsedRoutes } from './ihttp-routes';
 import type { HostPolicy } from './limits';
-import { findOp, type OpClock, type OpEntry } from './ops';
+import { parseArgs, type OpName } from './op-args';
+import { findOp, navigateTarget, type OpClock, type OpEntry } from './ops';
 import type { PortAnswer, PortReply, Refused } from './ports';
 import { TokenBucket } from './token-bucket';
+import type { OpArgs } from '../sdk/generated/AbiConstants';
 
 export type DispatchOutcome = { readonly now: Uint8Array } | { readonly later: Promise<Uint8Array> };
 
@@ -37,11 +39,16 @@ export interface DispatcherDeps {
   readonly clock: DispatchClock;
   readonly invoker: PortInvoker;
   readonly router: IhttpRouter;
-  /** Cancels the router decided on while gating a call (sent to callers, told to the app). */
+  /** The page the app is mounted in: what an internal link is relative to. */
+  readonly pageUrl: string;
+  /** Frames the router decided on while gating a call (sent to peers, told to the app). */
   readonly routerActions: (actions: readonly RouterAction[]) => void;
 }
 
 const refused = (why: Refused): Uint8Array => encodeCbor({ refused: why });
+
+/** Reply fields that are f32 on the Rust side (every other reply number is an integer). */
+const REPLY_FLOATS: Partial<Record<OpName, readonly string[]>> = { CanvasMeasure: ['dpr'], MeasureText: ['width'] };
 
 export function isPortAnswer(value: unknown): value is PortAnswer {
   if (!isCborMap(value)) return false;
@@ -69,19 +76,17 @@ export class Dispatcher {
 
   private dispatch(group: AbiGroup, op: number, request: Uint8Array): DispatchOutcome {
     const { policy, clock, granted } = this.deps;
-    if (!this.hostBucket.take(clock.now())) return { now: refused({ limit: 'host_calls' }) };
     if (request.byteLength > policy.maxRequestBytes) return { now: refused({ limit: 'request_bytes' }) };
     if (group === 'log' && request.byteLength > policy.maxLogBytes) return { now: refused({ limit: 'log_bytes' }) };
     const entry: OpEntry | undefined = findOp(group, op);
     if (entry === undefined) return { now: refused({ policy: 'unknown_op' }) };
     const decoded: Decoded = decodeCbor(request);
-    if (!decoded.ok || !isCborMap(decoded.value)) return { now: refused({ policy: 'bad_arguments' }) };
-    const args: CborMap = decoded.value;
-    const cap: Capability | null = entry.cap(args);
-    if (cap === null) return { now: refused({ policy: 'bad_arguments' }) };
-    if (!granted.has(cap)) return { now: refused('ungranted') };
+    const args: CborMap | null = decoded.ok ? parseArgs(entry.name, decoded.value) : null;
+    if (args === null) return { now: refused({ policy: 'bad_arguments' }) };
+    if (!granted.has(entry.capabilityFor(args))) return { now: refused('ungranted') };
+    if (!this.hostBucket.take(clock.now())) return { now: refused({ limit: 'host_calls' }) };
     if (entry.server(args) && !this.serverBucket.take(clock.now())) return { now: refused({ limit: 'server_calls' }) };
-    const gate: Refused | null = this.ihttpGate(entry, args);
+    const gate: Refused | null = this.hostGate(entry, args);
     if (gate !== null) return { now: refused(gate) };
     let reply: PortReply | undefined;
     try {
@@ -90,29 +95,43 @@ export class Dispatcher {
       return { now: refused({ unavailable: 'port_failed' }) };
     }
     if (reply === undefined) return { now: refused({ unavailable: entry.port }) };
-    if (!(reply instanceof Promise)) return { now: this.encodeAnswer(reply) };
-    return { later: this.bounded(reply, this.timeoutFor(entry.clock)) };
+    if (!(reply instanceof Promise)) return { now: this.encodeAnswer(entry.name, reply) };
+    return { later: this.bounded(entry.name, reply, this.timeoutFor(entry.clock)) };
   }
 
-  /** ihttp.serve installs the route table; ihttp.respond must be on a stream the router admitted. */
-  private ihttpGate(entry: OpEntry, args: CborMap): Refused | null {
-    if (entry.group !== 'ihttp') return null;
-    const { router, policy } = this.deps;
-    if (entry.name === 'serve') {
-      const parsed: ParsedRoutes = parseRoutes(args.routes, policy.ihttp.maxRoutes, policy.ihttp.maxPathBytes);
-      if (!parsed.ok) return { policy: 'bad_routes' };
-      router.setRoutes(parsed.routes);
-      return null;
+  /** What the host itself decides before any port: navigation and the ihttp router. */
+  private hostGate(entry: OpEntry, args: CborMap): Refused | null {
+    const { router, policy, clock } = this.deps;
+    const verdict = (v: Verdict): Refused | null => {
+      if (v.actions.length > 0) this.deps.routerActions(v.actions);
+      return v.ok ? null : v.refused;
+    };
+    switch (entry.name) {
+      case 'NavigateOpen':
+        // Classified here against the page's URL and again where the port lives: an external
+        // link is refused before it leaves the worker.
+        return navigateTarget((args as unknown as OpArgs['NavigateOpen']).href, this.deps.pageUrl) === null ? { policy: 'not_an_internal_link' } : null;
+      case 'IhttpServe': {
+        const parsed: ParsedRoutes = parseRoutes((args as unknown as OpArgs['IhttpServe']).routes, policy.ihttp.maxRoutes, policy.ihttp.maxPathBytes);
+        if (!parsed.ok) return { policy: 'bad_routes' };
+        router.setRoutes(parsed.routes);
+        return null;
+      }
+      case 'IhttpRespond': {
+        const a: OpArgs['IhttpRespond'] = args as unknown as OpArgs['IhttpRespond'];
+        return verdict(router.respond(a.peer, a.frame));
+      }
+      case 'IhttpCall': {
+        const a: OpArgs['IhttpCall'] = args as unknown as OpArgs['IhttpCall'];
+        return verdict(router.call(a.to, a.frame, clock.now()));
+      }
+      case 'IhttpConsumed': {
+        const a: OpArgs['IhttpConsumed'] = args as unknown as OpArgs['IhttpConsumed'];
+        return verdict(router.consumed(a.peer, a.stream));
+      }
+      default:
+        return null;
     }
-    if (entry.name === 'respond') {
-      const parsed: ReturnType<typeof respondArgs> = respondArgs(args);
-      if (parsed === null) return { policy: 'bad_arguments' };
-      const verdict: OutboundVerdict = router.outbound(parsed.peer, parsed.frame);
-      if (verdict.ok) return null;
-      if (verdict.actions.length > 0) this.deps.routerActions(verdict.actions);
-      return verdict.refused;
-    }
-    return null;
   }
 
   private timeoutFor(clock: OpClock): number {
@@ -122,7 +141,7 @@ export class Dispatcher {
     return policy.portTimeoutMs;
   }
 
-  private bounded(reply: Promise<PortAnswer>, ms: number): Promise<Uint8Array> {
+  private bounded(name: OpName, reply: Promise<PortAnswer>, ms: number): Promise<Uint8Array> {
     return new Promise<Uint8Array>((resolve: (bytes: Uint8Array) => void): void => {
       let settled: boolean = false;
       const settle = (bytes: Uint8Array): void => {
@@ -133,20 +152,28 @@ export class Dispatcher {
       };
       const cancel: () => void = this.deps.clock.after(ms, (): void => settle(refused({ limit: 'timeout' })));
       reply.then(
-        (answer: PortAnswer): void => settle(this.encodeAnswer(answer)),
+        (answer: PortAnswer): void => settle(this.encodeAnswer(name, answer)),
         (): void => settle(refused({ unavailable: 'port_failed' })),
       );
     });
   }
 
-  private encodeAnswer(answer: unknown): Uint8Array {
+  private encodeAnswer(name: OpName, answer: unknown): Uint8Array {
     if (!isPortAnswer(answer)) return refused({ unavailable: 'port_answer' });
     let bytes: Uint8Array;
     try {
-      bytes = encodeCbor(answer);
+      bytes = encodeCbor(withFloats(answer, REPLY_FLOATS[name]));
     } catch {
       return refused({ unavailable: 'port_answer' });
     }
     return bytes.byteLength > this.deps.policy.maxReplyBytes ? refused({ limit: 'reply_bytes' }) : bytes;
   }
+}
+
+/** `{ok: {...}}` with the named top-level fields of the ok value written as CBOR floats. */
+function withFloats(answer: PortAnswer, fields: readonly string[] | undefined): unknown {
+  if (fields === undefined || !('ok' in answer) || !isCborMap(answer.ok)) return answer;
+  const ok: Record<string, unknown> = { ...answer.ok };
+  for (const f of fields) if (typeof ok[f] === 'number') ok[f] = f32(ok[f] as number);
+  return { ok };
 }

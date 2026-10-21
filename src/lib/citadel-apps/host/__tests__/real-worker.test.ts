@@ -5,13 +5,12 @@
  * frame that returns keeps running (the control).
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { encodeCbor } from '../cbor';
 import type { Capability } from '../capabilities';
 import { inspectArtifact, type LoadVerdict } from '../inspect';
 import { launchAppInstance, type AppInstance, type Launch } from '../instance';
 import { InstanceSlots } from '../instance-slots';
 import { STANDARD_HOST_POLICY, validateHostPolicy, type HostPolicy } from '../limits';
-import { appModule } from './app-fixtures';
+import { appModule, fixtureContext } from './app-fixtures';
 import { realClock, until } from './in-process';
 import { bundleWorkerEntry, PROBED, threadChannel, type BundledEntry, type ThreadChannel } from './real-worker';
 import { op } from './wasm-builder';
@@ -27,10 +26,10 @@ const policy: HostPolicy = validateHostPolicy({ ...STANDARD_HOST_POLICY, compute
 
 async function start(bytes: Uint8Array): Promise<{ instance: AppInstance; channel: ThreadChannel }> {
   const verdict: LoadVerdict = await inspectArtifact(bytes, new Set<Capability>(), 16);
-  if (!verdict.ok) throw new Error(verdict.refusal.code);
+  if (!verdict.ok) throw new Error(verdict.reasons.join(', '));
   let channel: ThreadChannel | null = null;
   const launched: Launch = launchAppInstance({
-    appId: 'com.acme.test', module: verdict.module, granted: new Set<Capability>(), context: encodeCbor({}),
+    appId: 'com.acme.test', module: verdict.module, granted: new Set<Capability>(), context: fixtureContext([]), pageUrl: 'https://work.avarok.net/',
     memory: { initialPages: 1, maxPages: 16 }, policy, ports: {}, clock: realClock, slots: new InstanceSlots(8),
     spawn: () => {
       channel = threadChannel(entry);

@@ -5,8 +5,10 @@
  * outstanding one has `computeBudgetMs` from the moment it became the oldest, after which the
  * worker is terminated and the handle reports `stopped-unresponsive`.
  */
-import { APP_INIT_OK } from './abi';
-import { encodeCbor, type CborMap } from './cbor';
+import type { AppContext } from '../sdk/generated/AppContext';
+import type { AppEvent } from '../sdk/generated/AppEvent';
+import { INIT_RESULT } from './abi';
+import { encodeAppContext, encodeAppEvent } from './app-event';
 import type { Capability } from './capabilities';
 import type { DispatchClock } from './dispatch';
 import type { InstanceSlots } from './instance-slots';
@@ -24,7 +26,9 @@ export interface LaunchOptions {
   readonly module: WebAssembly.Module;
   readonly granted: ReadonlySet<Capability>;
   readonly memory: { readonly initialPages: number; readonly maxPages: number };
-  readonly context: Uint8Array;
+  readonly context: AppContext;
+  /** The page the app is mounted in: what its internal links resolve against. */
+  readonly pageUrl: string;
   readonly policy: HostPolicy;
   readonly ports: HostPorts;
   readonly clock: DispatchClock;
@@ -53,6 +57,8 @@ export class AppInstance {
   private readonly channel: HostChannel;
   /** Why the guest trapped, when it did. */
   trapMessage: string | null = null;
+  /** The guest memory's size when it trapped, in 64 KiB pages. */
+  trapMemoryPages: number | null = null;
   initStatus: number | null = null;
 
   constructor(private readonly options: LaunchOptions, private readonly release: () => void) {
@@ -62,7 +68,8 @@ export class AppInstance {
     });
     this.send({
       kind: 'load', seq: this.seq(), module: options.module, appId: options.appId, granted: [...options.granted],
-      memory: options.memory, context: options.context, policy: options.policy,
+      memory: options.memory, context: encodeAppContext(options.context), policy: options.policy,
+      pageUrl: options.pageUrl, hasLogPort: options.ports.log !== undefined,
     }, []);
   }
 
@@ -78,9 +85,9 @@ export class AppInstance {
   }
 
   /** One AppEvent (pointer, key, resize, ...), CBOR-encoded for the guest. */
-  postEvent(event: CborMap): void {
+  postEvent(event: AppEvent): void {
     if (this.current !== 'running') return;
-    this.send({ kind: 'event', seq: this.seq(), event: encodeCbor(event) }, []);
+    this.send({ kind: 'event', seq: this.seq(), event: encodeAppEvent(event) }, []);
   }
 
   frame(dtMs: number): void {
@@ -89,9 +96,9 @@ export class AppInstance {
   }
 
   /** Transfers the canvas to the worker; the page keeps only the placeholder element. */
-  attachCanvas(canvas: OffscreenCanvas): void {
+  attachCanvas(canvas: OffscreenCanvas, dpr: number): void {
     if (STOPPED.has(this.current)) return;
-    this.channel.postMessage({ kind: 'canvas', canvas }, [canvas]);
+    this.channel.postMessage({ kind: 'canvas', canvas, dpr }, [canvas]);
   }
 
   terminate(): void {
@@ -132,12 +139,13 @@ export class AppInstance {
       case 'done': this.finish(message.seq); return;
       case 'trapped':
         this.trapMessage = message.message;
+        this.trapMemoryPages = message.memoryPages;
         this.stop('stopped-trapped');
         return;
       case 'loaded':
         this.finish(message.seq);
         this.initStatus = message.status;
-        if (message.status !== APP_INIT_OK) {
+        if (message.status !== INIT_RESULT.OK) {
           this.stop('init-failed');
           return;
         }
@@ -147,6 +155,12 @@ export class AppInstance {
         }) ?? null;
         return;
       case 'port_call': this.portCall(message); return;
+      case 'log': {
+        // Already answered in the worker; a page LogPort that fails loses that one line, nothing else.
+        const r: PortReply | undefined = this.options.ports.log?.LogWrite({ level: message.level, message: message.message });
+        if (r instanceof Promise) r.catch((): void => undefined);
+        return;
+      }
       case 'ihttp_out': void this.options.ports.ihttp?.respond(message.peer, message.frame); return;
     }
   }

@@ -1,0 +1,92 @@
+/**
+ * Calls this instance makes (IhttpCall), and the stream-id DECISION: frames carry no direction
+ * bit, so the router scopes ids per (peer, direction) and never lets a served stream and a call
+ * share an id with the same app. Each guard sits beside its control.
+ */
+import { describe, expect, it } from 'vitest';
+import type { Address } from '../../sdk/generated/Address';
+import type { Caller } from '../../sdk/generated/Caller';
+import type { IhttpFrame } from '../../sdk/generated/IhttpFrame';
+import type { RequestHead } from '../../sdk/generated/RequestHead';
+import { IhttpRouter, type RouterAction } from '../ihttp-router';
+import { parseRoutes, type ParsedRoutes } from '../ihttp-routes';
+import { STANDARD_IHTTP_LIMITS } from '../limits';
+
+const APP = 'com.acme.kanban';
+const bob: Caller = { username: 'bob', cid: 12n, app_id: APP, install_id: 'i-2', via: 'p2p' };
+const toBob: Address = { user: { app_id: APP, username: 'bob' } };
+
+function router(): IhttpRouter {
+  const r: IhttpRouter = new IhttpRouter(APP, STANDARD_IHTTP_LIMITS);
+  const parsed: ParsedRoutes = parseRoutes([{ method: 'GET', path: '/cards/:id' }, { method: 'POST', path: '/upload/*' }], 64, 2048);
+  if (!parsed.ok) throw new Error(parsed.reason);
+  r.setRoutes(parsed.routes);
+  return r;
+}
+
+const head = (path: string, method: RequestHead['method'] = 'GET'): RequestHead => ({
+  method, path, query: '', headers: [], body_len: null, app_id: APP, scope_key: 'ws',
+});
+const f = (stream: bigint, kind: IhttpFrame['kind']): IhttpFrame => ({ v: 1, stream, kind });
+const request = (stream: bigint, path: string, method: RequestHead['method'] = 'GET'): IhttpFrame => f(stream, { RequestHead: head(path, method) });
+const response = (stream: bigint): IhttpFrame => f(stream, { ResponseHead: { status: 200, headers: [], body_len: null } });
+const body = (stream: bigint): IhttpFrame => f(stream, { Body: { bytes: new Uint8Array(3) } });
+
+const kinds = (actions: readonly RouterAction[]): string[] => actions.map((a: RouterAction) => {
+  const k: IhttpFrame['kind'] = a.frame.kind;
+  return `${a.kind}:${typeof k === 'string' ? k : Object.keys(k)[0]}`;
+});
+
+describe('calls', () => {
+  it('a call opens, its response is delivered, consumed grants the server credit, End closes it', () => {
+    const r: IhttpRouter = router();
+    expect(r.call(toBob, request(1n, '/cards/1'), 0)).toEqual({ ok: true, actions: [] });
+    expect(kinds(r.inbound(bob, response(1n), 0))).toEqual(['deliver:ResponseHead']);
+    expect(kinds(r.inbound(bob, body(1n), 0))).toEqual(['deliver:Body']);
+    expect(kinds(r.consumed(bob, 1n).actions)).toEqual(['reply:Credit']);
+    expect(kinds(r.inbound(bob, f(1n, 'End'), 0))).toEqual(['deliver:End']);
+    expect(r.liveStreams).toBe(0);
+    expect(r.consumed(bob, 1n)).toMatchObject({ ok: false, refused: { policy: 'unknown_stream' } });
+  });
+
+  it('a server sending past the credit the app granted is cut (control: after consumed it passes)', () => {
+    const r: IhttpRouter = router();
+    r.call(toBob, request(1n, '/cards/1'), 0);
+    r.inbound(bob, response(1n), 0);
+    for (let i: number = 0; i < STANDARD_IHTTP_LIMITS.initialCredit; i++) expect(kinds(r.inbound(bob, body(1n), 0))).toEqual(['deliver:Body']);
+    r.consumed(bob, 1n);
+    expect(kinds(r.inbound(bob, body(1n), 0))).toEqual(['deliver:Body']);
+    expect(kinds(r.inbound(bob, body(1n), 0))).toEqual(['reply:Cancel', 'deliver:Cancel']);
+  });
+
+  it('a call must name the app it addresses, use rising ids, and stay under 8 live calls', () => {
+    const r: IhttpRouter = router();
+    expect(r.call(toBob, f(1n, { RequestHead: { ...head('/x'), app_id: 'com.other' } }), 0)).toMatchObject({ ok: false, refused: { policy: 'wrong_app' } });
+    for (let i: number = 1; i <= 8; i++) expect(r.call(toBob, request(BigInt(i), '/x'), 0).ok).toBe(true);
+    expect(r.call(toBob, request(9n, '/x'), 0)).toMatchObject({ ok: false, refused: { limit: 'calls' } });
+    expect(r.call(toBob, request(3n, '/x'), 0)).toMatchObject({ ok: false, refused: { policy: 'stream_id' } });
+  });
+});
+
+describe('stream ids are scoped per (peer, direction)', () => {
+  it('a served stream and a call never share an id with the same app (control: a fresh id passes)', () => {
+    const r: IhttpRouter = router();
+    expect(kinds(r.inbound(bob, request(1n, '/cards/1'), 0))).toEqual(['deliver:RequestHead']);
+    expect(r.call(toBob, request(1n, '/cards/9'), 0)).toMatchObject({ ok: false, refused: { policy: 'stream_id_in_use' } });
+    expect(r.call(toBob, request(2n, '/cards/9'), 0).ok).toBe(true);
+    expect(kinds(r.inbound(bob, request(2n, '/cards/2'), 0))).toEqual(['reply:Cancel']);
+    expect(kinds(r.inbound(bob, request(3n, '/cards/3'), 0))).toEqual(['deliver:RequestHead']);
+  });
+
+  it('each inbound frame reaches its own direction: a served upload and a call, side by side', () => {
+    const r: IhttpRouter = router();
+    r.inbound(bob, request(1n, '/upload/a', 'POST'), 0);
+    r.call(toBob, request(2n, '/cards/1'), 0);
+    expect(kinds(r.inbound(bob, response(2n), 0))).toEqual(['deliver:ResponseHead']);
+    expect(kinds(r.inbound(bob, body(1n), 0))).toEqual(['deliver:Body']);
+    expect(r.respond(bob, response(1n)).ok).toBe(true);
+    expect(r.respond(bob, response(2n))).toMatchObject({ ok: false });
+    expect(kinds(r.inbound(bob, f(2n, 'End'), 0))).toEqual(['deliver:End']);
+    expect(r.liveStreams).toBe(1);
+  });
+});

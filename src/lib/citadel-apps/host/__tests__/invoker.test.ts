@@ -12,15 +12,15 @@ describe('regrantedCall', () => {
   it('refuses an op the grant does not cover without touching the port (control: granted reaches it)', async () => {
     const rec: Recorder = { calls: [] };
     const ports: HostPorts = { nodes: fakeNodes(rec) };
-    expect(regrantedCall(ports, new Set<Capability>(['nodes.read']), 'nodes', 3, { name: 'x' })).toEqual({ refused: 'ungranted' });
+    expect(regrantedCall(ports, new Set<Capability>(['nodes.read']), 'nodes', 4, { parent_id: 'n1', name: 'x' })).toEqual({ refused: 'ungranted' });
     expect(rec.calls).toEqual([]);
-    expect(await regrantedCall(ports, new Set<Capability>(['nodes.read']), 'nodes', 1, { id: 'n1' })).toEqual({ ok: { id: 'n1', name: 'Board' } });
-    expect(rec.calls.map((c) => c.method)).toEqual(['nodes.read']);
+    expect(await regrantedCall(ports, new Set<Capability>(['nodes.read']), 'nodes', 1, { node_id: 'n1' })).toMatchObject({ ok: { node_id: 'n1', name: 'Board' } });
+    expect(rec.calls.map((c) => c.method)).toEqual(['NodeGet']);
   });
 
   it('refuses unknown ops and arguments that do not name a capability; a missing port is unavailable', () => {
     expect(regrantedCall({}, new Set<Capability>(), 'nodes', 42, {})).toEqual({ refused: { policy: 'unknown_op' } });
     expect(regrantedCall({}, new Set<Capability>(['storage.user']), 'storage', 1, { backend: 'nope' })).toEqual({ refused: { policy: 'bad_arguments' } });
-    expect(regrantedCall({}, new Set<Capability>(['storage.user']), 'storage', 1, { backend: 'user' })).toEqual({ refused: { unavailable: 'storage' } });
+    expect(regrantedCall({}, new Set<Capability>(['storage.user']), 'storage', 1, { backend: 'user', key: 'k' })).toEqual({ refused: { unavailable: 'storage' } });
   });
 });

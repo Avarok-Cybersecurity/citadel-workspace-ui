@@ -8,6 +8,7 @@ import { launchAppInstance, type AppInstance } from '../instance';
 import { InstanceSlots } from '../instance-slots';
 import { STANDARD_HOST_POLICY } from '../limits';
 import type { FromWorker, HostChannel, ToWorker } from '../worker-protocol';
+import { fixtureContext } from './app-fixtures';
 import { ManualClock } from './fakes';
 
 interface Scripted {
@@ -37,7 +38,7 @@ const BUDGET: number = STANDARD_HOST_POLICY.computeBudgetMs;
 function launch(clock: ManualClock, s: Scripted, slots: InstanceSlots = new InstanceSlots(8)): AppInstance {
   const l = launchAppInstance({
     appId: 'a.b', module: {} as WebAssembly.Module, granted: new Set<Capability>(), memory: { initialPages: 1, maxPages: 1 },
-    context: new Uint8Array(), policy: STANDARD_HOST_POLICY, ports: {}, clock, slots, spawn: () => s.channel,
+    context: fixtureContext([]), pageUrl: 'https://work.avarok.net/', policy: STANDARD_HOST_POLICY, ports: {}, clock, slots, spawn: () => s.channel,
   });
   if (!l.ok) throw new Error('no slot');
   return l.instance;
@@ -106,7 +107,7 @@ describe('watchdog', () => {
     const clock: ManualClock = new ManualClock();
     const s: Scripted = scripted();
     const i: AppInstance = launch(clock, s);
-    s.reply({ kind: 'trapped', seq: seqOf(s.sent[0]), message: 'RuntimeError: unreachable' });
+    s.reply({ kind: 'trapped', seq: seqOf(s.sent[0]), message: 'RuntimeError: unreachable', memoryPages: 1 });
     expect(i.state).toBe('stopped-trapped');
     expect(s.terminated).toBe(1);
   });

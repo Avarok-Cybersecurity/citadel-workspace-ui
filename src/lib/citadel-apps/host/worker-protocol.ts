@@ -8,7 +8,9 @@
 import type { AbiGroup } from './abi';
 import { isCborMap, type CborMap } from './cbor';
 import type { Capability } from './capabilities';
-import type { IhttpFrame, IhttpPeer } from './ihttp-types';
+import type { Caller } from '../sdk/generated/Caller';
+import type { IhttpFrame } from '../sdk/generated/IhttpFrame';
+import type { LogLevel } from '../sdk/generated/LogLevel';
 import type { HostPolicy } from './limits';
 import type { PortAnswer } from './ports';
 
@@ -22,6 +24,10 @@ export interface LoadMessage {
   /** CBOR AppContext, handed to app_init. */
   readonly context: Uint8Array;
   readonly policy: HostPolicy;
+  /** The page's URL, which internal links are classified against. */
+  readonly pageUrl: string;
+  /** Whether the page injected a LogPort: log answers at once in the worker, so it must know. */
+  readonly hasLogPort: boolean;
 }
 
 export type ToWorker =
@@ -30,20 +36,22 @@ export type ToWorker =
   | { readonly kind: 'frame'; readonly seq: number; readonly dtMs: number }
   /** Runs no guest code itself: the reply reaches the guest in a later busy...done drain. */
   | { readonly kind: 'port_reply'; readonly id: number; readonly answer: PortAnswer }
-  | { readonly kind: 'ihttp'; readonly seq: number; readonly peer: IhttpPeer; readonly frame: IhttpFrame }
-  | { readonly kind: 'canvas'; readonly canvas: OffscreenCanvas };
+  | { readonly kind: 'ihttp'; readonly seq: number; readonly peer: Caller; readonly frame: IhttpFrame }
+  | { readonly kind: 'canvas'; readonly canvas: OffscreenCanvas; readonly dpr: number };
 
 export type FromWorker =
   | { readonly kind: 'done'; readonly seq: number }
   /** The worker is about to run guest code on its own initiative (negative seq); `done` follows. */
   | { readonly kind: 'busy'; readonly seq: number }
   | { readonly kind: 'loaded'; readonly seq: number; readonly status: number }
-  | { readonly kind: 'trapped'; readonly seq: number; readonly message: string }
+  | { readonly kind: 'trapped'; readonly seq: number; readonly message: string; readonly memoryPages: number }
+  /** A LogWrite the guest made; answered at once in the worker, carried to the page's LogPort. */
+  | { readonly kind: 'log'; readonly level: LogLevel; readonly message: string }
   | { readonly kind: 'port_call'; readonly id: number; readonly group: AbiGroup; readonly op: number; readonly args: CborMap }
-  | { readonly kind: 'ihttp_out'; readonly peer: IhttpPeer; readonly frame: IhttpFrame };
+  | { readonly kind: 'ihttp_out'; readonly peer: Caller; readonly frame: IhttpFrame };
 
 const TO_WORKER: ReadonlySet<string> = new Set<ToWorker['kind']>(['load', 'event', 'frame', 'port_reply', 'ihttp', 'canvas']);
-const FROM_WORKER: ReadonlySet<string> = new Set<FromWorker['kind']>(['done', 'busy', 'loaded', 'trapped', 'port_call', 'ihttp_out']);
+const FROM_WORKER: ReadonlySet<string> = new Set<FromWorker['kind']>(['done', 'busy', 'loaded', 'trapped', 'log', 'port_call', 'ihttp_out']);
 
 export function isToWorker(value: unknown): value is ToWorker {
   return isCborMap(value) && typeof value.kind === 'string' && TO_WORKER.has(value.kind);

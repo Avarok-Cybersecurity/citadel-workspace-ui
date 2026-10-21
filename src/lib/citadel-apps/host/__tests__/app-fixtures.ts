@@ -3,7 +3,9 @@
  * SDK's fixtures until they land. `appModule()` with no options is the CLEAN module (the control
  * for every hostile variant): memory imported, the two reply readers, the four required exports.
  */
+import type { AppContext } from '../../sdk/generated/AppContext';
 import { ABI_NAMESPACE, type AbiGroup } from '../abi';
+import type { Capability } from '../capabilities';
 import { buildModule, I32, op, type FuncSpec, type ImportSpec, type ModuleSpec } from './wasm-builder';
 
 export interface AppModuleOptions {
@@ -81,4 +83,12 @@ export function forwardEvent(options: AppModuleOptions, group: AbiGroup, opNumbe
 /** A body that grows memory by `pages` and traps if the grow failed. */
 export function growOrTrap(pages: number): number[] {
   return [...op.i32(pages), ...op.memoryGrow, ...op.trapIfMinusOne];
+}
+
+/** The reference harness's context (harness/src/lib.rs `context`), so runs compare like for like. */
+export function fixtureContext(granted: readonly Capability[]): AppContext {
+  return {
+    app_id: 'net.avarok.fixture', install_id: 'install-1', scope: 'workspace', granted: [...granted].sort(), surface: 'canvas_pane',
+    size: { width: 320, height: 200 }, dpr: 1, theme: {}, locale: 'en', acting_username: 'alice', node_id: 'root',
+  };
 }

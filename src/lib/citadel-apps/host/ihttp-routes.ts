@@ -5,7 +5,7 @@
  * table that reaches the router is always well-formed.
  */
 import { isCborMap } from './cbor';
-import { IHTTP_METHODS } from './ihttp-types';
+import { IHTTP_METHODS } from './ihttp-common';
 
 export interface RoutePattern {
   readonly method: string;

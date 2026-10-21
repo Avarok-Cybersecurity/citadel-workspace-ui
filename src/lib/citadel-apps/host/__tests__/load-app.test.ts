@@ -28,7 +28,7 @@ describe('prepareApp', () => {
   it('a module importing net without a network capability is refused by the ABI gate (control: declared, it loads)', async () => {
     const wasm: Uint8Array = appModule({ groups: ['net'], memory: { min: 1, max: 32 } });
     const refused: PreparedApp = await prepareApp(request(wasm, []), fakeVerifier);
-    expect(refused).toMatchObject({ ok: false, gate: 'abi', refusal: { code: 'undeclared_group' } });
+    expect(refused).toMatchObject({ ok: false, gate: 'abi', reasons: ['undeclared_group:net'] });
     const loaded: PreparedApp = await prepareApp(request(wasm, ['net.server'], 16), fakeVerifier);
     expect(loaded.ok && loaded.memory).toEqual({ initialPages: 1, maxPages: 16 });
   });

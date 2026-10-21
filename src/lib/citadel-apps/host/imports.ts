@@ -5,9 +5,9 @@
  * `{refused: "ungranted"}` without reaching the dispatcher.
  *
  * Pure: the grant, the memory and the call sink go in, the object comes out. No function here
- * throws into the guest: a pointer outside memory is ABI_ERR.badRequest, anything else is a reply.
+ * throws into the guest: a pointer outside memory is ABI_ERROR.BAD_REQUEST, anything else is a reply.
  */
-import { ABI_ERR, ABI_GROUPS, ABI_MEMORY_IMPORT, ABI_NAMESPACE, ABI_REPLY_LEN, ABI_REPLY_READ, type AbiGroup } from './abi';
+import { ABI_ERROR, ABI_GROUPS, ABI_NAMESPACE, MEMORY_IMPORT, REPLY_LEN, REPLY_READ, type AbiGroup } from './abi';
 import { encodeCbor } from './cbor';
 import { CAPABILITY_GROUP, effectiveGrant, type Capability } from './capabilities';
 import type { DispatchOutcome } from './dispatch';
@@ -38,7 +38,7 @@ function liveGroup(group: AbiGroup, memory: WebAssembly.Memory, sink: CallSink):
     try {
       const p: number = ptr >>> 0;
       const n: number = len >>> 0;
-      if (!inBounds(memory, p, n)) return ABI_ERR.badRequest;
+      if (!inBounds(memory, p, n)) return ABI_ERROR.BAD_REQUEST;
       const request: Uint8Array = new Uint8Array(memory.buffer, p, n).slice();
       const outcome: DispatchOutcome = sink.call(group, op, request);
       if ('now' in outcome) return sink.replies.ready(outcome.now);
@@ -49,7 +49,7 @@ function liveGroup(group: AbiGroup, memory: WebAssembly.Memory, sink: CallSink):
       });
       return handle;
     } catch {
-      return ABI_ERR.badRequest;
+      return ABI_ERROR.BAD_REQUEST;
     }
   };
 }
@@ -57,15 +57,21 @@ function liveGroup(group: AbiGroup, memory: WebAssembly.Memory, sink: CallSink):
 export function buildImports(granted: ReadonlySet<Capability>, memory: WebAssembly.Memory, sink: CallSink): WebAssembly.Imports {
   const open: ReadonlySet<AbiGroup> = grantedGroups(granted);
   const ns: Record<string, WebAssembly.ImportValue> = {
-    [ABI_MEMORY_IMPORT]: memory,
-    [ABI_REPLY_READ]: (handle: number, ptr: number, cap: number): number => {
+    [MEMORY_IMPORT]: memory,
+    [REPLY_READ]: (handle: number, ptr: number, cap: number): number => {
       try {
         return sink.replies.read(handle, memory, ptr >>> 0, cap >>> 0);
       } catch {
-        return ABI_ERR.badRequest;
+        return ABI_ERROR.BAD_REQUEST;
       }
     },
-    [ABI_REPLY_LEN]: (handle: number): number => sink.replies.length(handle),
+    [REPLY_LEN]: (handle: number): number => {
+      try {
+        return sink.replies.length(handle);
+      } catch {
+        return ABI_ERROR.BAD_REQUEST;
+      }
+    },
   };
   for (const group of ABI_GROUPS) ns[group] = open.has(group) ? liveGroup(group, memory, sink) : refusingStub(sink.replies);
   return { [ABI_NAMESPACE]: ns };

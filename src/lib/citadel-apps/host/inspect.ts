@@ -1,29 +1,20 @@
 /**
- * The browser's load verdict for an app module: refused before instantiation unless it imports
- * only from `citadel_app_abi_1`, only names the ABI defines, only groups its manifest declares,
- * imports its memory (unshared, 32-bit, within the host maximum) and defines none, has no start
- * function, and exports the required functions. The Rust stream's native inspector applies the
- * same rules; the two must agree on every fixture.
+ * The browser's load verdict for an app module, by the Rust inspector's rules
+ * (citadel-app-abi-inspect rules.rs): every reason, in its fixed order, as its `Rejection::code()`
+ * string, so a module the kernel refused at publish is refused here for the same reasons, and the
+ * fixtures' expectations compare as equal lists.
  *
- * Two sources, cross-checked: the engine's `WebAssembly.Module.imports/exports` (authoritative for
- * names and kinds) and wasm-binary.ts (start section, memory flags, which the engine does not
- * report). If they disagree about the import list, the module is refused.
+ * Order: `threads`; then per import (foreign_import / unknown_import / wrong_import_kind /
+ * wrong_import_signature / undeclared_group / shared_memory / memory64 / memory_initial_too_large);
+ * then memory_not_imported, memory_defined, start_function; then each required export and
+ * app_frame. A module the engine cannot compile, or that is outside wasm 2.0 + threads, is
+ * `malformed` alone. The engine's own import list is cross-checked against the bytes.
  */
 import {
-  ABI_MEMORY_IMPORT, ABI_NAMESPACE, ABI_OPTIONAL_EXPORTS, ABI_REPLY_LEN, ABI_REPLY_READ, ABI_REQUIRED_EXPORTS, isAbiGroup,
+  ABI_NAMESPACE, EXPORT_FRAME, MEMORY_IMPORT, REPLY_LEN, REPLY_READ, REQUIRED_EXPORTS, isAbiGroup,
 } from './abi';
 import { declaredGroups, type Capability } from './capabilities';
-import { readBinaryFacts, type BinaryFacts, type BinaryImport, type MemoryLimits } from './wasm-binary';
-
-export type LoadRefusalCode =
-  | 'not_wasm' | 'engine_disagrees' | 'foreign_import' | 'unknown_import' | 'undeclared_group' | 'import_kind'
-  | 'no_memory_import' | 'own_memory' | 'shared_memory' | 'memory64' | 'memory_too_large'
-  | 'start_function' | 'missing_export' | 'export_kind';
-
-export interface LoadRefusal {
-  readonly code: LoadRefusalCode;
-  readonly detail: string;
-}
+import { readBinaryFacts, type BinaryExport, type BinaryFacts, type BinaryImport, type FuncSig, type MemoryLimits } from './wasm-binary';
 
 export type LoadVerdict =
   | {
@@ -32,26 +23,80 @@ export type LoadVerdict =
     readonly memory: { readonly minPages: number; readonly maxPages: number | null };
     readonly hasFrame: boolean;
   }
-  | { readonly ok: false; readonly refusal: LoadRefusal };
+  | { readonly ok: false; readonly reasons: readonly string[] };
 
-const refuse = (code: LoadRefusalCode, detail: string): LoadVerdict => ({ ok: false, refusal: { code, detail } });
+const I32 = 0x7f;
+const sig = (params: number, results: number): FuncSig => ({ params: Array<number>(params).fill(I32), results: Array<number>(results).fill(I32) });
+const GROUP_SIG: FuncSig = sig(3, 1);
+const REPLY_LEN_SIG: FuncSig = sig(1, 1);
+const FRAME_SIG: FuncSig = sig(1, 0);
+const EXPORT_SIGS: Readonly<Record<(typeof REQUIRED_EXPORTS)[number], FuncSig>> = {
+  app_alloc: sig(1, 1), app_free: sig(2, 0), app_init: sig(2, 1), app_event: sig(2, 0),
+};
 
-function checkImport(imp: BinaryImport, groups: ReadonlySet<string>): LoadVerdict | null {
-  const where: string = `${imp.module}.${imp.name}`;
-  if (imp.module !== ABI_NAMESPACE) return refuse('foreign_import', where);
-  if (imp.name === ABI_MEMORY_IMPORT) return imp.kind === 'memory' ? null : refuse('import_kind', where);
-  if (imp.name !== ABI_REPLY_READ && imp.name !== ABI_REPLY_LEN && !isAbiGroup(imp.name)) return refuse('unknown_import', where);
-  if (imp.kind !== 'function') return refuse('import_kind', where);
-  if (isAbiGroup(imp.name) && !groups.has(imp.name)) return refuse('undeclared_group', imp.name);
+const sameSig = (a: FuncSig, b: FuncSig): boolean =>
+  a.params.length === b.params.length && a.results.length === b.results.length
+  && a.params.every((t: number, i: number) => t === b.params[i]) && a.results.every((t: number, i: number) => t === b.results[i]);
+
+const MALFORMED: LoadVerdict = { ok: false, reasons: ['malformed'] };
+
+function pushOnce(out: string[], code: string): void {
+  if (!out.includes(code)) out.push(code);
+}
+
+function expectFunc(imp: BinaryImport, want: FuncSig, out: string[]): void {
+  if (imp.kind !== 'function') pushOnce(out, `wrong_import_kind:${imp.name}`);
+  else if (!sameSig(imp.sig, want)) pushOnce(out, `wrong_import_signature:${imp.name}`);
+}
+
+function memoryRules(m: MemoryLimits, hostMaxPages: number, out: string[]): void {
+  if (m.shared) pushOnce(out, 'shared_memory');
+  if (m.minPages > hostMaxPages) pushOnce(out, 'memory_initial_too_large');
+}
+
+function importRules(imports: readonly BinaryImport[], groups: ReadonlySet<string>, hostMaxPages: number, out: string[]): void {
+  for (const imp of imports) {
+    if (imp.module !== ABI_NAMESPACE) pushOnce(out, `foreign_import:${imp.module}.${imp.name}`);
+    else if (imp.name === MEMORY_IMPORT) {
+      if (imp.kind === 'memory') memoryRules(imp.memory, hostMaxPages, out);
+      else pushOnce(out, `wrong_import_kind:${imp.name}`);
+    } else if (imp.name === REPLY_LEN) expectFunc(imp, REPLY_LEN_SIG, out);
+    else if (imp.name === REPLY_READ) expectFunc(imp, GROUP_SIG, out);
+    else if (!isAbiGroup(imp.name)) pushOnce(out, `unknown_import:${imp.name}`);
+    else {
+      expectFunc(imp, GROUP_SIG, out);
+      if (!groups.has(imp.name)) pushOnce(out, `undeclared_group:${imp.name}`);
+    }
+  }
+}
+
+function exportRules(exports: readonly BinaryExport[], out: string[]): void {
+  const find = (name: string): BinaryExport | undefined => exports.find((e: BinaryExport) => e.name === name);
+  for (const name of REQUIRED_EXPORTS) {
+    const e: BinaryExport | undefined = find(name);
+    if (e === undefined) out.push(`missing_export:${name}`);
+    else if (e.kind !== 'function' || !sameSig(e.sig, EXPORT_SIGS[name])) out.push(`wrong_export_signature:${name}`);
+  }
+  const frame: BinaryExport | undefined = find(EXPORT_FRAME);
+  if (frame !== undefined && (frame.kind !== 'function' || !sameSig(frame.sig, FRAME_SIG))) out.push(`wrong_export_signature:${EXPORT_FRAME}`);
+}
+
+/** The ABI memory import, as Inspection::memory() finds it. */
+function abiMemory(facts: BinaryFacts): MemoryLimits | null {
+  for (const imp of facts.imports) if (imp.kind === 'memory' && imp.module === ABI_NAMESPACE) return imp.memory;
   return null;
 }
 
-function checkMemory(limits: MemoryLimits | null, hostMaxPages: number): LoadVerdict | null {
-  if (limits === null) return refuse('no_memory_import', `${ABI_NAMESPACE}.${ABI_MEMORY_IMPORT}`);
-  if (limits.shared) return refuse('shared_memory', 'the imported memory is shared');
-  if (limits.memory64) return refuse('memory64', 'the imported memory is 64-bit');
-  if (limits.minPages > hostMaxPages) return refuse('memory_too_large', `asks for ${limits.minPages} pages; the host allows ${hostMaxPages}`);
-  return null;
+/** Every reason the module may not run, in the Rust inspector's order; empty means accepted. */
+export function abiReasons(facts: BinaryFacts, declared: ReadonlySet<Capability>, hostMaxPages: number): string[] {
+  const out: string[] = [];
+  if (facts.usesThreads) out.push('threads');
+  importRules(facts.imports, declaredGroups(declared), hostMaxPages, out);
+  if (abiMemory(facts) === null) out.push('memory_not_imported');
+  if (facts.definedMemories.length > 0) out.push('memory_defined');
+  if (facts.hasStart) out.push('start_function');
+  exportRules(facts.exports, out);
+  return out;
 }
 
 function sameImports(facts: BinaryFacts, engine: readonly WebAssembly.ModuleImportDescriptor[]): boolean {
@@ -61,51 +106,27 @@ function sameImports(facts: BinaryFacts, engine: readonly WebAssembly.ModuleImpo
 }
 
 /** The verdict for a compiled module and its bytes. */
-export function inspectModule(
-  bytes: Uint8Array,
-  module: WebAssembly.Module,
-  declared: ReadonlySet<Capability>,
-  hostMaxPages: number,
-): LoadVerdict {
+export function inspectModule(bytes: Uint8Array, module: WebAssembly.Module, declared: ReadonlySet<Capability>, hostMaxPages: number): LoadVerdict {
   let facts: BinaryFacts;
   try {
     facts = readBinaryFacts(bytes);
-  } catch (error: unknown) {
-    return refuse('not_wasm', error instanceof Error ? error.message : String(error));
+  } catch {
+    return MALFORMED;
   }
-  if (!sameImports(facts, WebAssembly.Module.imports(module))) return refuse('engine_disagrees', 'the import lists differ');
-  const groups: ReadonlySet<string> = declaredGroups(declared);
-  let memory: MemoryLimits | null = null;
-  for (const imp of facts.imports) {
-    const bad: LoadVerdict | null = checkImport(imp, groups);
-    if (bad !== null) return bad;
-    if (imp.kind === 'memory') memory = imp.memory;
-  }
-  const badMemory: LoadVerdict | null = checkMemory(memory, hostMaxPages);
-  if (badMemory !== null) return badMemory;
-  if (memory === null) return refuse('no_memory_import', ABI_MEMORY_IMPORT);
-  if (facts.definesMemory) return refuse('own_memory', 'the module defines a memory of its own');
-  if (facts.hasStart) return refuse('start_function', 'the module has a start function');
-  const exports: Map<string, string> = new Map(WebAssembly.Module.exports(module).map((e) => [e.name, e.kind]));
-  for (const name of ABI_REQUIRED_EXPORTS) {
-    const kind: string | undefined = exports.get(name);
-    if (kind === undefined) return refuse('missing_export', name);
-    if (kind !== 'function') return refuse('export_kind', name);
-  }
-  for (const name of ABI_OPTIONAL_EXPORTS) {
-    const kind: string | undefined = exports.get(name);
-    if (kind !== undefined && kind !== 'function') return refuse('export_kind', name);
-  }
-  return { ok: true, module, memory: { minPages: memory.minPages, maxPages: memory.maxPages }, hasFrame: exports.has('app_frame') };
+  if (!sameImports(facts, WebAssembly.Module.imports(module))) return MALFORMED;
+  const reasons: string[] = abiReasons(facts, declared, hostMaxPages);
+  const memory: MemoryLimits | null = abiMemory(facts);
+  if (reasons.length > 0 || memory === null) return { ok: false, reasons };
+  return { ok: true, module, memory: { minPages: memory.minPages, maxPages: memory.maxPages }, hasFrame: facts.exports.some((e: BinaryExport) => e.name === EXPORT_FRAME) };
 }
 
-/** Compiles (never instantiates) and inspects. Bytes the engine cannot compile are `not_wasm`. */
+/** Compiles (never instantiates) and inspects. Bytes the engine cannot compile are `malformed`. */
 export async function inspectArtifact(bytes: Uint8Array, declared: ReadonlySet<Capability>, hostMaxPages: number): Promise<LoadVerdict> {
   let module: WebAssembly.Module;
   try {
     module = await WebAssembly.compile(new Uint8Array(bytes));
-  } catch (error: unknown) {
-    return refuse('not_wasm', error instanceof Error ? error.message : String(error));
+  } catch {
+    return MALFORMED;
   }
   return inspectModule(bytes, module, declared, hostMaxPages);
 }
