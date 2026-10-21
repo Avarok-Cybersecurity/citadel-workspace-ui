@@ -12,6 +12,10 @@
  * `undefined` that surfaces three screens later.
  */
 import type { BillingInterval, TierId } from './tiers';
+import { ControlPlaneError } from './control-plane-error';
+import { answerFromBody, answerFromError, type CouponPreviewAnswer, type CouponPreviewRequest } from './coupon-preview';
+
+export { ControlPlaneError };
 
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
@@ -34,6 +38,8 @@ export interface CreateTenantRequest {
   /** The Customer Terms version the person accepted; the control plane refuses any but the current one. */
   readonly accepted_customer_terms_version: number;
   readonly reservation_token?: string;
+  /** A code the visitor applied; paid tiers only. The control plane judges it again at creation. */
+  readonly coupon_code?: string;
 }
 
 export type CreateTenantResult =
@@ -50,40 +56,14 @@ export const CHECKOUT_ORIGIN: string = 'https://checkout.stripe.com';
 /** The only place "Manage subscription" may send an owner. Anything else in `portal_url` is refused. */
 export const PORTAL_ORIGIN: string = 'https://billing.stripe.com';
 
-/**
- * A request the control plane refused, or could not be asked.
- *
- * `status` is the HTTP status, or 0 when no response arrived at all (offline,
- * DNS, CSP). 503 is the control plane saying it is not configured yet, which is
- * a state of the deployment rather than of the request, so it gets its own flag
- * and its own wording. `code` is the control plane's machine-readable reason
- * (`not-owner`, `no-subscription`, ...), or undefined when it gave none.
- */
-export class ControlPlaneError extends Error {
-  readonly status: number;
-  readonly notConfigured: boolean;
-  readonly code: string | undefined;
-
-  constructor(status: number, message: string, code: string | undefined) {
-    super(message);
-    this.name = 'ControlPlaneError';
-    this.status = status;
-    this.code = code;
-    this.notConfigured = status === 503;
-  }
-
-  /** Worth asking again: nothing answered, or the server failed rather than refused. */
-  get transient(): boolean {
-    return this.status === 0 || (this.status >= 500 && !this.notConfigured);
-  }
-}
-
 export interface ControlPlane {
   checkSlug(slug: string, signal?: AbortSignal): Promise<SlugAvailability>;
   createTenant(request: CreateTenantRequest): Promise<CreateTenantResult>;
   tenantStatus(slug: string, sessionId: string, signal?: AbortSignal): Promise<TenantStatus>;
   /** A Stripe Billing Portal address for `slug`, for the holder of its claim code. */
   openPortal(slug: string, claimCode: string): Promise<string>;
+  /** What a code would do to a plan. Refusals are answers, not throws; only an abort throws. */
+  previewCoupon(request: CouponPreviewRequest, signal?: AbortSignal): Promise<CouponPreviewAnswer>;
 }
 
 const NOT_CONFIGURED: string =
@@ -218,6 +198,19 @@ export function createControlPlane(fetchFn: FetchLike, base: string): ControlPla
         body: JSON.stringify({ claim_code: claimCode }),
       });
       return parsePortal(body);
+    },
+    async previewCoupon(request: CouponPreviewRequest, signal?: AbortSignal): Promise<CouponPreviewAnswer> {
+      try {
+        const body: Record<string, unknown> = await send(fetchFn, `${base}/coupons/preview`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(request),
+          signal,
+        });
+        return answerFromBody(body);
+      } catch (error: unknown) {
+        return answerFromError(error);
+      }
     },
   };
 }

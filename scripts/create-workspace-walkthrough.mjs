@@ -10,6 +10,7 @@
  *   GET  /api/slug/:slug                      -> { available, reason? }
  *   POST /api/tenants                         -> free { claim_code, workspace_host } | paid { checkout_url }
  *   GET  /api/tenants/:slug/status?session_id -> { status, claim_code? (once), workspace_host? }
+ *   POST /api/coupons/preview                 -> see lib/coupon-walkthrough.mjs
  *
  * Two third parties are stubbed for the same reason -- they cannot be used from
  * here -- and both at the network, so the page's own code runs unmodified:
@@ -38,6 +39,8 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { AxeBuilder } from '@axe-core/playwright';
 import { spawnPreview, dismissConnectionFailure } from './lib/preview-world.mjs';
+import { mockControlPlane } from './lib/create-control-plane-mock.mjs';
+import { walkCoupons } from './lib/coupon-walkthrough.mjs';
 
 const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.env.WALKTHROUGH_PORT ?? 4191);
@@ -51,50 +54,6 @@ const THEMES = ['light', 'dark'];
 
 const results = [];
 const record = (name, ok, detail = '') => results.push({ name, ok, detail });
-
-function mockControlPlane() {
-  const taken = new Set(['taken', 'acme']);
-  const tenants = new Map();
-  let codes = 0;
-  return async (route) => {
-    const request = route.request();
-    const url = new URL(request.url());
-    const json = (status, body) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
-    const slugCheck = url.pathname.match(/^\/api\/slug\/([^/]+)$/);
-    if (slugCheck) {
-      const slug = decodeURIComponent(slugCheck[1]);
-      if (slug === 'offline') return json(503, { error: 'control plane not configured' });
-      if (slug === 'www') return json(200, { available: false, reason: 'reserved' });
-      return json(200, taken.has(slug) || tenants.has(slug) ? { available: false, reason: 'taken' } : { available: true });
-    }
-    if (url.pathname === '/api/tenants' && request.method() === 'POST') {
-      const body = request.postDataJSON();
-      if (!/^stub-token-\d+$/.test(body.turnstile_token ?? '')) return json(403, { error: 'Human verification failed.' });
-      // A reservation left by a cancelled Checkout is the same visitor's to
-      // retry (an ASSUMED contract point -- see the report); a live one is not.
-      if (taken.has(body.slug) || tenants.get(body.slug)?.issued) return json(409, { error: 'That address was just taken.' });
-      // The real shape: 32 random bytes as hex (control/secrets.mjs).
-      const code = `${String(++codes).padStart(8, '0')}${'7c9a2e4f'.repeat(7)}`;
-      tenants.set(body.slug, { ...body, code, polls: 0, issued: false });
-      if (body.tier === 'free') {
-        tenants.get(body.slug).issued = true;
-        return json(200, { claim_code: code, workspace_host: `${body.slug}.work.avarok.net` });
-      }
-      return json(200, { checkout_url: `https://checkout.stripe.com/c/pay/cs_test_${body.slug}` });
-    }
-    const status = url.pathname.match(/^\/api\/tenants\/([^/]+)\/status$/);
-    if (status) {
-      const tenant = tenants.get(decodeURIComponent(status[1]));
-      if (!tenant) return json(404, { error: 'No workspace is being set up under that address.' });
-      tenant.polls += 1;
-      if (tenant.polls < 5) return json(200, { status: 'pending' });
-      const reply = { status: 'active', workspace_host: `${tenant.slug}.work.avarok.net` };
-      if (!tenant.issued) { tenant.issued = true; reply.claim_code = tenant.code; }
-      return json(200, reply);
-    }
-    return json(404, { error: 'not found' });
-  };
-}
 
 const TURNSTILE_STUB = `
   (function () {
@@ -155,7 +114,7 @@ async function run(browser, theme, vp) {
   await context.route(/challenges\.cloudflare\.com\/turnstile/, (r) => r.fulfill({ contentType: 'text/javascript', body: TURNSTILE_STUB }));
   await context.route(/checkout\.stripe\.com/, stripeStub);
   await context.route(`${ORIGIN}/api/**`, mockControlPlane());
-  await context.route((url) => url.origin === ORIGIN && (url.pathname === '/' || url.pathname === '/create'), withMeta);
+  await context.route((url) => url.origin === ORIGIN && ['/', '/create', '/create/done'].includes(url.pathname), withMeta);
   const page = await context.newPage();
   const tag = (s) => `${theme}-${vp.name}-${s}`;
   try {
@@ -167,6 +126,13 @@ async function run(browser, theme, vp) {
   } finally {
     await context.close();
   }
+}
+
+/** Create, through the Customer Terms the button now puts up first. */
+async function submitWithTerms(page) {
+  await page.getByTestId('create-submit').click();
+  await page.getByTestId('terms-agree').click();
+  await page.getByTestId('terms-accept').click();
 }
 
 async function walk(page, tag, variant) {
@@ -199,7 +165,7 @@ async function walk(page, tag, variant) {
   await page.getByTestId('create-plan-continue').click();
   await page.getByTestId('create-submit').and(page.locator(':enabled')).waitFor();
   await inspect(page, tag('03-review-free'));
-  await page.getByTestId('create-submit').click();
+  await submitWithTerms(page);
   const code = await page.getByTestId('claim-code').innerText();
   record(tag('claim code shown'), /^[0-9a-f]{8}( [0-9a-f]{8}){7}$/.test(code), code);
   await inspect(page, tag('04a-claim-code'));
@@ -224,10 +190,9 @@ async function walk(page, tag, variant) {
   await page.getByTestId('plan-business').click();
   await page.getByTestId('plan-seats').fill('5');
   await page.getByTestId('plan-seats').blur();
-  await page.getByTestId('create-plan-continue').click();
-  await page.getByTestId('create-submit').and(page.locator(':enabled')).waitFor();
+  await walkCoupons(page, tag, inspect, record);
   await inspect(page, tag('06-review-business'));
-  await page.getByTestId('create-submit').click();
+  await submitWithTerms(page);
   await page.waitForURL(/checkout\.stripe\.com/);
   record(tag('paid signup redirected to Checkout'), page.url().includes(`cs_test_${slug}`), page.url());
   await page.click('#cancel');
@@ -235,9 +200,10 @@ async function walk(page, tag, variant) {
   await inspect(page, tag('07-cancelled'));
   await page.getByTestId('cancelled-back-to-plans').click();
   record(tag('cancel restores the plan'), (await page.getByTestId('plan-seats').inputValue()) === '5');
+  record(tag('cancel restores the code'), (await page.getByTestId('coupon-field').getAttribute('data-state')) === 'applied');
   await page.getByTestId('create-plan-continue').click();
   await page.getByTestId('create-submit').and(page.locator(':enabled')).waitFor();
-  await page.getByTestId('create-submit').click();
+  await submitWithTerms(page);
   await page.waitForURL(/checkout\.stripe\.com/);
   await page.click('#pay');
   await page.getByTestId('provisioning').waitFor();

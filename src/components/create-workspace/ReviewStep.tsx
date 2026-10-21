@@ -1,6 +1,7 @@
 import { useState, type JSX } from 'react';
 import { AlertCircle, ArrowLeft, Loader2, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { workspaceHostFor } from '@/lib/onboarding/slug';
 import { STORAGE_ADDON, formatUsd, isPaid, quote, tierById, type PlanSelection, type Quote } from '@/lib/onboarding/tiers';
 import { INTERVAL_NAME } from './PlanStep';
@@ -9,11 +10,16 @@ import { TurnstileWidget } from './TurnstileWidget';
 import { TURNSTILE_ACTION, TURNSTILE_SITEKEY } from '@/lib/onboarding/turnstile';
 import { TermsAcceptanceModal } from '@/components/terms/TermsAcceptanceModal';
 import { CUSTOMER_TERMS_DOCUMENT, PLATFORM_TERMS_DOCUMENT } from '@/lib/terms/legal-documents';
+import { COVERED_BY_CODE, couponSummary, trialCopy } from '@/lib/onboarding/coupon-copy';
+import { applyCoupon, type PricedQuote } from '@/lib/onboarding/coupon-quote';
+import type { AppliedCoupon } from '@/lib/onboarding/create-flow';
 
 export interface ReviewStepProps {
   readonly displayName: string;
   readonly slug: string;
   readonly plan: PlanSelection;
+  /** The applied code, if any; only ever held on a paid tier. */
+  readonly coupon: AppliedCoupon | undefined;
   readonly onBack: () => void;
   /**
    * Spend the token. Resolves to an error message when the request was refused,
@@ -22,17 +28,25 @@ export interface ReviewStepProps {
   readonly onSubmit: (turnstileToken: string) => Promise<string | undefined>;
 }
 
-function Row({ label, value, testId }: { readonly label: string; readonly value: string; readonly testId?: string }): JSX.Element {
+interface RowProps { readonly label: string; readonly value: string; readonly testId?: string; readonly words?: true }
+
+/** `words`: the value is a sentence, wrapped between words; otherwise it is an address or a number, broken anywhere. */
+function Row({ label, value, testId, words }: RowProps): JSX.Element {
   return (
-    <div className="flex flex-col gap-0.5 py-2.5 sm:flex-row justify-between">
-      <dt className="text-sm text-muted-foreground">{label}</dt>
-      <dd className="break-all text-sm font-medium text-foreground" data-testid={testId}>{value}</dd>
+    <div className="flex flex-col gap-0.5 py-2.5 sm:flex-row justify-between sm:gap-4">
+      <dt className="shrink-0 text-sm text-muted-foreground">{label}</dt>
+      <dd className={cn('text-sm font-medium text-foreground', words ? 'break-words sm:text-right' : 'break-all')} data-testid={testId}>{value}</dd>
     </div>
   );
 }
 
 /** Step 3: check everything, prove you are a person, and create. */
-export function ReviewStep({ displayName, slug, plan, onBack, onSubmit }: ReviewStepProps): JSX.Element {
+function submitLabel(paid: boolean, priced: PricedQuote): string {
+  if (!paid || priced.covered) return 'Create workspace';
+  return priced.trialDays > 0 ? 'Start free trial' : 'Continue to payment';
+}
+
+export function ReviewStep({ displayName, slug, plan, coupon, onBack, onSubmit }: ReviewStepProps): JSX.Element {
   const [token, setToken] = useState<string | undefined>(undefined);
   const [resetSignal, setResetSignal] = useState<number>(0);
   const [busy, setBusy] = useState<boolean>(false);
@@ -40,7 +54,9 @@ export function ReviewStep({ displayName, slug, plan, onBack, onSubmit }: Review
   const [asking, setAsking] = useState<boolean>(false);
   const paid: boolean = isPaid(plan.tier);
   const q: Quote = quote(plan);
+  const priced: PricedQuote = applyCoupon(q, paid && coupon ? coupon.preview : null, plan.interval);
   const per: string = INTERVAL_NAME[plan.interval];
+  const charges: boolean = paid && !priced.covered && priced.trialDays === 0;
 
   const submit = async (): Promise<void> => {
     if (busy) return;
@@ -77,8 +93,11 @@ export function ReviewStep({ displayName, slug, plan, onBack, onSubmit }: Review
         {paid && q.sharedLinks > 0 && (
           <Row label="Extra secure links" value={`${q.sharedLinks.toLocaleString('en-US')}, shared by the workspace`} testId="review-link-packs" />
         )}
-        <Row label="Total" value={paid ? `${formatUsd(q.totalCents)} / ${per}` : 'Free'} testId="review-total" />
+        {paid && coupon && <Row label="Code" value={`${coupon.code}: ${couponSummary(coupon.preview)}`} testId="review-coupon" words />}
+        <Row label="Total" value={!paid ? 'Free' : priced.covered ? COVERED_BY_CODE : `${formatUsd(q.totalCents)} / ${per}`} testId="review-total" />
+        {paid && !priced.covered && <Row label="Due today" value={formatUsd(priced.dueTodayCents)} testId="review-due-today" />}
       </dl>
+      {priced.trialDays > 0 && <p className="mt-3 text-sm text-muted-foreground" data-testid="review-trial">{trialCopy(priced.trialDays)}</p>}
 
       <div className="mt-6">
         <p className="mb-2 text-sm font-medium text-foreground">Verify you are human</p>
@@ -105,8 +124,8 @@ export function ReviewStep({ displayName, slug, plan, onBack, onSubmit }: Review
           data-testid="create-submit"
           className="h-11 gap-2"
         >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : paid && <Lock className="h-4 w-4" aria-hidden="true" />}
-          {busy ? 'Working…' : paid ? 'Continue to payment' : 'Create workspace'}
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : charges && <Lock className="h-4 w-4" aria-hidden="true" />}
+          {busy ? 'Working…' : submitLabel(paid, priced)}
         </Button>
       </div>
 

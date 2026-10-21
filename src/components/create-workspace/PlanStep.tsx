@@ -30,6 +30,8 @@ export interface PlanStepProps {
   readonly onChange: (plan: PlanSelection) => void;
   readonly onBack: () => void;
   readonly onContinue: () => void;
+  /** The "Have a code?" field, under the total; the page wires it to the control plane. */
+  readonly coupon: JSX.Element;
 }
 
 export const INTERVAL_NAME: Readonly<Record<BillingInterval, string>> = { month: 'month', year: 'year' };
@@ -103,7 +105,7 @@ function addonSteppers(interval: BillingInterval): readonly AddonStepper[] {
 }
 
 /** Step 2: which plan, how many seats, how much extra storage and links -- and what that costs. */
-export function PlanStep({ plan, onChange, onBack, onContinue }: PlanStepProps): JSX.Element {
+export function PlanStep({ plan, onChange, onBack, onContinue, coupon }: PlanStepProps): JSX.Element {
   const paid: boolean = isPaid(plan.tier);
   const q: Quote = quote(plan);
   const per: string = INTERVAL_NAME[plan.interval];
@@ -190,6 +192,7 @@ export function PlanStep({ plan, onChange, onBack, onContinue }: PlanStepProps):
           {q.sharedLinks > 0 && `, plus ${q.sharedLinks.toLocaleString('en-US')} shared`}.{paid && ' Paid securely through Stripe Checkout.'}
         </p>
       </div>
+      {coupon}
 
       <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row justify-between">
         <Button type="button" variant="ghost" size="lg" onClick={onBack} className="h-11 gap-2">

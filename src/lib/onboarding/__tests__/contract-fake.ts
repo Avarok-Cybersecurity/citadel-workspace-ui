@@ -11,6 +11,7 @@
  *   POST /api/tenants                         -> free { claim_code, workspace_host } | paid { checkout_url }
  *   GET  /api/tenants/:slug/status?session_id -> { status, claim_code?, workspace_host? }
  *   POST /api/tenants/:slug/portal { claim_code } -> { portal_url }
+ *   POST /api/coupons/preview { code, tier, ... }  -> { applies, kind, ... } | 400 coupon-unavailable | 429
  *   errors: { error } with 4xx/5xx; 503 = not configured.
  */
 import type { FetchLike } from '../control-plane-client';
@@ -31,6 +32,8 @@ export interface ContractFake {
   readonly statusReplies: Scripted[];
   /** Replies to POST portal, consumed in order; the last one repeats. */
   readonly portalReplies: Scripted[];
+  /** Replies to POST coupons/preview, consumed in order; the last one repeats. */
+  readonly couponReplies: Scripted[];
 }
 
 function reply({ status, body }: Scripted): Response {
@@ -50,6 +53,7 @@ export function contractFake(): ContractFake {
     createReplies: [],
     statusReplies: [],
     portalReplies: [],
+    couponReplies: [],
     fetch: async (input: string, init?: RequestInit): Promise<Response> => {
       if (init?.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
       const url: URL = new URL(input, 'https://work.avarok.net');
@@ -65,6 +69,7 @@ export function contractFake(): ContractFake {
       if (method === 'POST' && url.pathname === '/api/tenants') return reply(next(fake.createReplies));
       if (method === 'GET' && /^\/api\/tenants\/[^/]+\/status$/.test(url.pathname)) return reply(next(fake.statusReplies));
       if (method === 'POST' && /^\/api\/tenants\/[^/]+\/portal$/.test(url.pathname)) return reply(next(fake.portalReplies));
+      if (method === 'POST' && url.pathname === '/api/coupons/preview') return reply(next(fake.couponReplies));
       return reply({ status: 404, body: { error: 'not found' } });
     },
   };
