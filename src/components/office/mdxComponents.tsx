@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CheckCircle2, AlertCircle } from "lucide-react";
 import { documentAnchor } from "@/components/shared/DocumentLink";
+import { AppZone } from "./app-zone/AppZone";
 
 export const components: MDXComponents = {
   // Document headings render ONE LEVEL DOWN from their markdown level, because
@@ -153,4 +154,6 @@ export const components: MDXComponents = {
     );
   },
   Table: Table,
+  // A Citadel app's zone: a placeholder until the runtime can run it (app-zone/AppZone.tsx).
+  AppZone: AppZone,
 };

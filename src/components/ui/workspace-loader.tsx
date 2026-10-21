@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState, useRef, useSyncExternalStore } from 'react';
+import React, { lazy, Suspense, useCallback, useEffect, useState, useRef, useSyncExternalStore } from 'react';
 import { useWorkspaceDataTimeout } from './use-workspace-data-timeout';
 import { ConnectionService } from '@/lib/connection-service';
 import { TIMEOUT } from '@/lib/timeout-constants';
@@ -16,6 +16,10 @@ import { reconnectingTo, signInAfterLoss, type SignInAfterLoss } from '@/lib/rec
 import { resolvePendingRedirect } from '@/lib/share/resolve-here';
 import { loaderView, shouldLeaveForConnect, type LoaderInputs, type LoaderView } from './workspace-loader-state';
 import { loadKeptTree, useKeptTree, type KeptTree } from '@/hooks/use-kept-tree';
+
+// The marketplace's host once a workspace is up (app links, zones, the account menu); the modal loads on first open.
+const AppsModalHost: React.LazyExoticComponent<() => JSX.Element | null> = lazy(() =>
+  import('@/components/citadel-apps/marketplace/AppsModalHost').then((m) => ({ default: m.AppsModalHost })));
 
 
 interface WorkspaceLoaderProps {
@@ -140,7 +144,7 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
     return <WorkspaceLoaderSpinner loadingMessage={view.message} showConnectButton={view.showConnectButton} />;
   }
 
-  return <>{children}</>;
+  return <>{children}<Suspense fallback={null}><AppsModalHost /></Suspense></>;
 }
 
 export default WorkspaceLoader;

@@ -10,6 +10,8 @@ import { manifestForBuild, minSeqFromEnv } from "./src/lib/pwa/version-manifest"
 import { VERSION_MANIFEST_PATH } from "./src/lib/pwa/deployed-version";
 import { KIT_MANIFEST } from "./src/pwa/kit-manifest.generated";
 import { serviceChunkFor, sharedServiceDependencyChunkFor } from "./src/build/service-chunks";
+import { appCataloguePlugin } from "./src/build/app-catalogue-asset";
+import { readFileSync } from "node:fs";
 
 /**
  * The Content-Security-Policy the app ships under.
@@ -127,6 +129,9 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       versionManifestPlugin(),
+      // The parent's apps/catalogue/, mounted at /apps/catalogue in the dev container (docker-compose.yml)
+      // and copied beside citadel-workspaces/ in the production image (docker/ui/Dockerfile).
+      appCataloguePlugin(() => readFileSync(path.resolve(__dirname, '../apps/catalogue/catalogue.json'), 'utf8')),
       /**
        * Installable PWA + offline app shell.
        *

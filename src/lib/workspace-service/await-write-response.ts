@@ -46,6 +46,8 @@ export const SUCCESS_RESPONSES: Record<string, readonly string[]> = {
   Roles: ['Roles'],
   // And SecureLinks: secure-links-operations matches the kind, and the link, to the request.
   SecureLinks: ['SecureLinks'],
+  // And Apps: apps-operations matches the kind, and the app or install, to the request.
+  Apps: ['Apps'],
   GetSignInSettings: ['SignInSettings'],
   UpdateSignInSettings: ['SignInSettings'],
   DeleteNode: ['NodeDeleted'],
