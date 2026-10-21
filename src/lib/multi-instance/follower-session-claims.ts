@@ -83,9 +83,8 @@ function registration(payload: unknown): { instanceId: string; cid: bigint } | n
 
 /**
  * Wires the decision to its triggers:
- * - this tab's connection (re)opens as leader, or it becomes leader: claim every follower
- *   CID the registry holds (and this tab's own, after a replacement), and ask every tab to
- *   report in;
+ * - this tab's connection (re)opens as leader: claim every follower CID the registry holds
+ *   (and this tab's own, after a replacement or a promotion), and ask every tab to report in;
  * - a tab reports a CID while this tab leads: claim that one;
  * - the connection drops: forget what was claimed, since the next one has claimed nothing.
  *
@@ -142,10 +141,10 @@ export function installFollowerSessionClaims(deps: FollowerClaimDeps): { settle:
   };
 
   deps.on('on-ws-connection-success', (): void => { claimed = new Set<bigint>(); claimAll(); });
+  // Promotion opens a connection, and its 'on-ws-connection-success' claims; claiming here
+  // as well sent every claim twice, the first before the connection was ready to carry it.
   deps.on('instance:leader-changed', (payload: unknown): void => {
-    if ((payload as { isLeader?: boolean } | null)?.isLeader !== true) return;
-    ownCarriedByAGoneConnection = true;
-    claimAll();
+    if ((payload as { isLeader?: boolean } | null)?.isLeader === true) ownCarriedByAGoneConnection = true;
   });
   deps.on('instance:registered', (payload: unknown): void => {
     const reported: { instanceId: string; cid: bigint } | null = registration(payload);

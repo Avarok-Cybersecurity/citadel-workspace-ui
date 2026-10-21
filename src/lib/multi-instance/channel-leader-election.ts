@@ -19,6 +19,8 @@ export interface LeaderElectionState {
   leaderCheckInterval: ReturnType<typeof setInterval> | null;
   heartbeatInterval: ReturnType<typeof setInterval> | null;
   initTime: number;
+  /** A challenge sent and not yet answered; see tryBecomeLeader. */
+  challenge: ReturnType<typeof setTimeout> | null;
   send: (message: Omit<ChannelMessage, 'senderInstanceId' | 'timestamp'> & { senderInstanceId?: string; timestamp?: number }) => void;
 }
 
@@ -64,6 +66,7 @@ export function handleLeaderElection(state: LeaderElectionState, message: Channe
     }
 
     // No established leader (or current leader timed out) - accept this claim
+    withdrawChallenge(state);
     instanceManager.setLeader(false, message.senderInstanceId);
     state.lastLeaderHeartbeat = Date.now();
 
@@ -91,10 +94,10 @@ export function handleLeaderHeartbeat(state: LeaderElectionState, message: Chann
   // legitimately needs to take over (e.g. original leader crashed) still
   // does so via tryBecomeLeader after LEADER_TIMEOUT_MS of no heartbeat —
   // that path is unaffected.
+  const myId: bigint = instanceManager.instanceIdAsBigInt;
+  let theirId: bigint;
+  try { theirId = BigInt(message.senderInstanceId); } catch { theirId = 0n; }
   if (instanceManager.isLeader) {
-    const myId: bigint = instanceManager.instanceIdAsBigInt;
-    let theirId: bigint;
-    try { theirId = BigInt(message.senderInstanceId); } catch { theirId = 0n; }
     if (myId <= theirId) {
       debugLog('InstanceChannel', `Split-brain with ${message.senderInstanceId}: keeping leadership (we are older: my ${myId} <= their ${theirId})`);
       sendHeartbeat(state);
@@ -102,6 +105,8 @@ export function handleLeaderHeartbeat(state: LeaderElectionState, message: Chann
     }
     debugLog('InstanceChannel', `Split-brain with ${message.senderInstanceId}: yielding leadership (they are older: their ${theirId} < my ${myId})`);
     // Fall through to demote self.
+  } else if (myId > theirId) {
+    withdrawChallenge(state); // An older leader answered: it would win the split-brain above.
   }
 
   state.lastLeaderHeartbeat = Date.now();
@@ -143,9 +148,13 @@ export function startLeaderElection(state: LeaderElectionState): void {
   }, INITIAL_WAIT_MS);
 }
 
+/**
+ * Against a leader that went quiet, challenge, and lead only if no older leader answers. A
+ * background leader's heartbeats come about once a minute, so it looks dead; leading at once
+ * claimed sessions and opened a socket that its prompt answer (rule 1) closed again, every few
+ * seconds. With no leader ever heard (first tab, or after a goodbye) there is nobody to answer.
+ */
 export function tryBecomeLeader(state: LeaderElectionState): void {
-  const myId: bigint = instanceManager.instanceIdAsBigInt;
-
   if (instanceManager.isLeader) {
     debugLog('InstanceChannel', '[InstanceChannel] Already leader, staying leader');
     sendHeartbeat(state);
@@ -162,10 +171,9 @@ export function tryBecomeLeader(state: LeaderElectionState): void {
   } else {
     debugLog('InstanceChannel', '[InstanceChannel] No heartbeat ever received, claiming leadership');
   }
-
-  instanceManager.setLeader(true, instanceManager.instanceId);
-  state.lastLeaderHeartbeat = Date.now();
-
+  if (state.challenge !== null) return;
+  const myId: bigint = instanceManager.instanceIdAsBigInt;
+  const heardALeader: boolean = state.lastLeaderHeartbeat > 0;
   state.send({
     type: 'leader-election',
     targetInstanceId: '*',
@@ -173,10 +181,23 @@ export function tryBecomeLeader(state: LeaderElectionState): void {
     timestamp: Date.now(),
     payload: { isLeader: true, instanceIdBigInt: myId.toString() },
   });
+  if (!heardALeader) return lead(state, myId);
+  state.challenge = setTimeout((): void => {
+    state.challenge = null;
+    if (!instanceManager.isLeader) lead(state, myId);
+  }, INTERVAL.LEADER_CHALLENGE_MS);
+}
 
+function withdrawChallenge(state: LeaderElectionState): void {
+  if (state.challenge !== null) clearTimeout(state.challenge);
+  state.challenge = null;
+}
+
+function lead(state: LeaderElectionState, myId: bigint): void {
+  instanceManager.setLeader(true, instanceManager.instanceId);
+  state.lastLeaderHeartbeat = Date.now();
   eventEmitter.emit('instance:leader-changed', { isLeader: true, leaderId: instanceManager.instanceId });
   eventEmitter.emit('leader-changed', { isLeader: true, leaderId: instanceManager.instanceId });
-
   debugLog('InstanceChannel', `[InstanceChannel] Became leader (ID: ${myId})`);
   sendHeartbeat(state);
 }

@@ -79,7 +79,7 @@ export const TIMEOUT: { readonly SERVER_REQUEST_MS: 5000; readonly DISCONNECT_RE
   AGENT_UPDATE_CHECK_MS: 600000,
 } as const;
 
-export const INTERVAL: { readonly HEALTH_CHECK_MS: 30000; readonly HEARTBEAT_MS: 2000; readonly LEADER_ELECTION_MS: 3000; readonly LEADER_TIMEOUT_MS: 5000; readonly CLEANUP_MS: 60000; readonly REQUEST_TRACKING_MS: 300000; readonly PERMISSION_CACHE_MS: 60000; readonly DEPLOYED_VERSION_MS: 600000; } = {
+export const INTERVAL: { readonly HEALTH_CHECK_MS: 30000; readonly HEARTBEAT_MS: 2000; readonly LEADER_ELECTION_MS: 3000; readonly LEADER_TIMEOUT_MS: 5000; readonly LEADER_CHALLENGE_MS: 1000; readonly CLEANUP_MS: 60000; readonly REQUEST_TRACKING_MS: 300000; readonly PERMISSION_CACHE_MS: 60000; readonly DEPLOYED_VERSION_MS: 600000; } = {
   /** Health check polling interval */
   HEALTH_CHECK_MS: 30000,
   /** WebSocket heartbeat/keep-alive interval */
@@ -88,6 +88,11 @@ export const INTERVAL: { readonly HEALTH_CHECK_MS: 30000; readonly HEARTBEAT_MS:
   LEADER_ELECTION_MS: 3000,
   /** Leader heartbeat timeout (declare leader dead) */
   LEADER_TIMEOUT_MS: 5000,
+  /**
+   * How long a challenger waits for a live, older leader to answer before it leads. A leader
+   * in a background tab sends heartbeats about once a minute, but answers a challenge at once.
+   */
+  LEADER_CHALLENGE_MS: 1000,
   /** Periodic cleanup interval (stale requests, etc.) */
   CLEANUP_MS: 60000,
   /** Request tracking expiry interval */

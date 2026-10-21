@@ -106,6 +106,9 @@ describe('when the leader connection is replaced', () => {
     const w: World = world(TABS, { leader: false });
     w.becomeLeader();
     await w.emit('instance:leader-changed', { isLeader: true, leaderId: 'me' });
+    // Not yet: the promotion has only begun to open the connection that will carry the claims.
+    expect(w.claims).toEqual([]);
+    await w.emit('on-ws-connection-success');
     expect(w.claims).toEqual([1n, 2n, 3n]);
   });
 

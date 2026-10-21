@@ -34,7 +34,7 @@ class InstanceChannel {
       lastLeaderHeartbeat: 0,
       leaderCheckInterval: null,
       heartbeatInterval: null,
-      initTime: Date.now(),
+      initTime: Date.now(), challenge: null,
       send: (msg): void => this.send(msg),
     };
     this.initialize();

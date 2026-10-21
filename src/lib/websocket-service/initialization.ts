@@ -16,6 +16,14 @@ import type { WebSocketServiceCore } from './core';
  * Handles dedup via global state and concurrent init prevention.
  */
 export async function initService(service: WebSocketServiceCore): Promise<void> {
+  // A follower's initialisation opened no socket. Promoted, this tab is a leader without one,
+  // and taking that for "initialised" let a request reach sendRequest before the socket the
+  // promotion opens existed, to be refused there. Initialise again, as the leader it now is.
+  const initialisedAsFollower: boolean = service.isInitialized || window[GLOBAL_INIT_KEY]?.initialized === true;
+  if (instanceManager.isLeader && initialisedAsFollower && !service.client && !window[GLOBAL_INIT_KEY]?.client) {
+    resetService(service);
+  }
+
   if (window[GLOBAL_INIT_KEY]?.initialized) {
     service.isInitialized = true;
     if (window[GLOBAL_INIT_KEY].client) {
