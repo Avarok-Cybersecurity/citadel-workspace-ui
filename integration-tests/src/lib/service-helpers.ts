@@ -44,7 +44,7 @@ const RESTART_BACKOFF_MS = 25_000;
  * Get the workspace root directory dynamically.
  * This resolves from integration-tests/src/lib/service-helpers.ts up 3 levels.
  */
-function getWorkspaceRoot(): string {
+export function getWorkspaceRoot(): string {
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
   return path.resolve(__dirname, '..', '..', '..');

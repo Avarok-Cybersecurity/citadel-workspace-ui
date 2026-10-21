@@ -13,7 +13,7 @@ export type SpiedActions = { [K in keyof VFSItemActions]: VFSItemActions[K] & Re
 
 export function spyActions(): SpiedActions {
   return {
-    openFolder: vi.fn(), openFile: vi.fn(), inspect: vi.fn(), download: vi.fn(), share: vi.fn(), moveTo: vi.fn(),
+    openFolder: vi.fn(), openFile: vi.fn(), openInDocs: vi.fn(), inspect: vi.fn(), download: vi.fn(), share: vi.fn(), moveTo: vi.fn(),
     copyLink: vi.fn(), remove: vi.fn(), rename: vi.fn(async (): Promise<void> => {}), cut: vi.fn(), copy: vi.fn(),
     paste: vi.fn(async (): Promise<void> => {}), newFolder: vi.fn(), upload: vi.fn(), refresh: vi.fn(), drop: vi.fn(),
   } as SpiedActions;
@@ -24,7 +24,7 @@ export function gridProps(tree: RevfsNode, over: Partial<VFSContentGridProps>): 
     tree, currentPath: '/', view: 'list', actions: spyActions(), isP2P: false, storageName: 'Server Storage',
     pendingPaths: new Set<string>(), peerLabel: 'Bob', cutItemPaths: new Set<string>(), hasPasteItems: false,
     selectedPaths: new Set<string>(), onSelect: vi.fn(), onSelectAll: vi.fn(), onClearSelection: vi.fn(),
-    sortField: 'name', sortDirection: 'asc', filterText: '', onClearFilter: vi.fn(), uploadDisabledReason: null,
+    sortField: 'name', sortDirection: 'asc', filterText: '', onClearFilter: vi.fn(), upload: { kind: 'offered' },
     nameOf: (cid: bigint): string => `peer ${cid.toString()}`, now: 0,
     ...over,
   };

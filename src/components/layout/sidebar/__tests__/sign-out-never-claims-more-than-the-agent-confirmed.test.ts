@@ -13,8 +13,8 @@ import { renderHook, act } from '@testing-library/react';
 
 const h: {
   disconnect: ReturnType<typeof vi.fn>; removeSession: ReturnType<typeof vi.fn>; clearSelectedUser: ReturnType<typeof vi.fn>;
-  navigate: ReturnType<typeof vi.fn>; stop: ReturnType<typeof vi.fn>;
-} = vi.hoisted(() => ({ disconnect: vi.fn(), removeSession: vi.fn(), clearSelectedUser: vi.fn(), navigate: vi.fn(), stop: vi.fn() }));
+  navigate: ReturnType<typeof vi.fn>; stop: ReturnType<typeof vi.fn>; answer: boolean;
+} = vi.hoisted(() => ({ disconnect: vi.fn(), removeSession: vi.fn(), clearSelectedUser: vi.fn(), navigate: vi.fn(), stop: vi.fn(), answer: true }));
 
 vi.mock('@/lib/connection', () => ({
   connectionManager: {
@@ -23,16 +23,19 @@ vi.mock('@/lib/connection', () => ({
   },
 }));
 vi.mock('@/lib/tab-context', () => ({ clearSelectedUser: h.clearSelectedUser, getSelectedUser: async (): Promise<unknown> => ({ selectedCid: 7n }) }));
+// jsdom has no IndexedDB: the sign-out's check for edits held on the device reads the stand-in (none held).
+const deviceStore: Map<string, unknown> = vi.hoisted((): Map<string, unknown> => new Map<string, unknown>());
+vi.mock('@/lib/storage-utils', async () => (await import('@/lib/cdoc/collab/__tests__/doubles/memory-storage')).memoryStorageUtils(deviceStore));
 vi.mock('@/lib/wasm-connection-manager', () => ({ wasmConnectionManager: { stop: h.stop } }));
 vi.mock('react-router-dom', () => ({ useNavigate: (): unknown => h.navigate }));
-vi.mock('@/components/shared/confirm-dialog', () => ({ useConfirm: (): unknown => async (): Promise<boolean> => true }));
+vi.mock('@/components/shared/confirm-dialog', () => ({ useConfirm: (): unknown => async (): Promise<boolean> => h.answer }));
 vi.mock('@/lib/leave-editor', () => ({ mayLeaveEditor: async (): Promise<boolean> => true }));
 vi.mock('@/hooks/use-toast', () => ({ useToast: (): unknown => ({ toast: vi.fn() }) }));
 vi.mock('@/lib/sessions/sign-out-residue', () => ({ clearSignOutResidue: vi.fn() }));
 
 import { useSessionExit } from '../use-session-exit';
 
-beforeEach(() => { vi.clearAllMocks(); });
+beforeEach(() => { vi.clearAllMocks(); h.answer = true; deviceStore.clear(); });
 
 describe('Sign Out when the agent refuses the Disconnect', () => {
   it('keeps the session, names the account, and does not say it is signed out', async () => {
@@ -64,5 +67,17 @@ describe('Sign Out when the agent refuses the Disconnect', () => {
     await act(async () => { await result.current.handleSignOut(); });
     expect(result.current.disconnectStatus).toBe('ready');
     expect(h.removeSession).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Sign Out with edits held on this device', () => {
+  it('asks first, and leaves the account signed in when the person keeps them', async () => {
+    const { documentEditsKey, localRecordPut } = await import('@/lib/document-replica-cache');
+    await localRecordPut(documentEditsKey(7n, 'doc-1', 'tab-1'), [Uint8Array.from([1])]);
+    h.answer = false;
+    const { result } = renderHook(() => useSessionExit());
+    await act(async () => { await result.current.handleSignOut(); });
+    expect(h.disconnect).not.toHaveBeenCalled();
+    expect(result.current.showDisconnectModal).toBe(false);
   });
 });

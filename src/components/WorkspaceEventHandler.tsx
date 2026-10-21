@@ -32,6 +32,7 @@ import { debugLog } from '@/lib/debug-config';
 import { WorkspaceThemeProvider } from './theme/WorkspaceThemeProvider';
 import { ClaimLaterBanner } from './ClaimLaterBanner';
 import { publishChannelNames } from '@/lib/call/room-names';
+import { saveKeptTree, useKeepWorkspaceTree } from '@/hooks/use-kept-tree';
 
 /**
  * The event handler's state: the context's `WorkspaceState`, plus the one field
@@ -127,6 +128,10 @@ export const WorkspaceEventHandler: React.FC<{
   useEffect(() => {
     publishChannelNames(state.nodes);
   }, [state.nodes]);
+
+  // The tree as the server last listed it, kept on this device so a document opens while the
+  // server is out of reach (lib/offline-tree.ts). Only a live answer is kept, never an empty one.
+  useKeepWorkspaceTree(saveKeptTree, state.nodes, state.loading.nodes);
 
   const handleWorkspaceInitialized = (): void => {
     setShowInitModal(false);

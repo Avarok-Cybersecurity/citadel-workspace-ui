@@ -1,7 +1,7 @@
 /**
  * The three right-click menus: a file, a folder, and the empty canvas.
  *
- * File: Preview, Download, Share, Rename, Move to, Copy link, Delete.
+ * File: Preview, Open in Citadel Docs (a file it reads), Download, Share, Rename, Move to, Copy link, Delete.
  * Folder: Open, Share folder, Rename, Move to, Delete.
  * Canvas: New folder, Upload, Paste, Refresh.
  *
@@ -15,10 +15,11 @@ import {
   ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuShortcut, ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import {
-  ClipboardPaste, Download, Eye, FileUp, FolderInput, FolderOpen, FolderPlus, Link2, Pencil, RefreshCw, Share2, Trash2,
+  ClipboardPaste, Download, Eye, FileText, FileUp, FolderInput, FolderOpen, FolderPlus, Link2, Pencil, RefreshCw, Share2, Trash2,
 } from 'lucide-react';
 import { RevfsFileState, type RevfsNode } from '@/types/revfs-types';
 import { canDelete, canDownload, canModify } from './item-permissions';
+import { docsOpenAction } from './docs-file-open';
 import { VFS_SHORTCUTS, shortcutLabel, ariaShortcut, isApplePlatform, type VfsShortcut } from './vfs-shortcuts';
 import type { VFSItemActions } from './vfs-item-actions';
 
@@ -55,11 +56,17 @@ function DeleteItem({ onSelect }: { onSelect: () => void }): JSX.Element {
 
 function FileItems({ node, actions, onStartRename }: { node: RevfsNode; actions: VFSItemActions; onStartRename: (n: RevfsNode) => void }): JSX.Element {
   const modifiable: boolean = canModify(node);
+  const openInDocs: (() => void) | null = docsOpenAction(actions, node);
   return (
     <>
       <ContextMenuItem onSelect={() => actions.inspect(node)} {...keys(VFS_SHORTCUTS.preview)} className={ITEM}>
         <Eye className="mr-2 h-4 w-4" aria-hidden="true" />Preview<Hint s={VFS_SHORTCUTS.preview} />
       </ContextMenuItem>
+      {openInDocs !== null && (
+        <ContextMenuItem onSelect={openInDocs} data-testid="vfs-open-in-docs" className={ITEM}>
+          <FileText className="mr-2 h-4 w-4" aria-hidden="true" />Open in Citadel Docs
+        </ContextMenuItem>
+      )}
       {canDownload(node) && (
         <ContextMenuItem onSelect={() => actions.download(node)} {...keys(VFS_SHORTCUTS.download)} className={ITEM}>
           <Download className="mr-2 h-4 w-4" aria-hidden="true" />

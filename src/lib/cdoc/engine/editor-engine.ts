@@ -1,12 +1,14 @@
 /**
  * One editing session in the worker: cdoc-edit's EditorHandle over sealed faces. Records in,
- * records out (docs/edit-commands.md v1); this class decodes none of them, it only checks the
+ * records out (docs/edit-commands.md v4); this class decodes none of them, it only checks the
  * arguments the handle would otherwise read as something else. Every returned array is a copy
  * out of wasm memory, so it owns its buffer and can be transferred.
  */
-import type { CdocWasm, EditorHandle, EditorSealedFonts } from './cdoc-wasm-api';
+import type { CdocWasm, EditorHandle, EditorSealedFonts, ImageStore } from './cdoc-wasm-api';
+import type { PendingLimits } from './engine-limits';
 import type { EditorOrigin } from '../editor/controller';
-import type { ExportedFile, ExportTarget } from '../editor/file-formats';
+import type { DocumentExportTarget } from './editor-files';
+import { openFromFile, writeFile, type OpenedFromFile, type WrittenFile } from './editor-files';
 
 export type { EditorOrigin } from '../editor/controller';
 
@@ -19,17 +21,38 @@ function checkPt(v: number, what: string): void {
 }
 
 export class EditorEngine {
-  private constructor(private readonly handle: EditorHandle) {}
+  /**
+   * `patterns`: the hyphenation pattern set `fonts` were sealed with, which the PDF of this
+   * replica is laid out with too. `importReportJson`: the import's `{"report", "problems",
+   * "kind"}`, for a replica opened on a file.
+   */
+  private constructor(
+    private readonly wasm: CdocWasm,
+    private readonly handle: EditorHandle,
+    readonly patterns: readonly string[],
+    readonly importReportJson: string | null,
+  ) {}
 
-  static open(wasm: CdocWasm, fonts: EditorSealedFonts, client: bigint, origin: EditorOrigin): EditorEngine {
+  static open(wasm: CdocWasm, fonts: EditorSealedFonts, patterns: readonly string[], client: bigint, origin: EditorOrigin): EditorEngine {
     if (client < 0n || client > 0xffff_ffff_ffff_ffffn) throw new Error(`client ${client} is not a u64`);
     switch (origin.kind) {
-      case 'blank': return new EditorEngine(wasm.EditorHandle.blank(client, fonts));
-      case 'snapshot': return new EditorEngine(wasm.EditorHandle.open(origin.snapshot, client, fonts));
-      case 'bytes':
-        // cdoc-edit-io adds the engine call (EditorHandle.fromDocument); until then, refused by name.
-        throw new Error(`this cdoc-wasm build cannot open ${origin.format} files (EditorHandle.fromDocument is missing)`);
+      case 'blank': return new EditorEngine(wasm, wasm.EditorHandle.blank(client, fonts), patterns, null);
+      case 'snapshot': return new EditorEngine(wasm, wasm.EditorHandle.open(origin.snapshot, client, fonts), patterns, null);
+      case 'bytes': {
+        const opened: OpenedFromFile = openFromFile(wasm, fonts, client, origin.bytes, origin.format);
+        return new EditorEngine(wasm, opened.handle, patterns, opened.reportJson);
+      }
     }
+  }
+
+  /** The live replica as model JSON. */
+  modelJson(): string {
+    return this.handle.modelJson();
+  }
+
+  /** Adds the images the document draws to `images`. */
+  drawnImages(images: ImageStore): void {
+    this.handle.drawnImages(images);
   }
 
   get pageCount(): number {
@@ -40,8 +63,8 @@ export class EditorEngine {
     return this.handle.request(record);
   }
 
-  applyRemote(update: Uint8Array): Uint8Array {
-    return this.handle.applyRemote(update);
+  applyRemote(update: Uint8Array, limits: PendingLimits): Uint8Array {
+    return this.handle.applyRemote(update, limits.maxOps, limits.maxBytes);
   }
 
   /** The display list of exactly `pages`. */
@@ -90,20 +113,10 @@ export class EditorEngine {
     return this.handle.encodeDiff(sv);
   }
 
-  /**
-   * cdoc-crdt's Doc::encode_diff_chunked: the diff as causally ordered updates of at most
-   * `maxBytes` each. The binding comes with the crdt sync work; until it is vendored this fails
-   * by name rather than sending one unbounded update.
-   */
-  encodeDiffChunked(sv: Uint8Array | null, maxBytes: number): Uint8Array[] {
+  /** cdoc-crdt's Doc::encode_diff_chunked: the "CDK" record of updates of at most `maxBytes` each. */
+  encodeDiffChunked(sv: Uint8Array | null, maxBytes: number): Uint8Array {
     if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > 0xffff_ffff) throw new Error(`maxBytes ${maxBytes} is not a positive u32`);
-    const chunkFn: unknown = (this.handle as unknown as { readonly encodeDiffChunked?: unknown }).encodeDiffChunked;
-    if (typeof chunkFn !== 'function') throw new Error('this cdoc-wasm build cannot chunk a diff (EditorHandle.encodeDiffChunked is missing)');
-    const updates: unknown = (chunkFn as (sv: Uint8Array | null, maxBytes: number) => unknown).call(this.handle, sv, maxBytes);
-    if (!Array.isArray(updates) || !updates.every((u: unknown): boolean => u instanceof Uint8Array)) {
-      throw new Error('EditorHandle.encodeDiffChunked returned something other than a list of updates');
-    }
-    return updates as Uint8Array[];
+    return this.handle.encodeDiffChunked(sv, maxBytes);
   }
 
   /** cdoc-crdt's Doc::gc over the known-peers record; returns the "CDG" collected record. */
@@ -117,14 +130,24 @@ export class EditorEngine {
     return this.handle.addImage(bytes, maxBytes);
   }
 
-  /**
-   * The live document as a file. cdoc-edit-io adds the engine call; until it is vendored this
-   * fails by name rather than exporting something else.
-   */
-  exportAs(target: ExportTarget): ExportedFile {
-    const exportFn: unknown = (this.handle as unknown as { readonly export?: unknown }).export;
-    if (typeof exportFn !== 'function') throw new Error(`this cdoc-wasm build cannot export ${target.format} (EditorHandle.export is missing)`);
-    throw new Error(`exporting ${target.format} through EditorHandle.export is not wired yet`);
+  /** The selection's plain text, uncapped: Copy past the result record's 64 KiB. */
+  selectionText(): string {
+    return this.handle.selectionText();
+  }
+
+  /** The "CDS" style sheet. */
+  styles(): Uint8Array {
+    return this.handle.styles();
+  }
+
+  /** The "CDB" record of a held image; an unknown id fails by name. */
+  image(contentId: string): Uint8Array {
+    return this.handle.image(contentId);
+  }
+
+  /** Every format but PDF, which the editor artefact cannot write (CdocEngine.writePdf). */
+  exportAs(target: DocumentExportTarget): WrittenFile {
+    return writeFile(this.wasm, this.handle, target);
   }
 
   dispose(): void {

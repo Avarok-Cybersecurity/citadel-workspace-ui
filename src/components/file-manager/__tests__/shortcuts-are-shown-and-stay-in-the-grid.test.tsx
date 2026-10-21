@@ -53,7 +53,7 @@ describe('the shortcuts', () => {
     fireEvent.contextMenu(screen.getByText('a.txt'));
     const names: string[] = screen.getAllByRole('menuitem').map((m: HTMLElement): string => m.textContent ?? '');
     expect(names.map((n: string): string => n.replace(/(Space|Ctrl\+D|F2|Del)$/, ''))).toEqual(
-      ['Preview', 'Download', 'Share…', 'Rename', 'Move to…', 'Copy link', 'Delete'],
+      ['Preview', 'Open in Citadel Docs', 'Download', 'Share…', 'Rename', 'Move to…', 'Copy link', 'Delete'],
     );
     const rename: HTMLElement = screen.getByRole('menuitem', { name: /Rename/ });
     expect(rename).toHaveTextContent('F2');

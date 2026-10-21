@@ -24,6 +24,7 @@ const { WORKSPACE_ROOT_ID } = await import('@/lib/workspace-constants');
 const { WorkspaceProvider } = await import('@/contexts/WorkspaceContext');
 const { MemberPermissionsDialog } = await import('../MemberPermissionsDialog');
 import type { WorkspaceState } from '@/contexts/WorkspaceContext';
+import { registerDocumentSync } from '@/lib/document-sync-requests';
 import type { DomainNode, TreeSchema } from '@/components/layout/sidebar/tree-node-types';
 import type { User as WorkspaceMember } from '@/types/workspace-entities';
 
@@ -134,6 +135,27 @@ describe('one member’s permissions', () => {
       ['ada', 'standup', ['DeleteNode'], 'Add'],
       ['ada', 'standup', ['UploadFiles'], 'Remove'],
     ]);
+  });
+
+  async function saveAfterClicking(id: string): Promise<string[]> {
+    const asked: string[] = [];
+    const close: () => void = registerDocumentSync('standup', (): Promise<void> => { asked.push('standup'); return Promise.resolve(); });
+    open();
+    answerEveryLevel();
+    await waitFor(() => expect(box(id)).toBeEnabled());
+    await userEvent.click(box(id));
+    await userEvent.click(screen.getByTestId('member-permissions-save'));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    close();
+    return asked;
+  }
+
+  it('sends the edits this device holds of the level when Save grants something there', async () => {
+    expect(await saveAfterClicking('DeleteNode')).toEqual(['standup']);
+  });
+
+  it('sends nothing when Save only removes', async () => {
+    expect(await saveAfterClicking('UploadFiles')).toEqual([]);
   });
 
   it('does not let a click on a locked grant become an edit', async () => {

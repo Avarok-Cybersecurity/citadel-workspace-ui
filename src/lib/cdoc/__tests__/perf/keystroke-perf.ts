@@ -39,7 +39,7 @@ export async function measureKeystrokes(pages: number, keystrokes: number): Prom
   await editor.execute({ name: 'setSelection', anchor: middle, head: middle });
   await renderer.mount(0, {} as HTMLCanvasElement);
   const paintCaretPage = async (state: EditorState): Promise<void> => {
-    if (state.caretPage !== null) await renderer.paint(0, state.caretPage, 1, 2);
+    if (state.caretPage !== null) await renderer.paint(0, state.caretPage, 1, 2, 'visible');
   };
   await paintCaretPage(editor.state);
 

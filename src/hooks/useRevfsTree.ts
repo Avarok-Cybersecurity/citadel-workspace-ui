@@ -5,6 +5,7 @@
  * Wraps RevfsService with React state management.
  */
 
+import { offerOf, PEER_STORAGE_OFF, type StorageOffer } from '@/lib/revfs/storage-offer';
 import { debugLog } from '@/lib/debug-config';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { RevfsNode, RevfsFileMetadata } from '@/types/revfs-types';
@@ -12,7 +13,8 @@ import { TreeScope } from '@/types/revfs-types';
 import { revfsService } from '@/lib/revfs';
 import { fileTransferService } from '@/lib/file-transfer';
 import { peerTreeKey, calculateStorageUsage } from '@/lib/revfs/tree-operations';
-import { DEFAULT_QUOTA_BYTES , type UseRevfsTreeResult } from './useRevfsTree-types';
+import { DEFAULT_QUOTA_BYTES , type ReadPulledChunk, type UseRevfsTreeResult } from './useRevfsTree-types';
+import type { PulledChunk } from '@/types/revfs-intents';
 import type { FileTransferSettings } from '@/lib/file-transfer/types';
 
 // Re-export the server hook for backward compatibility
@@ -31,11 +33,11 @@ export function useRevfsTree(myCid: bigint | null, peerCid: bigint | null): UseR
     return calculateStorageUsage(tree, TreeScope.Peer);
   }, [tree]);
 
-  const { revfsEnabled, actualQuota } = useMemo(() => {
-    if (!peerCid) return { revfsEnabled: false, actualQuota: DEFAULT_QUOTA_BYTES };
+  const { storageOffer, actualQuota } = useMemo((): { storageOffer: StorageOffer; actualQuota: number } => {
+    if (!peerCid) return { storageOffer: offerOf(false, PEER_STORAGE_OFF), actualQuota: DEFAULT_QUOTA_BYTES };
     const settings: FileTransferSettings = fileTransferService.getSettings(peerCid.toString());
     return {
-      revfsEnabled: settings.allowRevfsStorage,
+      storageOffer: offerOf(settings.allowRevfsStorage, PEER_STORAGE_OFF),
       actualQuota: settings.revfsQuota,
     };
   }, [peerCid]);
@@ -129,6 +131,11 @@ export function useRevfsTree(myCid: bigint | null, peerCid: bigint | null): UseR
     return revfsService.downloadFileFromPeer(myCid, peerCid, filePath);
   }, [myCid, peerCid]);
 
+  const readPulledChunk: ReadPulledChunk = useCallback(async (filePath: string, offset: bigint, maxLen: number): Promise<PulledChunk> => {
+    if (!myCid || !peerCid) throw new Error('No session to read the file with.');
+    return revfsService.readPulledChunk(myCid, peerCid, filePath, offset, maxLen);
+  }, [myCid, peerCid]);
+
   const removeFile: (filePath: string) => Promise<boolean> = useCallback(async (filePath: string): Promise<boolean> => {
     // No session: the peer certainly has not acknowledged anything.
     if (!myCid || !peerCid) return false;
@@ -159,11 +166,12 @@ export function useRevfsTree(myCid: bigint | null, peerCid: bigint | null): UseR
     error,
     storageUsed,
     storageQuota: actualQuota,
-    revfsEnabled,
+    storageOffer,
     mkdir,
     rmdir,
     uploadFile,
     downloadFile,
+    readPulledChunk,
     removeFile,
     rename,
     move,

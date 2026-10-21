@@ -90,6 +90,8 @@ const FAMILIES: Readonly<Record<string, Family>> = {
   xlsx: { family: 'sheet', kind: 'Excel spreadsheet' },
   doc: { family: 'document', kind: 'Word document' },
   docx: { family: 'document', kind: 'Word document' },
+  dotx: { family: 'document', kind: 'Word template' },
+  odt: { family: 'document', kind: 'OpenDocument text' },
   md: { family: 'text', kind: 'Markdown document' },
   txt: { family: 'text', kind: 'Text document' },
   zip: { family: 'archive', kind: 'ZIP archive' },

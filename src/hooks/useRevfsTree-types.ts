@@ -3,6 +3,12 @@
  */
 
 import type { RevfsNode, RevfsFileMetadata } from '@/types/revfs-types';
+import type { PulledChunk } from '@/types/revfs-intents';
+import type { StorageOffer } from '@/lib/revfs/storage-offer';
+import type { ServerFeatureRefusal } from 'citadel-workspace-client-ts';
+
+/** A chunk of a file this storage's last pull of it left with the agent (ReadPulledFileChunk). */
+export type ReadPulledChunk = (filePath: string, offset: bigint, maxLen: number) => Promise<PulledChunk>;
 
 /** Default storage quota: 100 MB */
 export const DEFAULT_QUOTA_BYTES: number = 100 * 1024 * 1024;
@@ -26,12 +32,13 @@ export interface UseRevfsTreeResult {
   storageUsed: number;
   /** Storage quota limit (bytes) */
   storageQuota: number;
-  /** Whether RE-VFS is enabled for this peer (local settings) */
-  revfsEnabled: boolean;
+  /** Whether this peer's storage takes files (the person's own setting for the peer). */
+  storageOffer: StorageOffer;
   mkdir: (path: string) => Promise<boolean>;
   rmdir: (path: string) => Promise<boolean>;
   uploadFile: (dirPath: string, fileName: string, metadata: RevfsFileMetadata, content: Uint8Array) => Promise<boolean>;
   downloadFile: (filePath: string) => Promise<string | undefined>;
+  readPulledChunk: ReadPulledChunk;
   removeFile: (filePath: string) => Promise<boolean>;
   /** Rename a file or directory */
   rename: (path: string, newName: string) => Promise<boolean>;
@@ -52,12 +59,13 @@ export interface UseServerRevfsTreeResult {
   storageUsed: number;
   /** Storage quota limit (bytes) */
   storageQuota: number;
-  /** Whether server RE-VFS is enabled (defaults to true until we query server) */
-  revfsEnabled: boolean;
+  /** Whether the server stores files: checking until GetServerCapabilities answers, never assumed. */
+  storageOffer: StorageOffer;
   mkdir: (path: string) => Promise<boolean>;
   rmdir: (path: string) => Promise<boolean>;
   uploadFile: (dirPath: string, fileName: string, metadata: RevfsFileMetadata, content: Uint8Array) => Promise<boolean>;
   downloadFile: (filePath: string) => Promise<string | undefined>;
+  readPulledChunk: ReadPulledChunk;
   removeFile: (filePath: string) => Promise<boolean>;
   /** Rename a file or directory */
   rename: (path: string, newName: string) => Promise<boolean>;
@@ -76,15 +84,9 @@ export interface ServerCapabilities {
   allowServerRevfsStorage: boolean;
   maxFileTransferSizeMb: number;
   revfsStorageQuotaMb: number;
+  /** Why the server stores no files, when it says; null when storage is on or it gave no reason. */
+  revfsStorageRefusal: ServerFeatureRefusal | null;
 }
-
-/** Default server capabilities (assume enabled until queried) */
-export const DEFAULT_SERVER_CAPABILITIES: ServerCapabilities = {
-  allowServerFileTransfer: true,
-  allowServerRevfsStorage: true,
-  maxFileTransferSizeMb: 100,
-  revfsStorageQuotaMb: 100,
-};
 
 /** The server acknowledges by answering the request itself; nothing is left pending. */
 export const NOTHING_PENDING: ReadonlySet<string> = new Set<string>();

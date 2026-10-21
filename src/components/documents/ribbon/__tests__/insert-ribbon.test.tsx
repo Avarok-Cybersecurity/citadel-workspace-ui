@@ -6,9 +6,9 @@ import { act, screen, waitFor } from '@testing-library/react';
 import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import type { CaretFormatting } from '@/lib/cdoc/editor/controller';
-import { FakeEditor, knownCaret } from './fake-editor';
+import { editorState, FakeEditor, knownCaret } from './fake-editor';
 import { FIXED_ENVIRONMENT, MAY_EDIT, renderRibbon } from './render-ribbon';
-import { MAX_PICTURE_BYTES } from '../picture';
+import { MAX_IMAGE_BYTES } from '@/lib/cdoc/engine/engine-limits';
 
 /** A paragraph the engine reports with no direct spacing or indent, so Layout's fields can be set. */
 const PLAIN: CaretFormatting = knownCaret({}, {});
@@ -87,13 +87,13 @@ describe('the Insert ribbon', () => {
     expect(screen.getByTestId('ribbon-link-address')).toHaveAttribute('aria-invalid', 'true');
   });
 
-  it('hands a picture’s bytes to the editor, then inserts its content id at its size, fitted to the column', async () => {
+  it('hands a picture’s bytes to the editor under the size cap, then has the editor fit its content id to the column', async () => {
     const { editor, user } = setUp('Ada');
     await openTab(user, 'insert');
     const png: File = new File([new Uint8Array([137, 80, 78, 71])], 'chart.png', { type: 'image/png' });
     await user.upload(screen.getByTestId('ribbon-picture-file'), png);
-    await waitFor((): void => expect(editor.sent).toEqual([{ name: 'insertImage', contentId: 'image-1', width: 45130, height: 33848 }]));
-    expect(editor.images.map((i: { maxBytes: number; bytes: Uint8Array }): [number, number[]] => [i.maxBytes, [...i.bytes]])).toEqual([[MAX_PICTURE_BYTES, [137, 80, 78, 71]]]);
+    await waitFor((): void => expect(editor.sent).toEqual([{ name: 'insertImageFitted', contentId: 'image-1' }]));
+    expect(editor.images.map((i: { maxBytes: number; bytes: Uint8Array }): [number, number[]] => [i.maxBytes, [...i.bytes]])).toEqual([[MAX_IMAGE_BYTES, [137, 80, 78, 71]]]);
   });
 
   it('refuses a picture type the outputs cannot draw, and says so', async () => {
@@ -120,9 +120,9 @@ describe('the Insert ribbon', () => {
   it('refuses a picture over the size cap before reading it', async () => {
     const { editor, user } = setUp('Ada');
     await openTab(user, 'insert');
-    const huge: File = new File([new Uint8Array(MAX_PICTURE_BYTES + 1)], 'scan.png', { type: 'image/png' });
+    const huge: File = new File([new Uint8Array(MAX_IMAGE_BYTES + 1)], 'scan.png', { type: 'image/png' });
     await user.upload(screen.getByTestId('ribbon-picture-file'), huge);
-    await waitFor((): void => expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent('scan.png is larger than 20 MB.'));
+    await waitFor((): void => expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent('scan.png is larger than 32 MB.'));
     expect(editor.images).toEqual([]);
   });
 
@@ -136,7 +136,7 @@ describe('the Insert ribbon', () => {
     expect(screen.getByTestId('ribbon-insert-picture')).toHaveAttribute('aria-disabled', 'true');
     act((): void => finish());
     await waitFor((): void => expect(screen.getByTestId('ribbon-insert-picture')).toHaveAttribute('aria-disabled', 'false'));
-    expect(editor.sent).toEqual([{ name: 'insertImage', contentId: 'image-1', width: 750, height: 750 }]);
+    expect(editor.sent).toEqual([{ name: 'insertImageFitted', contentId: 'image-1' }]);
   });
 
   it('signs a comment with the signed-in name, a fresh id and the time', async () => {
@@ -162,19 +162,32 @@ describe('the Insert ribbon', () => {
     expect(editor.sent).toEqual([]);
   });
 
-  it('inserts a footnote with a fresh id, each break kind, and a symbol', async () => {
+  it('inserts a footnote under an id the editor picks and goes to it, each break kind, and a symbol', async () => {
     const { editor, user } = setUp('Ada');
+    // What InsertNewFootnote answers: the id the editor picked (the fake answers every command with its state).
+    editor.state = editorState(PLAIN, { created: [{ kind: 'footnote', id: 7 }] });
     await openTab(user, 'insert');
     await user.click(screen.getByTestId('ribbon-insert-footnote'));
+    await waitFor((): void => expect(editor.sent).toEqual([{ name: 'insertNewFootnote' }, { name: 'goToFootnote', id: 7 }]));
+    editor.state = editorState(PLAIN);
     for (const kind of ['page', 'column', 'line']) await user.click(screen.getByTestId(`ribbon-insert-break-${kind}`));
     await user.click(screen.getByTestId('ribbon-insert-symbol'));
     await user.click(await screen.findByTestId('ribbon-symbol-a9'));
     await waitFor((): void => expect(editor.sent).toEqual([
-      { name: 'insertFootnote', id: 7 },
+      { name: 'insertNewFootnote' },
+      { name: 'goToFootnote', id: 7 },
       { name: 'insertBreak', kind: 'page' },
       { name: 'insertBreak', kind: 'column' },
       { name: 'insertBreak', kind: 'line' },
       { name: 'insertText', text: '©' },
     ]));
+  });
+
+  it('says so, and goes nowhere, when the editor reports no footnote id', async () => {
+    const { editor, user } = setUp('Ada');
+    await openTab(user, 'insert');
+    await user.click(screen.getByTestId('ribbon-insert-footnote'));
+    await waitFor((): void => expect(screen.getByTestId('docs-ribbon-status')).toHaveTextContent('Could not insert the footnote. the editor reported no footnote id'));
+    expect(editor.sent).toEqual([{ name: 'insertNewFootnote' }]);
   });
 });

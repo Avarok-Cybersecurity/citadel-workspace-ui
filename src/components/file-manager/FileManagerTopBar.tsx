@@ -12,6 +12,7 @@ import type { StorageRef } from '@/lib/file-manager-location';
 import type { OpenableStorage } from './useFileManagerPlace';
 import type { StoragePeer } from './storage-peers';
 import { StoragePeerMenuItems } from './StoragePeerMenu';
+import type { UploadAvailability } from './upload-refusal';
 
 export interface FileManagerTopBarProps {
   storage: StorageRef;
@@ -26,7 +27,8 @@ export interface FileManagerTopBarProps {
     onFilterChange: (text: string) => void;
     onNewFolder: () => void;
     onUpload: () => void;
-    uploadDisabledReason: string | null;
+    /** Offered, disabled with why (this folder), or absent with why (the storage takes no files). */
+    upload: UploadAvailability;
   } | null;
   transfers: { active: number; open: boolean; onToggle: () => void };
 }
@@ -115,10 +117,12 @@ export function FileManagerTopBar(props: FileManagerTopBarProps): JSX.Element {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onSelect={folder.onNewFolder} className="cursor-pointer" data-testid="vfs-new-folder"><FolderPlus className="mr-2 h-4 w-4" aria-hidden="true" />New folder</DropdownMenuItem>
-              <DropdownMenuItem onSelect={folder.onUpload} disabled={folder.uploadDisabledReason !== null} className="cursor-pointer" data-testid="vfs-new-upload">
-                <Upload className="mr-2 h-4 w-4" aria-hidden="true" />Upload files
-              </DropdownMenuItem>
-              {folder.uploadDisabledReason !== null && <p className="max-w-[240px] px-2 py-1.5 text-xs text-muted-foreground">{folder.uploadDisabledReason}</p>}
+              {folder.upload.kind !== 'absent' && (
+                <DropdownMenuItem onSelect={folder.onUpload} disabled={folder.upload.kind === 'disabled'} className="cursor-pointer" data-testid="vfs-new-upload">
+                  <Upload className="mr-2 h-4 w-4" aria-hidden="true" />Upload files
+                </DropdownMenuItem>
+              )}
+              {folder.upload.kind !== 'offered' && <p data-testid="vfs-upload-unavailable" className="max-w-[240px] px-2 py-1.5 text-xs text-muted-foreground">{folder.upload.reason}</p>}
             </DropdownMenuContent>
           </DropdownMenu>
         )}

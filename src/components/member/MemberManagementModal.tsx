@@ -7,6 +7,7 @@ import { describeRefusal } from "@/lib/workspace-response-handler/describe-error
 import type { RoleDefinition } from "citadel-workspace-client-ts";
 import { useRoleLadder, type RoleLadder } from "@/hooks/use-role-ladder";
 import { assignableRoles } from "@/lib/workspace-roles/role-ladder";
+import { syncForNewReaders } from "@/components/documents/save/sync-for-new-readers";
 import {
   EntityManagementModal,
   type FieldConfig,
@@ -91,6 +92,7 @@ export const MemberManagementModal: React.FC<MemberManagementModalProps> = ({
   const handleSubmit = async (formData: Record<string, string>): Promise<void> => {
     if (mode === "add") {
       await inPlainWords(WorkspaceService.addMember(formData.username, formData.role, domainId));
+      if (domainId) syncForNewReaders(domainId, place);
       toastSuccess(toast, "Member Added", `${formData.username} has been added to ${place} as ${nameOf(formData.role)}`);
     } else if (mode === "edit" && member) {
       await inPlainWords(WorkspaceService.updateMemberRole(member.id, formData.role));

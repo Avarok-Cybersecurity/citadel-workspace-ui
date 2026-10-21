@@ -9,13 +9,14 @@
  * display list, because an editor's partial lists each number their faces afresh.
  */
 import type { GlyphPathBatch, OpenedDocument } from '../engine/cdoc-engine';
-import type { DocumentSource } from '../document-source';
+import type { StaticSource } from '../document-source';
 import type { PaintOutcome } from '../paint/page-rasterizer';
 import type { FaceKey } from '../display-list/types';
 import { EDITOR_KINDS, type EditorRequestBody, type EditorResults } from './editor-protocol';
 
 export type CdocRequestBody =
-  | { readonly kind: 'open'; readonly source: DocumentSource }
+  /** Docs' own JSON, laid out read-only; a file opens as a replica (editorOpen), and exports from it (exportAs). */
+  | { readonly kind: 'open'; readonly source: StaticSource }
   | { readonly kind: 'paint'; readonly pages: readonly number[] }
   | { readonly kind: 'glyphPaths'; readonly face: FaceKey; readonly glyphIds: Uint16Array }
   | { readonly kind: 'faceMetrics'; readonly face: FaceKey }

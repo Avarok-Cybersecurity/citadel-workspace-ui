@@ -51,6 +51,10 @@ export function useSessionExit(): { showDisconnectModal: boolean; disconnectStat
     // Asked before anything is torn down: the landing page this ends on
     // unmounts the editor, and by then the session it would save to is gone.
     if (!(await mayLeaveEditor(confirm))) return;
+    // Signing out deletes this account's documents from the device, edits not yet sent included.
+    // A tab context that cannot be read is reported by the sign-out below, which reads it too.
+    const leaving: bigint | null = await getSelectedUser().then((u) => u?.selectedCid ?? null, (): null => null);
+    if (leaving !== null && !(await (await import('@/lib/document-save/held-edits-io')).mayLeaveAccountHeldEdits(leaving, true, confirm))) return;
 
     // Show the disconnect modal immediately
     setDisconnectStatus("disconnecting");

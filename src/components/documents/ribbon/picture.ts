@@ -1,23 +1,8 @@
 /**
- * How a chosen picture is sized for InsertImage: its pixel size at 96 dpi (one CSS px is
- * 3/4 pt, 75 Pt100), scaled down, never up, to fit the widest text column a blank document
- * has (A4 less Word's default 1-inch margins), keeping its aspect ratio.
+ * What Insert › Picture accepts: the types every output (page, PDF, DOCX) can draw. The size cap
+ * is the engine's own (engine-limits.ts MAX_IMAGE_BYTES), and sizing is the editor's
+ * (InsertImageFitted fits a picture to the column, never up).
  */
-import type { Pt100 } from '@/lib/cdoc/editor/model-values';
 
 /** The picture types every output (page, PDF, DOCX) can draw. */
 export const PICTURE_TYPES: readonly string[] = ['image/png', 'image/jpeg'];
-
-/** The largest file handed to the editor: a picture past this is a photo to resize first, and it is held in the worker's memory. */
-export const MAX_PICTURE_BYTES: number = 20 * 1_048_576;
-
-const PT100_PER_PX: number = 75;
-/** A4's 595.3 pt width less two 72 pt margins. */
-export const MAX_PICTURE_WIDTH: Pt100 = 45130;
-
-export function pictureSize(px: { readonly width: number; readonly height: number }): { readonly width: Pt100; readonly height: Pt100 } {
-  if (!(px.width > 0 && px.height > 0)) throw new Error('the picture has no size');
-  const width: Pt100 = px.width * PT100_PER_PX;
-  const scale: number = Math.min(1, MAX_PICTURE_WIDTH / width);
-  return { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(px.height * PT100_PER_PX * scale)) };
-}

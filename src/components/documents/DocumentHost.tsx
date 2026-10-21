@@ -4,16 +4,21 @@
  * Citadel Docs mounts its page view in the editor region (lazily: neither the view nor cdoc
  * is in the shell's bundle) and fills the status bar the host reserves at the bottom. Apps
  * without an editor yet keep the placeholder. The host does no I/O: what the person may do
- * arrives in `permissions`, what to open in `documentSource`, and how to start cdoc in
- * `loadCdocRuntime`, all decided by the caller.
+ * arrives in `permissions`, what to open in `documentSource`, how to start cdoc in
+ * `loadCdocRuntime`, and whether a kept replica is edited or the document only read in
+ * `editing`, all decided by the caller.
  */
-import { lazy, Suspense, useState, type LazyExoticComponent } from 'react';
+import { lazy, Suspense, useState, type KeyboardEvent, type LazyExoticComponent } from 'react';
 import { citadelApp, type CitadelApp, type CitadelAppId } from '@/lib/citadel-apps/registry';
 import type { ActionGate } from '@/hooks/use-permission-result';
 import type { DocumentSource } from '@/lib/cdoc/document-source';
 import type { CdocRuntimeFactory } from '@/lib/cdoc/runtime-loader';
+import type { DocumentFiles } from '@/lib/document-files';
 import type { DocsCanvasProps } from './DocsCanvas';
-import { keepBlankReplica } from './blank-replica';
+import type { DocumentEditing } from './use-docs-document';
+import type { OriginalFile } from './NotOpened';
+import { DocumentSaveControls, saveShortcut } from './save/DocumentSaveControls';
+import type { SaveControl } from './save/save-control';
 
 const DocsCanvas: LazyExoticComponent<(props: DocsCanvasProps) => JSX.Element> = lazy(() => import('./DocsCanvas'));
 
@@ -33,20 +38,29 @@ export interface DocumentHostProps {
   loadCdocRuntime: CdocRuntimeFactory;
   /** The name new comments are signed with; null until the person's name has loaded. */
   commentAuthor: string | null;
+  /** Where downloads go and the time they record. */
+  files: DocumentFiles;
+  /** The file this document was opened from, offered when Docs refuses it; null for a workspace document. */
+  original: OriginalFile | null;
+  /** A kept replica to edit, or read only and why (a read-only document opens no kept replica); must keep its identity across renders. */
+  editing: DocumentEditing;
 }
 
-export function DocumentHost({ nodeId, appId, title, permissions, documentSource, loadCdocRuntime, commentAuthor }: DocumentHostProps): JSX.Element {
+export function DocumentHost({ nodeId, appId, title, permissions, documentSource, loadCdocRuntime, commentAuthor, files, original, editing }: DocumentHostProps): JSX.Element {
   const app: CitadelApp = citadelApp(appId);
   const Icon: CitadelApp['icon'] = app.icon;
   const [statusBar, setStatusBar] = useState<HTMLElement | null>(null);
+  const save: SaveControl | null = editing.kind === 'replica' ? editing.save : null;
+  const onSaveKey: ((event: KeyboardEvent<HTMLElement>) => void) | undefined = saveShortcut(save);
   return (
     <div className="flex h-full min-w-0 flex-col bg-background" data-testid="document-host" data-node-id={nodeId} data-app={appId}>
       <header className="flex min-w-0 items-center gap-3 border-b border-border px-4 py-3 sm:px-6">
         <Icon className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <h1 className="truncate text-lg font-semibold text-foreground" title={title}>{title}</h1>
           <p className="text-xs text-muted-foreground">{app.name}</p>
         </div>
+        {save !== null && <DocumentSaveControls control={save} />}
       </header>
       {!permissions.edit.enabled && (
         <p role="status" data-testid="document-read-only" className="border-b border-border px-4 py-2 text-sm text-muted-foreground sm:px-6">
@@ -54,9 +68,9 @@ export function DocumentHost({ nodeId, appId, title, permissions, documentSource
         </p>
       )}
       {appId === 'docs' ? (
-        <section aria-label={`${app.name} editor`} data-testid="document-editor-region" className="flex min-h-0 flex-1 flex-col">
+        <section aria-label={`${app.name} editor`} data-testid="document-editor-region" className="flex min-h-0 flex-1 flex-col" onKeyDownCapture={onSaveKey}>
           <Suspense fallback={<p role="status" className="m-auto text-sm text-muted-foreground">Loading {app.name}…</p>}>
-            <DocsCanvas documentSource={documentSource} loadRuntime={loadCdocRuntime} keepReplica={keepBlankReplica} statusBar={statusBar} edit={permissions.edit} commentAuthor={commentAuthor} />
+            <DocsCanvas documentSource={documentSource} loadRuntime={loadCdocRuntime} editing={editing} statusBar={statusBar} edit={permissions.edit} commentAuthor={commentAuthor} title={title} files={files} original={original} />
           </Suspense>
         </section>
       ) : (

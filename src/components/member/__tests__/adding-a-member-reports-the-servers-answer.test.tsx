@@ -19,6 +19,7 @@ import type { WorkspaceProtocolRequestTS } from '@/types/workspace-protocol';
 import type { WorkspaceRoles } from 'citadel-workspace-client-ts';
 import { WorkspaceContext } from '@/contexts/WorkspaceContext';
 import { resetRoles } from '@/lib/workspace-roles/roles-store';
+import { registerDocumentSync } from '@/lib/document-sync-requests';
 
 const { toast, sent, answer, caller, roster, listed } = vi.hoisted(() => ({
   listed: [] as string[],
@@ -146,6 +147,27 @@ describe('adding a member', () => {
     expect(toastTitles()).not.toContain('Member Added');
     // A refused write changed nothing, so there is nothing to reload.
     expect(reloads).toHaveLength(0);
+  });
+
+  it('sends the edits this device holds of the place once the server accepts', async () => {
+    const asked: string[] = [];
+    const close: () => void = registerDocumentSync('doc-7', (): Promise<void> => { asked.push('doc-7'); return Promise.resolve(); });
+    answer.current = { Success: 'Member added successfully' };
+    const onClose: ReturnType<typeof vi.fn> = vi.fn();
+    await submitAdd('bob', onClose, 'doc-7');
+    await waitFor((): void => { expect(onClose).toHaveBeenCalled(); });
+    expect(asked).toEqual(['doc-7']);
+    close();
+  });
+
+  it('sends nothing of the place when the server refuses', async () => {
+    const asked: string[] = [];
+    const close: () => void = registerDocumentSync('doc-8', (): Promise<void> => { asked.push('doc-8'); return Promise.resolve(); });
+    answer.current = { Error: "Failed to add member: No account named 'bobb' exists on this workspace" };
+    await submitAdd('bobb', vi.fn(), 'doc-8');
+    await screen.findByTestId('entity-modal-error');
+    expect(asked).toEqual([]);
+    close();
   });
 
   it('says a permission refusal in plain words, not the permission name', async () => {

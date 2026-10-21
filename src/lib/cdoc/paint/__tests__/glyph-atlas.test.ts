@@ -11,6 +11,7 @@ import type { DisplayList } from '../../display-list/types';
 import type { AtlasStats } from '../glyph-atlas';
 import { PageRasterizer, type RasterizerOptions } from '../page-rasterizer';
 import { deviceScale } from '../units';
+import { RASTERIZER_OPTIONS } from '../paint-config';
 import { boxBatch, boxGlyphRecord, recordingPort, recordingTarget, type Call, type RecordingPort, type RecordingTarget } from './recording-canvas';
 
 const FIXTURE: string = join(__dirname, '..', '..', 'display-list', '__tests__', 'fixtures', 'kitchen-sink.bin');
@@ -20,7 +21,7 @@ interface Rig { r: PageRasterizer; rec: RecordingPort; dl: DisplayList }
 function rig(atlas: RasterizerOptions['atlas']): Rig {
   const dl: DisplayList = openDisplayList(new Uint8Array(readFileSync(FIXTURE)));
   const rec: RecordingPort = recordingPort();
-  const r: PageRasterizer = new PageRasterizer(rec.port, { atlas, paper: '#fff', missingImageStroke: '#ccc' });
+  const r: PageRasterizer = new PageRasterizer(rec.port, { atlas, paper: '#fff', placeholder: RASTERIZER_OPTIONS.placeholder, imageCacheBytes: RASTERIZER_OPTIONS.imageCacheBytes });
   r.setList(dl);
   for (const [face, ids] of r.missingGlyphs(0)) {
     const { records, offsets } = boxBatch(ids.length, boxGlyphRecord(40, -10, 480, 700));

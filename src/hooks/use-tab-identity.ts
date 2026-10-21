@@ -18,15 +18,21 @@ import { tabIdentity, type TabIdentity } from '@/lib/tab-identity';
 import type { StoredSession } from '@/types/session-types';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 
+/** Who is signed in on this tab now: read when asked, so a sign-in after mount is seen. */
+export async function readTabIdentity(): Promise<TabIdentity> {
+  const selection: TabUserContext | null = await getSelectedUser();
+  const session: StoredSession | null = await connectionManager.getTabSelectedSession();
+  return tabIdentity(selection, session);
+}
+
 export function useTabIdentity(): TabIdentity | null {
   const [identity, setIdentity] = useState<TabIdentity | null>(null);
 
   useEffect(() => {
     let cancelled: boolean = false;
     runAsyncSetup(async () => {
-      const selection: TabUserContext | null = await getSelectedUser();
-      const session: StoredSession | null = await connectionManager.getTabSelectedSession();
-      if (!cancelled) setIdentity(tabIdentity(selection, session));
+      const identity: TabIdentity = await readTabIdentity();
+      if (!cancelled) setIdentity(identity);
     });
     return (): void => { cancelled = true; };
   }, []);

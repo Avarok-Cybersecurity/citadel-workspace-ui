@@ -17,6 +17,7 @@ import { formatSize } from './item-format';
 import { folderSummary } from './vfs-item-view';
 import { stateConfig } from './vfs-content-helpers';
 import { canDownload } from './item-permissions';
+import { docsOpenAction } from './docs-file-open';
 import type { VFSItemActions } from './vfs-item-actions';
 
 export interface VFSInspectorProps {
@@ -43,6 +44,7 @@ function InspectorBody({ node, actions, peerName, storageName, from, modified }:
   const isDir: boolean = node.type === 'directory';
   const thumbnail: string | undefined = node.fileMetadata?.thumbnail;
   const state: string | null = node.fileState ? stateConfig[node.fileState].title : null;
+  const openInDocs: (() => void) | null = docsOpenAction(actions, node);
   return (
     <div className="flex flex-col gap-[16px] p-[16px]" data-testid="vfs-inspector-body">
       <div className="grid h-[136px] place-items-center rounded-[6px] border border-border bg-surface">
@@ -55,6 +57,9 @@ function InspectorBody({ node, actions, peerName, storageName, from, modified }:
         <p className="text-xs text-muted-foreground">{isDir ? 'Folder' : fileKind(node.name)}</p>
       </div>
       <div className="grid grid-cols-2 gap-[8px]">
+        {openInDocs !== null && (
+          <Button size="sm" className="col-span-2 h-[44px]" data-testid="vfs-inspector-open-in-docs" onClick={openInDocs}>Open in Citadel Docs</Button>
+        )}
         {isDir
           ? <Button size="sm" className="h-[32px]" onClick={() => actions.openFolder(node.path)}>Open</Button>
           : <Button size="sm" className="h-[32px]" onClick={() => actions.download(node)} disabled={!canDownload(node)} title={canDownload(node) ? undefined : 'Nothing stored to download: this records a transfer.'}>Download</Button>}

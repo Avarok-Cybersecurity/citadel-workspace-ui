@@ -6,7 +6,9 @@
  * - MainThreadPageRenderer: for a browser without transferControlToOffscreen. The display list
  *   and outlines come from the worker; decoding and painting happen here.
  *
- * Paints of one slot are serialised: a zoom gesture can request several, and the latest wins.
+ * Every paint waits in one PaintQueue (PAINT_CONCURRENCY at a time, pages in view first, the
+ * latest request of a slot winning): a zoom gesture can request several, and a scroll paints
+ * pages ahead without delaying the one coming into view.
  */
 import { openDisplayList } from '../display-list/decoder';
 import type { CdocClient } from '../worker/cdoc-client';
@@ -14,10 +16,13 @@ import type { GlyphPathBatch } from '../engine/cdoc-engine';
 import type { CanvasPort, PaintTarget } from './canvas-port';
 import { PageRasterizer, type PaintOutcome, type RasterizerOptions } from './page-rasterizer';
 import { deviceScale } from './units';
+import { ImageResolver } from './image-resolve';
+import { PaintQueue, type PaintPriority } from './paint-queue';
+import { PAINT_CONCURRENCY } from './paint-config';
 
 export interface PageRenderer {
   mount(slot: number, canvas: HTMLCanvasElement): Promise<void>;
-  paint(slot: number, pageNumber: number, zoom: number, dpr: number): Promise<PaintOutcome>;
+  paint(slot: number, pageNumber: number, zoom: number, dpr: number, priority: PaintPriority): Promise<PaintOutcome>;
   unmount(slot: number): void;
   /** Forget what was painted from the previous document (a new one was opened). */
   reset(): void;
@@ -25,23 +30,8 @@ export interface PageRenderer {
   invalidate(pages: readonly number[]): Promise<void>;
 }
 
-class SlotQueue {
-  private readonly tails: Map<number, Promise<unknown>> = new Map<number, Promise<unknown>>();
-
-  run<T>(slot: number, task: () => Promise<T>): Promise<T> {
-    const previous: Promise<unknown> = this.tails.get(slot) ?? Promise.resolve();
-    const next: Promise<T> = previous.then(task, task);
-    this.tails.set(slot, next.catch((): void => undefined));
-    return next;
-  }
-
-  drop(slot: number): void {
-    this.tails.delete(slot);
-  }
-}
-
 export class WorkerPageRenderer implements PageRenderer {
-  private readonly queue: SlotQueue = new SlotQueue();
+  private readonly queue: PaintQueue = new PaintQueue(PAINT_CONCURRENCY);
 
   constructor(
     private readonly client: CdocClient,
@@ -52,8 +42,8 @@ export class WorkerPageRenderer implements PageRenderer {
     await this.client.request({ kind: 'attachCanvas', slot, canvas: this.transfer(canvas) });
   }
 
-  paint(slot: number, pageNumber: number, zoom: number, dpr: number): Promise<PaintOutcome> {
-    return this.queue.run(slot, () => this.client.request({ kind: 'paintCanvas', slot, pageNumber, zoom, dpr }));
+  paint(slot: number, pageNumber: number, zoom: number, dpr: number, priority: PaintPriority): Promise<PaintOutcome> {
+    return this.queue.run(slot, priority, () => this.client.request({ kind: 'paintCanvas', slot, pageNumber, zoom, dpr }));
   }
 
   unmount(slot: number): void {
@@ -71,9 +61,10 @@ export class WorkerPageRenderer implements PageRenderer {
 }
 
 export class MainThreadPageRenderer implements PageRenderer {
-  private readonly queue: SlotQueue = new SlotQueue();
+  private readonly queue: PaintQueue = new PaintQueue(PAINT_CONCURRENCY);
   private readonly targets: Map<number, PaintTarget> = new Map<number, PaintTarget>();
   private rasterizer: PageRasterizer;
+  private readonly images: ImageResolver;
 
   constructor(
     private readonly client: CdocClient,
@@ -82,6 +73,11 @@ export class MainThreadPageRenderer implements PageRenderer {
     private readonly targetOf: (canvas: HTMLCanvasElement) => PaintTarget,
   ) {
     this.rasterizer = new PageRasterizer(port, options);
+    this.images = new ImageResolver(port, (contentId: string): Promise<Uint8Array | null> => this.client.request({ kind: 'image', contentId }).then(
+      ({ record }): Uint8Array => record,
+      // Not held by the editor (a peer's image, or a read-only document): drawn as "not available".
+      (): null => null,
+    ));
   }
 
   mount(slot: number, canvas: HTMLCanvasElement): Promise<void> {
@@ -89,8 +85,8 @@ export class MainThreadPageRenderer implements PageRenderer {
     return Promise.resolve();
   }
 
-  paint(slot: number, pageNumber: number, zoom: number, dpr: number): Promise<PaintOutcome> {
-    return this.queue.run(slot, async (): Promise<PaintOutcome> => {
+  paint(slot: number, pageNumber: number, zoom: number, dpr: number, priority: PaintPriority): Promise<PaintOutcome> {
+    return this.queue.run(slot, priority, async (): Promise<PaintOutcome> => {
       const target: PaintTarget | undefined = this.targets.get(slot);
       if (target === undefined) throw new Error(`no canvas is mounted in slot ${slot}`);
       const rasterizer: PageRasterizer = this.rasterizer;
@@ -102,6 +98,7 @@ export class MainThreadPageRenderer implements PageRenderer {
         const batch: GlyphPathBatch = await this.client.request({ kind: 'glyphPaths', face: rasterizer.faceKey(faceId), glyphIds: glyphIds.slice() });
         rasterizer.addOutlines(faceId, glyphIds, batch.records, batch.offsets);
       }
+      await this.images.fill(rasterizer, pageNumber);
       return rasterizer.paint(target, pageNumber, deviceScale(zoom, dpr));
     });
   }
@@ -112,6 +109,7 @@ export class MainThreadPageRenderer implements PageRenderer {
   }
 
   reset(): void {
+    this.rasterizer.dispose();
     this.rasterizer = new PageRasterizer(this.port, this.options);
   }
 

@@ -21,7 +21,7 @@ const NOTHING = () => {};
 export const NO_ACTIONS = {
   openFolder: NOTHING, openFile: NOTHING, inspect: NOTHING, download: NOTHING, share: NOTHING, moveTo: NOTHING,
   copyLink: NOTHING, remove: NOTHING, rename: async () => {}, cut: NOTHING, copy: NOTHING, paste: async () => {},
-  newFolder: NOTHING, upload: NOTHING, refresh: NOTHING, drop: NOTHING,
+  newFolder: NOTHING, upload: NOTHING, refresh: NOTHING, drop: NOTHING, openInDocs: NOTHING,
 };
 
 const ME = 1n;
@@ -67,7 +67,7 @@ function Screen({ path = '/', view = 'list', selected = [], transfers = false, f
     storageMode: isPeer ? TreeScope.Peer : TreeScope.Server, storageLabel, storageName, currentPath: path, missingItem: null,
     pendingPaths: new Set(isPeer ? ['/README'] : []), cutItemPaths: new Set(), hasPasteItems: false, selectedPaths,
     selectItem: NOTHING, handleSelectAll: NOTHING, clearSelection: NOTHING, sortField: 'name', sortDirection: 'asc',
-    filterText: filter, setFilterText: NOTHING,
+    filterText: filter, setFilterText: NOTHING, storageOffer: { kind: 'offered' },
   };
   const v = {
     view, actions: NO_ACTIONS, panel: selectionPanel(TREE, selectedPaths),
@@ -84,7 +84,7 @@ function Screen({ path = '/', view = 'list', selected = [], transfers = false, f
       <div style={{ height: '100vh', width: '100%' }} className="flex min-w-0 flex-col bg-background" data-testid="fm-screen">
         <FileManagerTopBar
           storage={storage} peers={[ADA, GRACE]} peersLoading={false} peerName={isPeer ? storageLabel : null} onOpenStorage={NOTHING}
-          folder={{ filterText: filter, onFilterChange: NOTHING, onNewFolder: NOTHING, onUpload: NOTHING, uploadDisabledReason: null }}
+          folder={{ filterText: filter, onFilterChange: NOTHING, onNewFolder: NOTHING, onUpload: NOTHING, upload: { kind: 'offered' } }}
           transfers={{ active: 1, open: transfers, onToggle: NOTHING }}
         />
         <FileManagerAddressBar

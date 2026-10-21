@@ -6,6 +6,7 @@
  * ignores them (TreeRow acts only on clicks inside its own DOM and keys on itself).
  */
 import { useState } from 'react';
+import { syncForNewReaders } from '@/components/documents/save/sync-for-new-readers';
 import type { ShareSubject } from '@/lib/share/share-target';
 import { ShareLinkDialog } from './ShareLinkDialog';
 
@@ -17,7 +18,11 @@ export interface ShareLauncher {
 export function useShareLauncher(): ShareLauncher {
   const [subjects, setSubjects] = useState<ShareSubject[] | null>(null);
   return {
-    open: (subject: ShareSubject): void => setSubjects([subject]),
+    open: (subject: ShareSubject): void => {
+      // Sharing a document sends the edits this device holds of it, so whoever opens the link sees them.
+      if (subject.kind === 'node') syncForNewReaders(subject.nodeId, subject.name);
+      setSubjects([subject]);
+    },
     dialog: subjects === null ? null : <ShareLinkDialog subjects={subjects} onClose={() => setSubjects(null)} />,
   };
 }

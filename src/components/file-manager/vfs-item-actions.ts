@@ -10,8 +10,10 @@ import type { RevfsNode } from '@/types/revfs-types';
 
 export interface VFSItemActions {
   openFolder: (path: string) => void;
-  /** A file's open action: fetch it, or show where a received one already is. */
+  /** A file's open action: Citadel Docs for a file it reads, else fetch it, or show where a received one already is. */
   openFile: (node: RevfsNode) => void;
+  /** Open the file in Citadel Docs (offered per item through docs-file-open's docsOpenAction). */
+  openInDocs: (node: RevfsNode) => void;
   /** Put it in the inspector. */
   inspect: (node: RevfsNode) => void;
   download: (node: RevfsNode) => void;

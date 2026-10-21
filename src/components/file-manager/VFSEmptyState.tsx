@@ -10,6 +10,7 @@
 import { FolderOpen, FolderX, SearchX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RECEIVED_FILES_DIR, SENT_FILES_DIR } from '@/types/revfs-types';
+import type { UploadAvailability } from './upload-refusal';
 
 const PANEL: string = 'flex flex-1 flex-col items-center justify-center gap-[10px] rounded-[6px] border border-dashed border-border px-[16px] py-[32px] text-center';
 const GLYPH: string = 'mb-[4px] grid h-[52px] w-[52px] place-items-center rounded-[10px] bg-surface text-muted-foreground';
@@ -20,15 +21,15 @@ function guidance(folder: string): string {
   return 'Drag files anywhere in this panel to upload them here.';
 }
 
-export function VFSEmptyFolder({ folder, uploadDisabledReason, onUpload }: {
-  folder: string; uploadDisabledReason: string | null; onUpload: () => void;
+export function VFSEmptyFolder({ folder, upload, onUpload }: {
+  folder: string; upload: UploadAvailability; onUpload: () => void;
 }): JSX.Element {
   return (
     <div className={PANEL}>
       <span className={GLYPH}><FolderOpen className="h-[22px] w-[22px]" aria-hidden="true" /></span>
       <p className="text-base font-semibold text-foreground">This folder is empty</p>
-      <p className="max-w-[360px] text-sm text-muted-foreground">{uploadDisabledReason ?? guidance(folder)}</p>
-      {uploadDisabledReason === null && (
+      <p className="max-w-[360px] text-sm text-muted-foreground">{upload.kind === 'offered' ? guidance(folder) : upload.reason}</p>
+      {upload.kind === 'offered' && (
         <Button variant="outline" size="sm" className="mt-[4px] h-[32px]" onClick={onUpload}>Upload files</Button>
       )}
     </div>

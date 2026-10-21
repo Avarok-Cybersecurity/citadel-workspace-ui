@@ -13,15 +13,18 @@ import { serverTreeKey, calculateStorageUsage } from '@/lib/revfs/tree-operation
 import { eventEmitter } from '@/lib/event-emitter';
 import workspaceService from '@/lib/workspace-service';
 import { debugLog } from '@/lib/debug-config';
-import type { UseServerRevfsTreeResult, ServerCapabilities } from './useRevfsTree-types';
-import { DEFAULT_SERVER_CAPABILITIES, NOTHING_PENDING } from './useRevfsTree-types';
+import type { ReadPulledChunk, UseServerRevfsTreeResult, ServerCapabilities } from './useRevfsTree-types';
+import type { PulledChunk } from '@/types/revfs-intents';
+import { NOTHING_PENDING } from './useRevfsTree-types';
+import { CHECKING, offerOf, serverStorageRefusal, type StorageOffer } from '@/lib/revfs/storage-offer';
 
 export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResult {
   const [tree, setTree] = useState<RevfsNode | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [serverCapabilities, setServerCapabilities] = useState<ServerCapabilities>(DEFAULT_SERVER_CAPABILITIES);
-  const [capabilitiesReceived, setCapabilitiesReceived] = useState(false);
+  // Null until the server answers: nothing is assumed about storage it has not said it has.
+  const [serverCapabilities, setServerCapabilities] = useState<ServerCapabilities | null>(null);
+  const capabilitiesReceived: boolean = serverCapabilities !== null;
 
   const key: string | null = myCid ? serverTreeKey(myCid) : null;
 
@@ -37,9 +40,9 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
   // that REMOVED the listener. The file manager flips myCid to null and back on
   // every Peer/Server toggle, so after one toggle-away the subscription was
   // gone and the ref short-circuited the re-subscribe: if the server's answer
-  // landed in that window, the UI kept DEFAULT_SERVER_CAPABILITIES — permissive
-  // quota, RE-VFS enabled — for the rest of the session, advertising storage
-  // the server may refuse.
+  // landed in that window, the UI kept a permissive default (storage offered)
+  // for the rest of the session, advertising storage the server may refuse.
+  // There is no default now: until the answer, storage is "checking".
   //
   // The guard is now on whether real capabilities have been RECEIVED, which is
   // the thing it was meant to mean, and it does not outlive the listener.
@@ -47,12 +50,12 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
     if (!myCid || capabilitiesReceived) return;
 
     const handleCapabilities = (data: ServerCapabilities): void => {
-      setCapabilitiesReceived(true);
       setServerCapabilities({
         allowServerFileTransfer: data.allowServerFileTransfer,
         allowServerRevfsStorage: data.allowServerRevfsStorage,
         maxFileTransferSizeMb: data.maxFileTransferSizeMb,
         revfsStorageQuotaMb: data.revfsStorageQuotaMb,
+        revfsStorageRefusal: data.revfsStorageRefusal,
       });
     };
 
@@ -61,7 +64,7 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
 
     workspaceService.getServerCapabilities().catch((err) => {
       debugLog('UseServerRevfsTree', 'Failed to query server capabilities:', err);
-      // Keep default capabilities on error
+      // Storage stays "checking": an unanswered query offers nothing.
     });
 
     return (): void => {
@@ -132,6 +135,11 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
     return revfsService.downloadFileFromServer(myCid, filePath);
   }, [myCid]);
 
+  const readPulledChunk: ReadPulledChunk = useCallback(async (filePath: string, offset: bigint, maxLen: number): Promise<PulledChunk> => {
+    if (!myCid) throw new Error('No session to read the file with.');
+    return revfsService.readPulledChunk(myCid, null, filePath, offset, maxLen);
+  }, [myCid]);
+
   const removeFile: (filePath: string) => Promise<boolean> = useCallback(async (filePath: string): Promise<boolean> => {
     // No session: nothing was written, so nothing was accepted.
     if (!myCid) return false;
@@ -164,8 +172,9 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
     return true;
   }, [myCid]);
 
-  // Convert MB quota to bytes
-  const storageQuota: number = serverCapabilities.revfsStorageQuotaMb * 1024 * 1024;
+  // The quota the server stated, in bytes; none is offered before it states one.
+  const storageQuota: number = serverCapabilities === null ? 0 : serverCapabilities.revfsStorageQuotaMb * 1024 * 1024;
+  const storageOffer: StorageOffer = serverCapabilities === null ? CHECKING : offerOf(serverCapabilities.allowServerRevfsStorage, serverStorageRefusal(serverCapabilities.revfsStorageRefusal));
 
   return {
     tree,
@@ -173,11 +182,12 @@ export function useServerRevfsTree(myCid: bigint | null): UseServerRevfsTreeResu
     error,
     storageUsed,
     storageQuota,
-    revfsEnabled: serverCapabilities.allowServerRevfsStorage,
+    storageOffer,
     mkdir,
     rmdir,
     uploadFile,
     downloadFile,
+    readPulledChunk,
     removeFile,
     rename,
     move,

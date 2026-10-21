@@ -30,6 +30,9 @@ import { DisconnectConfirmModal } from '../DisconnectConfirmModal';
  * without deleting anything while three checks reported success.
  */
 let secondConfirmationAnswer: boolean = true;
+// jsdom has no IndexedDB: the sign-out's check for edits held on the device reads the stand-in (none held).
+const deviceStore: Map<string, unknown> = vi.hoisted((): Map<string, unknown> => new Map<string, unknown>());
+vi.mock('@/lib/storage-utils', async () => (await import('@/lib/cdoc/collab/__tests__/doubles/memory-storage')).memoryStorageUtils(deviceStore));
 vi.mock('@/components/shared/confirm-dialog', () => ({
   useConfirm: (): (() => Promise<boolean>) => async (): Promise<boolean> => secondConfirmationAnswer,
 }));
@@ -57,7 +60,8 @@ describe('the disconnect confirmation', () => {
     renderModal(onConfirm);
 
     await userEvent.click(screen.getByTestId('confirm-sign-out'));
-    expect(onConfirm).toHaveBeenCalledWith('disconnect');
+    // After the check for edits held on the device (loaded on first use).
+    await vi.waitFor((): void => expect(onConfirm).toHaveBeenCalledWith('disconnect'));
   });
 
   it('offers deleting the account under a different one', async (): Promise<void> => {
@@ -68,7 +72,7 @@ describe('the disconnect confirmation', () => {
     renderModal(onConfirm);
 
     await userEvent.click(screen.getByTestId('confirm-delete-account'));
-    expect(onConfirm).toHaveBeenCalledWith('deregister');
+    await vi.waitFor((): void => expect(onConfirm).toHaveBeenCalledWith('deregister'));
   });
 });
 
@@ -94,7 +98,27 @@ describe('the second confirmation on deleting an account', () => {
 
     await userEvent.click(screen.getByTestId('confirm-sign-out'));
 
-    expect(onConfirm).toHaveBeenCalledWith('disconnect');
+    await vi.waitFor((): void => expect(onConfirm).toHaveBeenCalledWith('disconnect'));
     secondConfirmationAnswer = true;
+  });
+});
+
+describe('signing out an account with edits held on this device', () => {
+  it('asks first, and keeps the account signed in when deleting them is refused', async () => {
+    const { documentEditsKey, localRecordPut } = await import('@/lib/document-replica-cache');
+    await localRecordPut(documentEditsKey(42n, 'doc-1', 'tab-1'), [Uint8Array.from([1])]);
+    secondConfirmationAnswer = false;
+    const onConfirm: ReturnType<typeof vi.fn> = vi.fn();
+    renderModal(onConfirm);
+
+    await userEvent.click(screen.getByTestId('confirm-sign-out'));
+    // Waited past the check, which settles before onConfirm would run.
+    await new Promise<void>((resolve: () => void): void => { setTimeout(resolve, 50); });
+    expect(onConfirm).not.toHaveBeenCalled();
+
+    secondConfirmationAnswer = true;
+    await userEvent.click(screen.getByTestId('confirm-sign-out'));
+    await vi.waitFor((): void => expect(onConfirm).toHaveBeenCalledWith('disconnect'));
+    deviceStore.clear();
   });
 });

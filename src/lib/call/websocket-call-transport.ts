@@ -14,7 +14,7 @@ import type { CallTransport } from './call-transport';
 import type { WireFrame } from './frame-codec';
 import { SIGNAL_QUEUE_MAX_WAIT_MS } from './call-constants';
 import { requestResponse } from '@/lib/websocket/request-response';
-import { debugLog } from '@/lib/debug-config';
+import { debugLog, warnLog } from '@/lib/debug-config';
 
 /**
  * How long to wait for the service to confirm a media session.
@@ -55,32 +55,41 @@ export class WebSocketCallTransport implements CallTransport {
     // no UDP channel, peer gone — and a resolve-on-queue would report success
     // while the manager fans frames into a session that never existed. That
     // failure path is the one that tells the user WHY the call cannot start.
-    await requestResponse<true>({
-      request: {
-        MediaOpen: {
-          request_id: requestId,
-          cid: this.options.selfCid,
-          peer_cid: peerCid,
+    try {
+      await requestResponse<true>({
+        request: {
+          MediaOpen: {
+            request_id: requestId,
+            cid: this.options.selfCid,
+            peer_cid: peerCid,
+          },
         },
-      },
-      requestId,
-      sendRequest: (request) => client.sendDirectToInternalService(request as never),
-      timeoutMs: MEDIA_OPEN_TIMEOUT_MS,
-      operationName: 'MediaOpen',
-      matcher: {
-        matchSuccess: (message) => {
-          const opened: { request_id?: string; } | undefined = message.MediaSessionOpened as { request_id?: string } | undefined;
-          return opened?.request_id === requestId ? true : undefined;
+        requestId,
+        sendRequest: (request) => client.sendDirectToInternalService(request as never),
+        timeoutMs: MEDIA_OPEN_TIMEOUT_MS,
+        operationName: 'MediaOpen',
+        matcher: {
+          matchSuccess: (message) => {
+            const opened: { request_id?: string; } | undefined = message.MediaSessionOpened as { request_id?: string } | undefined;
+            return opened?.request_id === requestId ? true : undefined;
+          },
+          matchFailure: (message) => {
+            const failed: { request_id?: string; message?: string; } | undefined = message.MediaSessionFailed as
+              | { request_id?: string; message?: string }
+              | undefined;
+            if (failed?.request_id !== requestId) return undefined;
+            return failed.message ?? 'the media session could not be opened';
+          },
         },
-        matchFailure: (message) => {
-          const failed: { request_id?: string; message?: string; } | undefined = message.MediaSessionFailed as
-            | { request_id?: string; message?: string }
-            | undefined;
-          if (failed?.request_id !== requestId) return undefined;
-          return failed.message ?? 'the media session could not be opened';
-        },
-      },
-    });
+      });
+    } catch (error) {
+      // The service's own sentence, as a top-level string so a console capture
+      // prints it whole. In a group the manager turns a refused leg into that
+      // peer dropping out, and the reason went nowhere: a CI run saw one mesh
+      // leg never open, four times, with nothing saying why.
+      warnLog('Call', `media session with ${peerCid} was refused:`, error instanceof Error ? error.message : String(error));
+      throw error;
+    }
 
     debugLog('Call', 'media session opened', { peerCid: peerCid.toString() });
   }

@@ -138,6 +138,7 @@ export type {
 
 // Service Helpers - Backend service management
 export { restartBackendServices } from './service-helpers.js';
+export { withServerUnreachable } from './server-link.js';
 
 // Test Harness - Reduces init/finalize boilerplate in test files
 export { TestHarness, runTestMain } from './test-harness.js';

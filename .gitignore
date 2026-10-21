@@ -42,3 +42,6 @@ integration-tests/playwright-report/
 
 # Local test config (use test.config.example.json as the template)
 integration-tests/test.config.json
+
+# The scroll gate's traced frames (scripts/check-cdoc-scroll-perf.mjs); CI uploads them.
+scroll-frames.json

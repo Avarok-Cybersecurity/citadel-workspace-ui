@@ -1,0 +1,56 @@
+/**
+ * The ports a DocumentSession takes in the app: this tab's workspace session, the browser's
+ * clock, and the member roster for names and colours. The editor opener is the caller's (the
+ * page view owns the worker). The local cache is this account's, in IndexedDB.
+ */
+import WorkspaceService from '@/lib/workspace-service';
+import { rosterPeerName, rosterPeerUsername } from '@/lib/roster-peer-name';
+import { usernameAvatarColor } from '@/lib/avatar-color';
+import type { HexColor } from '../editor/model-values';
+import { workspaceDocumentsTransport } from './documents-transport';
+import type { EditorOpener } from '../editor/controller';
+import type { Clock, DocumentSessionPorts, DocumentsTransport, PeerIdentity } from './ports';
+import { indexedDbDocumentCache } from './document-cache';
+import { browserInstanceLocks } from './instance-locks';
+import { DOCUMENTS_RELAY_LIMITS } from './relay-limits';
+import { RequestPacer, type DocumentPacing } from './request-pacer';
+
+export const browserClock: Clock = {
+  now: (): number => performance.now(),
+  after: (ms: number, fn: () => void): (() => void) => {
+    const handle: ReturnType<typeof setTimeout> = setTimeout(fn, ms);
+    return (): void => clearTimeout(handle);
+  },
+};
+
+export const rosterIdentity: PeerIdentity = (cid: bigint): { readonly name: string; readonly color: HexColor } => ({
+  name: rosterPeerName(cid),
+  color: hexColor(usernameAvatarColor(rosterPeerUsername(cid))),
+});
+
+export function workspaceCollabPorts(openEditor: EditorOpener): DocumentSessionPorts {
+  const transport: DocumentsTransport = workspaceDocumentsTransport(WorkspaceService);
+  return { transport, clock: browserClock, cache: indexedDbDocumentCache(transport.selfCid, browserInstanceLocks()), openEditor, identify: rosterIdentity, pacing: tabPacing(transport.selfCid) };
+}
+
+const pacingByAccount: Map<bigint, DocumentPacing> = new Map<bigint, DocumentPacing>();
+
+/** The kernel budgets per account, so every document this tab opens for one account shares these. */
+function tabPacing(account: bigint): DocumentPacing {
+  const known: DocumentPacing | undefined = pacingByAccount.get(account);
+  if (known) return known;
+  const made: DocumentPacing = { appends: new RequestPacer(browserClock, DOCUMENTS_RELAY_LIMITS.appendsPerSecond), pulls: new RequestPacer(browserClock, DOCUMENTS_RELAY_LIMITS.pullsPerSecond) };
+  pacingByAccount.set(account, made);
+  return made;
+}
+
+/** A `clientSeqBase` no other session instance will draw: a random 32-bit prefix. */
+export function randomClientSeqBase(): bigint {
+  const prefix: Uint32Array = crypto.getRandomValues(new Uint32Array(1));
+  return BigInt(prefix[0]) << 32n;
+}
+
+function hexColor(value: string): HexColor {
+  if (!/^#[0-9a-fA-F]{6}$/.test(value)) throw new Error(`not a hex colour: ${value}`);
+  return value as HexColor;
+}

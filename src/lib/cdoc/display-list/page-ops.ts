@@ -1,16 +1,18 @@
 /**
- * Decodes one page body (`docs/display-list.md` v1 § Page body, § Operations), checking every
- * invariant the spec lists for a body: known opcodes, payloads consumed exactly, face and
- * glyph-table indices in range, string indices in range, clip pushes and pops balanced.
+ * Decodes one page body (`docs/display-list.md` v5 § Page body, § Operations), checking every
+ * invariant the spec lists for a body: known opcodes, payloads consumed exactly, strike and
+ * string indices in range, glyph runs (glyph-run.ts) and caret lines (caret-lines.ts) well
+ * formed, clip pushes and pops balanced.
  */
 import {
-  OP_CLIP_POP, OP_CLIP_PUSH, OP_FILL_PATH, OP_FILL_RECT, OP_GLYPH_RUN, OP_IMAGE, OP_LINE, OP_LINK,
-  OP_STROKE_PATH, OP_STROKE_RECT, OP_TEXT_RUN, SEG_CLOSE, SEG_CUBIC, SEG_LINE, SEG_MOVE,
+  OP_CARET_LINES, OP_CLIP_POP, OP_CLIP_PUSH, OP_FILL_PATH, OP_FILL_RECT, OP_GLYPH_RUN, OP_IMAGE, OP_LINE, OP_LINK,
+  OP_SIG_FIELD, OP_STROKE_PATH, OP_STROKE_RECT, SEG_CLOSE, SEG_CUBIC, SEG_LINE, SEG_MOVE,
 } from '../format';
 import { ByteReader, DisplayListError } from './byte-reader';
-import type { DisplayList, Op, PageEntry, PageOps, PathData, Rect, RunHead } from './types';
+import { glyphRun } from './glyph-run';
+import { caretLines } from './caret-lines';
+import type { DisplayList, Op, PageEntry, PageOps, PathData, Rect } from './types';
 
-const MAX_U16: number = 0xffff;
 const POINTS_PER_VERB: ReadonlyMap<number, number> = new Map<number, number>([
   [SEG_MOVE, 1], [SEG_LINE, 1], [SEG_CUBIC, 3], [SEG_CLOSE, 0],
 ]);
@@ -20,7 +22,7 @@ function rect(r: ByteReader): Rect {
 }
 
 function path(r: ByteReader): PathData {
-  const count: number = r.uv();
+  const count: number = r.count(1, 'a path');
   const verbs: Uint8Array = new Uint8Array(count);
   const coords: number[] = [];
   for (let i: number = 0; i < count; i++) {
@@ -33,17 +35,14 @@ function path(r: ByteReader): PathData {
   return { verbs, coords: Int32Array.from(coords) };
 }
 
-function string(r: ByteReader, list: DisplayList): string {
-  const index: number = r.uv();
-  const value: string | undefined = list.strings[index];
+export function stringAt(strings: readonly string[], index: number): string {
+  const value: string | undefined = strings[index];
   if (value === undefined) throw new DisplayListError(`string index ${index} is past the string table`);
   return value;
 }
 
-function runHead(r: ByteReader, list: DisplayList): RunHead {
-  const faceId: number = r.uv();
-  if (faceId >= list.faces.length) throw new DisplayListError(`face ${faceId} is not in the face table`);
-  return { faceId, size: r.zz(), color: r.rgba(), x: r.zz(), y: r.zz() };
+function string(r: ByteReader, list: DisplayList): string {
+  return stringAt(list.strings, r.uv());
 }
 
 function op(code: number, r: ByteReader, list: DisplayList): Op {
@@ -53,38 +52,13 @@ function op(code: number, r: ByteReader, list: DisplayList): Op {
     case OP_LINE: return { kind: 'line', x1: r.zz(), y1: r.zz(), x2: r.zz(), y2: r.zz(), width: r.zz(), color: r.rgba() };
     case OP_FILL_PATH: return { kind: 'fillPath', color: r.rgba(), path: path(r) };
     case OP_STROKE_PATH: return { kind: 'strokePath', width: r.zz(), color: r.rgba(), path: path(r) };
-    case OP_TEXT_RUN: {
-      const head: RunHead = runHead(r, list);
-      const tableLen: number = list.faces[head.faceId].glyphs.length;
-      const indices: Uint32Array = new Uint32Array(r.uv());
-      for (let i: number = 0; i < indices.length; i++) {
-        const index: number = r.uv();
-        if (index >= tableLen) throw new DisplayListError(`glyph-table index ${index} is past face ${head.faceId}'s table`);
-        indices[i] = index;
-      }
-      return { kind: 'textRun', head, indices };
-    }
-    case OP_GLYPH_RUN: {
-      const head: RunHead = runHead(r, list);
-      const n: number = r.uv();
-      const glyphIds: Uint16Array = new Uint16Array(n);
-      const advances: Int32Array = new Int32Array(n);
-      const dx: Int32Array = new Int32Array(n);
-      const dy: Int32Array = new Int32Array(n);
-      for (let i: number = 0; i < n; i++) {
-        const id: number = r.uv();
-        if (id > MAX_U16) throw new DisplayListError(`glyph id ${id} exceeds 16 bits`);
-        glyphIds[i] = id;
-        advances[i] = r.zz();
-        dx[i] = r.zz();
-        dy[i] = r.zz();
-      }
-      return { kind: 'glyphRun', head, glyphIds, advances, dx, dy };
-    }
+    case OP_GLYPH_RUN: return glyphRun(r, list);
     case OP_IMAGE: return { kind: 'image', rect: rect(r), contentId: string(r, list) };
     case OP_LINK: return { kind: 'link', rect: rect(r), target: string(r, list) };
+    case OP_SIG_FIELD: return { kind: 'sigField', rect: rect(r), fieldId: string(r, list), role: string(r, list) };
     case OP_CLIP_PUSH: return { kind: 'clipPush', rect: rect(r) };
     case OP_CLIP_POP: return { kind: 'clipPop' };
+    case OP_CARET_LINES: return caretLines(r);
     default: throw new DisplayListError(`unknown opcode 0x${code.toString(16).padStart(2, '0')}`);
   }
 }

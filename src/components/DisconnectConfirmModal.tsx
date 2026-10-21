@@ -54,6 +54,11 @@ export const DisconnectConfirmModal = ({
     ) {
       return;
     }
+    // Either way the account's documents leave this device, edits not yet sent included; this
+    // tab is not signed in as it, so they can only be kept by not signing out.
+    if (session.cid !== undefined && !(await (await import('@/lib/document-save/held-edits-io')).mayLeaveAccountHeldEdits(session.cid, false, confirm))) {
+      return;
+    }
 
     setIsProcessing(true);
     setSelectedAction(action);

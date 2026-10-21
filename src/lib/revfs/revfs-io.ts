@@ -18,6 +18,7 @@ import { RevfsOpfsStorage } from './opfs-storage';
 import { debugLog } from '@/lib/debug-config';
 import { backendSendFile, backendDeleteFile } from './revfs-io-network';
 import { backendDownloadFile } from './revfs-io-download';
+import { backendReadPulledChunk } from './revfs-io-read-chunk';
 
 export interface RevfsIODeps {
   /**
@@ -64,6 +65,8 @@ export class RevfsIO {
         return backendDownloadFile(this.deps, intent.cid, intent.peerCid, intent.virtualDir);
       case 'backend-delete-file':
         return backendDeleteFile(this.deps, intent.cid, intent.peerCid, intent.virtualDir);
+      case 'backend-read-pulled-chunk':
+        return backendReadPulledChunk(this.deps, intent);
     }
   }
 

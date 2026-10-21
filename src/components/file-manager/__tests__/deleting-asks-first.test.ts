@@ -56,7 +56,7 @@ async function handlers(): Promise<ReturnType<typeof useFileManagerHandlers>> {
       uploadFile: adone, rename: adone, move: adone, copy: adone, refresh: anoop,
       cut: noop, copyToClipboard: noop, clearClipboard: noop, clearSelection: noop, selectAll: noop,
       currentTreeKey: null, hasPasteItems: false, clipboard: null, isCut: false,
-      myCid: 1n, storageUsed: 0, storageQuota: 1000, revfsEnabled: true,
+      myCid: 1n, storageUsed: 0, storageQuota: 1000, storageOffer: { kind: 'offered' },
       storageMode: 'peer', selectedPeerCid: 2n,
       tree: null, currentPath: '/', filterText: '',
       fileInputRef: { current: null },

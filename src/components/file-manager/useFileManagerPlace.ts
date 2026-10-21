@@ -24,6 +24,8 @@ export interface FileManagerPlace {
   storage: StorageRef;
   path: string;
   openFolder: (path: string) => void;
+  /** Opens a file in its app (Citadel Docs): the address names the file, Back returns to its folder. */
+  openFile: (path: string) => void;
   openStorage: (storage: OpenableStorage) => void;
   /** Null when there is no folder to go back to, or nothing above. */
   back: (() => void) | null;
@@ -62,7 +64,8 @@ export function useFileManagerPlace(myCid: bigint | null): FileManagerPlace {
   const openable: OpenableStorage | null = storage.kind === 'invalid' ? null : storage;
   const path: string = location.path;
 
-  const openFolder: (to: string) => void = useCallback((to: string): void => {
+  // A folder or a file: either way the address names it and a history entry is pushed.
+  const openPath: (to: string) => void = useCallback((to: string): void => {
     if (openable === null) return;
     setVisited((v: VisitedFolders): VisitedFolders => visitFolder(v, path, to));
     go({ storage: openable, path: to, item: null, via: null });
@@ -77,11 +80,11 @@ export function useFileManagerPlace(myCid: bigint | null): FileManagerPlace {
     setVisited(previous.visited);
     go({ storage: openable, path: previous.to, item: null, via: null });
   };
-  const up: (() => void) | null = path === '/' ? null : (): void => openFolder(parentPath(path));
+  const up: (() => void) | null = path === '/' ? null : (): void => openPath(parentPath(path));
 
   const locate: (at: string, item: string | null) => FileManagerTarget | null = useCallback((at: string, item: string | null): FileManagerTarget | null => (
     openable === null ? null : { storage: openable, path: at, item, via: openable.kind === 'peer' ? myCid : null }
   ), [openable, myCid]);
 
-  return { location, storage, path, openFolder, openStorage, back, up, locate };
+  return { location, storage, path, openFolder: openPath, openFile: openPath, openStorage, back, up, locate };
 }

@@ -15,6 +15,7 @@ import { membershipChanged } from './membership-change';
 import { recordMemberNames } from '@/lib/member-names';
 import { recordPresenceChoices } from '@/lib/published-presence';
 import type { MappedMember } from '@/lib/workspace-response-handler/member-mapping';
+import { DOCUMENTS_EVENT } from './documents-event';
 
 export function handleGeneratedVariants(
   response: WorkspaceProtocolResponse,
@@ -177,13 +178,15 @@ export function handleGeneratedVariants(
   }
 
   if (isVariant(response, 'ServerCapabilities')) {
-    const caps: { allow_server_file_transfer: boolean; allow_server_revfs_storage: boolean; max_file_transfer_size_mb: bigint; revfs_storage_quota_mb: bigint; } = response.ServerCapabilities;
+    const caps: Extract<WorkspaceProtocolResponse, { ServerCapabilities: unknown }>['ServerCapabilities'] = response.ServerCapabilities;
     debugLog('WorkspaceResponseHandler', 'ServerCapabilities received', caps);
     eventEmitter.emit('server:capabilities:loaded', {
       allowServerFileTransfer: caps.allow_server_file_transfer,
       allowServerRevfsStorage: caps.allow_server_revfs_storage,
       maxFileTransferSizeMb: Number(caps.max_file_transfer_size_mb),
       revfsStorageQuotaMb: Number(caps.revfs_storage_quota_mb),
+      // Absent from the wire arrives as undefined (serde-wasm-bindgen); null here, said once.
+      revfsStorageRefusal: caps.revfs_storage_refusal ?? null,
       connection: connectionInfo,
     });
     return true;
@@ -211,6 +214,13 @@ export function handleGeneratedVariants(
     // messaging-trust-operations.ts wait on the raw event for their own answer.
     eventEmitter.emit('workspace:messaging-trust', { answer: response.MessagingTrust, connection: connectionInfo });
     eventEmitter.emit('workspace:raw-response', response);
+    return true;
+  }
+
+  if (isVariant(response, 'Documents')) {
+    // Answers and pushes for open documents (cdoc/collab/documents-transport.ts). Not raw and
+    // not logged: no write here waits on a type match, and the bytes are the document.
+    eventEmitter.emit(DOCUMENTS_EVENT, { answer: response.Documents });
     return true;
   }
 

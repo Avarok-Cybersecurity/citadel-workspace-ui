@@ -6,9 +6,14 @@
  * `reconnectingTo` is the agent's own report that it is bringing this session's
  * server link back (server-reconnect.ts). While it stands, neither "no connection"
  * nor "no data yet" is a reason to leave: /connect cannot help a session the agent
- * is already restoring, and the data comes once the link does.
+ * is already restoring, and the data comes once the link does. And while it stands, a tree
+ * kept on this device (`keptTree`) lets the workspace open, labelled as offline, rather than
+ * hold every document behind the spinner until the server answers.
  */
 import { reconnectingMessage } from '@/lib/reconnect/server-reconnect';
+
+/** Here, not with the rest of encryption at rest's words (at-rest-copy.ts): the loader is on the landing path. */
+export const LOCKED_TREE_NOTICE: string = 'The workspace tree kept on this device is locked, so the workspace opens once the server answers.';
 
 export interface LoaderInputs {
   isLoading: boolean;
@@ -18,6 +23,10 @@ export interface LoaderInputs {
   workspaceDataTimeout: boolean;
   heldElsewhere: boolean;
   reconnectingTo: string | null;
+  /** A last-known tree is kept on this device for this session's account. */
+  keptTree: boolean;
+  /** One is kept, sealed, and cannot be opened here. */
+  keptTreeLocked: boolean;
 }
 
 export type LoaderView =
@@ -36,7 +45,7 @@ export function shouldLeaveForConnect(inputs: LoaderInputs): boolean {
 
 function spinnerMessage(inputs: LoaderInputs): string {
   if (inputs.isAutoClaiming) return 'Connecting to session...';
-  if (inputs.reconnectingTo !== null) return reconnectingMessage(inputs.reconnectingTo);
+  if (inputs.reconnectingTo !== null) return inputs.keptTreeLocked ? `${reconnectingMessage(inputs.reconnectingTo)} ${LOCKED_TREE_NOTICE}` : reconnectingMessage(inputs.reconnectingTo);
   if (inputs.workspaceDataTimeout) return 'Workspace data is taking longer than expected...';
   if (inputs.loadingTimeout) return 'Checking connection...';
   return 'Loading workspace...';
@@ -45,6 +54,7 @@ function spinnerMessage(inputs: LoaderInputs): string {
 export function loaderView(inputs: LoaderInputs): LoaderView {
   if (inputs.isLoading && inputs.heldElsewhere) return { kind: 'held-elsewhere' };
   if (!inputs.isLoading && !inputs.isAutoClaiming) return { kind: 'ready' };
+  if (inputs.reconnectingTo !== null && inputs.keptTree && !inputs.isAutoClaiming) return { kind: 'ready' };
   const waitingOnTheAgent: boolean = inputs.reconnectingTo !== null;
   return {
     kind: 'spinner',

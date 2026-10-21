@@ -20,7 +20,7 @@ import { fileManagerScreen, type FileManagerScreenInputs } from '../file-manager
 const noTree: Record<string, unknown> = vi.hoisted((): Record<string, unknown> => {
   const ok = (): Promise<boolean> => Promise.resolve(true);
   return {
-    tree: null, loading: true, error: null, storageUsed: 0, storageQuota: 0, revfsEnabled: true,
+    tree: null, loading: true, error: null, storageUsed: 0, storageQuota: 0, storageOffer: { kind: 'offered' },
     mkdir: ok, rmdir: ok, uploadFile: ok, downloadFile: (): Promise<undefined> => Promise.resolve(undefined),
     removeFile: ok, rename: ok, move: ok, copy: ok, refresh: (): Promise<void> => Promise.resolve(), pendingPaths: new Set<string>(),
   };

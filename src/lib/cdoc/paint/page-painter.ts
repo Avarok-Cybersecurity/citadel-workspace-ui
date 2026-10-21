@@ -1,17 +1,18 @@
 /**
  * Paints one decoded page into a 2d context in device pixels, op by op in painting order
- * (`docs/display-list.md` v1 § Operations), with the rounding rule of units.ts. The context's
+ * (`docs/display-list.md` v2 § Operations), with the rounding rule of units.ts. The context's
  * transform is the identity throughout; only glyph fills set (and restore) their own.
  *
  * Links paint nothing: they come back as hit areas in CSS px, for the page view to overlay.
  * Selection and caret are not painted here; they belong to overlay canvases above the page.
  */
 import { SEG_CLOSE, SEG_CUBIC, SEG_LINE, SEG_MOVE } from '../format';
-import { placeGlyphRun, placeTextRun } from '../display-list/text-placement';
+import { placeGlyphRun } from '../display-list/text-placement';
 import type { Face, Op, PageOps, PathData, Rect } from '../display-list/types';
 import type { Ctx2D } from './canvas-port';
 import { cssColor } from './color';
 import type { GlyphAtlas } from './glyph-atlas';
+import type { PaintableImage } from './image-cache';
 import type { OutlineStore } from './glyph-outlines';
 import { crisp, px, quarterPx, rectPx, strokePx, type DeviceScale, type PixelRect } from './units';
 
@@ -32,8 +33,35 @@ export interface PagePaintEnv {
   readonly outlines: OutlineStore;
   /** The sheet's colour, painted under every op. */
   readonly paper: string;
-  /** Stroke for an image whose bytes this paint does not have. */
-  readonly missingImageStroke: string;
+  /** The image an op names, decoded or a placeholder; undefined until it has been resolved. */
+  readonly images: (contentId: string) => PaintableImage | undefined;
+  readonly placeholder: ImagePlaceholderStyle;
+}
+
+/** The box drawn for an image the canvas does not draw: a border and a label, in CSS px. */
+export interface ImagePlaceholderStyle {
+  readonly stroke: string;
+  readonly labelColor: string;
+  readonly labelCssPx: number;
+  readonly labelFamily: string;
+}
+
+function placeholder(env: PagePaintEnv, r: PixelRect, label: string | null): void {
+  const { ctx } = env;
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = env.placeholder.stroke;
+  ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+  if (label === null) return;
+  const size: number = Math.round(env.placeholder.labelCssPx * env.scale.dpr);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(r.x, r.y, r.w, r.h);
+  ctx.clip();
+  ctx.font = `${size}px ${env.placeholder.labelFamily}`;
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = env.placeholder.labelColor;
+  ctx.fillText(label, r.x + size / 2, r.y + size / 2);
+  ctx.restore();
 }
 
 /** `cdoc_paint::allowed_link`: http, https and mailto only, case-insensitive, leading space ignored. */
@@ -73,7 +101,7 @@ function line(ctx: Ctx2D, op: Extract<Op, { kind: 'line' }>, k: number): void {
   ctx.stroke();
 }
 
-function text(env: PagePaintEnv, op: Extract<Op, { kind: 'textRun' | 'glyphRun' }>): void {
+function text(env: PagePaintEnv, op: Extract<Op, { kind: 'glyphRun' }>): void {
   const { k } = env.scale;
   const face: Face = env.faces[op.head.faceId];
   const sizePx: number = quarterPx(op.head.size * k);
@@ -85,8 +113,7 @@ function text(env: PagePaintEnv, op: Extract<Op, { kind: 'textRun' | 'glyphRun' 
       x: quarterPx(gx * k), y: gy === op.head.y ? y : px(gy, k), color,
     });
   };
-  if (op.kind === 'textRun') placeTextRun(op, face, visit);
-  else placeGlyphRun(op, visit);
+  placeGlyphRun(op, visit);
 }
 
 function cssRect(r: Rect, css: number): Omit<LinkArea, 'target'> {
@@ -132,18 +159,20 @@ export function paintPage(env: PagePaintEnv, page: PageOps): LinkArea[] {
         ctx.strokeStyle = cssColor(op.color);
         ctx.stroke();
         break;
-      case 'textRun':
       case 'glyphRun': text(env, op); break;
       case 'image': {
+        // The same rounding as every rect, so the picture lands where PDF and SVG put it.
         const r: PixelRect = rectPx(op.rect, k);
-        ctx.lineWidth = 1;
-        ctx.strokeStyle = env.missingImageStroke;
-        ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+        const image: PaintableImage | undefined = env.images(op.contentId);
+        if (image?.kind === 'drawn') ctx.drawImage(image.image.source, r.x, r.y, r.w, r.h);
+        else placeholder(env, r, image?.label ?? null);
         break;
       }
       case 'link':
         if (allowedLink(op.target)) links.push({ ...cssRect(op.rect, css), target: op.target });
         break;
+      // An unsigned signature field is the PDF's form field; the page shows nothing for it.
+      case 'sigField': break;
       case 'clipPush': {
         const r: PixelRect = rectPx(op.rect, k);
         ctx.save();
@@ -153,6 +182,8 @@ export function paintPage(env: PagePaintEnv, page: PageOps): LinkArea[] {
         break;
       }
       case 'clipPop': ctx.restore(); break;
+      // Where the page's text came from, for an editor; nothing to draw.
+      case 'caretLines': break;
     }
   }
   return links;

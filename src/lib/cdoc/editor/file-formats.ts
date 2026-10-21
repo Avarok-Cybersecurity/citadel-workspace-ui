@@ -9,12 +9,24 @@ export type ImportFormat = 'docx' | 'odt' | 'md' | 'txt';
 export type ExportFormat = 'docx' | 'dotx' | 'odt' | 'md' | 'txt' | 'pdf';
 
 /**
+ * How much a loss matters (citadel-docs docs/loss-report.md): `info` changes nothing a reader
+ * sees, `minor` approximates formatting, layout or structure, `major` loses visible content.
+ */
+export type LossSeverity = 'info' | 'minor' | 'major';
+
+interface LossTier {
+  readonly severity: LossSeverity;
+  /** Plain language, for the user; `what` names the element. */
+  readonly label: string;
+}
+
+/**
  * One loss, as the model's report spells it (cdoc_model::Loss, untagged on the wire, tagged
- * here): a counted loss, or refused macros.
+ * here): a counted loss, or refused macros, each with its severity and label.
  */
 export type ConversionLoss =
-  | { readonly kind: 'counted'; readonly part: string; readonly what: string; readonly count: number }
-  | { readonly kind: 'macros'; readonly part: string; readonly bytes: bigint };
+  | (LossTier & { readonly kind: 'counted'; readonly part: string; readonly what: string; readonly count: number })
+  | (LossTier & { readonly kind: 'macros'; readonly part: string; readonly bytes: bigint });
 
 /** What a conversion could not carry; every importer and exporter returns one. */
 export interface ConversionReport {
@@ -31,7 +43,8 @@ export type ExportTarget =
 export interface ExportedFile {
   /** A buffer of its own, transferable. */
   readonly bytes: Uint8Array;
-  readonly report: ConversionReport;
+  /** What the file could not carry; null for a PDF, whose writer reports no losses yet. */
+  readonly report: ConversionReport | null;
 }
 
 /** What an import could not carry, and whether the file was a document or a template. */
