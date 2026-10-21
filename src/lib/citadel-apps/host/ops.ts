@@ -1,5 +1,5 @@
 /**
- * The op table: the generated `OPS` (group, op number, name, capability) joined with how this host
+ * The op table: the generated `OPS` (group, op number, name, granted_by) joined with how this host
  * carries each op: which port, whether it reaches the server (and so spends the server bucket too),
  * and which clock bounds it. The one place the dispatcher, the worker's remote invoker and the main
  * thread's re-check all read. The binding is keyed by op name and typed exhaustively, so an op the
@@ -63,8 +63,8 @@ export interface OpEntry {
   readonly name: OpName;
   readonly port: Carrier;
   readonly clock: OpClock;
-  /** The capability the call needs (Kv* ops: by their backend). Args are already schema-checked. */
-  readonly capabilityFor: (args: CborMap) => Capability;
+  /** Whether `held` admits the call: any one of the op's `granted_by` (Kv* ops: their backend's). Args are already schema-checked. */
+  readonly admits: (args: CborMap, held: ReadonlySet<Capability>) => boolean;
   readonly server: (args: CborMap) => boolean;
 }
 
@@ -75,10 +75,11 @@ export function kvCapability(backend: KvBackend): Capability {
 
 const entries: OpEntry[] = OPS.map((o): OpEntry => {
   const b: Binding = BINDINGS[o.name];
-  const fixed: Capability | null = o.capability;
+  const grantedBy: readonly Capability[] | null = o.granted_by;
   return {
     group: o.group, op: o.op, name: o.name, port: b.port, clock: b.clock,
-    capabilityFor: (args: CborMap): Capability => fixed ?? kvCapability(args.backend as KvBackend),
+    admits: (args: CborMap, held: ReadonlySet<Capability>): boolean =>
+      (grantedBy ?? [kvCapability(args.backend as KvBackend)]).some((c: Capability) => held.has(c)),
     server: (args: CborMap): boolean => (b.server === 'kv' ? args.backend !== 'local' : b.server),
   };
 });

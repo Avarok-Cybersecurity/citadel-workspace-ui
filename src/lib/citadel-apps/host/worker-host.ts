@@ -7,6 +7,7 @@
  * (a router Cancel, a reply that became ready) queue and are delivered after the export returns.
  * Any exception out of an export is a trap: the worker reports `trapped` and runs nothing more.
  */
+import { PAGE_BYTES } from '../sdk/generated/AbiConstants';
 import { ABI_ERROR, INIT_RESULT } from './abi';
 import { encodeAppEvent } from './app-event';
 import type { CborMap } from './cbor';
@@ -33,7 +34,6 @@ interface Guest {
 
 /** Answered in the worker: the canvas it owns, and log (which also tells the page). */
 const LOCAL_PORTS: ReadonlySet<PortKey | 'host'> = new Set<PortKey | 'host'>(['canvas', 'log', 'host']);
-const PAGE_BYTES = 65536;
 const ROUTER_TICK_MS = 1000;
 
 /** Surfaces for an attached OffscreenCanvas; the worker entry passes the real `getContext`. */

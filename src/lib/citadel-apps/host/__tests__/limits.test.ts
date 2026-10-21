@@ -3,7 +3,8 @@
  * maximum is the manifest's request clamped by the policy and the 256 MiB ceiling.
  */
 import { describe, expect, it } from 'vitest';
-import { HOST_CEILINGS, memoryMaxPagesFor, STANDARD_HOST_POLICY, validateHostPolicy, WASM_PAGE_BYTES } from '../limits';
+import { PAGE_BYTES as WASM_PAGE_BYTES } from '../../sdk/generated/AbiConstants';
+import { HOST_CEILINGS, memoryMaxPagesFor, STANDARD_HOST_POLICY, validateHostPolicy } from '../limits';
 
 describe('host policy', () => {
   it('the standard policy is valid and states the design numbers', () => {

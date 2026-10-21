@@ -18,12 +18,13 @@ import { InstanceSlots } from '../instance-slots';
 import { instanceMemoryFor, STANDARD_HOST_POLICY, validateHostPolicy, type HostPolicy } from '../limits';
 import type { HostPorts } from '../ports';
 import { fixtureContext } from './app-fixtures';
+import { ihttpRemote, type IhttpRemoteConfig } from './ihttp-remote';
 import { realClock, until } from './in-process';
 import { bundleWorkerEntry, threadChannel, type BundledEntry } from './real-worker';
 
 interface Run {
   readonly granted: Capability[];
-  readonly host: { readonly max_memory_pages: number; readonly max_reply_bytes?: number };
+  readonly host: { readonly max_memory_pages: number; readonly max_reply_bytes?: number; readonly ihttp_remote?: IhttpRemoteConfig };
   readonly init: number | 'trap';
   readonly frame?: 'ok' | 'trap';
   readonly events?: readonly { readonly event: AppEvent; readonly outcome: 'ok' | 'trap' }[];
@@ -56,8 +57,8 @@ const wasm = (name: string): Uint8Array => new Uint8Array(readFileSync(join(FIXT
 const caps = (list: readonly Capability[]): ReadonlySet<Capability> => new Set<Capability>(list);
 
 describe(`the SDK fixtures (source: ${FIXTURES.label})`, () => {
-  it.skipIf(!FIXTURES.present)('are the designed ten, every one committed', () => {
-    expect(fixtures.map(([n]) => n).sort()).toEqual(['exfil-attempts', 'foreign-import', 'hello-canvas', 'huge-reply', 'linker-start',
+  it.skipIf(!FIXTURES.present)('are the designed eleven, every one committed', () => {
+    expect(fixtures.map(([n]) => n).sort()).toEqual(['exfil-attempts', 'foreign-import', 'hello-canvas', 'huge-reply', 'ihttp-stream-client', 'linker-start',
       'over-memory', 'panics', 'slow-frame', 'undeclared-import', 'ungranted-calls']);
   });
 
@@ -81,9 +82,10 @@ interface Live {
   readonly log: string[];
 }
 
-/** The reference host's ports (harness/src/respond.rs): log, events, toast, internal navigation, FilesRead. */
-function referencePorts(log: string[], maxReplyBytes: number): HostPorts {
+/** The reference host's ports (harness/src/respond.rs, remote.rs): log, events, internal navigation, FilesRead, the ihttp far end. */
+function referencePorts(log: string[], maxReplyBytes: number, remote: IhttpRemoteConfig | undefined): HostPorts {
   return {
+    ...(remote === undefined ? {} : { ihttp: ihttpRemote(remote) }),
     log: { LogWrite: ({ message }) => { log.push(message); return { ok: null }; } },
     events: { Subscribe: () => ({ ok: null }), RequestFrames: () => ({ ok: null }) },
     navigate: { currentUrl: () => 'https://work.avarok.net/workspace', open: () => ({ ok: null }) },
@@ -108,7 +110,7 @@ async function start(name: string, f: Fixture, run: Run): Promise<Live> {
   const launched = launchAppInstance({
     appId: 'net.avarok.fixture', module: v.module, granted: caps(run.granted), context: fixtureContext(run.granted),
     pageUrl: 'https://work.avarok.net/workspace', memory: instanceMemoryFor(v.memory, run.host.max_memory_pages, policy), policy,
-    ports: referencePorts(log, maxReplyBytes), clock: realClock, slots: new InstanceSlots(1), spawn: () => threadChannel(bundled),
+    ports: referencePorts(log, maxReplyBytes, run.host.ihttp_remote), clock: realClock, slots: new InstanceSlots(1), spawn: () => threadChannel(bundled),
   });
   if (!launched.ok) throw new Error('no slot');
   return { instance: launched.instance, log };
@@ -146,8 +148,15 @@ async function play(name: string, f: Fixture, run: Run): Promise<void> {
     await new Promise<void>((r) => setTimeout(r, BUDGET_MS + 300));
     expect([name, i.state]).toEqual([name, run.frame === 'ok' ? 'running' : 'stopped-unresponsive']);
   }
+  // Pending replies and far-end frames may still be in flight: wait for every expected probe
+  // (bounded; a missing one then fails below with its name), then for quiet.
+  const probes: string[] = Object.keys(run.report ?? {});
+  await until(() => probes.every((p: string) => p in report(live.log)), 10_000).catch((): void => undefined);
+  await settle(live);
   const got: Record<string, string> = report(live.log);
   for (const [probe, want] of Object.entries(run.report ?? {})) expect([name, probe, got[probe]]).toEqual([name, probe, want]);
+  // As harness/tests/run.rs: exfil-attempts reports every probe and no other.
+  if (name === 'exfil-attempts') expect(Object.keys(got).sort()).toEqual(Object.keys(run.report ?? {}).sort());
   for (const line of run.log ?? []) expect(live.log).toContain(line);
   if (run.log_contains !== undefined) expect(live.log.some((l: string) => l.includes(run.log_contains as string))).toBe(true);
   if (run.memory_pages_after !== undefined) expect([name, i.trapMemoryPages]).toEqual([name, run.memory_pages_after]);
@@ -156,7 +165,7 @@ async function play(name: string, f: Fixture, run: Run): Promise<void> {
 
 describe(`the SDK fixtures, run in the production worker (source: ${FIXTURES.label})`, () => {
   it.skipIf(!FIXTURES.present)('every fixture with a run is run, controls included', () => {
-    expect(fixtures.flatMap(([, f]) => [f.run, f.control_run]).filter((r) => r !== undefined).length).toBeGreaterThanOrEqual(8);
+    expect(fixtures.flatMap(([, f]) => [f.run, f.control_run]).filter((r) => r !== undefined).length).toBe(10);
   });
 
   for (const [name, f] of fixtures) {

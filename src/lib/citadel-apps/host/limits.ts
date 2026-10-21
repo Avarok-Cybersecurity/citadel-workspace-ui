@@ -6,9 +6,7 @@
  * Two layers: HOST_CEILINGS are physics no policy may exceed (validateHostPolicy refuses one that
  * tries), STANDARD_HOST_POLICY is the policy the page runs with.
  */
-
-/** One wasm page is 64 KiB. */
-export const WASM_PAGE_BYTES = 65_536;
+import { IHTTP_INITIAL_CREDIT, IHTTP_MAX_CHUNK_BYTES } from '../sdk/generated/AbiConstants';
 
 export interface IhttpLimits {
   readonly maxPathBytes: number;
@@ -71,8 +69,8 @@ export const STANDARD_IHTTP_LIMITS: IhttpLimits = {
   maxHeaderBytes: 1024,
   maxRequestBodyBytes: 4 * 1024 * 1024,
   maxResponseBodyBytes: 16 * 1024 * 1024,
-  maxChunkBytes: 64 * 1024,
-  initialCredit: 4,
+  maxChunkBytes: IHTTP_MAX_CHUNK_BYTES,
+  initialCredit: IHTTP_INITIAL_CREDIT,
   streamTimeoutMs: 30_000,
   streamingTimeoutMs: 60_000,
   maxStreamsPerCaller: 8,

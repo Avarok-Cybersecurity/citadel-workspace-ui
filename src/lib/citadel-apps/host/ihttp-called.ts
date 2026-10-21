@@ -68,6 +68,8 @@ export class CalledStreams {
       this.streams.delete(calledKey(appId, f.stream));
       return allow([]);
     }
+    // The server's credit for our response is minted by the host from IhttpConsumed, never sent by the app.
+    if ('Credit' in kind) return deny({ policy: 'credit_is_granted_by_the_host' }, []);
     if (!('Body' in kind)) return deny({ policy: 'protocol' }, []);
     const bytes: number = kind.Body.bytes.byteLength;
     if (bytes > this.limits.maxChunkBytes) return deny({ limit: 'chunk' }, []);

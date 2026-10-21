@@ -28,6 +28,6 @@ export function regrantedCall(ports: HostPorts, granted: ReadonlySet<Capability>
   if (entry === undefined) return { refused: { policy: 'unknown_op' } };
   const checked: CborMap | null = parseArgs(entry.name, args);
   if (checked === null) return { refused: { policy: 'bad_arguments' } };
-  if (!effectiveGrant(granted).has(entry.capabilityFor(checked))) return { refused: 'ungranted' };
+  if (!entry.admits(checked, effectiveGrant(granted))) return { refused: 'ungranted' };
   return invokePort(ports, entry, checked) ?? { refused: { unavailable: entry.port } };
 }

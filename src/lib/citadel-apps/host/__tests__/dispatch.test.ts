@@ -187,4 +187,12 @@ describe('ihttp gate', () => {
     expect(await answer(d.call('ihttp', 4, req({ peer, stream: 1n })))).toEqual({ refused: { policy: 'unknown_stream' } });
     expect(await answer(d.call('ihttp', 3, req({ to: { user: { app_id: 'com.acme.app', username: 'bob' } }, frame })))).toEqual({ refused: 'ungranted' });
   });
+
+  it('IhttpConsumed is admitted by either ihttp capability and by nothing else', async () => {
+    const consumed = req({ peer, stream: 1n });
+    for (const cap of ['ihttp.serve', 'ihttp.call'] as const) {
+      expect(await answer(rig([cap], (rec) => ({ ihttp: fakeIhttp(rec) })).d.call('ihttp', 4, consumed))).toEqual({ refused: { policy: 'unknown_stream' } });
+    }
+    expect(await answer(rig(['nodes.read'], (rec) => ({ ihttp: fakeIhttp(rec) })).d.call('ihttp', 4, consumed))).toEqual({ refused: 'ungranted' });
+  });
 });

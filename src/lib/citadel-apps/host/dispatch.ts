@@ -83,7 +83,7 @@ export class Dispatcher {
     const decoded: Decoded = decodeCbor(request);
     const args: CborMap | null = decoded.ok ? parseArgs(entry.name, decoded.value) : null;
     if (args === null) return { now: refused({ policy: 'bad_arguments' }) };
-    if (!granted.has(entry.capabilityFor(args))) return { now: refused('ungranted') };
+    if (!entry.admits(args, granted)) return { now: refused('ungranted') };
     if (!this.hostBucket.take(clock.now())) return { now: refused({ limit: 'host_calls' }) };
     if (entry.server(args) && !this.serverBucket.take(clock.now())) return { now: refused({ limit: 'server_calls' }) };
     const gate: Refused | null = this.hostGate(entry, args);

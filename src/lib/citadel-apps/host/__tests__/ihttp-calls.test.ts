@@ -90,3 +90,18 @@ describe('stream ids are scoped per (peer, direction)', () => {
     expect(r.liveStreams).toBe(1);
   });
 });
+
+describe('one credit path: the host mints every Credit, from IhttpConsumed only', () => {
+  const credit = (stream: bigint): IhttpFrame => f(stream, { Credit: { n: 1 } });
+
+  it('an app cannot send a Credit frame on a call or on a stream it serves (control: IhttpConsumed mints one)', () => {
+    const r: IhttpRouter = router();
+    r.call(toBob, request(1n, '/cards/1'), 0);
+    r.inbound(bob, response(1n), 0);
+    expect(r.call(toBob, credit(1n), 0)).toMatchObject({ ok: false, refused: { policy: 'credit_is_granted_by_the_host' } });
+    r.inbound(bob, request(2n, '/upload/a', 'POST'), 0);
+    expect(r.respond(bob, credit(2n))).toMatchObject({ ok: false, refused: { policy: 'credit_is_granted_by_the_host' } });
+    expect(kinds(r.consumed(bob, 1n).actions)).toEqual(['reply:Credit']);
+    expect(kinds(r.consumed(bob, 2n).actions)).toEqual(['reply:Credit']);
+  });
+});
