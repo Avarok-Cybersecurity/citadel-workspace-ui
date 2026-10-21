@@ -12,6 +12,8 @@
  */
 import { sessionGet, sessionRemove, sessionSet } from '@/lib/safe-session-storage';
 import type { BillingInterval, PlanSelection, TierId } from './tiers';
+import { isCouponCode } from './coupon-code';
+import { parseCouponPreview, type CouponPreview } from './coupon-preview';
 
 export type FlowStep =
   | { readonly step: 'name' }
@@ -43,6 +45,12 @@ export function stepFromUrl(params: URLSearchParams): FlowStep {
   return { step: 'name' };
 }
 
+/** A code the control plane said applies, and what it said, for the plan it was asked about. */
+export interface AppliedCoupon {
+  readonly code: string;
+  readonly preview: CouponPreview;
+}
+
 export interface FlowDraft {
   readonly displayName: string;
   readonly slug: string;
@@ -53,6 +61,8 @@ export interface FlowDraft {
    * plane replaces the reservation instead of answering "taken" for their own name.
    */
   readonly reservationToken?: string;
+  /** Kept across Checkout so a cancelled payment comes back with the code still applied. */
+  readonly coupon?: AppliedCoupon;
 }
 
 export const DRAFT_KEY: string = 'citadel:create-workspace-draft';
@@ -75,6 +85,25 @@ function isDraft(value: unknown): value is FlowDraft {
     typeof p.linkPacks === 'number' &&
     (draft.reservationToken === undefined || typeof draft.reservationToken === 'string')
   );
+}
+
+/** A stored coupon, rebuilt from only the fields it may hold; undefined when any is wrong. */
+function appliedCouponFrom(value: unknown): AppliedCoupon | undefined {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const { code, preview } = value as { code?: unknown; preview?: unknown };
+  if (typeof code !== 'string' || !isCouponCode(code)) return undefined;
+  const parsed: CouponPreview | undefined = parseCouponPreview(preview);
+  return parsed === undefined ? undefined : { code, preview: parsed };
+}
+
+/**
+ * The coupon a plan change leaves standing. A preview answers for one tier,
+ * interval and seat count; once any of them changes it says nothing about the
+ * new plan, so it is dropped and the code must be asked about again.
+ */
+export function couponForPlan(coupon: AppliedCoupon | undefined, before: PlanSelection, after: PlanSelection): AppliedCoupon | undefined {
+  const same: boolean = before.tier === after.tier && before.interval === after.interval && before.seats === after.seats;
+  return same ? coupon : undefined;
 }
 
 /**
@@ -103,7 +132,11 @@ export function loadDraft(slug: string): FlowDraft | undefined {
   if (!raw) return undefined;
   try {
     const parsed: unknown = withLinkPacks(JSON.parse(raw));
-    return isDraft(parsed) && parsed.slug === slug ? parsed : undefined;
+    if (!isDraft(parsed) || parsed.slug !== slug) return undefined;
+    // A coupon that does not read back is dropped rather than trusted; the rest of the draft stands.
+    const { coupon, ...rest } = parsed;
+    const kept: AppliedCoupon | undefined = coupon === undefined ? undefined : appliedCouponFrom(coupon);
+    return kept === undefined ? rest : { ...rest, coupon: kept };
   } catch {
     return undefined;
   }
