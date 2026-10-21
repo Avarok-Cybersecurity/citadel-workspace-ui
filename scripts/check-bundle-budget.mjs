@@ -230,6 +230,9 @@ const DEFERRED_MODULES = [
   'src/lib/at-rest/agent-root-store.ts',
   // Its shapes and errors too: the kept-tree hook reads the lock lazily (hooks/use-kept-tree.ts).
   'src/lib/at-rest/at-rest-shape.ts',
+  // Console capture for opt-in diagnostic logs: it runs while a workspace is open (TermsGate),
+  // and does nothing until a consent answer allows uploads (lib/telemetry/console-capture).
+  'src/lib/telemetry/console-capture/capture.ts',
 ];
 
 /**

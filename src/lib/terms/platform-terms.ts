@@ -4,4 +4,4 @@
  * and the sign-in step records acceptance only when the server's current version is this one.
  * `legal-documents-parity.test.ts` fails when this drifts from `citadel-workspace-types`.
  */
-export const SHOWN_PLATFORM_TERMS_VERSION: number = 1;
+export const SHOWN_PLATFORM_TERMS_VERSION: number = 2;

@@ -37,7 +37,13 @@ export function EditorPageView({ editor, renderer, zoom, dpr, onZoomChange, onPa
         aria-multiline="true"
         autoCapitalize="off"
         autoComplete="off"
+        autoCorrect="off"
         spellCheck={false}
+        // Writing assistants (Grammarly and the like) attach to editable fields and inject
+        // overlays and console noise; this field is a keyboard bridge, not the text.
+        data-gramm="false"
+        data-gramm_editor="false"
+        data-enable-grammarly="false"
         data-testid="editor-input"
         className="sr-only"
       />
