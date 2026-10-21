@@ -51,7 +51,7 @@ describe('the document', () => {
     open();
     const dialog: HTMLElement = screen.getByRole('dialog', { name: 'Terms of Use' });
     expect(within(dialog).getByTestId('terms-document-facts')).toHaveTextContent(documentFacts(PLATFORM_TERMS_DOCUMENT));
-    expect(documentFacts(PLATFORM_TERMS_DOCUMENT)).toMatch(/^Version 1 · Effective October 14, 2026$/);
+    expect(documentFacts(PLATFORM_TERMS_DOCUMENT)).toMatch(/^Version 2 · Effective October 21, 2026$/);
   });
 
   it('is rendered as Markdown: headings, lists and bold, not asterisks and hashes', () => {

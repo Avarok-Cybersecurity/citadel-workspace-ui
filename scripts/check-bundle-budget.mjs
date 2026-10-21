@@ -242,6 +242,9 @@ const DEFERRED_MODULES = [
   'src/lib/at-rest/at-rest-shape.ts',
   // The kill switch loads only when /version.json pulls it (lib/pwa/watch-deployed-version.ts).
   'src/lib/pwa/kill-switch.ts',
+  // Console capture for opt-in diagnostic logs: it runs while a workspace is open (TermsGate),
+  // and does nothing until a consent answer allows uploads (lib/telemetry/console-capture).
+  'src/lib/telemetry/console-capture/capture.ts',
 ];
 
 /**

@@ -145,3 +145,12 @@ describe.each(['worker', 'main-thread'] as const)('EditorPageView with the %s re
   });
 });
 
+describe('the hidden textarea', () => {
+  it('opts out of writing assistants, spellcheck and the platform\'s autocorrection', async () => {
+    const { input } = await mount('main-thread');
+    for (const [name, value] of [
+      ['data-gramm', 'false'], ['data-gramm_editor', 'false'], ['data-enable-grammarly', 'false'],
+      ['spellcheck', 'false'], ['autocomplete', 'off'], ['autocorrect', 'off'], ['autocapitalize', 'off'],
+    ] as const) expect(input.getAttribute(name), name).toBe(value);
+  });
+});
