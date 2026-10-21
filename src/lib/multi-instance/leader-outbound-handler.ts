@@ -29,6 +29,8 @@ import {
 import { debugLog } from '@/lib/debug-config';
 import { requiresILM } from './ilm-policy';
 import { wasExecutedByAnotherLeader } from './executed-requests';
+import { newerTabIsOpen, onNewerTab } from './tab-staleness';
+import { StaleLeaderHandover } from './stale-leader-handover';
 
 interface OutboundRequest {
   requestId: string;
@@ -58,8 +60,10 @@ class LeaderOutboundHandler {
       await this.handleOutboundRequest(request);
     });
 
+    onNewerTab((): void => this.handover.request());
     eventEmitter.on('instance:leader-changed', (data: { isLeader: boolean; leaderId: string }) => {
       this.isActive = data.isLeader;
+      this.handover.cancel();
 
       if (this.isActive) {
         debugLog('LeaderOutboundHandler', '[LeaderOutboundHandler] Activated as leader');
@@ -84,6 +88,13 @@ class LeaderOutboundHandler {
    * error-acked: the original is still running and acks for both.
    */
   private readonly inFlight: Set<string> = new Set<string>();
+
+  private readonly handover: StaleLeaderHandover = new StaleLeaderHandover({
+    isLeading: (): boolean => this.isActive,
+    busy: (): boolean => this.inFlight.size > 0,
+    newerTabIsOpen,
+    relinquish: (): void => instanceChannel.relinquishLeadership(),
+  });
 
   async handleOutboundRequest(request: OutboundRequest): Promise<void> {
     if (this.inFlight.has(request.requestId)) {
@@ -110,6 +121,10 @@ class LeaderOutboundHandler {
       return;
     }
 
+    if (this.handover.pending) {
+      debugLog('LeaderOutboundHandler', `Not starting ${request.requestId}: handing over to a newer build`);
+      return;
+    }
     if (!this.isActive) {
       debugLog('LeaderOutboundHandler', 'Received request but not active (not leader)');
       this.sendAck(request.senderInstanceId, request.requestId, 'error', 'Not leader');
@@ -190,6 +205,7 @@ class LeaderOutboundHandler {
       this.sendAck(request.senderInstanceId, request.requestId, 'error', errorMessage);
     } finally {
       this.inFlight.delete(request.requestId);
+      this.handover.settle();
     }
   }
 

@@ -14,8 +14,10 @@ import { createValueStore, type ValueStore } from '@/lib/value-store';
  * - `activated-elsewhere`: another window accepted it; this one only reloads.
  * - `deployed`: found by polling `/version.json` in a page no worker controls;
  *   a plain reload fetches the new build.
+ * - `stale`: another open tab runs a newer build (multi-instance/tab-staleness.ts), or the
+ *   kill switch could not reload this one. Accepting applies any waiting worker, then reloads.
  */
-export type DeployNoticeReason = 'waiting' | 'activated-elsewhere' | 'deployed';
+export type DeployNoticeReason = 'waiting' | 'activated-elsewhere' | 'deployed' | 'stale';
 
 export interface DeployNotice {
   readonly reason: DeployNoticeReason;
@@ -32,6 +34,8 @@ const store: ValueStore<DeployNotice | null> = createValueStore<DeployNotice | n
 export function offerDeployNotice(notice: DeployNotice): void {
   const current: DeployNotice | null = store.get();
   if (current?.reason === 'waiting' && notice.reason === 'deployed') return;
+  // Any other notice already names the newer build, and says how to get it.
+  if (current !== null && notice.reason === 'stale') return;
   store.set(notice);
 }
 

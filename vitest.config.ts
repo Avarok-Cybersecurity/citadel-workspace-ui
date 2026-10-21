@@ -26,6 +26,9 @@ function stubWasmClient(): Plugin {
 
 export default defineConfig({
   plugins: [react(), stubWasmClient()],
+  // The build's clock (multi-instance/build-identity.ts). Under test every tab is one build, so
+  // one fixed value: a test about tabs of different builds mocks build-identity per tab.
+  define: { __BUILD_SEQ__: '1000' },
   test: {
     globals: true,
     environment: 'jsdom',

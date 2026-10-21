@@ -16,12 +16,31 @@
  */
 export const VERSION_MANIFEST_PATH: string = '/version.json';
 
+/**
+ * `seq` is the build's clock (multi-instance/build-identity.ts). `minSeq`, when present, is the
+ * kill switch: a page running a build older than it reloads at once (kill-switch.ts). Absent,
+ * no build is too old to keep running.
+ */
 export interface VersionManifest {
   readonly entry: string;
+  readonly seq: number;
+  readonly minSeq?: number;
 }
 
-export function versionManifest(entry: string): string {
-  return JSON.stringify({ entry } satisfies VersionManifest);
+export function versionManifest(manifest: VersionManifest): string {
+  return JSON.stringify(manifest satisfies VersionManifest);
+}
+
+function seqField(body: Record<string, unknown>, key: 'seq' | 'minSeq'): number | null {
+  const value: unknown = body[key];
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : null;
+}
+
+/** The deployed build's seq and kill switch; null for either one the manifest does not carry. */
+export function readDeployedSeqs(body: unknown): { seq: number | null; minSeq: number | null } {
+  if (typeof body !== 'object' || body === null) return { seq: null, minSeq: null };
+  const fields: Record<string, unknown> = body as Record<string, unknown>;
+  return { seq: seqField(fields, 'seq'), minSeq: seqField(fields, 'minSeq') };
 }
 
 /** The deployed entry, or null for anything that is not a manifest (a 404 page, the SPA shell). */
