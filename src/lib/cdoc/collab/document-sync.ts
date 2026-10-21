@@ -18,6 +18,7 @@ import { CachedCopy, type ReplicaNow } from './cached-copy';
 import { HeldRequests } from './refused-retry';
 import { toWire } from './wire-bytes';
 import { ReplicaInStep } from './replica-in-step';
+import { PacedSends } from './request-pacer';
 import { SnapshotPolicy, type SnapshotHost } from './snapshot-policy';
 
 type Updates = Extract<DocumentsResponse, { Updates: unknown }>['Updates'];
@@ -43,6 +44,7 @@ export class DocumentSync {
   private readonly snapshots: SnapshotPolicy;
   private readonly copy: CachedCopy;
   private readonly held: HeldRequests;
+  private readonly paced: PacedSends;
   private cancelPullTimer: (() => void) | null = null;
   private writable: boolean = true;
   private readable: boolean = true;
@@ -54,6 +56,7 @@ export class DocumentSync {
     this.snapshots = new SnapshotPolicy(config, ports, snapshotHost, (request: DocumentsRequest, name: string): Promise<void> => this.send(request, name));
     this.copy = new CachedCopy(config.nodeId, config.docVersion, ports.cache, host.report, { clock: ports.clock, idleMs: config.baseAfterIdleMs, run: host.run },
       (): ReplicaNow => ({ editor: this.replica.editor, seq: this.replica.cursor.seq, exact: this.caughtUp }));
+    this.paced = new PacedSends(ports.pacing, (request: DocumentsRequest, name: string): Promise<void> => this.send(request, name));
     this.held = new HeldRequests(ports.clock, config.retryDelaysMs, (): void => host.run((): Promise<void> => this.resend()),
       (): void => host.run((): Promise<void> => this.pull()), (refusal: DocumentRefusal): void => host.report({ kind: 'refused', refusal }));
   }
@@ -111,10 +114,10 @@ export class DocumentSync {
     await this.pull();
   }
 
-  /** Sends every update the server has not acknowledged again. */
+  /** Queues every update the server has not acknowledged again, in order, at the kernel's pace. */
   private async resend(): Promise<void> {
     if (!this.writable || !this.host.linkUp()) return;
-    for (const entry of this.edits.all()) if (this.edits.sendable(entry)) await this.sendAppend(entry);
+    for (const entry of this.edits.all()) if (this.edits.sendable(entry)) this.sendAppend(entry);
   }
 
   onLinkDown(): void {
@@ -129,7 +132,7 @@ export class DocumentSync {
       return;
     }
     const entry: PendingUpdate = this.edits.push(update.slice());
-    if (this.writable && this.host.linkUp() && this.edits.sendable(entry)) await this.sendAppend(entry);
+    if (this.writable && this.host.linkUp() && this.edits.sendable(entry)) this.sendAppend(entry);
     this.snapshots.countLocal();
   }
 
@@ -154,6 +157,7 @@ export class DocumentSync {
   }
 
   stop(): void {
+    this.paced.forget();
     this.stopPullTimer();
     this.held.stop();
     this.copy.stop();
@@ -223,7 +227,7 @@ export class DocumentSync {
     if (!this.readable || !this.host.linkUp()) return;
     this.stopPullTimer();
     this.cancelPullTimer = this.ports.clock.after(this.config.pullTimeoutMs, (): void => { this.cancelPullTimer = null; void this.pull(); });
-    await this.send({ Pull: { node_id: this.config.nodeId, since_seq: this.replica.cursor.seq } }, 'Pull');
+    this.paced.pull((): DocumentsRequest | null => (this.readable && this.host.linkUp() ? { Pull: { node_id: this.config.nodeId, since_seq: this.replica.cursor.seq } } : null));
   }
 
   private stopPullTimer(): void {
@@ -231,8 +235,9 @@ export class DocumentSync {
     this.cancelPullTimer = null;
   }
 
-  private sendAppend(entry: PendingUpdate): Promise<void> {
-    return this.send({ Append: { node_id: this.config.nodeId, doc_version: this.config.docVersion, update: toWire(entry.update), client_seq: entry.clientSeq } }, 'Append');
+  private sendAppend(entry: PendingUpdate): void {
+    this.paced.append(entry.clientSeq, (): DocumentsRequest | null => (this.writable && this.host.linkUp() && this.edits.pending(entry) && this.edits.sendable(entry)
+      ? { Append: { node_id: this.config.nodeId, doc_version: this.config.docVersion, update: toWire(entry.update), client_seq: entry.clientSeq } } : null));
   }
 
   private async send(request: DocumentsRequest, name: string): Promise<void> {

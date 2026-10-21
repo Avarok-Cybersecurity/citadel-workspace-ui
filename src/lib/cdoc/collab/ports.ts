@@ -2,6 +2,7 @@
  * The I/O a DocumentSession does, each behind a port, so the session itself is pure ordering
  * logic: the kernel link, time, the local cache and the editor are all handed in.
  */
+import type { DocumentPacing } from './request-pacer';
 import type { DocumentsRequest, DocumentsResponse } from 'citadel-workspace-client-ts';
 import type { EditorOpener } from '../editor/controller';
 import type { HexColor } from '../editor/model-values';
@@ -126,4 +127,6 @@ export interface DocumentSessionPorts {
   readonly cache: DocumentCache | null;
   readonly openEditor: EditorOpener;
   readonly identify: PeerIdentity;
+  /** This tab's Append and Pull pacers for the account (request-pacer.ts), shared by its documents. */
+  readonly pacing: DocumentPacing;
 }

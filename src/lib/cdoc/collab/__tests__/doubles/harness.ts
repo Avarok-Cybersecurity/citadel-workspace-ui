@@ -11,6 +11,7 @@ import type { DocumentSessionError } from '../../session-errors';
 import { ManualClock } from './manual-clock';
 import { baseSnapshot, type ReplicaSource } from './real-replicas';
 import { ScriptedKernel, type ScriptedKernelConfig } from './scripted-kernel';
+import { RequestPacer, type DocumentPacing } from '../../request-pacer';
 
 export const NODE: string = 'doc-node-1';
 export const ALICE: bigint = 10_000_000_000_000_000_001n;
@@ -25,6 +26,8 @@ export function kernelConfig(overrides: Partial<ScriptedKernelConfig>): Scripted
     maxSnapshotBytes: DOCUMENTS_RELAY_LIMITS.maxSnapshotBytes,
     maxAwarenessBytes: DOCUMENTS_RELAY_LIMITS.maxAwarenessBytes,
     awarenessPerSecond: DOCUMENTS_RELAY_LIMITS.awarenessPerSecond,
+    appendsPerSecond: DOCUMENTS_RELAY_LIMITS.appendsPerSecond,
+    pullsPerSecond: DOCUMENTS_RELAY_LIMITS.pullsPerSecond,
     ...overrides,
   };
 }
@@ -79,6 +82,7 @@ export function openTab<R extends EditorController>(kernel: ScriptedKernel, cloc
     cache,
     openEditor: replicas.open,
     identify: (who: bigint): { readonly name: string; readonly color: HexColor } => ({ name: who === ALICE ? 'Alice' : 'Bob', color: COLORS[who.toString()] }),
+    pacing: pacingFor(kernel, clock),
   });
   const tab: Tab<R> = {
     session,
@@ -95,6 +99,13 @@ export function openTab<R extends EditorController>(kernel: ScriptedKernel, cloc
   session.on('problem', (problem: DocumentSessionError): void => { tab.problems.push(problem); });
   session.on('peers', (peers: readonly PeerPresence[]): void => { tab.peers.push(peers); });
   return tab;
+}
+
+/** One tab's pacers, as workspace-ports.ts makes them, which the kernel's settle() waits out. */
+export function pacingFor(kernel: ScriptedKernel, clock: ManualClock): DocumentPacing {
+  const pacing: DocumentPacing = { appends: new RequestPacer(clock, DOCUMENTS_RELAY_LIMITS.appendsPerSecond), pulls: new RequestPacer(clock, DOCUMENTS_RELAY_LIMITS.pullsPerSecond) };
+  kernel.paced(pacing.appends, pacing.pulls);
+  return pacing;
 }
 
 export function newKernel(overrides: Partial<ScriptedKernelConfig>): { readonly kernel: ScriptedKernel; readonly clock: ManualClock } {

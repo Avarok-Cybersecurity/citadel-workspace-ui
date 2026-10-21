@@ -12,6 +12,8 @@ import type { EditorOpener } from '../editor/controller';
 import type { Clock, DocumentSessionPorts, DocumentsTransport, PeerIdentity } from './ports';
 import { indexedDbDocumentCache } from './document-cache';
 import { browserInstanceLocks } from './instance-locks';
+import { DOCUMENTS_RELAY_LIMITS } from './relay-limits';
+import { RequestPacer, type DocumentPacing } from './request-pacer';
 
 export const browserClock: Clock = {
   now: (): number => performance.now(),
@@ -28,7 +30,18 @@ export const rosterIdentity: PeerIdentity = (cid: bigint): { readonly name: stri
 
 export function workspaceCollabPorts(openEditor: EditorOpener): DocumentSessionPorts {
   const transport: DocumentsTransport = workspaceDocumentsTransport(WorkspaceService);
-  return { transport, clock: browserClock, cache: indexedDbDocumentCache(transport.selfCid, browserInstanceLocks()), openEditor, identify: rosterIdentity };
+  return { transport, clock: browserClock, cache: indexedDbDocumentCache(transport.selfCid, browserInstanceLocks()), openEditor, identify: rosterIdentity, pacing: tabPacing(transport.selfCid) };
+}
+
+const pacingByAccount: Map<bigint, DocumentPacing> = new Map<bigint, DocumentPacing>();
+
+/** The kernel budgets per account, so every document this tab opens for one account shares these. */
+function tabPacing(account: bigint): DocumentPacing {
+  const known: DocumentPacing | undefined = pacingByAccount.get(account);
+  if (known) return known;
+  const made: DocumentPacing = { appends: new RequestPacer(browserClock, DOCUMENTS_RELAY_LIMITS.appendsPerSecond), pulls: new RequestPacer(browserClock, DOCUMENTS_RELAY_LIMITS.pullsPerSecond) };
+  pacingByAccount.set(account, made);
+  return made;
 }
 
 /** A `clientSeqBase` no other session instance will draw: a random 32-bit prefix. */

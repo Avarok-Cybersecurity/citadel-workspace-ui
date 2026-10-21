@@ -37,6 +37,8 @@ describe('awareness', () => {
     const { kernel, clock, alice, bob } = await pair();
     await typeInto(alice.replica(), 'abcdefghij');
     await kernel.settle([alice.session, bob.session]);
+    // Typing took paced time (request-pacer.ts) and sent records of its own; count the burst's.
+    const typed: number = sentBy(kernel, ALICE).length;
     for (let move: number = 1; move <= 200; move += 1) {
       await alice.replica().execute({ name: 'moveCaret', granularity: 'char', forward: move % 3 !== 0, extend: false });
       clock.advance(5);
@@ -56,9 +58,9 @@ describe('awareness', () => {
 
     expect(kernel.refusedAwareness).toEqual([]);
     const sent: Aware[] = sentBy(kernel, ALICE);
-    // 1 s of moves at the limit, plus the records sent while typing: never more than allowed.
-    expect(sent.length).toBeGreaterThan(DOCUMENTS_RELAY_LIMITS.awarenessPerSecond / 2);
-    expect(sent.length).toBeLessThanOrEqual(DOCUMENTS_RELAY_LIMITS.awarenessPerSecond + 4);
+    // 1 s of moves at the limit, and the two moves after it: never more than allowed.
+    expect(sent.length - typed).toBeGreaterThan(DOCUMENTS_RELAY_LIMITS.awarenessPerSecond / 2);
+    expect(sent.length - typed).toBeLessThanOrEqual(DOCUMENTS_RELAY_LIMITS.awarenessPerSecond + 3);
     expect(sent[sent.length - 1].request.Awareness.payload).toEqual(Array.from(await alice.replica().awareness()));
   });
 
@@ -77,12 +79,15 @@ describe('awareness', () => {
     await kernel.settle([alice.session, bob.session]);
     expect(bobOnAlice(alice)).toEqual([null]);
 
-    // The next keystroke sends no awareness (inside the pacing interval) but exposes the gap;
-    // the pulled updates repaint Alice's pages, and the SAME record now maps to a caret.
+    // Alice's own keystroke exposes the gap (her Append lands past the seq she holds), with no
+    // new record from Bob: the pulled update repaints her pages, and the SAME record now maps.
+    const payloadOf = (r: Aware): readonly number[] => r.request.Awareness.payload;
+    const before: readonly number[] = payloadOf(sentBy(kernel, BOB).at(-1) as Aware);
     const recordsBefore: number = sentBy(kernel, BOB).length;
-    await typeInto(bob.replica(), 'e');
+    await typeInto(alice.replica(), 'e');
     await kernel.settle([alice.session, bob.session]);
-    expect(sentBy(kernel, BOB)).toHaveLength(recordsBefore);
+    // Paced time can let Bob's record go again, unchanged: never a newer one.
+    expect(sentBy(kernel, BOB).slice(recordsBefore).map(payloadOf)).toEqual(sentBy(kernel, BOB).slice(recordsBefore).map(() => before));
     expect(bobOnAlice(alice)).toEqual([expect.objectContaining({ page: 0 })]);
   });
 

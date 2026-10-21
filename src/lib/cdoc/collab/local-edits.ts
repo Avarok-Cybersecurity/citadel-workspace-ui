@@ -54,6 +54,11 @@ export class LocalEdits {
     return this.outbox.all();
   }
 
+  /** Not yet acknowledged. */
+  pending(entry: PendingUpdate): boolean {
+    return this.outbox.has(entry.clientSeq);
+  }
+
   inputs(): Omit<SaveInputs, 'link' | 'halted'> {
     return { autoSave: this.autoSaveNow, unacknowledged: this.outbox.all().length, syncRequested: this.syncThrough !== null, local: this.local };
   }

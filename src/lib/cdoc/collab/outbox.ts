@@ -33,6 +33,10 @@ export class Outbox {
     return this.pending.splice(index, 1)[0];
   }
 
+  has(clientSeq: bigint): boolean {
+    return this.pending.some((entry: PendingUpdate): boolean => entry.clientSeq === clientSeq);
+  }
+
   all(): readonly PendingUpdate[] {
     return [...this.pending];
   }

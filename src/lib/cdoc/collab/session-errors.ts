@@ -4,6 +4,7 @@
  */
 import type { DocumentRefusal } from 'citadel-workspace-client-ts';
 import type { MissingUnit } from '../editor/controller';
+import { SENDING_PAUSED_TEXT } from '@/lib/document-save/save-status-text';
 
 export type DocumentSessionProblem =
   /** The server refused a Documents request. */
@@ -40,7 +41,7 @@ export class DocumentSessionError extends Error {
 function describeProblem(problem: DocumentSessionProblem): string {
   switch (problem.kind) {
     case 'refused':
-      return `The server refused the document request: ${refusalName(problem.refusal)}`;
+      return retryLater(problem.refusal) === null ? `The server refused the document request: ${refusalName(problem.refusal)}` : SENDING_PAUSED_TEXT;
     case 'permissionDenied':
       return problem.message;
     case 'docVersionMismatch':

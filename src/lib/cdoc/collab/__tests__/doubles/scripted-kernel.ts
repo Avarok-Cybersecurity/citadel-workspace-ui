@@ -8,6 +8,7 @@
  * a dropped push, a link drop, a denied permission, an injected payload, a request refused
  * for now (rate limited, log full) and the server's own compaction.
  */
+import type { RequestPacer } from '../../request-pacer';
 import type { DocumentsRequest, DocumentsResponse } from 'citadel-workspace-client-ts';
 import type { DocumentsTransport, LinkState } from '../../ports';
 import { KernelLog, type KernelLogConfig } from './kernel-log';
@@ -16,6 +17,8 @@ import type { ManualClock } from './manual-clock';
 export interface ScriptedKernelConfig extends KernelLogConfig {
   readonly maxAwarenessBytes: number;
   readonly awarenessPerSecond: number;
+  readonly appendsPerSecond: number;
+  readonly pullsPerSecond: number;
 }
 
 /** Refusals of a request the kernel would take later (requests/documents.rs). */
@@ -33,13 +36,17 @@ interface Endpoint {
 
 export class ScriptedKernel {
   readonly log: KernelLog;
-  readonly requests: { readonly cid: bigint; readonly request: DocumentsRequest }[] = [];
+  /** Every request received, with when (the manual clock's ms). */
+  readonly requests: { readonly cid: bigint; readonly request: DocumentsRequest; readonly at: number }[] = [];
   readonly refusedAwareness: bigint[] = [];
   private readonly endpoints: Endpoint[] = [];
   private readonly inbox: { readonly to: Endpoint; readonly delivery: Delivery }[] = [];
   private readonly denied: Map<bigint, 'EditMdx' | 'ViewContent'> = new Map<bigint, 'EditMdx' | 'ViewContent'>();
   private readonly dropPushes: Map<bigint, number> = new Map<bigint, number>();
-  private readonly windows: Map<bigint, { start: number; tokens: number }> = new Map<bigint, { start: number; tokens: number }>();
+  private readonly windows: Map<string, { start: number; tokens: number }> = new Map<string, { start: number; tokens: number }>();
+  private readonly pacers: RequestPacer[] = [];
+  /** Appends and Pulls the per-CID limiter refused, in order. */
+  readonly rateRefused: { readonly cid: bigint; readonly kind: 'Append' | 'Pull' }[] = [];
   private readonly held: Map<bigint, { kind: HeldBack; count: number }> = new Map<bigint, { kind: HeldBack; count: number }>();
 
   constructor(readonly nodeId: string, private readonly config: ScriptedKernelConfig, private readonly clock: ManualClock) {
@@ -99,7 +106,13 @@ export class ScriptedKernel {
     for (let rounds: number = 0; rounds < 10_000; rounds += 1) {
       await Promise.all(sessions.map((s: { settled(): Promise<void> }): Promise<void> => s.settled()));
       const next: { readonly to: Endpoint; readonly delivery: Delivery } | undefined = this.inbox.shift();
-      if (!next) return;
+      if (!next) {
+        // Quiet but for requests a pacer still holds: let time pass until the next may leave.
+        const due: number[] = this.pacers.map((p: RequestPacer): number | null => p.dueInMs()).filter((d: number | null): d is number => d !== null);
+        if (due.length === 0) return;
+        this.clock.advance(Math.min(...due));
+        continue;
+      }
       if (next.to.link !== 'up') continue;
       if (next.delivery.kind === 'response') for (const listener of [...next.to.responses]) listener(next.delivery.response);
       else for (const listener of [...next.to.errors]) listener(next.delivery.message);
@@ -107,12 +120,12 @@ export class ScriptedKernel {
     throw new Error('the sessions never went quiet');
   }
 
-  sentOf<K extends string>(kind: K): { readonly cid: bigint; readonly request: Extract<DocumentsRequest, Record<K, unknown>> }[] {
-    return this.requests.filter((r: { readonly request: DocumentsRequest }): boolean => kind in r.request) as { readonly cid: bigint; readonly request: Extract<DocumentsRequest, Record<K, unknown>> }[];
+  sentOf<K extends string>(kind: K): { readonly cid: bigint; readonly request: Extract<DocumentsRequest, Record<K, unknown>>; readonly at: number }[] {
+    return this.requests.filter((r: { readonly request: DocumentsRequest }): boolean => kind in r.request) as { readonly cid: bigint; readonly request: Extract<DocumentsRequest, Record<K, unknown>>; readonly at: number }[];
   }
 
   private handle(cid: bigint, request: DocumentsRequest): void {
-    this.requests.push({ cid, request });
+    this.requests.push({ cid, request, at: this.clock.now() });
     const needs: 'EditMdx' | 'ViewContent' = 'Append' in request || 'StoreSnapshot' in request ? 'EditMdx' : 'ViewContent';
     const denied: 'EditMdx' | 'ViewContent' | undefined = this.denied.get(cid);
     if (denied === needs) {
@@ -120,6 +133,7 @@ export class ScriptedKernel {
       return;
     }
     if (this.heldBack(cid, request)) return;
+    if (('Append' in request || 'Pull' in request) && !this.admit(cid, 'Append' in request ? 'Append' : 'Pull')) return;
     if ('Append' in request) {
       const { update, doc_version, client_seq } = request.Append;
       const { answer, stored } = this.log.append(update, doc_version, cid, client_seq);
@@ -133,6 +147,30 @@ export class ScriptedKernel {
     } else {
       this.awareness(cid, request.Awareness.payload);
     }
+  }
+
+  /** The tabs' pacers, so settle() lets time pass while they hold requests. */
+  paced(...pacers: RequestPacer[]): void {
+    this.pacers.push(...pacers);
+  }
+
+  /** `rate_limiter.rs`: per CID, per kind, a fixed one-second window of the configured budget. */
+  private admit(cid: bigint, kind: 'Append' | 'Pull'): boolean {
+    if (this.take(`${kind}:${cid.toString()}`, kind === 'Append' ? this.config.appendsPerSecond : this.config.pullsPerSecond)) return true;
+    this.rateRefused.push({ cid, kind });
+    const refusal: { AppendRateLimited: { node_id: string } } | { PullRateLimited: { node_id: string } } = kind === 'Append' ? { AppendRateLimited: { node_id: this.nodeId } } : { PullRateLimited: { node_id: this.nodeId } };
+    this.toCid(cid, { kind: 'response', response: { Refused: refusal } });
+    return false;
+  }
+
+  private take(bucket: string, budget: number): boolean {
+    const now: number = this.clock.now();
+    const window: { start: number; tokens: number } = this.windows.get(bucket) ?? { start: now, tokens: budget };
+    if (now - window.start >= 1000) { window.start = now; window.tokens = budget; }
+    this.windows.set(bucket, window);
+    if (window.tokens === 0) return false;
+    window.tokens -= 1;
+    return true;
   }
 
   private heldBack(cid: bigint, request: DocumentsRequest): boolean {
@@ -151,16 +189,11 @@ export class ScriptedKernel {
       this.toCid(cid, { kind: 'response', response: { Refused: { AwarenessTooLarge: { node_id: this.nodeId, size_bytes: BigInt(payload.length), max_bytes: BigInt(this.config.maxAwarenessBytes) } } } });
       return;
     }
-    const now: number = this.clock.now();
-    const window: { start: number; tokens: number } = this.windows.get(cid) ?? { start: now, tokens: this.config.awarenessPerSecond };
-    if (now - window.start >= 1000) { window.start = now; window.tokens = this.config.awarenessPerSecond; }
-    this.windows.set(cid, window);
-    if (window.tokens === 0) {
+    if (!this.take(`Awareness:${cid.toString()}`, this.config.awarenessPerSecond)) {
       this.refusedAwareness.push(cid);
       this.toCid(cid, { kind: 'response', response: { Refused: { AwarenessRateLimited: { node_id: this.nodeId } } } });
       return;
     }
-    window.tokens -= 1;
     this.push(cid, { DocumentAwareness: { node_id: this.nodeId, from_cid: cid, payload: [...payload] } });
     this.toCid(cid, { kind: 'response', response: { AwarenessRelayed: { node_id: this.nodeId } } });
   }

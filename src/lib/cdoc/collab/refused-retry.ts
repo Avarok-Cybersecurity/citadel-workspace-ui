@@ -4,9 +4,10 @@
  * and Pulls dropped by PullRateLimited. The dropped updates stay in the outbox, so a retry
  * resends what is still unacknowledged.
  *
- * One pending retry answers every refusal until it runs; after `delaysMs` is spent the last
- * refusal is reported (by name) and the next refusal starts over. Any success resets it, and
- * `now` (the server compacted the log) retries at once, but only when something was refused.
+ * One pending retry answers every refusal until it runs; once `delaysMs` is spent the refusal
+ * is reported, once, and retries carry on at the last delay, so "retrying" stays true. Any
+ * success resets it, and `now` (the server compacted the log) retries at once, but only when
+ * something was refused.
  */
 import type { DocumentRefusal } from 'citadel-workspace-client-ts';
 import type { Clock } from './ports';
@@ -29,13 +30,10 @@ class RefusedRetry {
   refused(refusal: DocumentRefusal): void {
     this.refusedSinceSuccess = refusal;
     if (this.cancel) return;
-    if (this.attempt >= this.delaysMs.length) {
-      this.attempt = 0;
-      this.exhausted(refusal);
-      return;
-    }
-    this.cancel = this.clock.after(this.delaysMs[this.attempt], (): void => { this.cancel = null; this.retry(); });
-    this.attempt += 1;
+    if (this.attempt === this.delaysMs.length) this.exhausted(refusal);
+    const delay: number = this.delaysMs[Math.min(this.attempt, this.delaysMs.length - 1)];
+    this.cancel = this.clock.after(delay, (): void => { this.cancel = null; this.retry(); });
+    if (this.attempt <= this.delaysMs.length) this.attempt += 1;
   }
 
   succeeded(): void {

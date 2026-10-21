@@ -8,3 +8,6 @@ export const SAVE_STATUS_TEXT: Readonly<Record<SaveStatus, string>> = {
   savedToDevice: 'Saved to this device',
   unsavedOnDevice: 'Unsaved changes on this device',
 };
+
+/** A request the server will take later keeps being refused: nothing is wrong, and it is retried. */
+export const SENDING_PAUSED_TEXT: string = 'Sending paused, retrying…';

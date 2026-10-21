@@ -9,14 +9,14 @@ import type { EditorSession } from '../../editor/editor-session';
 import type { DocumentSessionPorts } from '../ports';
 import { R1_COLLABORATION, replicaKeeper, type Keeper } from '../replica-keeper';
 import type { DocumentSessionError } from '../session-errors';
-import { ALICE, NODE, newDocument } from './doubles/harness';
+import { ALICE, NODE, newDocument, pacingFor } from './doubles/harness';
 import { realReplicas, snapshotText, typeInto, type ReplicaSource } from './doubles/real-replicas';
 
 describe('the replica keeper', () => {
   it('shows the replica opened over the log, forwards problems, and tears both down', async () => {
     const { kernel, clock } = await newDocument({ maxUpdateBytes: 8 });
     const replicas: ReplicaSource<EditorSession> = realReplicas();
-    const ports = (open: EditorOpener): DocumentSessionPorts => ({ transport: kernel.connect(ALICE), clock, cache: null, openEditor: open, identify: () => ({ name: 'Alice', color: '#4F46E5' }) });
+    const ports = (open: EditorOpener): DocumentSessionPorts => ({ transport: kernel.connect(ALICE), clock, cache: null, openEditor: open, identify: () => ({ name: 'Alice', color: '#4F46E5' }), pacing: pacingFor(kernel, clock) });
     const problems: DocumentSessionError[] = [];
     const bound: string[] = [];
     const bind = (): (() => void) => { bound.push('bound'); return (): void => { bound.push('unbound'); }; };
