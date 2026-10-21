@@ -6,8 +6,7 @@
  * ignores them (TreeRow acts only on clicks inside its own DOM and keys on itself).
  */
 import { useState } from 'react';
-import { toast } from 'sonner';
-import { requestDocumentSync } from '@/lib/document-sync-requests';
+import { syncForNewReaders } from '@/components/documents/save/sync-for-new-readers';
 import type { ShareSubject } from '@/lib/share/share-target';
 import { ShareLinkDialog } from './ShareLinkDialog';
 
@@ -21,7 +20,7 @@ export function useShareLauncher(): ShareLauncher {
   return {
     open: (subject: ShareSubject): void => {
       // Sharing a document sends the edits this device holds of it, so whoever opens the link sees them.
-      if (subject.kind === 'node') void requestDocumentSync(subject.nodeId).catch((error: unknown): void => { toast.error(`Your unsent edits to ${subject.name} are still only on this device. ${error instanceof Error ? error.message : String(error)}`); });
+      if (subject.kind === 'node') syncForNewReaders(subject.nodeId, subject.name);
       setSubjects([subject]);
     },
     dialog: subjects === null ? null : <ShareLinkDialog subjects={subjects} onClose={() => setSubjects(null)} />,

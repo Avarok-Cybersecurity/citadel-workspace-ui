@@ -12,6 +12,7 @@ import { useLoadedPermissionsAt, type PermissionsLoad } from './use-loaded-permi
 import { allLoaded, grantSource, type GrantSource, type PermissionLevel } from './member-permission-path';
 import { domainPath } from '@/lib/domain-path';
 import { applyPermissionChanges, permissionChanges, type PermissionChanges } from './permission-changes';
+import { syncForNewReaders } from '@/components/documents/save/sync-for-new-readers';
 
 export interface MemberPermissionEditor {
   /** The workspace first, down to the edited level. */
@@ -73,7 +74,8 @@ export function useMemberPermissionEditor(userId: string, domainId: string): Mem
   const save: () => Promise<void> = useCallback(async (): Promise<void> => {
     if (!ready) throw new Error('Not every level has answered yet; nothing was saved.');
     await applyPermissionChanges(userId, target.id, changes);
-  }, [ready, userId, target.id, changes]);
+    if (changes.added.length > 0) syncForNewReaders(target.id, target.name);
+  }, [ready, userId, target.id, target.name, changes]);
 
   return { path, target, targetLoad, failure, ready, isChecked, sourceOf, toggle, changes, save };
 }
