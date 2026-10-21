@@ -12,6 +12,10 @@ export interface SaveControl {
   readonly inputs: ValueStore<SaveInputs | null>;
   save(): Promise<void>;
   setAutoSave(on: boolean): Promise<void>;
+  /** The open session's account; null while none is open. */
+  account(): bigint | null;
+  lockedCopiesHoldEdits(): Promise<boolean>;
+  removeLockedCopies(): Promise<void>;
 }
 
 export interface BindableSaveControl extends SaveControl {
@@ -30,6 +34,9 @@ export function saveControl(nodeId: string): BindableSaveControl {
     inputs,
     save: (): Promise<void> => live().save(),
     setAutoSave: (on: boolean): Promise<void> => live().setAutoSave(on),
+    account: (): bigint | null => session?.account ?? null,
+    lockedCopiesHoldEdits: (): Promise<boolean> => live().lockedCopiesHoldEdits(),
+    removeLockedCopies: (): Promise<void> => live().removeLockedCopies(),
     bind: (opened: DocumentSession): (() => void) => {
       session = opened;
       inputs.set(opened.saveInputs);

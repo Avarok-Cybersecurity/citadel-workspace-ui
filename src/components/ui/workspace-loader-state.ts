@@ -12,6 +12,9 @@
  */
 import { reconnectingMessage } from '@/lib/reconnect/server-reconnect';
 
+/** Here, not with the rest of encryption at rest's words (at-rest-copy.ts): the loader is on the landing path. */
+export const LOCKED_TREE_NOTICE: string = 'The workspace tree kept on this device is locked, so the workspace opens once the server answers.';
+
 export interface LoaderInputs {
   isLoading: boolean;
   isAutoClaiming: boolean;
@@ -22,6 +25,8 @@ export interface LoaderInputs {
   reconnectingTo: string | null;
   /** A last-known tree is kept on this device for this session's account. */
   keptTree: boolean;
+  /** One is kept, sealed, and cannot be opened here. */
+  keptTreeLocked: boolean;
 }
 
 export type LoaderView =
@@ -40,7 +45,7 @@ export function shouldLeaveForConnect(inputs: LoaderInputs): boolean {
 
 function spinnerMessage(inputs: LoaderInputs): string {
   if (inputs.isAutoClaiming) return 'Connecting to session...';
-  if (inputs.reconnectingTo !== null) return reconnectingMessage(inputs.reconnectingTo);
+  if (inputs.reconnectingTo !== null) return inputs.keptTreeLocked ? `${reconnectingMessage(inputs.reconnectingTo)} ${LOCKED_TREE_NOTICE}` : reconnectingMessage(inputs.reconnectingTo);
   if (inputs.workspaceDataTimeout) return 'Workspace data is taking longer than expected...';
   if (inputs.loadingTimeout) return 'Checking connection...';
   return 'Loading workspace...';

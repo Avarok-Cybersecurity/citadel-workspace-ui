@@ -56,7 +56,7 @@ describe('DocumentHost', () => {
 
   it('puts the save controls in the title bar of a document someone saves, and Ctrl/Cmd+S over its editor to them', () => {
     const save: BindableSaveControl = saveControl('plan-1');
-    save.inputs.set({ autoSave: true, link: 'up', unacknowledged: 0, syncRequested: false, local: 'written', halted: false });
+    save.inputs.set({ autoSave: true, link: 'up', unacknowledged: 0, syncRequested: false, local: 'written', halted: false, locked: false });
     render(<DocumentHost {...EDITABLE} editing={{ kind: 'replica', keep: keepBlankReplica, save }} />);
     const header: HTMLElement = screen.getByRole('banner');
     expect(within(header).getByTestId('docs-save-status')).toHaveTextContent('Saved');

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { saveStatus, warnsOnUnload, type SaveInputs, type SaveStatus } from '@/lib/document-save/save-status';
 import { SAVE_STATUS_TEXT } from '@/lib/document-save/save-status-text';
 
-const AT_REST: SaveInputs = { autoSave: true, link: 'up', unacknowledged: 0, syncRequested: false, local: 'written', halted: false };
+const AT_REST: SaveInputs = { autoSave: true, link: 'up', unacknowledged: 0, syncRequested: false, local: 'written', halted: false, locked: false };
 const held = (changes: Partial<SaveInputs>): SaveInputs => ({ ...AT_REST, unacknowledged: 2, ...changes });
 
 describe('the save status', () => {
@@ -17,6 +17,9 @@ describe('the save status', () => {
     ['a write to the device in flight', held({ local: 'writing' }), 'unsavedOnDevice'],
     ['a write to the device failed', held({ autoSave: false, local: 'failed' }), 'unsavedOnDevice'],
     ['the server refuses the edits', held({ halted: true }), 'unsavedOnDevice'],
+    ['copies kept here are locked', { ...AT_REST, locked: true }, 'locked'],
+    ['locked, edits written here and on their way', held({ locked: true }), 'locked'],
+    ['locked, and edits not yet written here: losing them comes first', held({ locked: true, local: 'failed' }), 'unsavedOnDevice'],
   ])('%s', (_name: string, inputs: SaveInputs, status: SaveStatus) => {
     expect(saveStatus(inputs)).toBe(status);
   });
@@ -36,6 +39,7 @@ describe('the save status', () => {
       offline: 'Offline: changes will sync when you\'re back online',
       savedToDevice: 'Saved to this device',
       unsavedOnDevice: 'Unsaved changes on this device',
+      locked: 'Locked on this device',
     });
   });
 });

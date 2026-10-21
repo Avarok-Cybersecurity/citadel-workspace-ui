@@ -57,6 +57,7 @@ export class ConnectionIO {
   async disconnect(cid: bigint): Promise<void> { return this.ws.disconnect(cid); }
   // Loaded on sign-out only: the landing page's critical path does not carry it.
   async forgetAccountDocuments(cid: bigint): Promise<void> { return (await import('@/lib/document-replica-cache')).forgetAccountDocuments(cid); }
+  async forgetAtRestRoot(cid: bigint): Promise<void> { return (await import('@/lib/document-replica-cache')).forgetAtRestRoot(cid); }
   async claimSession(cid: bigint, onlyIfOrphaned: boolean): Promise<unknown> { return this.ws.claimSession(cid, onlyIfOrphaned); }
   async localDBSet(cid: bigint, key: string, value: number[]): Promise<void> { return this.ws.localDBSet(cid, key, value); }
   async localDBGet(cid: bigint, key: string): Promise<{ value: number[] } | null> { return this.ws.localDBGet(cid, key); }

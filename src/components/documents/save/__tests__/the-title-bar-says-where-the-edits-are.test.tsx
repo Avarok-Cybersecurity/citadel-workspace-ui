@@ -76,7 +76,7 @@ describe('the save controls', () => {
 
   it('warn on closing only while edits are not yet written to this device', () => {
     const control: BindableSaveControl = saveControl('doc');
-    const held = (local: SaveInputs['local']): SaveInputs => ({ autoSave: false, link: 'up', unacknowledged: 1, syncRequested: false, local, halted: false });
+    const held = (local: SaveInputs['local']): SaveInputs => ({ autoSave: false, link: 'up', unacknowledged: 1, syncRequested: false, local, halted: false, locked: false });
     render(<DocumentSaveControls control={control} />);
     const closing = (): boolean => window.dispatchEvent(new Event('beforeunload', { cancelable: true }));
     act((): void => control.inputs.set(held('writing')));

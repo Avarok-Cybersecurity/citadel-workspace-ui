@@ -114,6 +114,7 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
     heldElsewhere: heldElsewhere.username !== null,
     reconnectingTo: reconnectingServer,
     keptTree: kept.kind === 'kept',
+    keptTreeLocked: kept.kind === 'locked',
   };
   const leaveForConnect: boolean = shouldLeaveForConnect(inputs);
 

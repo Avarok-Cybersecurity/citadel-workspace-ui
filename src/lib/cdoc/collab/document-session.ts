@@ -17,6 +17,7 @@ import { DocumentSync } from './document-sync';
 import type { DocumentSessionConfig, DocumentSessionPorts, LinkState } from './ports';
 import { SerialQueue } from './serial-queue';
 import { DocumentSessionError, type DocumentSessionProblem } from './session-errors';
+import { isRecordLocked } from '@/lib/at-rest/at-rest-shape';
 import type { SaveInputs } from '@/lib/document-save/save-status';
 
 export interface DocumentSessionEvents {
@@ -39,9 +40,14 @@ export class DocumentSession {
   private unbindEditor: (() => void) | null = null;
   private link: LinkState = 'up';
   private closed: boolean = false;
+  private locked: boolean = false;
 
   constructor(private readonly config: DocumentSessionConfig, private readonly ports: DocumentSessionPorts) {
-    const report = (problem: DocumentSessionProblem): void => this.emit('problem', new DocumentSessionError(problem));
+    // A sealed copy that cannot be opened here is a state the title bar shows, not a notice.
+    const report = (problem: DocumentSessionProblem): void => {
+      if (problem.kind === 'cacheFailed' && isRecordLocked(problem.cause)) this.lock(true);
+      else this.emit('problem', new DocumentSessionError(problem));
+    };
     this.queue = new SerialQueue((cause: unknown): void => report({ kind: 'editorFailed', operation: 'run a session step', cause }));
     const linkUp = (): boolean => this.link === 'up' && !this.closed;
     this.sync = new DocumentSync(config, ports, {
@@ -86,7 +92,31 @@ export class DocumentSession {
   }
 
   get saveInputs(): SaveInputs {
-    return { ...this.sync.saveInputs(), link: this.link };
+    return { ...this.sync.saveInputs(), link: this.link, locked: this.locked };
+  }
+
+  /** The account this session edits as. */
+  get account(): bigint {
+    return this.ports.transport.selfCid;
+  }
+
+  /** Whether the copies this device cannot open include edits that were never sent. */
+  async lockedCopiesHoldEdits(): Promise<boolean> {
+    if (!this.ports.cache) return false;
+    return this.ports.cache.loadEdits(this.config.nodeId).then((): boolean => false, (error: unknown): boolean => isRecordLocked(error));
+  }
+
+  /** Removes the copies this device cannot open (asked first, by the caller) and keeps this tab's again. */
+  async removeLockedCopies(): Promise<void> {
+    if (this.ports.cache) await this.ports.cache.forget(this.config.nodeId);
+    this.lock(false);
+    await this.queue.run((): Promise<void> => this.sync.keepAgain());
+  }
+
+  private lock(locked: boolean): void {
+    if (this.locked === locked) return;
+    this.locked = locked;
+    this.emit('save', this.saveInputs);
   }
 
   /** Save: with AutoSave off, sends every edit made so far. */

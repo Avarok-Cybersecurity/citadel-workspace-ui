@@ -183,16 +183,20 @@ export async function dbDelete(store: StoreName, key: string): Promise<void> {
   await db.delete(store, key);
 }
 
+/** Puts `value` only if `unchanged(current)`, in one transaction; `unchanged` must be synchronous. */
+export async function dbReplaceIf(store: StoreName, key: string, unchanged: (current: unknown) => boolean, value: unknown): Promise<boolean> {
+  const tx: IDBPTransaction<CitadelDBSchema, [StoreName], 'readwrite'> = (await getDB()).transaction(store, 'readwrite');
+  const replace: boolean = unchanged(await tx.store.get(key));
+  if (replace) await tx.store.put(value as never, key);
+  await tx.done;
+  return replace;
+}
+
 /** The keys in a store that start with `prefix`. */
 export async function dbKeysWithPrefix(store: StoreName, prefix: string): Promise<string[]> {
   const db: IDBPDatabase<CitadelDBSchema> = await getDB();
   return (await db.getAllKeys(store, IDBKeyRange.bound(prefix, `${prefix}\uffff`))).map(String);
 }
-
-// ============================================================================
-// Synchronous Fallback (for legacy callers during migration)
-// These use localStorage but will be deprecated
-// ============================================================================
 
 // ============================================================================
 // JSON Helpers for Logging (BigInt → String for display only)

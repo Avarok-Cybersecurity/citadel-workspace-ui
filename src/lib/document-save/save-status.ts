@@ -1,7 +1,8 @@
 /**
- * Where a document's edits are, from four facts the session knows: whether AutoSave is on,
- * the link, how many of this tab's edits the server has not acknowledged, and whether those
- * are written to this device. Pure: the title bar shows it, beforeunload asks it.
+ * Where a document's edits are, from the facts the session knows: whether AutoSave is on, the
+ * link, how many of this tab's edits the server has not acknowledged, whether those are
+ * written to this device, and whether copies kept here are locked. Pure: the title bar shows
+ * it, beforeunload asks it.
  */
 import type { LinkState } from '@/lib/cdoc/collab/ports';
 
@@ -18,6 +19,8 @@ export interface SaveInputs {
   readonly local: LocalWrite;
   /** The server refused this session's writes (a revoked grant, an update over the limit). */
   readonly halted: boolean;
+  /** Copies of the document this device keeps are sealed and cannot be opened here. */
+  readonly locked: boolean;
 }
 
 export type SaveStatus =
@@ -30,11 +33,14 @@ export type SaveStatus =
   /** AutoSave is off: edits are kept on this device until a Save. */
   | 'savedToDevice'
   /** Edits not yet written to this device, or that the server will not take: closing loses or strands them. */
-  | 'unsavedOnDevice';
+  | 'unsavedOnDevice'
+  /** Copies kept on this device cannot be opened here: they are sealed and no key is to be had. */
+  | 'locked';
 
 export function saveStatus(inputs: SaveInputs): SaveStatus {
+  if (inputs.unacknowledged > 0 && (inputs.local !== 'written' || inputs.halted)) return 'unsavedOnDevice';
+  if (inputs.locked) return 'locked';
   if (inputs.unacknowledged === 0) return 'saved';
-  if (inputs.local !== 'written' || inputs.halted) return 'unsavedOnDevice';
   if (inputs.autoSave || inputs.syncRequested) return inputs.link === 'up' ? 'saving' : 'offline';
   return 'savedToDevice';
 }

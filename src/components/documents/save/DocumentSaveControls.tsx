@@ -1,8 +1,9 @@
 /**
- * The title bar's save controls for an open document, Word-style: the AutoSave switch, where
- * the edits are (the one place the status is shown), and Save. Closing the page warns only
- * while some edits are neither acknowledged nor yet written to this device. Nothing renders
- * until the document's session is open.
+ * The title bar's save controls for an open document, Word-style: the AutoSave switch, the
+ * account's "Encrypt on this device" switch, where the edits are (the one place the status is
+ * shown), what can be done while copies kept here are locked, and Save. Closing the page warns
+ * only while some edits are neither acknowledged nor yet written to this device. Nothing
+ * renders until the document's session is open.
  */
 import { useEffect, useId, useSyncExternalStore, type KeyboardEvent } from 'react';
 import { toast } from 'sonner';
@@ -10,6 +11,8 @@ import { Switch } from '@/components/ui/switch';
 import { canSave, saveStatus, warnsOnUnload, type SaveInputs, type SaveStatus } from '@/lib/document-save/save-status';
 import { SAVE_STATUS_TEXT } from '@/lib/document-save/save-status-text';
 import type { SaveControl } from './save-control';
+import { AtRestSwitch } from './AtRestSwitch';
+import { LockedCopiesActions } from './LockedCopiesActions';
 
 const useInputs = (control: SaveControl): SaveInputs | null => useSyncExternalStore(control.inputs.subscribe, control.inputs.get);
 
@@ -30,16 +33,19 @@ export function DocumentSaveControls({ control }: { readonly control: SaveContro
   }, [warns]);
   if (inputs === null) return null;
   const status: SaveStatus = saveStatus(inputs);
+  const account: bigint | null = control.account();
   return (
     <div className="ml-auto flex shrink-0 items-center gap-[12px]" data-testid="docs-save-controls">
       <div className="flex items-center gap-[8px]">
         <Switch id={switchId} checked={inputs.autoSave} data-testid="docs-autosave" onCheckedChange={(on: boolean): void => attempt(control.setAutoSave(on), 'change AutoSave')} />
         <label htmlFor={switchId} className="text-sm text-foreground">AutoSave</label>
       </div>
+      {account !== null && <AtRestSwitch account={account} place="titleBar" />}
       {/* At phone width the words go to screen readers only; the switch and Save stay. */}
       <span role="status" data-testid="docs-save-status" data-status={status} className="text-sm text-muted-foreground max-[480px]:sr-only">
         {SAVE_STATUS_TEXT[status]}
       </span>
+      {status === 'locked' && <LockedCopiesActions control={control} linkUp={inputs.link === 'up'} />}
       <button
         type="button"
         data-testid="docs-save"

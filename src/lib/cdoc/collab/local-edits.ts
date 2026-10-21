@@ -59,7 +59,7 @@ export class LocalEdits {
     return this.outbox.has(entry.clientSeq);
   }
 
-  inputs(): Omit<SaveInputs, 'link' | 'halted'> {
+  inputs(): Omit<SaveInputs, 'link' | 'halted' | 'locked'> {
     return { autoSave: this.autoSaveNow, unacknowledged: this.outbox.all().length, syncRequested: this.syncThrough !== null, local: this.local };
   }
 
@@ -131,6 +131,13 @@ export class LocalEdits {
     this.autoSaveNow = on;
     this.host.changed();
     await this.attempt('write', (cache: DocumentCache): Promise<void> => cache.saveChoices(this.nodeId, { autoSave: on }));
+  }
+
+  /** Writes this tab's held edits and AutoSave choice again, as after their records were removed. */
+  async rewrite(): Promise<void> {
+    this.persist();
+    await this.written();
+    await this.attempt('write', (cache: DocumentCache): Promise<void> => cache.saveChoices(this.nodeId, { autoSave: this.autoSaveNow }));
   }
 
   /** Resolves once this device holds the outbox as it is now. */

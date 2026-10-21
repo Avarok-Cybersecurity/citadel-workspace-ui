@@ -223,6 +223,13 @@ const DEFERRED_MODULES = [
   'src/lib/workspace-service/secure-links-operations.ts',
   // The kept workspace tree: its rules load with its first save or read (hooks/use-kept-tree.ts).
   'src/lib/offline-tree.ts',
+  // Encryption at rest: sealing, sweeps and the agent's root load with the first sealed record
+  // read or the setting turned on (lib/document-replica-cache.ts).
+  'src/lib/at-rest/at-rest-records.ts',
+  'src/lib/at-rest/record-crypto.ts',
+  'src/lib/at-rest/agent-root-store.ts',
+  // Its shapes and errors too: the kept-tree hook reads the lock lazily (hooks/use-kept-tree.ts).
+  'src/lib/at-rest/at-rest-shape.ts',
 ];
 
 /**

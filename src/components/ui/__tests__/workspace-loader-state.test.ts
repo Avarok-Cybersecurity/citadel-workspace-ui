@@ -8,7 +8,7 @@
  * says, and it waits.
  */
 import { describe, it, expect } from 'vitest';
-import { loaderView, shouldLeaveForConnect, type LoaderInputs } from '../workspace-loader-state';
+import { LOCKED_TREE_NOTICE, loaderView, shouldLeaveForConnect, type LoaderInputs } from '../workspace-loader-state';
 
 const TIMED_OUT: LoaderInputs = {
   isLoading: true,
@@ -19,6 +19,7 @@ const TIMED_OUT: LoaderInputs = {
   heldElsewhere: false,
   reconnectingTo: null,
   keptTree: false,
+  keptTreeLocked: false,
 };
 
 describe('the workspace loader', () => {
@@ -59,6 +60,11 @@ describe('the workspace loader', () => {
 
   it('opens the workspace, offline, while the agent reconnects and this device kept the tree', () => {
     expect(loaderView({ ...TIMED_OUT, reconnectingTo: 'acme.work.example.net', keptTree: true })).toEqual({ kind: 'ready' });
+  });
+
+  it('says the kept tree is locked, and waits, when it is sealed with no key here', () => {
+    const view: ReturnType<typeof loaderView> = loaderView({ ...TIMED_OUT, reconnectingTo: 'acme.work.example.net', keptTreeLocked: true });
+    expect(view).toEqual({ kind: 'spinner', message: expect.stringContaining(LOCKED_TREE_NOTICE), showConnectButton: false });
   });
 
   it('never opens on the kept tree while the link is up', () => {

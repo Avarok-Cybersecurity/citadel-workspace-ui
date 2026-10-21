@@ -190,6 +190,8 @@ export async function handleLogout(
   state: ConnectionState, io: ConnectionIO,
 ): Promise<void> {
   state.removeSession(username, serverAddress);
+  // While the session is still this tab's: the agent answers for an account it holds.
+  if (cid) await forgetAtRestRoot(cid, io);
   try {
     if (cid) await io.disconnect(cid);
   } finally {
@@ -202,7 +204,16 @@ export async function handleLogout(
   }
 }
 
-/** The account's decrypted document copies leave this device, whether or not the disconnect worked. */
+/** The key to the account's sealed records goes with them; a failure is logged, never in the way of signing out. */
+async function forgetAtRestRoot(cid: bigint, io: ConnectionIO): Promise<void> {
+  try {
+    await io.forgetAtRestRoot(cid);
+  } catch (error) {
+    debugLog('ConnectionService', 'Could not remove the account\'s encryption root before logout', error);
+  }
+}
+
+/** The account's document copies leave this device, whether or not the disconnect worked. */
 async function forgetAccountDocuments(cid: bigint, io: ConnectionIO): Promise<void> {
   try {
     await io.forgetAccountDocuments(cid);

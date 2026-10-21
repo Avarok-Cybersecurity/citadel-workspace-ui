@@ -1,10 +1,10 @@
 /**
- * The one seam for what this device keeps of an account's workspace in IndexedDB: decrypted
- * document copies (lib/cdoc/collab/document-cache.ts), each document's unacknowledged local
- * edits and per-device choices, and the last-known workspace tree. Every read, write and
- * removal of the `cdoc-collab:` family goes through here, so one layer (encryption at rest,
- * when it is decided) covers all of them. Outside lib/cdoc so sign-out and the node handlers
- * can remove copies without loading the editor.
+ * The one seam for what this device keeps of an account's workspace in IndexedDB: document
+ * copies (lib/cdoc/collab/document-cache.ts), each document's unacknowledged local edits and
+ * per-device choices, and the last-known workspace tree. Every read, write and removal of the
+ * `cdoc-collab:` family goes through here, so encryption at rest (lib/at-rest, loaded only when
+ * a sealed record is read or the account's setting is on) covers all of them. Outside lib/cdoc
+ * so sign-out and the node handlers can remove copies without loading the editor.
  *
  * Keys, all under `cdoc-collab:<account>:`, with `#` reserved (a node id is a uuid):
  *   `<node>`                    the document's base copy (snapshot and seq)
@@ -12,9 +12,14 @@
  *   `<node>#device`             this device's choices for the document
  *   `<node>#access`             the account's last answer to "may I edit it?", for offline
  *   `#tree`                     the last-known workspace tree (no node: deletion never matches it)
+ *   `#at-rest`                  the account's encryption setting on this device, never sealed
+ *
+ * A read accepts a value sealed or not, so a conversion cut short leaves every record readable
+ * (or locked, never misread); a write seals when the setting is on, read at each write.
  */
 import { dbDelete, dbGet, dbKeysWithPrefix, dbPut } from '@/lib/storage-utils';
 import { readCachedTree, type CachedWorkspaceTree } from '@/lib/offline-tree';
+import { isAtRestEnvelope, readAtRestMode, type AtRestMode } from '@/lib/at-rest/at-rest-shape';
 
 const ROOT: string = 'cdoc-collab:';
 const RESERVED: string = '#';
@@ -34,10 +39,60 @@ export const documentEditsKey = (account: bigint, nodeId: string, instance: stri
 export const documentDeviceKey = (account: bigint, nodeId: string): string => `${nodeKey(account, nodeId)}${RESERVED}device`;
 export const documentAccessKey = (account: bigint, nodeId: string): string => `${nodeKey(account, nodeId)}${RESERVED}access`;
 export const workspaceTreeKey = (account: bigint): string => `${accountPrefix(account)}${RESERVED}tree`;
+export const atRestModeKey = (account: bigint): string => `${accountPrefix(account)}${RESERVED}at-rest`;
+export const accountRecordsPrefix = (account: bigint): string => accountPrefix(account);
 
-export const localRecordGet = (key: string): Promise<unknown> => dbGet<unknown>('keyValue', key);
-export const localRecordPut = (key: string, value: unknown): Promise<void> => dbPut('keyValue', key, value);
+/** Where a key keeps its value: the account, the node ('' for `#tree`) and the kind of record. */
+export function recordPlace(key: string): { readonly account: bigint; readonly node: string; readonly kind: string } {
+  const rest: string = key.slice(ROOT.length);
+  const colon: number = rest.indexOf(':');
+  if (!key.startsWith(ROOT) || colon <= 0 || !/^\d+$/.test(rest.slice(0, colon))) throw new Error(`not a device record key: "${key}"`);
+  const record: string = rest.slice(colon + 1);
+  const reserved: number = record.indexOf(RESERVED);
+  return { account: BigInt(rest.slice(0, colon)), node: reserved < 0 ? record : record.slice(0, reserved), kind: reserved < 0 ? 'base' : record.slice(reserved + 1) };
+}
+
+const atRest = (): Promise<typeof import('@/lib/at-rest/at-rest-records')> => import('@/lib/at-rest/at-rest-records');
+const modeOf = async (account: bigint): Promise<AtRestMode> => readAtRestMode(await dbGet<unknown>('keyValue', atRestModeKey(account)));
+
+const resumed: Map<bigint, Promise<void>> = new Map<bigint, Promise<void>>();
+/** A conversion cut short (a crash, a closed tab) is finished on the account's first record access here. */
+function resumeOnce(account: bigint): void {
+  if (resumed.has(account)) return;
+  resumed.set(account, modeOf(account)
+    .then(async (mode: AtRestMode): Promise<void> => { if (mode.converting) await (await atRest()).resume(account); })
+    .catch((error: unknown): void => { console.warn('[document-replica-cache] Finishing the encryption change on this device failed:', error); resumed.delete(account); }));
+}
+
+export async function localRecordGet(key: string): Promise<unknown> {
+  resumeOnce(recordPlace(key).account);
+  const stored: unknown = await dbGet<unknown>('keyValue', key);
+  return isAtRestEnvelope(stored) ? (await atRest()).openRecord(key, stored) : stored;
+}
+
+export async function localRecordPut(key: string, value: unknown): Promise<void> {
+  const { account } = recordPlace(key);
+  resumeOnce(account);
+  await dbPut('keyValue', key, (await modeOf(account)).on ? await (await atRest()).sealRecord(key, value) : value);
+}
+
 export const localRecordRemove = (key: string): Promise<void> => dbDelete('keyValue', key);
+
+/** Whether this account's records are sealed on this device. */
+export async function documentsAtRest(account: bigint): Promise<boolean> {
+  return (await modeOf(account)).on;
+}
+
+/** Seals or opens every record of the account in place; refused (AtRestRefusedError) with nothing changed. */
+export async function setDocumentsAtRest(account: bigint, on: boolean): Promise<void> {
+  const records: typeof import('@/lib/at-rest/at-rest-records') = await atRest();
+  await (on ? records.turnOn(account) : records.turnOff(account));
+}
+
+/** Sign-out, before the session ends: the account's encryption root goes with its records. */
+export async function forgetAtRestRoot(account: bigint): Promise<void> {
+  await (await atRest()).forgetRoot(account);
+}
 
 export async function localRecordsWithPrefix(prefix: string): Promise<{ readonly key: string; readonly value: unknown }[]> {
   const records: { readonly key: string; readonly value: unknown }[] = [];
@@ -45,13 +100,8 @@ export async function localRecordsWithPrefix(prefix: string): Promise<{ readonly
   return records;
 }
 
-/** The node a key is about: what follows the account (digits, no colon) up to `#`; '' for `#tree`. */
-function nodeOf(key: string): string {
-  const rest: string = key.slice(ROOT.length);
-  const record: string = rest.slice(rest.indexOf(':') + 1);
-  const reserved: number = record.indexOf(RESERVED);
-  return reserved < 0 ? record : record.slice(0, reserved);
-}
+/** The node a key is about: what follows the account up to `#`; '' for `#tree` and `#at-rest`. */
+const nodeOf = (key: string): string => recordPlace(key).node;
 
 async function forgetKeys(keys: readonly string[]): Promise<void> {
   for (const key of keys) await localRecordRemove(key);

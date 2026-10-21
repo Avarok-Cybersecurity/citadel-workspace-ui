@@ -77,7 +77,7 @@ export class DocumentSync {
     return this.edits.autoSave;
   }
 
-  saveInputs(): Omit<SaveInputs, 'link'> {
+  saveInputs(): Omit<SaveInputs, 'link' | 'locked'> {
     return { ...this.edits.inputs(), halted: !this.writable };
   }
 
@@ -119,6 +119,9 @@ export class DocumentSync {
     if (!this.writable || !this.host.linkUp()) return;
     for (const entry of this.edits.all()) if (this.edits.sendable(entry)) this.sendAppend(entry);
   }
+
+  /** Copies this device could not open were removed: this tab's held edits are written again. */
+  keepAgain(): Promise<void> { return this.edits.rewrite(); }
 
   onLinkDown(): void {
     this.stopPullTimer();
@@ -230,10 +233,7 @@ export class DocumentSync {
     this.paced.pull((): DocumentsRequest | null => (this.readable && this.host.linkUp() ? { Pull: { node_id: this.config.nodeId, since_seq: this.replica.cursor.seq } } : null));
   }
 
-  private stopPullTimer(): void {
-    if (this.cancelPullTimer) this.cancelPullTimer();
-    this.cancelPullTimer = null;
-  }
+  private stopPullTimer(): void { this.cancelPullTimer?.(); this.cancelPullTimer = null; }
 
   private sendAppend(entry: PendingUpdate): void {
     this.paced.append(entry.clientSeq, (): DocumentsRequest | null => (this.writable && this.host.linkUp() && this.edits.pending(entry) && this.edits.sendable(entry)

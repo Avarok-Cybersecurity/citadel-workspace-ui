@@ -28,6 +28,8 @@ vi.mock('@/lib/storage-utils', async () => (await import('@/lib/cdoc/collab/__te
 const ME: TabIdentity = vi.hoisted((): TabIdentity => ({ username: 'alice', cid: 11n }));
 /** Who the tab's session read finds now; signed in as ME unless a test says otherwise. */
 const signedIn: { now: TabIdentity } = vi.hoisted((): { now: TabIdentity } => ({ now: { username: 'alice', cid: 11n } }));
+// The agent's root store (its I/O edge): it holds no root, so a sealed record has no key here.
+vi.mock('@/lib/at-rest/agent-root-store', async () => (await import('@/lib/at-rest/__tests__/doubles/device-records')).agentStore());
 vi.mock('@/hooks/use-tab-identity', () => ({ useTabIdentity: (): TabIdentity => ME, readTabIdentity: async (): Promise<TabIdentity> => signedIn.now }));
 vi.mock('@/hooks/use-permission', () => ({
   usePermission: (): UsePermissionResult => ({
@@ -39,7 +41,7 @@ vi.mock('@/components/office/BaseOffice', () => ({
 }));
 
 const { WorkspaceView } = await import('../WorkspaceView');
-const { saveKeptTree, useKeepWorkspaceTree, useKeptTree } = await import('@/hooks/use-kept-tree');
+const { loadKeptTree, saveKeptTree, useKeepWorkspaceTree, useKeptTree } = await import('@/hooks/use-kept-tree');
 const { forgetAccountDocuments, forgetDeletedNodes, forgetNodeDocuments, loadWorkspaceTree, saveWorkspaceTree, workspaceTreeKey } = await import('@/lib/document-replica-cache');
 
 function Page(): JSX.Element {
@@ -125,6 +127,13 @@ describe('the kept workspace tree', () => {
     expect(hook.result.current).toEqual({ kind: 'unread' });
     expect(shownNode('plan', {}, false, keptOf([PLAN]))).toEqual({ kind: 'none' });
     expect(shownNode('plan', {}, true, keptOf([PLAN]))).toEqual({ kind: 'kept', node: PLAN, savedAt: SAVED_AT });
+  });
+
+  it('says a kept tree sealed with no key here is locked: neither none nor unreadable', async () => {
+    // Sealed under a root this agent does not have: nothing here can open it.
+    store.set(workspaceTreeKey(11n), { atRest: 1, iv: new Uint8Array(12), ct: new Uint8Array(32) });
+    const hook: RenderHookResult<ReturnType<typeof useKeptTree>, unknown> = renderHook((): ReturnType<typeof useKeptTree> => useKeptTree(loadKeptTree, true));
+    await waitFor((): void => { expect(hook.result.current).toEqual({ kind: 'locked' }); });
   });
 
   it('gives way to the live node when the server has listed it, link down or not', async () => {
