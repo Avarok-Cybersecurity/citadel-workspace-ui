@@ -27,7 +27,7 @@ export const DOCUMENTS_RELAY_LIMITS: DocumentsRelayLimits = {
   maxSnapshotBytes: 4_194_304,
   maxAwarenessBytes: 4_096,
   awarenessPerSecond: 10,
-  appendsPerSecond: 10,
+  appendsPerSecond: 50,
   pullsPerSecond: 10,
 };
 
