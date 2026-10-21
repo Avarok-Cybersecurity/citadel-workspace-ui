@@ -46,7 +46,7 @@ import { REJECTION_TAG, WINDOW_ERROR_TAG } from './lib/telemetry/window-error-ta
 import { startKeyboardInsetTracking } from '@/lib/pwa/keyboard-inset';
 import { watchThisBuild } from '@/lib/pwa/watch-deployed-version';
 import { browserSessionStorage, reloadKeepingDrafts, restoreHandedOffDrafts } from '@/lib/chat/draft-handoff';
-import { capturePendingRedirect } from '@/lib/share/pending-redirect';
+import { captureBootLinks } from '@/lib/boot-links';
 import { applyAppearanceSettings, loadAppearanceSettings } from './lib/appearance-settings';
 import { initPrivacySettingsSync } from './lib/privacy-settings';
 import { provideAtRestRootStore, type AtRestRootStore } from './lib/at-rest/root-store-port';
@@ -203,9 +203,9 @@ try {
   // the entry chunk's URL, which is what /version.json names (deployed-version.ts).
   restoreHandedOffDrafts(browserSessionStorage());
   watchThisBuild(import.meta.url);
-  // A secure link (`?redirect=&server=`), kept for after sign-in before any page reads the address.
-  capturePendingRedirect(window.location.search, browserSessionStorage(), (search: string): void => {
-    window.history.replaceState(window.history.state, '', `${window.location.pathname}${search ? `?${search}` : ''}${window.location.hash}`);
+  // A secure link and an app link, kept for after sign-in before any page reads the address.
+  captureBootLinks(window.location, browserSessionStorage(), (url: string): void => {
+    window.history.replaceState(window.history.state, '', url);
   });
 
   const root: ReturnType<typeof createRoot> = createRoot(rootElement);

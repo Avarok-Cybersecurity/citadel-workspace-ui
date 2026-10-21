@@ -208,8 +208,16 @@ const dist = join(root, 'dist');
  * hidden-tab reload with its safety registry (+0.7 KB, index). The stale response is not deferred
  * on purpose: a stale tab is the one whose lazy chunks may be gone, and a failed chunk load
  * reloads at once (main.tsx), during a call or an upload, which is what it exists to avoid.
+ *
+ * 338 -> 339 (2026-10-21), for Citadel Apps' links: the base measured 337.8, this 338.2. The
+ * marketplace, its consent screen, the manifest rules and the app-zone runtime are all off the
+ * path (listed in DEFERRED_MODULES), and its new styles reuse classes the landing CSS already
+ * has, so the CSS is byte-identical. What remains has to run before sign-in can drop it, like a
+ * secure link's: keeping `/workspace?app=…` at boot (citadel-apps/app-link-capture.ts, 339 B raw,
+ * judged only when taken), the boot composition of both captures (boot-links.ts, 130 B), and the
+ * response handler passing an Apps answer to its waiter (+53 B in app-services).
  */
-const BUDGET_KB = 338;
+const BUDGET_KB = 339;
 
 /**
  * Modules that must stay OFF the critical path, checked against the source
@@ -245,6 +253,12 @@ const DEFERRED_MODULES = [
   // Console capture for opt-in diagnostic logs: it runs while a workspace is open (TermsGate),
   // and does nothing until a consent answer allows uploads (lib/telemetry/console-capture).
   'src/lib/telemetry/console-capture/capture.ts',
+  // Citadel Apps: the marketplace, its consent screen and the manifest rules load when the Apps
+  // modal first opens or a page with an app zone renders (App.tsx's lazy AppsModalHost); boot
+  // keeps just the app-link capture and the menu item's open request.
+  'src/components/citadel-apps/marketplace/AppsModal.tsx',
+  'src/components/citadel-apps/marketplace/ConsentPanel.tsx',
+  'src/lib/citadel-apps/manifest/manifest-rules.ts',
 ];
 
 /**

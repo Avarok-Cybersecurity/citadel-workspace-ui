@@ -1,12 +1,11 @@
 /**
  * workspace-protocol.ts
- * 
- * TypeScript equivalent of the Rust WorkspaceProtocol types defined in 
- * citadel-workspace-types/src/lib.rs. These types are used for structured
- * communication between the TypeScript frontend and Rust backend.
+ *
+ * TypeScript equivalent of the Rust WorkspaceProtocol types defined in citadel-workspace-types/src/lib.rs.
+ * These types are used for structured communication between the TypeScript frontend and Rust backend.
  */
 
-import type { DocumentsRequest, MemberRole, MessagingTrustRequest, RolesRequest, SecureLinksRequest, SignInSettings, TelemetryRequest, WorkspaceLogoChange } from 'citadel-workspace-client-ts';
+import type { AppsRequest, DocumentsRequest, MemberRole, MessagingTrustRequest, RolesRequest, SecureLinksRequest, SignInSettings, TelemetryRequest, WorkspaceLogoChange } from 'citadel-workspace-client-ts';
 
 /**
  * The main protocol payload that wraps either a request or response
@@ -164,6 +163,7 @@ export interface WorkspaceProtocolRequestTS {
   Roles?: RolesRequest; // The workspace role table (roles-operations.ts).
   Documents?: DocumentsRequest; // A document node's CRDT log and awareness (cdoc/collab/documents-transport.ts).
   SecureLinks?: SecureLinksRequest; // Secure deep links (secure-links-operations.ts).
+  Apps?: AppsRequest; // Citadel Apps: the marketplace and installs (apps-operations.ts).
   GetSignInSettings?: null; // The sign-in settings (lib/workspace-service/sign-in-settings.ts).
   UpdateSignInSettings?: { settings: SignInSettings };
   DeleteNode?: { node_id: string; cascade: boolean };

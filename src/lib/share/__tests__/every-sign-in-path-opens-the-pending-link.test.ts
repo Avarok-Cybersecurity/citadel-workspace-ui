@@ -56,8 +56,9 @@ describe('the post-sign-in paths', () => {
 
   it('boot captures the link before anything renders', () => {
     const text: string = read('main.tsx');
-    const capture: number = text.indexOf('capturePendingRedirect(window.location.search');
+    const capture: number = text.indexOf('captureBootLinks(window.location');
     expect(capture).toBeGreaterThan(-1);
     expect(capture).toBeLessThan(text.indexOf('root.render('));
+    expect(read('lib/boot-links.ts')).toContain('capturePendingRedirect(search');
   });
 });

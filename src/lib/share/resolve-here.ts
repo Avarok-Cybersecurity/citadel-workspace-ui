@@ -10,7 +10,8 @@ import { tabIdentity } from '@/lib/tab-identity';
 import type { StoredSession } from '@/types/session-types';
 import { peekPendingRedirect, takePendingRedirect } from './pending-redirect';
 
-async function thisTabsServer(): Promise<string | null> {
+/** The workspace server this tab's session is on, or null when it is not known. */
+export async function thisTabsServer(): Promise<string | null> {
   const selection: TabUserContext | null = await getSelectedUser();
   const session: StoredSession | null = await connectionManager.getTabSelectedSession();
   return tabIdentity(selection, session).serverAddress ?? null;

@@ -37,6 +37,7 @@ const PAYLOADS: Record<string, unknown> = {
   MessagingTrust: { Settings: { workspace: 'AllTrusted', mine: null, effective_root: 'workspace-root' } },
   Roles: { RoleChanged: { role_id: 'guest', roles: { roles: [], default_role_id: 'member' } } },
   SecureLinks: { Deleted: { id: 'link-1' } },
+  Apps: { Uninstalled: { install_id: 'i-1' } },
 };
 
 /**
