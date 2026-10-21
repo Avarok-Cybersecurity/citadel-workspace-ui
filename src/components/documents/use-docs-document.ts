@@ -37,8 +37,8 @@ export type DocumentEditing =
 export type DocsDocument =
   /** cdoc is loading. */
   | { readonly kind: 'loading' }
-  /** cdoc is up and the replica is opening. */
-  | { readonly kind: 'opening' }
+  /** cdoc is up and the replica is opening; `runtime.engineLoad` says how far its engine has got. */
+  | { readonly kind: 'opening'; readonly runtime: CdocRuntime }
   | { readonly kind: 'failed'; readonly stage: 'start' | 'open'; readonly message: string }
   | { readonly kind: 'static'; readonly runtime: CdocRuntime }
   | { readonly kind: 'replica'; readonly runtime: CdocRuntime; readonly editor: EditorSession; readonly editable: boolean }
@@ -61,7 +61,7 @@ export function useDocsDocument(loadRuntime: CdocRuntimeFactory, source: Documen
       loaded = runtime;
       if (!live) return runtime.client.dispose();
       if (isStaticSource(source)) return set({ kind: 'static', runtime });
-      set({ kind: 'opening' });
+      set({ kind: 'opening', runtime });
       const open: (from: EditorOrigin) => Promise<EditorSession> = createEditorOpener(
         { client: runtime.client, renderer: runtime.renderer }, (b: Uint8Array): Uint8Array => crypto.getRandomValues(b),
       );
