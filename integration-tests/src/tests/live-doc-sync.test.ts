@@ -61,7 +61,7 @@ async function invitationShown(page: Page, docId: string): Promise<boolean> {
   const bubble: Locator = page.getByRole('button', { name: new RegExp(`${DOC_TITLE}.*Live Document`) });
   // `isVisible({ timeout })` never waits; the expect does.
   const shown: boolean = await expect(bubble.first()).toBeVisible({ timeout: SYNC_MS }).then((): boolean => true, (): boolean => false);
-  await page.getByTestId(`chat-tab-${docId}`).click();
+  await page.getByTestId(`chat-tab-doc-${docId}`).click();
   return shown;
 }
 
