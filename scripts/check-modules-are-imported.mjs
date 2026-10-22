@@ -9,10 +9,10 @@
  * differently: the file compiles, type-checks, lints and reads as maintained,
  * and nothing imports it.
  *
- * That is how a second answer survives. `lib/live-document-store/document-queries.ts`
- * exports `getRootHash`, `getCreatorCid`, `isCreator` and `getRevisionChain`,
- * and `lib/yjs-merkle-strategy/tree.ts` has all four as methods that callers
- * actually use. Whichever is right, one of them is answering nobody.
+ * That is how a second answer survives: `lib/live-document-store/document-queries.ts`
+ * once exported `getRootHash`, `getCreatorCid`, `isCreator` and `getRevisionChain`
+ * while `lib/yjs-merkle-strategy/tree.ts` had all four as methods callers used, so
+ * one of the two answered nobody. (Both went with the earlier chat editor.)
  *
  * Config-referenced files are entry points, not orphans: `vitest.config.ts`
  * names `test/setup.ts` in `setupFiles` and `test/pwa-register-stub.ts` in
@@ -34,7 +34,6 @@ const SRC = join(ROOT, 'src');
  */
 const KNOWN_ORPHANS = new Set([
   'contexts/index.ts',
-  'lib/live-document-store/document-queries.ts',
   'types/files.ts',
   'types/workspace.ts',
 ]);

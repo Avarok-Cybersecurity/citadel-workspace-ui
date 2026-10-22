@@ -199,8 +199,9 @@ App.tsx
 | "Create Live Doc" button | P2PChat | ✅ | live-doc-sync |
 | Live document name input | LiveDocumentModal | ✅ | live-doc-sync |
 | "Create" button | LiveDocumentModal | ✅ | live-doc-sync |
-| TipTap/ProseMirror editor | LiveDocumentView | ✅ | live-doc-sync |
-| Real-time content sync | LiveDocumentView | ✅ | live-doc-sync |
+| Citadel Docs canvas for a chat document | ChatDocumentPane | ✅ | live-doc-sync |
+| Real-time content sync | ChatDocumentPane | ✅ | live-doc-sync |
+| Earlier editor's document moved once, original kept | ChatDocumentPane, LossReportBanner | written, not yet run | live-doc-migration |
 | Live document tabs in ChatTabBar | ChatTabBar | ✅ | live-doc-sync |
 | LiveDocumentBubble (link in chat) | LiveDocumentBubble | ✅ | live-doc-sync |
 

@@ -24,10 +24,11 @@ export const LOST_EDITS_PART: string = 'this device';
 export const LOST_EDITS_WHAT: string = 'edits made here before the document’s creator moved it; they are kept in a conflicted copy';
 
 /** Said under the report when this device's migration differs from a peer's. */
-export const CONFLICT_NOTES: { readonly [K in 'creator-keeps' | 'adopt-creator' | 'await-creator']: string } = {
-  'creator-keeps': 'The other person moved a different version of this document. Yours is the shared one, because you created it.',
+export const CONFLICT_NOTES: { readonly [K in 'creator-keeps' | 'adopt-creator' | 'await-creator' | 'held-apart']: string } = {
+  'creator-keeps': 'The other person moved a different version of this document, so the two copies are kept apart. Yours stays the document, because you created it; changes are not exchanged with theirs.',
   'adopt-creator': 'The document’s creator moved a different version. Theirs is now the shared one; yours is kept as a read-only conflicted copy.',
   'await-creator': 'The other person moved a different version of this document. Both are kept until its creator’s version arrives.',
+  'held-apart': 'The document’s creator moved a different version of it, so the two copies are kept apart and changes are not exchanged. Theirs is the document; this version of the app cannot bring it over, so the copy here is yours alone.',
 };
 
 /** A file name for the original's text, from its title. */

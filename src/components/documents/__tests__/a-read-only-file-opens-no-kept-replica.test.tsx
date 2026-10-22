@@ -65,10 +65,10 @@ describe('a document given to a keeper', () => {
       kind: 'replica',
       save: null,
       pictures: null,
-      keep: (open, show, fail): (() => void) => {
+      keep: (open, show, fail): (() => Promise<void>) => {
         asked.push('keep');
         open({ kind: 'blank' }).then(show, fail);
-        return (): void => undefined;
+        return (): Promise<void> => Promise.resolve();
       },
     };
     const doc: Extract<DocsDocument, { kind: 'replica' }> = await replicaOf(opened(MD, editing));

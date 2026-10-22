@@ -20,9 +20,11 @@ export interface MissingEdits {
 
 export interface ConflictRecord {
   readonly v: typeof CONFLICT_VERSION;
-  readonly resolution: Exclude<ConflictResolution['kind'], 'keep-own' | 'identical'>;
+  /** 'held-apart': the creator is the peer, whose copy cannot be adopted over the chat (held-apart.ts). */
+  readonly resolution: Exclude<ConflictResolution['kind'], 'keep-own' | 'identical'> | 'held-apart';
   readonly localOrigin: string;
-  readonly peerOrigin: string;
+  /** Null when the peer's copy was never moved (it opened as a new document). */
+  readonly peerOrigin: string | null;
   /** Empty unless this device adopted the creator's migration. */
   readonly lostEdits: readonly MissingEdits[];
 }
@@ -53,7 +55,7 @@ export function encodeConflict(record: ConflictRecord): Uint8Array {
   return Uint8Array.from(cborEncode(record));
 }
 
-const RESOLUTIONS: readonly ConflictRecord['resolution'][] = ['creator-keeps', 'adopt-creator', 'await-creator'];
+const RESOLUTIONS: readonly ConflictRecord['resolution'][] = ['creator-keeps', 'adopt-creator', 'await-creator', 'held-apart'];
 
 const isMissingEdits = (value: unknown): value is MissingEdits =>
   typeof value === 'object' && value !== null && Number.isSafeInteger((value as MissingEdits).client) && Number.isSafeInteger((value as MissingEdits).missing) && (value as MissingEdits).missing > 0;
@@ -63,7 +65,7 @@ export function decodeConflict(bytes: Uint8Array): ConflictRecord {
   if (typeof value !== 'object' || value === null) throw new Error('unreadable migration conflict: not a record');
   const f: Record<string, unknown> = value as Record<string, unknown>;
   const resolution: ConflictRecord['resolution'] | undefined = RESOLUTIONS.find((r: ConflictRecord['resolution']): boolean => r === f.resolution);
-  if (f.v !== CONFLICT_VERSION || resolution === undefined || typeof f.localOrigin !== 'string' || typeof f.peerOrigin !== 'string'
+  if (f.v !== CONFLICT_VERSION || resolution === undefined || typeof f.localOrigin !== 'string' || (f.peerOrigin !== null && typeof f.peerOrigin !== 'string')
     || !Array.isArray(f.lostEdits) || !f.lostEdits.every(isMissingEdits)) {
     throw new Error('unreadable migration conflict');
   }

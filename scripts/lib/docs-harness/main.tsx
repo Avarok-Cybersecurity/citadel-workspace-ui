@@ -40,7 +40,7 @@ const doc: string | null = params.get('doc');
 
 /** Opens the DOCX at `url` once, as a replica of its own. */
 function keepFile(url: string): ReplicaKeeper {
-  return (open: (from: EditorOrigin) => Promise<EditorSession>, show: (editor: EditorSession) => void, fail: (error: unknown) => void): (() => void) => {
+  return (open: (from: EditorOrigin) => Promise<EditorSession>, show: (editor: EditorSession) => void, fail: (error: unknown) => void): (() => Promise<void>) => {
     let opened: EditorSession | null = null;
     let live: boolean = true;
     fetch(url)
@@ -56,7 +56,7 @@ function keepFile(url: string): ReplicaKeeper {
       }, (error: unknown): void => {
         if (live) fail(error);
       });
-    return (): void => {
+    return async (): Promise<void> => {
       live = false;
       opened?.dispose();
     };

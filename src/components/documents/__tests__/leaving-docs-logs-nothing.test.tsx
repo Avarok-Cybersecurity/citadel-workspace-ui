@@ -7,13 +7,13 @@
  * and the OffscreenCanvas transfer are stood in for (host-worker.ts).
  */
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, type RenderResult } from '@testing-library/react';
 import { hostWorker, type HostWorker } from '@/lib/cdoc/__tests__/host-worker';
 import { realHost } from '@/lib/cdoc/__tests__/wasm-rig';
 import { recordingContext, recordingPort, recordingTarget } from '@/lib/cdoc/paint/__tests__/recording-canvas';
 import { WorkerPageRenderer, type PageRenderer } from '@/lib/cdoc/paint/page-renderer';
 import type { CdocRuntime } from '@/lib/cdoc/runtime';
-import { createValueStore } from '@/lib/value-store';
+import { createValueStore, type ValueStore } from '@/lib/value-store';
 import type { EngineLoad } from '@/lib/cdoc/worker/engine-load';
 import type { CdocResponse } from '@/lib/cdoc/worker/protocol';
 import type { Ctx2D } from '@/lib/cdoc/paint/canvas-port';
@@ -24,7 +24,7 @@ import { recordingDocumentFiles, type RecordingDocumentFiles } from '@/test-util
 
 // Any fixed instant: these tests download nothing.
 const FILES: RecordingDocumentFiles = recordingDocumentFiles('2026-10-18T00:00:00Z');
-const EDIT_BLANK: DocumentEditing = { kind: 'replica', keep: keepBlankReplica, save: null };
+const EDIT_BLANK: DocumentEditing = { kind: 'replica', keep: keepBlankReplica, save: null, pictures: null };
 const VIEWPORT_PX: number = 800;
 const DETACH_FAILURE: string = 'the worker refused to detach';
 
@@ -36,7 +36,7 @@ function workerRuntime(answer: Answer): { runtime: CdocRuntime; worker: HostWork
   const worker: HostWorker = hostWorker(realHost(recordingPort().port, recordingTarget), answer);
   const renderer: PageRenderer = new WorkerPageRenderer(worker.client, (): OffscreenCanvas => ({}) as OffscreenCanvas);
   const overlayContext = (canvas: HTMLCanvasElement): Ctx2D => recordingContext(canvas.dataset.layer ?? 'overlay').ctx;
-  const engineLoad = createValueStore<EngineLoad>('test-engine-load', { kind: 'ready' });
+  const engineLoad: ValueStore<EngineLoad> = createValueStore<EngineLoad>('test-engine-load', { kind: 'ready' });
   return { runtime: { client: worker.client, renderer, overlayContext, engineLoad }, worker };
 }
 
@@ -58,7 +58,7 @@ afterEach(() => {
 });
 
 async function openBlank(runtime: CdocRuntime): Promise<() => void> {
-  const view = render(<DocsCanvas documentSource={{ kind: 'blank' }} loadRuntime={async (): Promise<CdocRuntime> => runtime} editing={EDIT_BLANK} statusBar={null} edit={{ enabled: true, reason: null }} commentAuthor="Ada" title="Untitled" files={FILES} original={null} />);
+  const view: RenderResult = render(<DocsCanvas documentSource={{ kind: 'blank' }} loadRuntime={async (): Promise<CdocRuntime> => runtime} editing={EDIT_BLANK} statusBar={null} edit={{ enabled: true, reason: null }} commentAuthor="Ada" title="Untitled" files={FILES} original={null} />);
   expect(await screen.findAllByTestId('document-page', {}, { timeout: 10_000 })).not.toHaveLength(0);
   await settle();
   return view.unmount;

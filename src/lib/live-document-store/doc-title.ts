@@ -1,10 +1,7 @@
 /**
- * A live document's title, carried by the document itself.
- *
- * The title lives in the Yjs doc (`getMap('cdoc')`, key `title` -- the map the
- * citadel-docs architecture reserves for document attributes), so the CRDT
- * delivers a rename to every peer and concurrent renames converge. The store's
- * DocumentMetadata and the tab title are mirrors of it, never a second source.
+ * A chat document's title: the check every title passes before it is used (the composer's
+ * dialog, a rename, a peer's title stamp), and the title an earlier editor's document carries
+ * in its Yjs state (`getMap('cdoc')`, key `title`), read once when it is moved to Citadel Docs.
  */
 
 import type * as Y from 'yjs';
@@ -43,24 +40,4 @@ export function readDocTitle(doc: Y.Doc): string | null {
   if (typeof raw !== 'string') return null;
   const title: string = normalise(raw).slice(0, DOC_TITLE_MAX_LENGTH).trim();
   return title || null;
-}
-
-/** Writes a validated title; throws on an invalid one so no caller can skip the check. */
-export function writeDocTitle(doc: Y.Doc, raw: string): string {
-  const check: TitleCheck = validateDocTitle(raw);
-  if (!check.ok) throw new Error(check.reason);
-  attributes(doc).set(DOC_TITLE_KEY, check.title);
-  return check.title;
-}
-
-/** Calls `onTitle` whenever the title changes, whoever changed it. Returns the unsubscribe. */
-export function observeDocTitle(doc: Y.Doc, onTitle: (title: string) => void): () => void {
-  const map: Y.Map<unknown> = attributes(doc);
-  const handler = (event: Y.YMapEvent<unknown>): void => {
-    if (!event.keysChanged.has(DOC_TITLE_KEY)) return;
-    const title: string | null = readDocTitle(doc);
-    if (title) onTitle(title);
-  };
-  map.observe(handler);
-  return (): void => map.unobserve(handler);
 }

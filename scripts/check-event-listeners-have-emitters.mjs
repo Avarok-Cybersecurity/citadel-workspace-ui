@@ -91,7 +91,6 @@ const RECORDED_UNCONSUMED = new Map([
   ['p2p:presence-updated', 'presence renders from the messenger callback registry'],
   ['p2p:registration-declined', 'no consumer — a decline is not surfaced anywhere'],
   ['broadcast-workspace-response', 'internal to the broadcast-channel service'],
-  ['yjs:document-update', 'the provider wires its own document listeners'],
 ]);
 
 // Event names given as constants, resolved to their literals.

@@ -285,6 +285,13 @@ const DEFERRED_MODULES = [
   'src/lib/cdoc/chat/chat-inbox.ts',
   'src/lib/cdoc/chat/chat-local-db.ts',
   'src/lib/cdoc/chat/chat-wire.ts',
+  // A chat document's canvas, its keeper and its sync load when its tab opens
+  // (components/p2p/chat-document/use-chat-documents.ts, by dynamic import), never before.
+  'src/components/documents/chat-replica.ts',
+  'src/lib/cdoc/chat/chat-replica-keeper.ts',
+  'src/lib/cdoc/chat/chat-sync.ts',
+  'src/lib/cdoc/chat/chat-migration-gate.ts',
+  'src/lib/live-doc-migration/held-apart.ts',
 ];
 
 /**

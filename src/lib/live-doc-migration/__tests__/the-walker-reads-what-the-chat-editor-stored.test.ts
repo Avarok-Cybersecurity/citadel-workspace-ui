@@ -1,102 +1,60 @@
 /**
- * The walker, over real-shaped Yjs: StarterKit documents written by y-prosemirror (and one by a
- * real TipTap editor with the chat's own extension set), read back with yjs alone.
+ * The walker, over what the earlier chat editor really stored: StarterKit documents written by
+ * y-prosemirror, one by a real TipTap editor with the chat's own extension set, and the seeded
+ * "turn this message into a document" shape, recorded while that editor was in the app
+ * (fixtures.ts), read back with yjs alone.
  *
- * Two oracles, because they fail differently: ProseMirror's StarterKit schema (the walk must be
- * a VALID document that equals the input once defaults are filled in), and y-prosemirror's own
- * reader (the walk must match what the editor would have shown).
+ * The oracle is y-prosemirror's own reader, recorded with each document: the walk must match
+ * what the editor showed. (The editor's packages are gone, so the schema can no longer be asked;
+ * the recording is what it answered.)
  */
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
-import { Editor, type JSONContent } from '@tiptap/core';
-import { yXmlFragmentToProseMirrorRootNode } from 'y-prosemirror';
-import { collaborativeExtensions } from '@/components/p2p/editor-extensions';
-import { seedDocument } from '@/lib/live-document-store/seed-document';
 import { walkYjsDoc, walkYjsState, YjsWalkError, TIPTAP_FRAGMENT, type WalkedDocument } from '../yjs-walker';
-import { plainTextOf } from '../pm-json';
-import { canonical, chatYDoc, STARTER_KIT_SCHEMA } from './fixtures';
+import { plainTextOf, type PmNode } from '../pm-json';
+import { chatYDoc, recordedShown, recordedUpdate, type RecordedName } from './fixtures';
 
-const text = (t: string, marks?: JSONContent['marks']): JSONContent => (marks ? { type: 'text', text: t, marks } : { type: 'text', text: t });
-const para = (...content: JSONContent[]): JSONContent => (content.length ? { type: 'paragraph', content } : { type: 'paragraph' });
-const item = (...content: JSONContent[]): JSONContent => ({ type: 'listItem', content });
-const doc = (...content: JSONContent[]): JSONContent => ({ type: 'doc', content });
+const text = (t: string, marks?: PmNode['marks']): PmNode => (marks ? { type: 'text', text: t, marks } : { type: 'text', text: t });
+const para = (...content: PmNode[]): PmNode => (content.length ? { type: 'paragraph', content } : { type: 'paragraph' });
+const doc = (...content: PmNode[]): PmNode => ({ type: 'doc', content });
 
-const FIXTURES: Record<string, JSONContent> = {
-  headings: doc(
-    { type: 'heading', attrs: { level: 1 }, content: [text('One')] },
-    { type: 'heading', attrs: { level: 2 }, content: [text('Two')] },
-    { type: 'heading', attrs: { level: 6 }, content: [text('Six')] },
-  ),
-  nestedLists: doc(
-    { type: 'bulletList', content: [
-      item(para(text('a')), { type: 'orderedList', attrs: { start: 3 }, content: [item(para(text('a.3')), { type: 'bulletList', content: [item(para(text('deep')))] })] }),
-      item(para(text('b'))),
-    ] },
-  ),
-  marks: doc(para(
-    text('plain '), text('bold', [{ type: 'bold' }]), text(' '), text('both', [{ type: 'bold' }, { type: 'italic' }]),
-    text(' '), text('struck', [{ type: 'strike' }]), text(' '), text('code', [{ type: 'code' }]),
-  )),
-  blocks: doc(
-    { type: 'blockquote', content: [para(text('quoted')), para(text('twice'))] },
-    { type: 'codeBlock', attrs: { language: 'rust' }, content: [text('fn main() {}\n  // two lines')] },
-    { type: 'horizontalRule' },
-    para(text('line'), { type: 'hardBreak' }, text('break')),
-  ),
-  empty: { type: 'doc', content: [para()] },
-  emptyParagraphs: doc(para(text('a')), para(), para(), para(text('b'))),
-  unicodeRtl: doc(
-    para(text('שלום עולם — مرحبا بالعالم')),
-    para(text('👩🏽‍💻 family 👨‍👩‍👧‍👦 flags 🇩🇪 combining é ñ')),
-    para(text('mixed ltr עברית rtl', [{ type: 'italic' }])),
-  ),
-};
+const SHAPES: readonly RecordedName[] = ['headings', 'nestedLists', 'marks', 'blocks', 'empty', 'emptyParagraphs', 'unicodeRtl'];
 
-function roundTrip(json: JSONContent): WalkedDocument {
-  return walkYjsState(Y.encodeStateAsUpdate(chatYDoc(json, null)));
-}
+const roundTrip = (name: RecordedName): WalkedDocument => walkYjsState(recordedUpdate(name));
 
 describe('the walker reads every StarterKit shape the chat editor stored', () => {
-  for (const [name, json] of Object.entries(FIXTURES)) {
-    it(`${name}: a valid StarterKit document equal to what was written`, () => {
-      const walked: WalkedDocument = roundTrip(json);
-      expect(canonical(walked.pm)).toEqual(canonical(json));
-    });
-
-    it(`${name}: what y-prosemirror itself reads from the same state`, () => {
-      const ydoc: Y.Doc = chatYDoc(json, null);
-      const oracle: unknown = yXmlFragmentToProseMirrorRootNode(ydoc.getXmlFragment(TIPTAP_FRAGMENT), STARTER_KIT_SCHEMA).toJSON();
-      expect(canonical(walkYjsDoc(ydoc).pm)).toEqual(oracle);
+  for (const name of SHAPES) {
+    it(`${name}: what y-prosemirror itself read from the same state`, () => {
+      expect(roundTrip(name).pm).toEqual(recordedShown(name));
     });
   }
 
   it('reads a document a real TipTap editor wrote through the chat’s own extensions', () => {
-    const ydoc: Y.Doc = new Y.Doc();
-    const editor: Editor = new Editor({ extensions: collaborativeExtensions(ydoc) });
-    editor.commands.setContent(FIXTURES.nestedLists);
-    editor.commands.insertContentAt(editor.state.doc.content.size, FIXTURES.marks.content ?? []);
-    const shown: unknown = editor.getJSON();
-    editor.destroy();
-    expect(canonical(walkYjsState(Y.encodeStateAsUpdate(ydoc)).pm)).toEqual(canonical(shown));
+    expect(roundTrip('realEditor').pm).toEqual(recordedShown('realEditor'));
   });
 
   it('reads the seeded "turn this message into a document" shape', () => {
-    const walked: WalkedDocument = walkYjsState(Y.encodeStateAsUpdate(seedDocument('first\n\nthird')));
-    expect(walked.pm).toEqual(doc(para(text('first')), para(), para(text('third'))));
+    expect(roundTrip('seeded').pm).toEqual(doc(para(text('first')), para(), para(text('third'))));
+    expect(roundTrip('seeded').pm).toEqual(recordedShown('seeded'));
   });
 
   it('carries the title from the document’s attributes map, and null when it has none', () => {
-    expect(walkYjsState(Y.encodeStateAsUpdate(chatYDoc(FIXTURES.headings, 'Quarterly plan'))).title).toBe('Quarterly plan');
-    expect(roundTrip(FIXTURES.headings).title).toBeNull();
+    expect(walkYjsState(Y.encodeStateAsUpdate(chatYDoc('headings', 'Quarterly plan'))).title).toBe('Quarterly plan');
+    expect(roundTrip('headings').title).toBeNull();
   });
 
   it('keeps a large document whole, in bounded time', () => {
-    const paragraphs: JSONContent[] = Array.from({ length: 3000 }, (_: unknown, i: number): JSONContent => para(text(`Paragraph ${i} `), text('bold', [{ type: 'bold' }])));
+    // 3000 copies of the chat editor's own marked paragraph.
+    const written: Y.XmlElement = chatYDoc('marks', null).getXmlFragment(TIPTAP_FRAGMENT).get(0) as Y.XmlElement;
+    const large: Y.Doc = new Y.Doc();
+    large.getXmlFragment(TIPTAP_FRAGMENT).insert(0, Array.from({ length: 3000 }, (): Y.XmlElement => written.clone()));
     const started: number = performance.now();
-    const walked: WalkedDocument = roundTrip(doc(...paragraphs));
+    const walked: WalkedDocument = walkYjsState(Y.encodeStateAsUpdate(large));
     expect(performance.now() - started).toBeLessThan(5_000);
     expect(walked.pm.content).toHaveLength(3000);
-    expect(canonical(walked.pm)).toEqual(canonical(doc(...paragraphs)));
+    const shown: PmNode | undefined = recordedShown('marks').content?.[0];
+    expect(walked.pm.content?.every((paragraph: PmNode): boolean => JSON.stringify(paragraph) === JSON.stringify(walked.pm.content?.[0]))).toBe(true);
+    expect(walked.pm.content?.[0]).toEqual(shown);
   });
 
   it('merges neighbouring runs with the same marks, as y-prosemirror does on read', () => {
@@ -120,7 +78,7 @@ describe('the walker reads every StarterKit shape the chat editor stored', () =>
 
 describe('the walker refuses what it cannot read faithfully', () => {
   it('refuses a state whose updates depend on updates never stored', () => {
-    const source: Y.Doc = chatYDoc(FIXTURES.marks, null);
+    const source: Y.Doc = chatYDoc('marks', null);
     const before: Uint8Array = Y.encodeStateVector(source);
     source.getXmlFragment(TIPTAP_FRAGMENT).insert(1, [new Y.XmlElement('paragraph')]);
     const onlyTheLaterEdit: Uint8Array = Y.encodeStateAsUpdate(source, before);
@@ -152,8 +110,8 @@ describe('the walker refuses what it cannot read faithfully', () => {
 
 describe('the original as text', () => {
   it('keeps every word, a block per line, lists and quotes marked', () => {
-    expect(plainTextOf(roundTrip(FIXTURES.nestedLists).pm)).toBe('- a\n  3. a.3\n     - deep\n- b');
-    expect(plainTextOf(roundTrip(FIXTURES.blocks).pm)).toBe('> quoted\n> twice\nfn main() {}\n  // two lines\n---\nline\nbreak');
-    expect(plainTextOf(roundTrip(FIXTURES.unicodeRtl).pm)).toContain('שלום עולם — مرحبا بالعالم');
+    expect(plainTextOf(roundTrip('nestedLists').pm)).toBe('- a\n  3. a.3\n     - deep\n- b');
+    expect(plainTextOf(roundTrip('blocks').pm)).toBe('> quoted\n> twice\nfn main() {}\n  // two lines\n---\nline\nbreak');
+    expect(plainTextOf(roundTrip('unicodeRtl').pm)).toContain('שלום עולם — مرحبا بالعالم');
   });
 });

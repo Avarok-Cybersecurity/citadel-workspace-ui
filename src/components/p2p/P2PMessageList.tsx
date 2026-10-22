@@ -13,6 +13,7 @@ import { AwaitingAcceptContext } from './bubbles/awaiting-accept';
 import type { P2PMessage } from '@/lib/p2p';
 import { reactionChips } from '@/lib/reactions/reaction-state';
 import type { ReactionBinding } from '@/components/chat/shared/reactions/reaction-binding';
+import type { ChatDocumentLink } from './hooks/useP2PTabs';
 
 interface P2PMessageListProps {
   messages: P2PMessage[];
@@ -30,7 +31,7 @@ interface P2PMessageListProps {
   displaySenderAvatar: boolean;
   onScroll: (event: React.UIEvent<HTMLDivElement>) => void;
   onRetryMessage: (message: P2PMessage) => void;
-  onOpenDocument: (docId: string, title: string) => void;
+  onOpenDocument: (link: ChatDocumentLink) => void;
   onAcceptTransfer: (transferId: string) => Promise<void>;
   onDeclineTransfer: (transferId: string) => Promise<void>;
   onCancelTransfer: (transferId: string) => Promise<void>;

@@ -8,8 +8,8 @@ export type ChatSyncProblem =
   | PresenceProblem
   /** The peer's payload, or this device's stored copy, is in another CRDT format: refused, never applied. */
   | { readonly kind: 'docVersionMismatch'; readonly expected: number; readonly received: number; readonly where: 'the peer' | 'the stored copy' }
-  /** Both sides migrated the document, from different sources: their copies will hold both. */
-  | { readonly kind: 'migrationMismatch'; readonly ours: string; readonly theirs: string }
+  /** The two copies were moved from different originals (null: not moved), so they are held apart. */
+  | { readonly kind: 'migrationMismatch'; readonly ours: string | null; readonly theirs: string | null }
   /** A payload from the peer, or a stored record, is not in the shape this client writes. */
   | { readonly kind: 'unreadable'; readonly what: string; readonly cause: unknown }
   /** This device's copy could not be read or written. */
@@ -34,7 +34,7 @@ export function describeChatProblem(problem: ChatSyncProblem): string {
     case 'docVersionMismatch':
       return `${problem.where === 'the peer' ? 'The other person\'s copy' : 'The copy on this device'} is in document format ${problem.received}; this client reads format ${problem.expected}, so it was not applied`;
     case 'migrationMismatch':
-      return `This document was converted from ${problem.ours} here and from ${problem.theirs} by the other person, so it may hold both`;
+      return 'This document was moved to the new editor from a different version here than on the other person\'s device, so the two copies are kept apart and changes are no longer exchanged';
     case 'unreadable':
       return `${problem.what} could not be read: ${causeOf(problem.cause)}`;
     case 'storeFailed':

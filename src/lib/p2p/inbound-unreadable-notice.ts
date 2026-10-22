@@ -18,12 +18,17 @@ export async function noteUnreadableMessage(
   config: MessageHandlerConfig,
   peerCid: bigint,
 ): Promise<void> {
+  await noteFromPeer(config, peerCid, unreadableNoticeText);
+}
+
+/** Writes `text(peer's name)` into the conversation with `peerCid` as a system line. */
+export async function noteFromPeer(config: MessageHandlerConfig, peerCid: bigint, text: (peerName: string) => string): Promise<void> {
   const peerName: string = peerDisplayName(p2pRegistrationService.getPeerInfo(peerCid) ?? { cid: peerCid });
   const ownCid: bigint | null = await config.getCurrentCid();
   if (ownCid === null) return;
   const message: P2PMessage = {
     id: crypto.randomUUID(),
-    content: unreadableNoticeText(peerName),
+    content: text(peerName),
     senderCid: peerCid,
     recipientCid: ownCid,
     timestamp: Date.now(),

@@ -38,8 +38,11 @@ export const R1_COLLABORATION: Omit<DocumentSessionConfig, 'nodeId' | 'clientSeq
   baseAfterIdleMs: 2_000,
 };
 
-/** DocsCanvas's ReplicaKeeper, for any replica type the runtime's opener returns. */
-export type Keeper<E extends EditorController> = (open: (from: EditorOrigin) => Promise<E>, show: (editor: E) => void, fail: (error: unknown) => void) => () => void;
+/**
+ * DocsCanvas's ReplicaKeeper, for any replica type the runtime's opener returns. The teardown
+ * resolves once the keeper is done with the replicas it opened (the runtime goes after).
+ */
+export type Keeper<E extends EditorController> = (open: (from: EditorOrigin) => Promise<E>, show: (editor: E) => void, fail: (error: unknown) => void) => () => Promise<void>;
 
 /** What the page does with the session while it is open (its Save control, the share trigger); returns the undo. */
 export type SessionBinder = (session: DocumentSession) => () => void;
@@ -50,7 +53,7 @@ export function replicaKeeper<E extends EditorController>(
   onProblem: (problem: DocumentSessionError) => void,
   bind: SessionBinder,
 ): Keeper<E> {
-  return (open: (from: EditorOrigin) => Promise<E>, show: (editor: E) => void, fail: (error: unknown) => void): (() => void) => {
+  return (open: (from: EditorOrigin) => Promise<E>, show: (editor: E) => void, fail: (error: unknown) => void): (() => Promise<void>) => {
     const opened: E[] = [];
     const tracked = async (from: EditorOrigin): Promise<E> => {
       const editor: E = await open(from);
@@ -62,7 +65,7 @@ export function replicaKeeper<E extends EditorController>(
       session = new DocumentSession(config, portsFor(tracked));
     } catch (error: unknown) {
       fail(error);
-      return (): void => {};
+      return (): Promise<void> => Promise.resolve();
     }
     session.on('editor', (editor: EditorController): void => {
       const index: number = opened.findIndex((e: E): boolean => e === editor);
@@ -74,7 +77,7 @@ export function replicaKeeper<E extends EditorController>(
     session.on('problem', onProblem);
     const unbind: () => void = bind(session);
     void session.open();
-    return (): void => {
+    return async (): Promise<void> => {
       unbind();
       session.close();
       for (const editor of opened.splice(0)) editor.dispose();

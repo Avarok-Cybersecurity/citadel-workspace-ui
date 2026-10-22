@@ -41,13 +41,15 @@ if (baselines.length === 0) {
 const git = (args) =>
   execFileSync('git', args, { cwd: repoRoot, encoding: 'utf8' }).trim();
 
-// Three halves, as it turns out. An unstaged rewrite and a staged-but-
-// uncommitted one both show in `git diff HEAD`. A baseline that has never been
-// committed at all does NOT -- git cannot diff a path it has never tracked --
-// and that is precisely the state a brand-new ratcheting gate leaves behind.
-// This check reported "all 4 match HEAD" over an untracked file on the day it
-// was written, which is the failure mode it exists to catch.
-const modified = git(['diff', 'HEAD', '--name-only', '--', ...baselines])
+// Judged against the INDEX, not HEAD: the index is what the commit will hold.
+// Against HEAD, the pre-commit hook failed every commit that staged its
+// rewritten baseline -- the very fix this asks for -- so the only way past it
+// was --no-verify. In CI the index is the checkout, so the two are the same.
+// A rewrite left unstaged shows here; so must a baseline never committed at
+// all, which git cannot diff -- precisely the state a brand-new ratcheting gate
+// leaves behind. This check reported "all 4 match HEAD" over an untracked file
+// on the day it was written, which is the failure mode it exists to catch.
+const modified = git(['diff', '--name-only', '--', ...baselines])
   .split('\n')
   .filter(Boolean);
 
@@ -59,18 +61,18 @@ const dirty = [...new Set([...modified, ...untracked])].sort();
 
 if (dirty.length > 0) {
   console.error(
-    `  Baselines committed: ${dirty.length} ratcheting baseline(s) differ from HEAD  FAIL`,
+    `  Baselines committed: ${dirty.length} ratcheting baseline(s) differ from what is staged  FAIL`,
   );
   for (const file of dirty) {
     if (untracked.includes(file)) {
       console.error(`    ${file}  (never committed -- git has no record of it at all)`);
       continue;
     }
-    const inHead = git(['show', `HEAD:${file}`]);
+    const staged = git(['show', `:${file}`]);
     const changed = existsSync(resolve(repoRoot, file))
-      ? git(['diff', 'HEAD', '--numstat', '--', file])
+      ? git(['diff', '--numstat', '--', file])
       : '(deleted)';
-    console.error(`    ${file}  (${changed.split('\t').slice(0, 2).join(' +/- ')} lines, HEAD has ${inHead.length} bytes)`);
+    console.error(`    ${file}  (${changed.split('\t').slice(0, 2).join(' +/- ')} lines, the staged copy has ${staged.length} bytes)`);
   }
   console.error('');
   console.error('  A gate wrote its baseline in the working tree and it is not in the commit.');
@@ -80,5 +82,5 @@ if (dirty.length > 0) {
 }
 
 console.log(
-  `  Baselines committed: all ${baselines.length} ratcheting baseline(s) match HEAD  ok`,
+  `  Baselines committed: all ${baselines.length} ratcheting baseline(s) match what is staged  ok`,
 );

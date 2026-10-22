@@ -19,14 +19,16 @@ import { refusedMacros } from '@/lib/cdoc/conversion-report';
 /**
  * Opens and keeps the page's replica: calls `open` (this runtime's EditorOpener) as often as it
  * needs, and `show` with each replica the page should draw (a re-open replaces the previous one,
- * which the keeper disposes). Returns the teardown. DocsCanvas never disposes a replica it was
- * shown: the keeper owns replica lifetimes.
+ * which the keeper disposes). Returns the teardown, which resolves once the keeper is done with
+ * every replica it opened: the runtime is disposed only then, so a keeper's last write (a chat
+ * document's snapshot) still has the engine. DocsCanvas never disposes a replica it was shown:
+ * the keeper owns replica lifetimes.
  */
 export type ReplicaKeeper = (
   open: (from: EditorOrigin) => Promise<EditorSession>,
   show: (editor: EditorSession) => void,
   fail: (error: unknown) => void,
-) => () => void;
+) => () => Promise<void>;
 
 /** Whether the document is edited through a kept replica, or only read, and then why. */
 export type DocumentEditing =
@@ -54,7 +56,7 @@ export function useDocsDocument(loadRuntime: CdocRuntimeFactory, source: Documen
   useEffect((): (() => void) => {
     let live: boolean = true;
     let loaded: CdocRuntime | null = null;
-    let release: (() => void) | null = null;
+    let release: (() => Promise<void>) | null = null;
     let held: EditorSession | null = null;
     const set = (next: DocsDocument): void => {
       if (live) setState(next);
@@ -88,9 +90,12 @@ export function useDocsDocument(loadRuntime: CdocRuntimeFactory, source: Documen
     );
     return (): void => {
       live = false;
-      release?.();
+      const released: Promise<void> = release?.() ?? Promise.resolve();
       held?.dispose();
-      loaded?.client.dispose();
+      // After the keeper is done: it may still be writing what was last typed, through the engine.
+      const runtime: CdocRuntime | null = loaded;
+      const dispose = (): void => runtime?.client.dispose();
+      released.then(dispose, dispose);
     };
   }, [loadRuntime, source, editing]);
   return state;

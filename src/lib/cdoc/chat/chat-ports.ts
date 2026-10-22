@@ -32,6 +32,8 @@ export interface StoredBase {
 export interface ChatIndexEntry {
   readonly peerCid: bigint;
   readonly title: CdocChatTitleStamp | null;
+  /** Held apart from the peer's copy (chat-migration-gate.ts): nothing of theirs is applied or recorded. */
+  readonly heldApart: boolean;
 }
 
 /**

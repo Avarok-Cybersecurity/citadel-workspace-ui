@@ -12,6 +12,7 @@ import { debugLog, warnLog } from '@/lib/debug-config';
 import { MigrationRunner, type MigrationOutcome } from './runner';
 import { sweepLiveDocuments, type SweepResult } from './sweep';
 import { applyPeerMigration, type PeerMigration, type PeerMigrationOutcome } from './peer-migration';
+import { recordHeldApart } from './held-apart';
 import { loadCdocMigrationMapper } from './cdoc-mapper';
 import type { CreatorSide } from './conflict-rule';
 import type { MigrationMarker } from './marker';
@@ -29,44 +30,40 @@ const SWEEP_IDLE_TIMEOUT_MS: number = 2_000;
 const db: MigrationLocalDb = websocketService;
 const runners: Map<bigint, MigrationRunner> = new Map();
 
-async function runnerForThisTab(): Promise<MigrationRunner> {
-  const cid: bigint | null = await getCurrentCid();
-  if (cid === null) throw new Error('no account is signed in on this tab, so there is no account to migrate documents for');
-  let runner: MigrationRunner | undefined = runners.get(cid);
+function runnerFor(account: bigint): MigrationRunner {
+  let runner: MigrationRunner | undefined = runners.get(account);
   if (runner === undefined) {
-    runner = new MigrationRunner({ db, accountCid: cid, loadMapper: loadCdocMigrationMapper });
-    runners.set(cid, runner);
+    runner = new MigrationRunner({ db, accountCid: account, loadMapper: loadCdocMigrationMapper });
+    runners.set(account, runner);
   }
   return runner;
 }
 
-/** Migrates the chat document `docId` for this tab's account, once; the chat tab calls it on open. */
-async function migrateIfNeeded(docId: string): Promise<MigrationOutcome> {
-  return (await runnerForThisTab()).migrateIfNeeded(docId);
+/** The sweep's account: the one signed in on this tab. */
+async function runnerForThisTab(): Promise<MigrationRunner> {
+  const cid: bigint | null = await getCurrentCid();
+  if (cid === null) throw new Error('no account is signed in on this tab, so there is no account to migrate documents for');
+  return runnerFor(cid);
 }
 
-/** The migrated snapshot to open, checked against its marker; null when not migrated for this account. */
-async function readMigratedDocument(docId: string): Promise<{ readonly marker: MigrationMarker; readonly snapshot: Uint8Array } | null> {
-  return (await runnerForThisTab()).readMigrated(docId);
-}
-
-/** Acts on the peer's migration of `docId` (conflict-rule.ts); `creator` says which side made the chat document. */
-async function applyPeerMigrationOf(docId: string, peer: PeerMigration, creator: CreatorSide): Promise<PeerMigrationOutcome> {
-  return applyPeerMigration(await runnerForThisTab(), db, docId, peer, creator);
-}
-
-/** What the loss banner shows for `docId`; null when it is not migrated for this account. */
-async function loadMigrationBanner(docId: string): Promise<{ readonly report: ConversionReport; readonly conflict: ConflictRecord | null } | null> {
-  const runner: MigrationRunner = await runnerForThisTab();
-  const [marker, conflict]: [MigrationMarker | null, ConflictRecord | null] = await Promise.all([runner.readMarker(docId), runner.readConflict(docId)]);
-  return marker === null ? null : { report: migrationReport(marker, conflict), conflict };
-}
-
-/** The original for "Show original" (read only, never written); null when this device holds none. */
-async function loadOriginalDocument(docId: string): Promise<OriginalDocument | null> {
-  const original: { readonly walked: WalkedDocument; readonly title: string } | null = await (await runnerForThisTab()).readOriginal(docId);
-  if (original === null) return null;
-  return originalDocument(original.walked, original.title, await loadCdocMigrationMapper());
+/** The migration as one account sees it: the chat's own, whichever account this tab shows. */
+function forAccount(account: bigint): AccountMigration {
+  const runner: MigrationRunner = runnerFor(account);
+  return {
+    migrateIfNeeded: (docId: string): Promise<MigrationOutcome> => runner.migrateIfNeeded(docId),
+    readMigrated: (docId: string): Promise<{ readonly marker: MigrationMarker; readonly snapshot: Uint8Array } | null> => runner.readMigrated(docId),
+    loadBanner: async (docId: string): Promise<{ readonly report: ConversionReport; readonly conflict: ConflictRecord | null } | null> => {
+      const [marker, conflict]: [MigrationMarker | null, ConflictRecord | null] = await Promise.all([runner.readMarker(docId), runner.readConflict(docId)]);
+      return marker === null ? null : { report: migrationReport(marker, conflict), conflict };
+    },
+    loadOriginal: async (docId: string): Promise<OriginalDocument | null> => {
+      const original: { readonly walked: WalkedDocument; readonly title: string } | null = await runner.readOriginal(docId);
+      if (original === null) return null;
+      return originalDocument(original.walked, original.title, await loadCdocMigrationMapper());
+    },
+    applyPeerMigration: (docId: string, peer: PeerMigration, creator: CreatorSide): Promise<PeerMigrationOutcome> => applyPeerMigration(runner, db, docId, peer, creator),
+    recordHeldApart: (docId: string, peerOrigin: string | null, creator: CreatorSide): Promise<ConflictRecord | null> => recordHeldApart(runner, db, docId, peerOrigin, creator),
+  };
 }
 
 function yieldToUi(): Promise<void> {
@@ -101,27 +98,31 @@ function startMigrationSweep(): () => void {
   return (): void => controller.abort();
 }
 
-/** What the chat's document tab and the signed-in layout use; every call acts for this tab's account. */
-export interface ChatDocumentMigration {
+/** The migration of one account's chat documents; the chat's document tab acts through it. */
+export interface AccountMigration {
   /** Migrates `docId` once (single-flight with the sweep); call it when the chat opens a document. */
   readonly migrateIfNeeded: (docId: string) => Promise<MigrationOutcome>;
   /** The migrated snapshot to open, checked against its marker; null when not migrated. */
   readonly readMigrated: (docId: string) => Promise<{ readonly marker: MigrationMarker; readonly snapshot: Uint8Array } | null>;
   /** The loss banner's report and conflict; null when not migrated. */
   readonly loadBanner: (docId: string) => Promise<{ readonly report: ConversionReport; readonly conflict: ConflictRecord | null } | null>;
-  /** The original for "Show original" (LossReportBanner's loadOriginal). */
+  /** The original for "Show original" (LossReportBanner's loadOriginal); null when this device holds none. */
   readonly loadOriginal: (docId: string) => Promise<OriginalDocument | null>;
   /** Acts on a peer's migration (conflict-rule.ts); `creator` says which side made the chat document. */
   readonly applyPeerMigration: (docId: string, peer: PeerMigration, creator: CreatorSide) => Promise<PeerMigrationOutcome>;
-  /** The background sweep; the returned function stops it. */
+  /** The chat held this account's moved copy apart from the peer's: records the conflict the banner states. */
+  readonly recordHeldApart: (docId: string, peerOrigin: string | null, creator: CreatorSide) => Promise<ConflictRecord | null>;
+}
+
+/** What the chat's document tab and the signed-in layout use. */
+export interface ChatDocumentMigration {
+  /** The migration for `account`: the chat's local account, named by the chat, not read from the tab. */
+  readonly forAccount: (account: bigint) => AccountMigration;
+  /** The background sweep, for the account signed in on this tab; the returned function stops it. */
   readonly startSweep: () => () => void;
 }
 
 export const chatDocumentMigration: ChatDocumentMigration = {
-  migrateIfNeeded,
-  readMigrated: readMigratedDocument,
-  loadBanner: loadMigrationBanner,
-  loadOriginal: loadOriginalDocument,
-  applyPeerMigration: applyPeerMigrationOf,
+  forAccount,
   startSweep: startMigrationSweep,
 };

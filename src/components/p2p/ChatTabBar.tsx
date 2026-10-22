@@ -54,6 +54,7 @@ function Tab({ tab, active, onSelect, onClose, onRename }: TabProps): JSX.Elemen
         // menu is the pointer route and the header pencil the discoverable one.
         onKeyDown={onRename ? (e): void => { if (e.key === 'F2') { e.preventDefault(); onRename(); } } : undefined}
         aria-current={active ? 'page' : undefined}
+        data-testid={`chat-tab-${tab.id}`}
         className="flex items-center gap-1.5 px-3 py-2 cursor-pointer bg-transparent text-inherit"
       >
         <Icon className="h-4 w-4 flex-shrink-0" aria-hidden="true" />

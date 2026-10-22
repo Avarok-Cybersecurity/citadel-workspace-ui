@@ -1,6 +1,7 @@
 import type { P2PMessage } from '@/lib/p2p';
 import type { QuotedMessage } from '@/components/chat/shared/reply-quote';
 import type { ReactionBinding } from '@/components/chat/shared/reactions/reaction-binding';
+import type { ChatDocumentLink } from '../hooks/useP2PTabs';
 
 export interface BaseBubbleProps {
   message: P2PMessage;
@@ -30,7 +31,7 @@ export interface ReplyableBubbleProps extends BaseBubbleProps {
 }
 
 export interface LiveDocumentBubbleProps extends BaseBubbleProps {
-  onOpenDocument?: (documentId: string, documentTitle: string) => void;
+  onOpenDocument?: (link: ChatDocumentLink) => void;
 }
 
 export interface FileTransferBubbleProps extends BaseBubbleProps {

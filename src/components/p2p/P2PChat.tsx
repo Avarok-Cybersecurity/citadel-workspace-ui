@@ -5,12 +5,15 @@
  * Uses extracted hooks and components for message handling, input, and display.
  */
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { notificationService } from '@/lib/notification-service';
 import { ChatTabBar } from './ChatTabBar';
 import { NoConversation } from './NoConversation';
 import { ComposeContextBanner } from './ComposeContextBanner';
-import { LiveDocumentPane } from './LiveDocumentPane';
+import { ChatDocumentPane } from './chat-document/ChatDocumentPane';
+import { APP_OPENING_PORTS } from './chat-document/use-chat-documents';
+import type { ChatPeer } from '@/components/documents/chat-replica';
+import type { ChatDocumentOpening } from './chat-document/chat-document-opening';
 import { LiveDocumentModal } from './LiveDocumentModal';
 import { ChatFileDialogs } from './ChatFileDialogs';
 import { useChatFileSend, type ChatFileSend } from './hooks/use-chat-file-send';
@@ -41,6 +44,8 @@ import { useScreenshotNotice, sendScreenshotNotice } from './hooks/useScreenshot
 import type { DirectCallBinding } from '@/components/p2p/hooks/use-direct-call';
 
 export type ChatMode = 'p2p' | 'group';
+
+const NO_ACCOUNT: ChatDocumentOpening = { kind: 'unmoved', reason: { kind: 'no-account' }, loadOriginal: null };
 
 interface P2PChatProps {
   peerCid: bigint;
@@ -89,11 +94,12 @@ export function P2PChat({
 
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   // Tabs hook
+  const peer: ChatPeer = useMemo((): ChatPeer => ({ cid: peerCid, name: peerName, username: peerUsername ?? peerName }), [peerCid, peerName, peerUsername]);
   const {
-    activeTabId, activeTabIdRef, tabsWithUnread, activeTab,
+    activeTabId, activeTabIdRef, tabsWithUnread, activeTab, documents,
     setMessagesHasUnread, handleTabSelect, handleCloseTab,
-    handleOpenDocument, handleCreateDocument, handleRenameDocument,
-  } = useP2PTabs({ peerCid, currentUserCid });
+    handleOpenDocument, handleCreateDocument, handleRenameDocument, retryDocument,
+  } = useP2PTabs({ peer, currentUserCid, ports: APP_OPENING_PORTS });
 
   // Messages hook
   const {
@@ -147,6 +153,7 @@ export function P2PChat({
   const awaitingAcceptFrom: string | null = isRegistered || isGroupMode ? null : peerName; // held until then
 
   const isViewingDocument: boolean = activeTab?.type === 'live_document';
+  const viewedDocument: string | null = isViewingDocument && activeTab?.documentId ? activeTab.documentId : null;
 
 
   return (
@@ -186,8 +193,13 @@ export function P2PChat({
       )}
 
       <div className="flex-1 p-0 flex flex-col overflow-hidden">
-        {isViewingDocument && activeTab?.documentId ? (
-          <LiveDocumentPane documentId={activeTab.documentId} documentTitle={activeTab.title} onRename={handleRenameDocument} peerCid={peerCid.toString()} peerName={peerName} linkUp={isConnected} currentUserCid={currentUserCid?.toString() || ''} currentUserName={currentUserName} />
+        {viewedDocument !== null && activeTab ? (
+          <ChatDocumentPane
+            key={viewedDocument} docId={viewedDocument} title={activeTab.title} peerName={peerName} selfName={currentUserName}
+            opening={currentUserCid === undefined ? NO_ACCOUNT : documents.get(viewedDocument) ?? null}
+            onRetry={(): void => retryDocument(viewedDocument)}
+            onRename={(title: string): Promise<void> => handleRenameDocument(viewedDocument, title)}
+          />
         ) : (
           <>
             <div className="relative flex min-h-0 flex-1 flex-col">

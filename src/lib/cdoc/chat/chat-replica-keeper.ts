@@ -23,6 +23,8 @@ import { holdOpen } from './open-chat-documents';
 /** What a document new to this device opens from. */
 export type ChatDocumentOrigin =
   | { readonly kind: 'blank' }
+  /** Blank, with the creator's typed text as its first paragraphs (one per line). */
+  | { readonly kind: 'seeded'; readonly text: string }
   /** Converted from an earlier format; `migrationOrigin` names the source, and both peers compare it. */
   | { readonly kind: 'migrated'; readonly snapshot: Uint8Array; readonly migrationOrigin: string };
 
@@ -36,6 +38,8 @@ export interface ChatKeeperHost {
   titled(stamp: CdocChatTitleStamp): void;
   /** The kept sync, while it runs (rename goes through it); null once the document closes. */
   bound(sync: ChatDocumentSync | null): void;
+  /** The peer's copy was moved from another original (`theirs`); the two are held apart from now on. */
+  heldApart(theirs: string | null): void;
 }
 
 interface StoredCopy {
@@ -64,6 +68,14 @@ const editorOrigin = (base: StoredBase | null, origin: ChatDocumentOrigin): Edit
   base !== null ? { kind: 'snapshot', snapshot: base.snapshot }
     : origin.kind === 'migrated' ? { kind: 'snapshot', snapshot: origin.snapshot } : { kind: 'blank' };
 
+/** The creator's text, typed into the new blank replica: a paragraph per line. */
+async function seed(editor: EditorController, text: string): Promise<void> {
+  for (const [index, line] of text.split(/\r?\n/).entries()) {
+    if (index > 0) await editor.execute({ name: 'splitParagraph' });
+    if (line.length > 0) await editor.execute({ name: 'insertText', text: line });
+  }
+}
+
 export function chatReplicaKeeper<E extends EditorController>(
   docId: string,
   origin: ChatDocumentOrigin,
@@ -71,25 +83,33 @@ export function chatReplicaKeeper<E extends EditorController>(
   ports: ChatKeeperPorts,
   host: ChatKeeperHost,
 ): Keeper<E> {
-  return (open: (from: EditorOrigin) => Promise<E>, show: (editor: E) => void, fail: (error: unknown) => void): (() => void) => {
+  return (open: (from: EditorOrigin) => Promise<E>, show: (editor: E) => void, fail: (error: unknown) => void): (() => Promise<void>) => {
     let live: boolean = true;
-    let close: (() => void) | null = null;
+    let close: (() => Promise<void>) | null = null;
     const keep = async (editor: E, copy: StoredCopy): Promise<void> => {
       for (const update of copy.pending) await editor.applyRemote(update);
-      if (copy.entry === null) await ports.store.saveEntry(docId, { peerCid: ports.transport.peerCid, title: null });
+      let entry: ChatIndexEntry = copy.entry ?? { peerCid: ports.transport.peerCid, title: null, heldApart: false };
+      const saveEntry = (next: ChatIndexEntry): void => {
+        entry = next;
+        ports.store.saveEntry(docId, next).catch((cause: unknown): void => host.report({ kind: 'storeFailed', operation: 'write', cause }));
+      };
+      if (copy.entry === null) await ports.store.saveEntry(docId, entry);
       else if (copy.entry.title !== null) host.titled(copy.entry.title);
       if (!live) return editor.dispose();
       const migrationOrigin: string | null = copy.base !== null ? copy.base.migrationOrigin : origin.kind === 'migrated' ? origin.migrationOrigin : null;
       const kept: ChatReplicaStore = new ChatReplicaStore(ports.store, docId, config, ports.clock,
         { baseStored: copy.base !== null, pending: copy.pending, migrationOrigin },
         { snapshot: (): Promise<Uint8Array> => editor.snapshot(), report: host.report });
-      const sync: ChatDocumentSync = new ChatDocumentSync(config, { docId, migrationOrigin, title: copy.entry?.title ?? null }, editor, ports, {
+      const sync: ChatDocumentSync = new ChatDocumentSync(config, { docId, migrationOrigin, title: entry.title, heldApart: entry.heldApart }, editor, ports, {
         report: host.report,
         applied: (update: Uint8Array): void => kept.added(update),
         titled: (stamp: CdocChatTitleStamp): void => {
           host.titled(stamp);
-          ports.store.saveEntry(docId, { peerCid: ports.transport.peerCid, title: stamp })
-            .catch((cause: unknown): void => host.report({ kind: 'storeFailed', operation: 'write', cause }));
+          saveEntry({ ...entry, title: stamp });
+        },
+        heldApart: (theirs: string | null): void => {
+          saveEntry({ ...entry, heldApart: true });
+          host.heldApart(theirs);
         },
         // The page draws them (PeerOverlay); a chat document lists no one beside that.
         peers: (): void => undefined,
@@ -98,12 +118,12 @@ export function chatReplicaKeeper<E extends EditorController>(
       sync.start();
       host.bound(sync);
       show(editor);
-      close = (): void => {
+      close = (): Promise<void> => {
         host.bound(null);
         sync.stop();
         release();
         // Steps already queued finish first, then the last edits are written, then the replica goes.
-        void sync.settled().then((): Promise<void> => kept.write()).finally((): void => editor.dispose());
+        return sync.settled().then((): Promise<void> => kept.write()).finally((): void => editor.dispose());
       };
     };
     const start = async (): Promise<void> => {
@@ -113,18 +133,21 @@ export function chatReplicaKeeper<E extends EditorController>(
       const editor: E = await open(editorOrigin(copy.base, origin));
       if (!live) return editor.dispose();
       try {
+        if (copy.base === null && copy.entry === null && origin.kind === 'seeded') await seed(editor, origin.text);
         await keep(editor, copy);
       } catch (error: unknown) {
         editor.dispose();
         throw error;
       }
     };
-    start().catch((error: unknown): void => {
+    const starting: Promise<void> = start().catch((error: unknown): void => {
       if (live) fail(error);
     });
-    return (): void => {
+    return async (): Promise<void> => {
       live = false;
-      close?.();
+      // An open still under way finishes first (and, no longer live, disposes what it opened).
+      await starting;
+      await close?.();
     };
   };
 }

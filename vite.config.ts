@@ -344,28 +344,15 @@ export default defineConfig(({ mode }) => {
             if (id.includes('node_modules')) {
               // The whole React runtime in ONE chunk. Splitting react-dom out while
               // leaving `react` itself in the entry chunk produced a genuine cycle
-              // (vendor-react -> vendor-collab -> vendor-react), because the editor
-              // vendor chunk imports React. Rollup warns that such a cycle "will
-              // likely lead to broken execution order", so this is a correctness fix
-              // rather than a size one.
+              // (vendor-react -> a vendor chunk that imports React -> vendor-react).
+              // Rollup warns that such a cycle "will likely lead to broken execution
+              // order", so this is a correctness fix rather than a size one.
               if (/[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) {
                 return 'vendor-react';
               }
               // Radix UI components
               if (id.includes('@radix-ui')) {
                 return 'vendor-ui';
-              }
-              // Yjs on its own. The live-document store, the tabs hook and the P2P
-              // provider use Yjs from the chat page itself, so it cannot ride in the
-              // editor chunk without dragging the editor along with every chat.
-              // One direction only (editor -> yjs), so there is still no cycle.
-              if (id.includes('/yjs/') || id.includes('/lib0/') || id.includes('y-protocols')) {
-                return 'vendor-yjs';
-              }
-              // Rich text editor: loaded when a live document is first opened
-              // (LiveDocumentPane). y-prosemirror bridges yjs and prosemirror.
-              if (id.includes('@tiptap') || id.includes('prosemirror')) {
-                return 'vendor-collab';
               }
               // Serialization and storage
               if (id.includes('cbor-x') || id.includes('/idb/')) {

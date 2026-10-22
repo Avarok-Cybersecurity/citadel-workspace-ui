@@ -48,7 +48,7 @@ describe('DocsCanvas', () => {
     };
     const opened: EditorSession[] = [];
     let reopen: (() => Promise<void>) | null = null;
-    const keeper: ReplicaKeeper = (open: (from: EditorOrigin) => Promise<EditorSession>, show: (e: EditorSession) => void): (() => void) => {
+    const keeper: ReplicaKeeper = (open: (from: EditorOrigin) => Promise<EditorSession>, show: (e: EditorSession) => void): (() => Promise<void>) => {
       const next: () => Promise<void> = async (): Promise<void> => {
         const editor: EditorSession = await open({ kind: 'blank' });
         const dispose: () => void = editor.dispose.bind(editor);
@@ -66,7 +66,7 @@ describe('DocsCanvas', () => {
       };
       reopen = next;
       void next();
-      return (): void => {
+      return async (): Promise<void> => {
         events.push('keeper torn down');
       };
     };
@@ -79,7 +79,9 @@ describe('DocsCanvas', () => {
     events.length = 0;
     await waitFor(() => expect(document.activeElement).toBe(screen.getByTestId('editor-input')));
     view.unmount();
-    expect(events).toEqual(['keeper torn down', 'client disposed']);
+    // The runtime goes once the keeper's teardown has settled (a keeper may still be writing), never before.
+    expect(events).toEqual(['keeper torn down']);
+    await waitFor(() => expect(events).toEqual(['keeper torn down', 'client disposed']));
     for (const e of opened) e.dispose();
   });
 });

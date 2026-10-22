@@ -1,5 +1,4 @@
-
-import type { VisualViewport } from '@popperjs/core';/**
+/**
  * Make the app shell shrink when the on-screen keyboard opens, on browsers that
  * do not honour `interactive-widget=resizes-content`.
  *

@@ -31,8 +31,10 @@ export interface ChatDocumentRequest {
   readonly peer: ChatPeer;
   /** The title the chat message gave it, shown until a rename (either person's) is heard. */
   readonly title: string;
-  /** What it opens from when this device keeps no copy yet: blank, or a migration's snapshot. */
+  /** What it opens from when this device keeps no copy yet: blank, the creator's typed text, or a migration's snapshot. */
   readonly origin: ChatDocumentOrigin;
+  /** The peer's copy was moved from another original (`theirs`): the two are held apart, and this is said. */
+  readonly heldApart: (theirs: string | null) => void;
 }
 
 export interface ChatDocument {
@@ -47,9 +49,9 @@ export interface ChatDocument {
 export function openChatDocument(request: ChatDocumentRequest): ChatDocument {
   const title: ValueStore<string> = createValueStore<string>(`chat-document-title:${request.docId}`, request.title);
   let bound: ChatDocumentSync | null = null;
-  const keep: ReplicaKeeper = (open, show, fail): (() => void) => {
+  const keep: ReplicaKeeper = (open, show, fail): (() => Promise<void>) => {
     let live: boolean = true;
-    let release: (() => void) | null = null;
+    let release: (() => Promise<void>) | null = null;
     Promise.all([import('@/lib/cdoc/chat/chat-replica-keeper'), import('@/lib/cdoc/chat/chat-app-ports'), import('@/lib/cdoc/chat/chat-config'), import('@/lib/cdoc/chat/chat-problems')]).then(
       ([{ chatReplicaKeeper }, { chatKeeperPorts }, { CHAT_SYNC }, { ChatSyncError }]): void => {
         if (!live) return;
@@ -59,15 +61,16 @@ export function openChatDocument(request: ChatDocumentRequest): ChatDocument {
           report,
           titled: (stamp: CdocChatTitleStamp): void => title.set(stamp.title),
           bound: (sync: ChatDocumentSync | null): void => { bound = sync; },
+          heldApart: request.heldApart,
         })(open, show, fail);
       },
       (error: unknown): void => {
         if (live) fail(error);
       },
     );
-    return (): void => {
+    return (): Promise<void> => {
       live = false;
-      release?.();
+      return release?.() ?? Promise.resolve();
     };
   };
   return {

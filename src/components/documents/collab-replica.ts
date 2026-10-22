@@ -21,9 +21,9 @@ export function collaborationEditing(nodeId: string): DocumentEditing {
 }
 
 export function collaborationKeeper(nodeId: string, save: BindableSaveControl): ReplicaKeeper {
-  return (open, show, fail): (() => void) => {
+  return (open, show, fail): (() => Promise<void>) => {
     let live: boolean = true;
-    let release: (() => void) | null = null;
+    let release: (() => Promise<void>) | null = null;
     Promise.all([import('@/lib/cdoc/collab/replica-keeper'), import('@/lib/cdoc/collab/session-errors')]).then(
       ([{ workspaceReplicaKeeper }, { noticeKind }]): void => {
         if (!live) return;
@@ -41,9 +41,9 @@ export function collaborationKeeper(nodeId: string, save: BindableSaveControl): 
         if (live) fail(error);
       },
     );
-    return (): void => {
+    return (): Promise<void> => {
       live = false;
-      release?.();
+      return release?.() ?? Promise.resolve();
     };
   };
 }

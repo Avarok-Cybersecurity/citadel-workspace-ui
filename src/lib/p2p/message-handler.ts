@@ -11,7 +11,6 @@ import {
   deserializeP2PCommand,
   isMessagingLayerPayload,
   isMessageAckPayload,
-  isYjsSyncPayload,
 } from '@/types/p2p-types';
 import { BroadcastChannelService } from '../broadcast-channel-service';
 import { ensureBigIntOrNull } from '../utils';
@@ -28,6 +27,7 @@ import { isForThisSession } from '../sessions/notification-ownership';
 import { isPeerMessage, isMessageNotification, type MessageNotificationPayload , type MessageHandlerConfig } from './message-handler-types';
 import { handleMessagingLayerCommand } from './message-handler-routing';
 import { MessageAckHandler } from './message-ack-handler';
+import { EarlierEditorSync } from './earlier-editor-sync';
 import { FileTransferMessageHandler } from './file-transfer-message-handler';
 
 export type { MessageHandlerConfig } from './message-handler-types';
@@ -39,9 +39,11 @@ export class MessageHandler {
   private readonly config: MessageHandlerConfig;
   private readonly ackHandler: MessageAckHandler;
   private readonly fileTransferHandler: FileTransferMessageHandler;
+  private readonly earlierEditorSync: EarlierEditorSync;
 
   constructor(config: MessageHandlerConfig) {
     this.config = config;
+    this.earlierEditorSync = new EarlierEditorSync(config);
     this.ackHandler = new MessageAckHandler({
       getConversations: config.getConversations,
       updateMessageInPages: config.updateMessageInPages,
@@ -210,24 +212,8 @@ export class MessageHandler {
         break;
 
       case P2PCommandType.YjsP2PSync:
-        // Dispatch Yjs sync payloads to the Yjs provider via a dedicated
-        // event. We do NOT call the Yjs handler inline because each
-        // browser tab can host multiple `YjsP2PProvider` instances (one
-        // per open document) — emitting lets every interested provider
-        // filter on `document_id` / `peerCid` itself.
-        if (isYjsSyncPayload(command.payload)) {
-          debugLog('P2PMessageHandler', 'handleP2PCommand: dispatching YjsP2PSync', {
-            yjsType: command.payload.type,
-            documentId: command.payload.document_id,
-            peerCid: peerCid.toString(),
-          });
-          // Pass the canonical `bigint` CID on the wire-internal event
-          // (per the CID policy — string conversion is for display/keys/debug
-          // only). Subscribers `.toString()` it themselves where they compare.
-          eventEmitter.emit('yjs:p2p-command', { peerCid, payload: command.payload });
-        } else {
-          debugLog('P2PMessageHandler', 'handleP2PCommand: YjsP2PSync payload failed type check', command.payload);
-        }
+        // A peer on an earlier version: its editor's sync has no reader here (earlier-editor-sync.ts).
+        await this.earlierEditorSync.heard(peerCid);
         break;
 
       case P2PCommandType.CallSignal:

@@ -1,6 +1,5 @@
 [
   "createEmptyPermissions",
-  "createSelectionDecoration",
   "decodeMetadataBytes",
   "deriveLightPalette",
   "findRegion",

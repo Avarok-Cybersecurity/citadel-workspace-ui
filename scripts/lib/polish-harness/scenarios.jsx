@@ -20,6 +20,7 @@ import { PERMISSION_SCENARIOS } from './scenarios-permissions.jsx';
 import { FILE_MANAGER_SCENARIOS } from './scenarios-file-manager.jsx';
 import { SHARE_SCENARIOS } from './scenarios-share.jsx';
 import { RIBBON_SCENARIOS } from './scenarios-ribbons.jsx';
+import { MIGRATION_SCENARIOS } from './scenarios-migration.jsx';
 
 const person = (username, role, title) => ({
   id: username, username, displayName: username[0].toUpperCase() + username.slice(1), role, title, isOnline: true,
@@ -126,4 +127,4 @@ function DropUnavailable({ state }) {
   );
 }
 
-export const SCENARIOS = { 'document-open': () => <DropUnavailable state={{ viewingDocument: true, paused: false }} />, 'paused-drag': () => <DropUnavailable state={{ viewingDocument: false, paused: true }} />, 'p2p-chat': WholeChat, 'sidebar-members': SidebarMembers, 'p2p-conversation': P2PConversation, ...PEOPLE_SCENARIOS, ...OVERLAY_SCENARIOS, ...SPACING_SCENARIOS, ...SCREEN_SCENARIOS, ...SIDEBAR_SCENARIOS, ...PERMISSION_SCENARIOS, ...FILE_MANAGER_SCENARIOS, ...SHARE_SCENARIOS, ...RIBBON_SCENARIOS };
+export const SCENARIOS = { 'document-open': () => <DropUnavailable state={{ viewingDocument: true, paused: false }} />, 'paused-drag': () => <DropUnavailable state={{ viewingDocument: false, paused: true }} />, 'p2p-chat': WholeChat, 'sidebar-members': SidebarMembers, 'p2p-conversation': P2PConversation, ...PEOPLE_SCENARIOS, ...OVERLAY_SCENARIOS, ...SPACING_SCENARIOS, ...SCREEN_SCENARIOS, ...SIDEBAR_SCENARIOS, ...PERMISSION_SCENARIOS, ...FILE_MANAGER_SCENARIOS, ...SHARE_SCENARIOS, ...RIBBON_SCENARIOS, ...MIGRATION_SCENARIOS };

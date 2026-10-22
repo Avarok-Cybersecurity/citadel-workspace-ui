@@ -58,6 +58,7 @@ interface IndexRecord {
   readonly doc_id: string;
   readonly peer_cid: bigint;
   readonly title: CdocChatTitleStamp | null;
+  readonly held_apart: boolean;
 }
 
 /** A list, not an object keyed by id: an id is the peer's data, and `__proto__` is a valid one. */
@@ -68,7 +69,8 @@ function readIndex(value: unknown): Map<string, ChatIndexEntry> {
   for (const raw of entries) {
     const e: Fields = fields(raw, 'an index entry');
     if (typeof e.doc_id !== 'string' || typeof e.peer_cid !== 'bigint') throw new Error('an index entry names no document or no peer');
-    index.set(e.doc_id, { peerCid: e.peer_cid, title: e.title === null ? null : readTitleStamp(e.title) });
+    if (typeof e.held_apart !== 'boolean') throw new Error('an index entry does not say whether it is held apart');
+    index.set(e.doc_id, { peerCid: e.peer_cid, title: e.title === null ? null : readTitleStamp(e.title), heldApart: e.held_apart });
   }
   return index;
 }
@@ -111,7 +113,7 @@ export function localDbChatStore(account: bigint, db: LocalDbPort): ChatStoreBac
       const step = async (): Promise<void> => {
         const all: Map<string, ChatIndexEntry> = await index();
         all.set(docId, entry);
-        const entries: IndexRecord[] = [...all].map(([id, e]: [string, ChatIndexEntry]): IndexRecord => ({ doc_id: id, peer_cid: e.peerCid, title: e.title }));
+        const entries: IndexRecord[] = [...all].map(([id, e]: [string, ChatIndexEntry]): IndexRecord => ({ doc_id: id, peer_cid: e.peerCid, title: e.title, held_apart: e.heldApart }));
         await put(indexKey(account), { entries });
       };
       const next: Promise<void> = (indexTails.get(account) ?? Promise.resolve()).then(step, step);
