@@ -64,6 +64,7 @@ describe('a document given to a keeper', () => {
     const editing: DocumentEditing = {
       kind: 'replica',
       save: null,
+      pictures: null,
       keep: (open, show, fail): (() => void) => {
         asked.push('keep');
         open({ kind: 'blank' }).then(show, fail);

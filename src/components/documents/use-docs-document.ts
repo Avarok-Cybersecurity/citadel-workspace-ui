@@ -30,8 +30,11 @@ export type ReplicaKeeper = (
 
 /** Whether the document is edited through a kept replica, or only read, and then why. */
 export type DocumentEditing =
-  /** `save`: the title bar's controls for where its edits are; null for a replica nobody keeps anywhere. */
-  | { readonly kind: 'replica'; readonly keep: ReplicaKeeper; readonly save: SaveControl | null }
+  /**
+   * `save`: the title bar's controls for where its edits are; null for a replica nobody keeps
+   * anywhere. `pictures`: why a picture cannot be inserted here, or null where it can.
+   */
+  | { readonly kind: 'replica'; readonly keep: ReplicaKeeper; readonly save: SaveControl | null; readonly pictures: string | null }
   | { readonly kind: 'readOnly'; readonly reason: string };
 
 export type DocsDocument =

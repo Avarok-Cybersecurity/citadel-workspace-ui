@@ -58,12 +58,14 @@ export interface RibbonSetup {
   readonly commentAuthor: string | null;
   /** The fixed environment unless a test needs the world to answer differently. */
   readonly environment?: RibbonEnvironment;
+  /** Why pictures cannot be inserted; absent means they can, as in every workspace document. */
+  readonly pictures?: string | null;
 }
 
-export function renderRibbon({ editor, edit, commentAuthor, environment }: RibbonSetup): RenderResult {
+export function renderRibbon({ editor, edit, commentAuthor, environment, pictures }: RibbonSetup): RenderResult {
   return render(
     <EditorControllerContext.Provider value={editor}>
-      <DocsRibbon edit={edit} commentAuthor={commentAuthor} environment={environment ?? FIXED_ENVIRONMENT} />
+      <DocsRibbon edit={edit} commentAuthor={commentAuthor} environment={environment ?? FIXED_ENVIRONMENT} pictures={pictures ?? null} />
       <Toaster />
     </EditorControllerContext.Provider>,
   );

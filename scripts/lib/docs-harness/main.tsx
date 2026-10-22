@@ -65,7 +65,7 @@ function keepFile(url: string): ReplicaKeeper {
 
 const save: BindableSaveControl | null = params.get('save') === 'controls' ? saveControl('harness') : null;
 if (save !== null) window.docsHarnessSaveInputs = (inputs: SaveInputs): void => save.inputs.set(inputs);
-const EDITING: DocumentEditing = { kind: 'replica', keep: doc === null ? keepBlankReplica : keepFile(doc), save };
+const EDITING: DocumentEditing = { kind: 'replica', keep: doc === null ? keepBlankReplica : keepFile(doc), save, pictures: null };
 const app: Root = createRoot(root);
 app.render(
   // min-h-0: #root is a flex column (index.css), and a flex item does not shrink below its

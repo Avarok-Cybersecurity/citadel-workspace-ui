@@ -17,7 +17,7 @@ import type { DocumentEditing, ReplicaKeeper } from './use-docs-document';
 /** A workspace document's editing arm: kept collaboratively, saved from the title bar. Memoise it per node. */
 export function collaborationEditing(nodeId: string): DocumentEditing {
   const save: BindableSaveControl = saveControl(nodeId);
-  return { kind: 'replica', keep: collaborationKeeper(nodeId, save), save };
+  return { kind: 'replica', keep: collaborationKeeper(nodeId, save), save, pictures: null };
 }
 
 export function collaborationKeeper(nodeId: string, save: BindableSaveControl): ReplicaKeeper {

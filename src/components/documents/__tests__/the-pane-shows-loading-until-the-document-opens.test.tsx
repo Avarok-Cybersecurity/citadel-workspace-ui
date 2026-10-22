@@ -32,7 +32,7 @@ describe('the Docs pane while it loads', () => {
       showOpened = async (): Promise<void> => show(await open({ kind: 'blank' }));
       return (): void => undefined;
     };
-    const editing: DocumentEditing = { kind: 'replica', keep: keeper, save: null };
+    const editing: DocumentEditing = { kind: 'replica', keep: keeper, save: null, pictures: null };
     render(<DocsCanvas documentSource={{ kind: 'blank' }} loadRuntime={loadRuntime} editing={editing} statusBar={null} edit={{ enabled: true, reason: null }} commentAuthor="Ada" title="Untitled" files={FILES} original={null} />);
 
     expect(screen.getByTestId('app-loading-pane')).toBeInTheDocument();

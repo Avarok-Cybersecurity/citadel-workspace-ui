@@ -10,11 +10,12 @@ import { PictureControl } from './PictureControl';
 import { RibbonGroup, RibbonToolbar } from './RibbonToolbar';
 import { TablePicker } from './TablePicker';
 
-export function InsertRibbon({ commentAuthor }: { commentAuthor: string | null }): JSX.Element {
+/** `pictures`: why a picture cannot be inserted in this document, or null where it can. */
+export function InsertRibbon({ commentAuthor, pictures }: { commentAuthor: string | null; pictures: string | null }): JSX.Element {
   return (
     <RibbonToolbar label="Insert" testId="ribbon-insert-toolbar">
       <RibbonGroup label="Tables" testId="ribbon-tables" collapses={false} icon={Table}><TablePicker /></RibbonGroup>
-      <RibbonGroup label="Pictures" testId="ribbon-pictures" collapses={false} icon={Image}><PictureControl /></RibbonGroup>
+      <RibbonGroup label="Pictures" testId="ribbon-pictures" collapses={false} icon={Image}><PictureControl unavailable={pictures} /></RibbonGroup>
       <RibbonGroup label="Links" testId="ribbon-links" collapses={false} icon={Link}><LinkControls /></RibbonGroup>
       <RibbonGroup label="Comments" testId="ribbon-comments" collapses={false} icon={MessageSquarePlus}><CommentControl author={commentAuthor} /></RibbonGroup>
       <RibbonGroup label="Header & Footer" testId="ribbon-header-footer" collapses={false} icon={PanelTop}><HeaderFooterButtons /></RibbonGroup>

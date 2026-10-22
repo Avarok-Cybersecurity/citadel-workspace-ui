@@ -35,9 +35,11 @@ export interface DocsRibbonProps {
   /** The name a new comment is signed with; null until it has loaded. */
   readonly commentAuthor: string | null;
   readonly environment: RibbonEnvironment;
+  /** Why a picture cannot be inserted in this document, or null where it can. */
+  readonly pictures: string | null;
 }
 
-export function DocsRibbon({ edit, commentAuthor, environment }: DocsRibbonProps): JSX.Element | null {
+export function DocsRibbon({ edit, commentAuthor, environment, pictures }: DocsRibbonProps): JSX.Element | null {
   const editor: RibbonEditor | null = useEditorController();
   const state: EditorState | null = useEditorState(editor);
   const compact: boolean = useIsMobile();
@@ -71,7 +73,7 @@ export function DocsRibbon({ edit, commentAuthor, environment }: DocsRibbonProps
           {!compact && status}
           </div>
           <TabsContent value="home" tabIndex={-1} className="mt-1"><HomeRibbon /></TabsContent>
-          <TabsContent value="insert" tabIndex={-1} className="mt-1"><InsertRibbon commentAuthor={commentAuthor} /></TabsContent>
+          <TabsContent value="insert" tabIndex={-1} className="mt-1"><InsertRibbon commentAuthor={commentAuthor} pictures={pictures} /></TabsContent>
           <TabsContent value="layout" tabIndex={-1} className="mt-1"><LayoutRibbon /></TabsContent>
           <StoryBar />
           {compact && status}
