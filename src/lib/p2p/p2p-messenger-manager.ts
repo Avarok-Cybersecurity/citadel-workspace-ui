@@ -35,6 +35,7 @@ import { resolveCurrentCid, updatePeerPresenceOnConnect } from './messenger-cid-
 import { bindPeerConnectionState } from './bind-peer-connection-state';
 import { syncConnectionsFromBackend, updateFileTransferState, updateUnreadCount, autoRegisterPeer } from './messenger-compatibility';
 import { bindOutgoingFileOffers } from './record-outgoing-file-transfer';
+import { bindChatDocumentInbox } from './chat-document-inbox';
 import { debugLog, errorLog } from '@/lib/debug-config';
 import { conversationInFront } from '@/lib/notification-service/in-front';
 import { TIMEOUT } from '../timeout-constants';
@@ -133,6 +134,7 @@ export class P2PMessengerManager extends EventListenerManager {
       () => { this.isReady = true; this.emit('p2p:messages-loaded'); },
     );
     bindVisibilityFlush(() => this.checkStateManager.flushPendingCheckStateResponses());
+    bindChatDocumentInbox((event, handler) => this.listen(event, handler));
     bindOutgoingFileOffers((event, handler) => this.listen(event, handler), { addMessageToConversation: (p, m) => this.conversationManager.addMessageToConversation(p, m), notifyMessageListeners: (m) => notifyEach(this.messageListeners, 'p2p message', m), emitEvent: (e, d) => this.emit(e, d) });
     // See reset-conversations.ts.
     bindConversationSessionReset(

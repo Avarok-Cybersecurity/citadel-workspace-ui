@@ -6,7 +6,7 @@
 import WorkspaceService from '@/lib/workspace-service';
 import { rosterPeerName, rosterPeerUsername } from '@/lib/roster-peer-name';
 import { usernameAvatarColor } from '@/lib/avatar-color';
-import type { HexColor } from '../editor/model-values';
+import { hexColor, type HexColor } from '../editor/model-values';
 import { workspaceDocumentsTransport } from './documents-transport';
 import type { EditorOpener } from '../editor/controller';
 import type { DocumentSessionPorts, DocumentsTransport, PeerIdentity } from './ports';
@@ -42,9 +42,4 @@ function tabPacing(account: bigint): DocumentPacing {
 export function randomClientSeqBase(): bigint {
   const prefix: Uint32Array = crypto.getRandomValues(new Uint32Array(1));
   return BigInt(prefix[0]) << 32n;
-}
-
-function hexColor(value: string): HexColor {
-  if (!/^#[0-9a-fA-F]{6}$/.test(value)) throw new Error(`not a hex colour: ${value}`);
-  return value as HexColor;
 }

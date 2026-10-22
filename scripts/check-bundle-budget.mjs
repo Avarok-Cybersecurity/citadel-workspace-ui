@@ -279,6 +279,12 @@ const DEFERRED_MODULES = [
   'src/lib/live-doc-migration/runner.ts',
   'src/lib/live-doc-migration/yjs-walker.ts',
   'src/lib/live-doc-migration/cdoc-mapper.ts',
+  // Chat documents kept in step peer to peer: what records a closed one's incoming edits loads
+  // with the first CdocChatSync command (lib/p2p/chat-document-inbox.ts, in the messenger's
+  // chunk); the message handler only recognises the envelope (types/cdoc-chat-sync.ts).
+  'src/lib/cdoc/chat/chat-inbox.ts',
+  'src/lib/cdoc/chat/chat-local-db.ts',
+  'src/lib/cdoc/chat/chat-wire.ts',
 ];
 
 /**
