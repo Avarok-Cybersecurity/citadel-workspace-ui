@@ -8,8 +8,11 @@
 import type { AbiGroup } from './abi';
 import { isCborMap, type CborMap } from './cbor';
 import type { Capability } from './capabilities';
+import type { Address } from '../sdk/generated/Address';
 import type { Caller } from '../sdk/generated/Caller';
+import type { CloseReason } from '../sdk/generated/CloseReason';
 import type { IhttpFrame } from '../sdk/generated/IhttpFrame';
+import type { LifecycleStep } from '../sdk/generated/LifecycleStep';
 import type { LogLevel } from '../sdk/generated/LogLevel';
 import type { HostPolicy } from './limits';
 import type { PortAnswer } from './ports';
@@ -32,12 +35,17 @@ export interface LoadMessage {
 
 export type ToWorker =
   | LoadMessage
-  | { readonly kind: 'event'; readonly seq: number; readonly event: Uint8Array }
+  /** `step`: the lifecycle step the event takes (init: start; suspend; resume), or null. */
+  | { readonly kind: 'event'; readonly seq: number; readonly event: Uint8Array; readonly step: LifecycleStep | null }
   | { readonly kind: 'frame'; readonly seq: number; readonly dtMs: number }
   /** Runs no guest code itself: the reply reaches the guest in a later busy...done drain. */
   | { readonly kind: 'port_reply'; readonly id: number; readonly answer: PortAnswer }
   | { readonly kind: 'ihttp'; readonly seq: number; readonly peer: Caller; readonly frame: IhttpFrame }
-  | { readonly kind: 'canvas'; readonly canvas: OffscreenCanvas; readonly dpr: number };
+  | { readonly kind: 'canvas'; readonly canvas: OffscreenCanvas; readonly dpr: number }
+  /** The zone's new size in CSS px: the bitmap follows, then AppEvent resize. */
+  | { readonly kind: 'resize'; readonly seq: number; readonly width: number; readonly height: number; readonly dpr: number }
+  /** Runs app_close; `closing` answers when it returned, `settled` once nothing it waits on is left. */
+  | { readonly kind: 'close'; readonly reason: CloseReason };
 
 export type FromWorker =
   | { readonly kind: 'done'; readonly seq: number }
@@ -48,10 +56,14 @@ export type FromWorker =
   /** A LogWrite the guest made; answered at once in the worker, carried to the page's LogPort. */
   | { readonly kind: 'log'; readonly level: LogLevel; readonly message: string }
   | { readonly kind: 'port_call'; readonly id: number; readonly group: AbiGroup; readonly op: number; readonly args: CborMap }
-  | { readonly kind: 'ihttp_out'; readonly peer: Caller; readonly frame: IhttpFrame };
+  | { readonly kind: 'ihttp_out'; readonly peer: Caller; readonly frame: IhttpFrame }
+  /** A frame on a call whose server has not answered yet, so only its address is known. */
+  | { readonly kind: 'ihttp_call_out'; readonly to: Address; readonly frame: IhttpFrame }
+  | { readonly kind: 'closing'; readonly result: number }
+  | { readonly kind: 'settled' };
 
-const TO_WORKER: ReadonlySet<string> = new Set<ToWorker['kind']>(['load', 'event', 'frame', 'port_reply', 'ihttp', 'canvas']);
-const FROM_WORKER: ReadonlySet<string> = new Set<FromWorker['kind']>(['done', 'busy', 'loaded', 'trapped', 'log', 'port_call', 'ihttp_out']);
+const TO_WORKER: ReadonlySet<string> = new Set<ToWorker['kind']>(['load', 'event', 'frame', 'port_reply', 'ihttp', 'canvas', 'resize', 'close']);
+const FROM_WORKER: ReadonlySet<string> = new Set<FromWorker['kind']>(['done', 'busy', 'loaded', 'trapped', 'log', 'port_call', 'ihttp_out', 'ihttp_call_out', 'closing', 'settled']);
 
 export function isToWorker(value: unknown): value is ToWorker {
   return isCborMap(value) && typeof value.kind === 'string' && TO_WORKER.has(value.kind);

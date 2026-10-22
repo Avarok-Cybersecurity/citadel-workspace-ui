@@ -2,9 +2,10 @@
  * The app-zone runtime end to end: a release the server holds is fetched in chunks, checked
  * against the install's pinned hashes and key, started in the production worker host, and given a
  * canvas of the zone's geometry; its storage call reaches the kernel as an `AppsRequest::Call`.
- * Every refusal starts nothing (counted at the worker spawn), and unmounting early starts nothing.
+ * Every refusal starts nothing (counted at the worker spawn), and closing early starts nothing.
  */
 import { afterEach, describe, expect, it } from 'vitest';
+import type { AppZoneHandle } from '@/components/office/app-zone/app-zone-environment';
 import { STANDARD_HOST_POLICY } from '../../host/limits';
 import { InstanceSlots } from '../../host/instance-slots';
 import { until } from '../../host/__tests__/in-process';
@@ -64,9 +65,9 @@ describe('an installed, granted app', () => {
   it('unmounting stops it and removes the canvas', async () => {
     const kernel: FakeRuntimeKernel = new FakeRuntimeKernel(release(appModule(), []));
     const host: HTMLDivElement = hostOf(320);
-    const stop: () => void = make(kernel).runtime.mount(host, zoneOf(kernel.rel));
+    const zone: AppZoneHandle = make(kernel).runtime.mount(host, zoneOf(kernel.rel));
     await until(() => stateOf(host) === 'running', 4000);
-    stop();
+    await zone.close('unmount');
     expect(host.querySelector('canvas')).toBeNull();
     expect(stateOf(host)).toBeUndefined();
   });
@@ -108,9 +109,9 @@ describe('nothing starts that did not pass', () => {
     kernel.pause();
     const r: Rig = make(kernel);
     const host: HTMLDivElement = hostOf(320);
-    const stop: () => void = r.runtime.mount(host, zoneOf(kernel.rel));
-    stop();
+    const closing: Promise<void> = r.runtime.mount(host, zoneOf(kernel.rel)).close('unmount');
     kernel.resume();
+    await closing;
     await new Promise<void>((done) => setTimeout(done, 200));
     expect(r.spawned()).toBe(0);
     expect(host.childElementCount).toBe(0);

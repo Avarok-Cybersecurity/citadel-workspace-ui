@@ -19,7 +19,9 @@ import { appModule, callGroup, type AppModuleOptions } from '../../host/__tests_
 import { fakeSign, fakeVerifier, sha256Hex } from '../../host/__tests__/fake-verifier';
 import { inProcess, realClock, type InProcess } from '../../host/__tests__/in-process';
 import type { AgentLink } from '../agent-link';
+import type { ZoneAudit } from '../zone-close';
 import { createAppZoneRuntime, type ZoneRuntimeDeps } from '../zone-runtime';
+import { fakeWatchers, type FakeWatchers } from './fake-watchers';
 import type { AppZoneMount, AppZoneRuntime } from '@/components/office/app-zone/app-zone-environment';
 
 export const APP_ID: string = 'com.acme.kanban';
@@ -100,12 +102,23 @@ export interface Rig {
   runtime: AppZoneRuntime;
   spawned: () => number;
   close: () => void;
+  watch: FakeWatchers;
+  terminated: () => number;
+  audits: ZoneAudit[];
+  reports: string[];
 }
 
 export function rig(kernel: FakeRuntimeKernel, over: Partial<ZoneRuntimeDeps> = {}, verifier: ArtifactVerifierPort = fakeVerifier): Rig {
   const worker: InProcess = inProcess();
   let spawned: number = 0;
+  let instances: number = 0;
+  const watch: FakeWatchers = fakeWatchers();
+  const audits: ZoneAudit[] = [];
+  const reports: string[] = [];
   const runtime: AppZoneRuntime = createAppZoneRuntime({
+    watch, newInstanceId: (): string => `zone-${++instances}`,
+    audit: (line: ZoneAudit): void => { audits.push(line); },
+    report: (what: string): void => { reports.push(what); },
     transport: kernel, verifier, policy: STANDARD_HOST_POLICY, slots: new InstanceSlots(8), clock: realClock,
     spawn: (): HostChannel => { spawned++; return worker.spawn(); },
     frames: () => (): void => undefined,
@@ -119,7 +132,7 @@ export function rig(kernel: FakeRuntimeKernel, over: Partial<ZoneRuntimeDeps> = 
     pageUrl: (): string => 'https://work.example/workspace', locale: (): string => 'en', dpr: (): number => 2, theme: () => ({}),
     ...over,
   });
-  return { runtime, spawned: () => spawned, close: () => worker.close() };
+  return { runtime, spawned: () => spawned, close: () => worker.close(), watch, terminated: () => worker.terminated(), audits, reports };
 }
 
 export function zoneOf(r: Release): AppZoneMount {

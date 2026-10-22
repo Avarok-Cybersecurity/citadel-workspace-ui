@@ -8,7 +8,7 @@ import { launchAppInstance, type AppInstance, type Launch } from '../instance';
 import { InstanceSlots } from '../instance-slots';
 import { STANDARD_HOST_POLICY } from '../limits';
 import type { FromWorker, HostChannel, ToWorker } from '../worker-protocol';
-import { fixtureContext } from './app-fixtures';
+import { FIXTURE_CLOSE_GRACE_MS, fixtureContext } from './app-fixtures';
 import { ManualClock } from './fakes';
 
 interface Scripted {
@@ -38,13 +38,20 @@ const BUDGET: number = STANDARD_HOST_POLICY.computeBudgetMs;
 function launch(clock: ManualClock, s: Scripted, slots: InstanceSlots = new InstanceSlots(8)): AppInstance {
   const l: Launch = launchAppInstance({
     appId: 'a.b', module: {} as WebAssembly.Module, granted: new Set<Capability>(), memory: { initialPages: 1, maxPages: 1 },
-    context: fixtureContext([]), pageUrl: 'https://work.avarok.net/', policy: STANDARD_HOST_POLICY, ports: {}, clock, slots, spawn: () => s.channel,
+    context: fixtureContext([], FIXTURE_CLOSE_GRACE_MS), closeGraceMs: FIXTURE_CLOSE_GRACE_MS, pageUrl: 'https://work.avarok.net/', policy: STANDARD_HOST_POLICY, ports: {}, clock, slots, spawn: () => s.channel,
   });
   if (!l.ok) throw new Error('no slot');
   return l.instance;
 }
 
 const seqOf = (m: ToWorker): number => ('seq' in m ? m.seq : -1);
+
+/** The worker answers the load, then the start (AppEvent init), so frames are delivered. */
+function loadedAndStarted(s: Scripted, i: AppInstance): void {
+  s.reply({ kind: 'loaded', seq: seqOf(s.sent[0]), status: 0 });
+  expect(i.start()).toBe(true);
+  s.reply({ kind: 'done', seq: seqOf(s.sent[s.sent.length - 1]) });
+}
 
 describe('watchdog', () => {
   it('a load that never answers is stopped at the budget, not before', () => {
@@ -65,7 +72,7 @@ describe('watchdog', () => {
     const s: Scripted = scripted();
     const i: AppInstance = launch(clock, s);
     clock.advance(BUDGET - 1);
-    s.reply({ kind: 'loaded', seq: seqOf(s.sent[0]), status: 0 });
+    loadedAndStarted(s, i);
     for (let n: number = 0; n < 10; n++) {
       i.frame(16);
       clock.advance(BUDGET - 1);
@@ -80,7 +87,7 @@ describe('watchdog', () => {
     const clock: ManualClock = new ManualClock();
     const s: Scripted = scripted();
     const i: AppInstance = launch(clock, s);
-    s.reply({ kind: 'loaded', seq: seqOf(s.sent[0]), status: 0 });
+    loadedAndStarted(s, i);
     i.frame(16);
     i.frame(16);
     const [first, second] = s.sent.slice(-2).map(seqOf);
@@ -97,7 +104,7 @@ describe('watchdog', () => {
     const clock: ManualClock = new ManualClock();
     const s: Scripted = scripted();
     const i: AppInstance = launch(clock, s);
-    s.reply({ kind: 'loaded', seq: seqOf(s.sent[0]), status: 0 });
+    loadedAndStarted(s, i);
     s.reply({ kind: 'busy', seq: -1 });
     clock.advance(BUDGET);
     expect(i.state).toBe('stopped-unresponsive');

@@ -1,24 +1,34 @@
 /**
  * The main-thread handle of one app instance: owns its worker, carries the worker's port calls to
- * the injected ports (re-checked against the grant), and runs the watchdog. Every message that
- * makes the worker run guest code is outstanding until the worker answers it; the oldest
- * outstanding one has `computeBudgetMs` from the moment it became the oldest, after which the
- * worker is terminated and the handle reports `stopped-unresponsive`.
+ * the injected ports (re-checked against the grant), runs the watchdog (instance-watchdog.ts), and
+ * drives the instance's lifecycle (lifecycle.ts): start, suspend/resume, resize, close.
+ *
+ * Close (idempotent: every caller shares one outcome): the worker cancels its streams, runs
+ * app_close and delivers the replies it waits on; the instance ends when it settles, the install's
+ * close grace runs out or the app traps, whichever is first, and the worker is terminated and the
+ * slot released in every case. Close never rejects.
  */
 import type { AppContext } from '../sdk/generated/AppContext';
 import type { AppEvent } from '../sdk/generated/AppEvent';
+import type { CloseReason } from '../sdk/generated/CloseReason';
+import type { SuspendReason } from '../sdk/generated/SuspendReason';
 import { INIT_RESULT } from './abi';
 import { encodeAppContext, encodeAppEvent } from './app-event';
 import type { Capability } from './capabilities';
 import type { DispatchClock } from './dispatch';
+import { PendingClose, type CloseEnding, type CloseOutcome } from './instance-close';
 import type { InstanceSlots } from './instance-slots';
+import { Watchdog } from './instance-watchdog';
 import { regrantedCall } from './invoker';
+import { Lifecycle, type LifecycleState, type LifecycleStep } from './lifecycle';
 import type { HostPolicy } from './limits';
 import type { HostPorts, InboundIhttpFrame, PortAnswer, PortReply } from './ports';
 import { isFromWorker, type FromWorker, type HostChannel, type ToWorker } from './worker-protocol';
 
+export type { CloseEnding, CloseOutcome };
+
 export type InstanceState =
-  | 'loading' | 'running' | 'init-failed' | 'stopped-unresponsive' | 'stopped-trapped' | 'terminated';
+  | 'loading' | 'running' | 'init-failed' | 'stopped-unresponsive' | 'stopped-trapped' | 'terminated' | 'closed';
 
 export interface LaunchOptions {
   readonly appId: string;
@@ -27,6 +37,8 @@ export interface LaunchOptions {
   readonly granted: ReadonlySet<Capability>;
   readonly memory: { readonly initialPages: number; readonly maxPages: number };
   readonly context: AppContext;
+  /** The install's `limits.close_grace_ms` (the manifest's, validated against MAX_CLOSE_GRACE_MS). */
+  readonly closeGraceMs: number;
   /** The page the app is mounted in: what its internal links resolve against. */
   readonly pageUrl: string;
   readonly policy: HostPolicy;
@@ -45,15 +57,18 @@ export function launchAppInstance(options: LaunchOptions): Launch {
   return { ok: true, instance: new AppInstance(options, release) };
 }
 
-const STOPPED: ReadonlySet<InstanceState> = new Set<InstanceState>(['init-failed', 'stopped-unresponsive', 'stopped-trapped', 'terminated']);
+const STOPPED: ReadonlySet<InstanceState> = new Set<InstanceState>(['init-failed', 'stopped-unresponsive', 'stopped-trapped', 'terminated', 'closed']);
+/** Where events other than frames may be delivered: the app exists and has not begun to close. */
+const ALIVE: ReadonlySet<LifecycleState> = new Set<LifecycleState>(['initialised', 'running', 'suspended']);
 
 export class AppInstance {
   private current: InstanceState = 'loading';
+  private readonly life: Lifecycle = new Lifecycle();
   private readonly listeners: Set<(state: InstanceState) => void> = new Set<(state: InstanceState) => void>();
-  private readonly outstanding: Set<number> = new Set<number>();
-  private cancelWatchdog: (() => void) | null = null;
+  private readonly watchdog: Watchdog;
   private nextSeq: number = 0;
   private unsubscribeIhttp: (() => void) | null = null;
+  private closing: PendingClose | null = null;
   private readonly channel: HostChannel;
   /** Why the guest trapped, when it did. */
   trapMessage: string | null = null;
@@ -62,6 +77,7 @@ export class AppInstance {
   initStatus: number | null = null;
 
   constructor(private readonly options: LaunchOptions, private readonly release: () => void) {
+    this.watchdog = new Watchdog(options.clock, options.policy.computeBudgetMs, (): void => this.stop('stopped-unresponsive', 'trapped'));
     this.channel = options.spawn();
     this.channel.addEventListener('message', (event: MessageEvent<unknown>): void => {
       if (isFromWorker(event.data)) this.onMessage(event.data);
@@ -77,6 +93,10 @@ export class AppInstance {
     return this.current;
   }
 
+  get lifecycle(): LifecycleState {
+    return this.life.state;
+  }
+
   onState(listener: (state: InstanceState) => void): () => void {
     this.listeners.add(listener);
     return (): void => {
@@ -84,15 +104,34 @@ export class AppInstance {
     };
   }
 
-  /** One AppEvent (pointer, key, resize, ...), CBOR-encoded for the guest. */
+  /** The start: AppEvent init. False when the lifecycle does not allow it from here. */
+  start(): boolean {
+    return this.lifecycleEvent('start', 'init');
+  }
+
+  suspend(reason: SuspendReason): boolean {
+    return this.lifecycleEvent('suspend', { suspend: { reason } });
+  }
+
+  resume(): boolean {
+    return this.lifecycleEvent('resume', 'resume');
+  }
+
+  /** One AppEvent (pointer, key, ...), CBOR-encoded for the guest, while the app is alive. */
   postEvent(event: AppEvent): void {
-    if (this.current !== 'running') return;
-    this.send({ kind: 'event', seq: this.seq(), event: encodeAppEvent(event) }, []);
+    if (STOPPED.has(this.current) || !ALIVE.has(this.life.state)) return;
+    this.send({ kind: 'event', seq: this.seq(), event: encodeAppEvent(event), step: null }, []);
   }
 
   frame(dtMs: number): void {
-    if (this.current !== 'running') return;
+    if (STOPPED.has(this.current) || this.life.state !== 'running') return;
     this.send({ kind: 'frame', seq: this.seq(), dtMs }, []);
+  }
+
+  /** The zone's new size in CSS px: the worker resizes the bitmap, then tells the app. */
+  resize(width: number, height: number, dpr: number): void {
+    if (STOPPED.has(this.current) || !ALIVE.has(this.life.state)) return;
+    this.send({ kind: 'resize', seq: this.seq(), width, height, dpr }, []);
   }
 
   /** Transfers the canvas to the worker; the page keeps only the placeholder element. */
@@ -101,8 +140,30 @@ export class AppInstance {
     this.channel.postMessage({ kind: 'canvas', canvas, dpr }, [canvas]);
   }
 
+  close(reason: CloseReason): Promise<CloseOutcome> {
+    if (this.closing !== null) return this.closing.outcome;
+    const pending: PendingClose = new PendingClose(reason, this.options.clock);
+    this.closing = pending;
+    if (STOPPED.has(this.current)) pending.end('already-stopped');
+    else if (!this.life.step('close')) this.stop('terminated', 'not-started');
+    else {
+      this.unsubscribeIhttp?.();
+      this.unsubscribeIhttp = null;
+      pending.arm(this.options.closeGraceMs, (): void => this.stop('terminated', 'grace-expired'));
+      this.channel.postMessage({ kind: 'close', reason }, []);
+    }
+    return pending.outcome;
+  }
+
+  /** Ends the instance now, without closing it: none of the app's code runs again. */
   terminate(): void {
-    this.stop('terminated');
+    this.stop('terminated', 'already-stopped');
+  }
+
+  private lifecycleEvent(step: LifecycleStep, event: AppEvent): boolean {
+    if (STOPPED.has(this.current) || !this.life.step(step)) return false;
+    this.send({ kind: 'event', seq: this.seq(), event: encodeAppEvent(event), step }, []);
+    return true;
   }
 
   private seq(): number {
@@ -110,50 +171,21 @@ export class AppInstance {
   }
 
   private send(message: ToWorker, transfer: Transferable[]): void {
-    if ('seq' in message) this.begin(message.seq);
+    if ('seq' in message) this.watchdog.begin(message.seq);
     this.channel.postMessage(message, transfer);
-  }
-
-  private begin(seq: number): void {
-    this.outstanding.add(seq);
-    if (this.outstanding.size === 1) this.armWatchdog();
-  }
-
-  private finish(seq: number): void {
-    const oldest: number | undefined = this.outstanding.values().next().value;
-    this.outstanding.delete(seq);
-    if (seq === oldest) this.armWatchdog();
-  }
-
-  private armWatchdog(): void {
-    this.cancelWatchdog?.();
-    this.cancelWatchdog = null;
-    if (this.outstanding.size === 0 || STOPPED.has(this.current)) return;
-    this.cancelWatchdog = this.options.clock.after(this.options.policy.computeBudgetMs, (): void => this.stop('stopped-unresponsive'));
   }
 
   private onMessage(message: FromWorker): void {
     if (STOPPED.has(this.current)) return;
     switch (message.kind) {
-      case 'busy': this.begin(message.seq); return;
-      case 'done': this.finish(message.seq); return;
+      case 'busy': this.watchdog.begin(message.seq); return;
+      case 'done': this.watchdog.finish(message.seq); return;
       case 'trapped':
         this.trapMessage = message.message;
         this.trapMemoryPages = message.memoryPages;
-        this.stop('stopped-trapped');
+        this.stop('stopped-trapped', 'trapped');
         return;
-      case 'loaded':
-        this.finish(message.seq);
-        this.initStatus = message.status;
-        if (message.status !== INIT_RESULT.OK) {
-          this.stop('init-failed');
-          return;
-        }
-        this.setState('running');
-        this.unsubscribeIhttp = this.options.ports.ihttp?.onFrame((inbound: InboundIhttpFrame): void => {
-          if (this.current === 'running') this.send({ kind: 'ihttp', seq: this.seq(), peer: inbound.from, frame: inbound.frame }, []);
-        }) ?? null;
-        return;
+      case 'loaded': this.loaded(message.seq, message.status); return;
       case 'port_call': this.portCall(message); return;
       case 'log': {
         // Already answered in the worker; a page LogPort that fails loses that one line, nothing else.
@@ -162,7 +194,25 @@ export class AppInstance {
         return;
       }
       case 'ihttp_out': void this.options.ports.ihttp?.respond(message.peer, message.frame); return;
+      case 'ihttp_call_out': void this.options.ports.ihttp?.IhttpCall({ to: message.to, frame: message.frame }); return;
+      case 'closing': if (this.closing !== null) this.closing.closeResult = message.result; return;
+      case 'settled':
+        if (this.life.step('settled')) this.stop('closed', 'settled');
+        return;
     }
+  }
+
+  private loaded(seq: number, status: number): void {
+    this.watchdog.finish(seq);
+    this.initStatus = status;
+    if (status !== INIT_RESULT.OK || !this.life.step('initialised')) {
+      this.stop('init-failed', 'not-started');
+      return;
+    }
+    this.setState('running');
+    this.unsubscribeIhttp = this.options.ports.ihttp?.onFrame((inbound: InboundIhttpFrame): void => {
+      if (!STOPPED.has(this.current) && ALIVE.has(this.life.state)) this.send({ kind: 'ihttp', seq: this.seq(), peer: inbound.from, frame: inbound.frame }, []);
+    }) ?? null;
   }
 
   private portCall(message: Extract<FromWorker, { kind: 'port_call' }>): void {
@@ -180,16 +230,17 @@ export class AppInstance {
     else answer(reply);
   }
 
-  private stop(state: InstanceState): void {
+  /** The one way an instance ends: the worker is terminated, the slot released, a close answered. */
+  private stop(state: InstanceState, ending: CloseEnding): void {
     if (STOPPED.has(this.current)) return;
-    this.cancelWatchdog?.();
-    this.cancelWatchdog = null;
-    this.outstanding.clear();
+    this.watchdog.clear();
     this.unsubscribeIhttp?.();
     this.unsubscribeIhttp = null;
+    if (state !== 'closed') this.life.abort();
     this.channel.terminate();
     this.release();
     this.setState(state);
+    this.closing?.end(ending);
   }
 
   private setState(state: InstanceState): void {

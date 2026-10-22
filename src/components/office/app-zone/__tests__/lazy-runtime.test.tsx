@@ -7,7 +7,7 @@ import { describe, expect, it, vi, type Mock } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import type { AppInstall } from 'citadel-workspace-client-ts';
 import { AppZone } from '../AppZone';
-import { AppZoneContext, zoneClaims, type AppZoneEnvironment, type AppZoneMount, type AppZoneRuntime } from '../app-zone-environment';
+import { AppZoneContext, zoneClaims, type AppZoneEnvironment, type AppZoneHandle, type AppZoneMount, type AppZoneRuntime } from '../app-zone-environment';
 import { lazyRuntime } from '../lazy-runtime';
 import { listedApps, type ListedApp } from '@/lib/citadel-apps/listing-model';
 import { installOf, listingOf } from '@/test/app-manifests';
@@ -27,7 +27,7 @@ const zone = (e: AppZoneEnvironment): ReturnType<typeof render> =>
 
 describe('the lazily loaded runtime', () => {
   it('is not loaded for a zone whose app is not installed (control: installed, it is loaded and mounts the zone, with who it acts for)', async () => {
-    const mount: Mock<AppZoneRuntime['mount']> = vi.fn(() => (): void => undefined);
+    const mount: Mock<AppZoneRuntime['mount']> = vi.fn((): AppZoneHandle => ({ close: async (): Promise<void> => undefined }));
     const load: Mock<() => Promise<AppZoneRuntime>> = vi.fn(async () => ({ mount }));
     const idle: ReturnType<typeof render> = zone(env([], lazyRuntime(load)));
     await waitFor(() => expect(screen.getByTestId('app-zone-required').dataset.zoneState).toBe('install'));
@@ -43,18 +43,18 @@ describe('the lazily loaded runtime', () => {
   it('loads once for many zones, and a zone gone before it loaded mounts nothing', async () => {
     let finish: (r: AppZoneRuntime) => void = () => undefined;
     const load: Mock<() => Promise<AppZoneRuntime>> = vi.fn(() => new Promise<AppZoneRuntime>((r) => { finish = r; }));
-    const mount: Mock<AppZoneRuntime['mount']> = vi.fn(() => (): void => undefined);
+    const mount: Mock<AppZoneRuntime['mount']> = vi.fn((): AppZoneHandle => ({ close: async (): Promise<void> => undefined }));
     const runtime: AppZoneRuntime = lazyRuntime(load);
-    const stopFirst: () => void = runtime.mount(document.createElement('div'), {} as AppZoneMount);
+    const first: AppZoneHandle = runtime.mount(document.createElement('div'), {} as AppZoneMount);
     runtime.mount(document.createElement('div'), {} as AppZoneMount);
-    stopFirst();
+    await first.close('unmount');
     finish({ mount });
     await waitFor(() => expect(mount).toHaveBeenCalledTimes(1));
     expect(load).toHaveBeenCalledTimes(1);
   });
 
   it('a load that failed says so in the zone and is tried again by the next zone', async () => {
-    const mount: Mock<AppZoneRuntime['mount']> = vi.fn(() => (): void => undefined);
+    const mount: Mock<AppZoneRuntime['mount']> = vi.fn((): AppZoneHandle => ({ close: async (): Promise<void> => undefined }));
     const load: Mock<() => Promise<AppZoneRuntime>> = vi.fn()
       .mockRejectedValueOnce(new Error('chunk gone'))
       .mockResolvedValueOnce({ mount });

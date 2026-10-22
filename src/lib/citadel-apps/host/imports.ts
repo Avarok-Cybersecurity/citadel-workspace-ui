@@ -2,7 +2,9 @@
  * The import object an app module is instantiated with, and nothing else: the memory the host
  * made, the two reply readers, and one function per ABI group. A group the grant does not open is
  * still present (the module instantiates and can degrade) but every call to it answers
- * `{refused: "ungranted"}` without reaching the dispatcher.
+ * `{refused: "ungranted"}` without reaching the dispatcher. Before either, the lifecycle gate: a
+ * closing instance reaches only `storage` and `log`, a closed one nothing (lifecycle.ts), and the
+ * refusal is the same whether the group was granted or not.
  *
  * Pure: the grant, the memory and the call sink go in, the object comes out. No function here
  * throws into the guest: a pointer outside memory is ABI_ERROR.BAD_REQUEST, anything else is a reply.
@@ -11,6 +13,7 @@ import { ABI_ERROR, ABI_GROUPS, ABI_NAMESPACE, MEMORY_IMPORT, REPLY_LEN, REPLY_R
 import { encodeCbor } from './cbor';
 import { CAPABILITY_GROUP, effectiveGrant, type Capability } from './capabilities';
 import type { DispatchOutcome } from './dispatch';
+import type { Refused } from './ports';
 import { inBounds, type ReplyTable } from './reply-table';
 
 export interface CallSink {
@@ -18,6 +21,8 @@ export interface CallSink {
   readonly replies: ReplyTable;
   /** A pending reply is ready: the host tells the guest with AppEvent `{reply_ready: {handle}}`. */
   readonly replyReady: (handle: number) => void;
+  /** The lifecycle's answer to a call to `group` before anything else (lifecycle.ts), or null. */
+  readonly gate: (group: AbiGroup) => Refused | null;
 }
 
 const UNGRANTED: Uint8Array = encodeCbor({ refused: 'ungranted' });
@@ -29,13 +34,18 @@ export function grantedGroups(granted: ReadonlySet<Capability>): ReadonlySet<Abi
 
 type GroupFn = (op: number, ptr: number, len: number) => number;
 
-function refusingStub(replies: ReplyTable): GroupFn {
-  return (): number => replies.ready(UNGRANTED);
+function refusingStub(group: AbiGroup, sink: CallSink): GroupFn {
+  return (): number => {
+    const gated: Refused | null = sink.gate(group);
+    return sink.replies.ready(gated === null ? UNGRANTED : encodeCbor({ refused: gated }));
+  };
 }
 
 function liveGroup(group: AbiGroup, memory: WebAssembly.Memory, sink: CallSink): GroupFn {
   return (op: number, ptr: number, len: number): number => {
     try {
+      const gated: Refused | null = sink.gate(group);
+      if (gated !== null) return sink.replies.ready(encodeCbor({ refused: gated }));
       const p: number = ptr >>> 0;
       const n: number = len >>> 0;
       if (!inBounds(memory, p, n)) return ABI_ERROR.BAD_REQUEST;
@@ -73,6 +83,6 @@ export function buildImports(granted: ReadonlySet<Capability>, memory: WebAssemb
       }
     },
   };
-  for (const group of ABI_GROUPS) ns[group] = open.has(group) ? liveGroup(group, memory, sink) : refusingStub(sink.replies);
+  for (const group of ABI_GROUPS) ns[group] = open.has(group) ? liveGroup(group, memory, sink) : refusingStub(group, sink);
   return { [ABI_NAMESPACE]: ns };
 }

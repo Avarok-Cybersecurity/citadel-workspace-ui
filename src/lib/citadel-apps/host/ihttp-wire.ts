@@ -32,7 +32,7 @@ const SDK_METHOD: ReadonlyMap<IhttpMethod, HttpMethod> = new Map((Object.entries
 
 const REASONS: Readonly<Record<CancelReason, string>> = {
   Caller: 'caller', Timeout: 'timeout', TooLarge: 'too_large', Busy: 'busy',
-  RateLimited: 'rate_limited', NoRoute: 'no_route', Refused: 'refused', Failed: 'failed',
+  RateLimited: 'rate_limited', NoRoute: 'no_route', Refused: 'refused', Failed: 'failed', Closed: 'closed',
 };
 const TOO_LARGE: ReadonlySet<string> = new Set<string>([
   'too_large', 'body_longer_than_declared', 'chunk_too_large', 'request_body_too_large', 'response_body_too_large',

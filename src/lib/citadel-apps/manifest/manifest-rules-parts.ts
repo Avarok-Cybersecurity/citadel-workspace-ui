@@ -4,6 +4,7 @@
  */
 import type { AppLimits, ArtifactLocation, ArtifactRef, CapabilityRequest } from 'citadel-workspace-client-ts';
 import { isAppId } from '../app-identity';
+import { MAX_CLOSE_GRACE_MS } from '../sdk/generated/AbiConstants';
 import { isHostList, isHttpsUrl } from './net-rules';
 
 const MAX_WHY_CHARS: number = 200;
@@ -66,6 +67,7 @@ export function limitsProblem(limits: AppLimits): string | null {
     ['frame_budget_ms', within(limits.frame_budget_ms, 1000)],
     ['storage_user_bytes', limits.storage_user_bytes <= 1024 * 1024],
     ['storage_scope_bytes', limits.storage_scope_bytes <= 8 * 1024 * 1024],
+    ['close_grace_ms', within(limits.close_grace_ms, MAX_CLOSE_GRACE_MS)],
   ];
   return checks.find(([, ok]) => !ok)?.[0] ?? null;
 }

@@ -3,14 +3,18 @@
  * mdxComponents.tsx). Its props are the author's and are checked; a zone name already used on the
  * page draws an inline error instead of a second instance. Without a runtime this draws only the
  * placeholder (AppZoneRequired.tsx) and never executes anything; with one (a page passes
- * lazy-runtime.ts), an active install's zone is handed to `runtime.mount` with a host-owned element.
+ * lazy-runtime.ts), an active install's zone is handed to `runtime.mount` with a host-owned element,
+ * and closed with the reason the zone stopped showing it (zone-close-reason.ts).
  */
-import { useContext, useEffect, useId, useRef } from 'react';
+import { useCallback, useContext, useEffect, useId, useLayoutEffect, useRef } from 'react';
+import type { AppInstall } from 'citadel-workspace-client-ts';
 import type { AppLink } from '@/lib/citadel-apps/app-link';
+import type { CloseReason } from '@/lib/citadel-apps/sdk/generated/CloseReason';
 import { recordDisabledForMe } from '@/lib/citadel-apps/disabled-for-me';
 import type { AppsResult } from '@/lib/workspace-service/apps-operations';
-import { AppZoneContext, type AppZoneEnvironment, type AppZoneRuntime } from './app-zone-environment';
+import { AppZoneContext, type AppZoneEnvironment, type AppZoneHandle, type AppZoneRuntime } from './app-zone-environment';
 import { AppZoneRequired, type PlaceholderView } from './AppZoneRequired';
+import { closeReasonFor } from './zone-close-reason';
 import { readZoneProps, zoneView, type ZoneFacts, type ZoneProps, type ZoneView } from './zone-state';
 import { useZoneFacts } from './use-zone-facts';
 
@@ -25,20 +29,40 @@ function ZoneError({ message }: { message: string }): JSX.Element {
   return <p role="alert" className="not-prose my-4 rounded-md border border-destructive/40 p-[12px] text-sm text-destructive-emphasis" data-testid="app-zone-error">{message}</p>;
 }
 
-function RuntimeHost({ runtime, view, props, env, me }: { runtime: AppZoneRuntime; view: Extract<ZoneView, { kind: 'ready' }>; props: ZoneProps; env: AppZoneEnvironment; me: string }): JSX.Element {
+interface RuntimeHostProps {
+  runtime: AppZoneRuntime;
+  view: Extract<ZoneView, { kind: 'ready' }>;
+  /** Why the app that ran `running` closes: read from what the zone shows next (zone-close-reason.ts). */
+  reasonFor: (running: AppInstall) => CloseReason;
+  props: ZoneProps;
+  env: AppZoneEnvironment;
+  me: string;
+}
+
+function RuntimeHost({ runtime, view, reasonFor, props, env, me }: RuntimeHostProps): JSX.Element {
   const host: React.RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (host.current === null) return undefined;
-    return runtime.mount(host.current, { install: view.install, manifest: view.app.manifest, zoneId: props.zone, nodeId: env.nodeId, me, height: props.height });
-  }, [runtime, view.install, view.app.manifest, props.zone, props.height, env.nodeId, me]);
+    const running: AppInstall = view.install;
+    const zone: AppZoneHandle = runtime.mount(host.current, { install: running, manifest: view.app.manifest, zoneId: props.zone, nodeId: env.nodeId, me, height: props.height });
+    // A passive cleanup: it runs after the commit's layout effects, so the reason is this commit's.
+    // close() never rejects (zone-runtime.ts reports a failure on a live page).
+    return (): void => { void zone.close(reasonFor(running)); };
+  }, [runtime, view.install, view.app.manifest, reasonFor, props.zone, props.height, env.nodeId, me]);
   return <div ref={host} data-testid="app-zone-host" className="not-prose my-4 w-full" style={{ height: `${props.height}px` }} />;
 }
 
 function PlacedZone({ props, env }: { props: ZoneProps; env: AppZoneEnvironment }): JSX.Element {
   const facts: ZoneFacts = useZoneFacts(env, props.app);
   const view: ZoneView = zoneView(props, facts);
+  // The view this commit shows, recorded in the layout phase: before any passive cleanup of the commit.
+  const next: React.MutableRefObject<ZoneView> = useRef<ZoneView>(view);
+  useLayoutEffect(() => {
+    next.current = view;
+  });
+  const reasonFor: (running: AppInstall) => CloseReason = useCallback((running: AppInstall): CloseReason => closeReasonFor(running, next.current), []);
   // `ready` is only decided once `me` is known (zone-state.ts).
-  if (view.kind === 'ready' && env.runtime !== null && env.me !== null) return <RuntimeHost runtime={env.runtime} view={view} props={props} env={env} me={env.me} />;
+  if (view.kind === 'ready' && env.runtime !== null && env.me !== null) return <RuntimeHost runtime={env.runtime} view={view} reasonFor={reasonFor} props={props} env={env} me={env.me} />;
   const shown: PlaceholderView = view.kind === 'ready' ? { kind: 'ready-unmounted', name: view.app.manifest.name } : view;
   const link: AppLink = { appId: props.app, nodeId: env.nodeId, version: null, server: null };
   const enable = async (): Promise<void> => {

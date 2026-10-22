@@ -99,6 +99,8 @@ function relay(): { deps: RelayDeps; sent: [IhttpAddress, string][]; push: (a: u
     installId: 'inst-b', sha256Hex: sha, nowMs: () => 0, every: () => () => {},
     send: async (to, frame) => { sent.push([to, hexOf(frame)]); return { ok: true, value: null }; },
     advertise: async (_d, until) => ({ ok: true, value: until }),
+    // Not exercised here: this file pins the frame bytes; withdrawal is server-and-relay-ports.test.ts's.
+    withdraw: async () => ({ ok: true, value: 0 }),
     pushes: (l) => { listener = l; return () => { listener = null; }; },
   };
   return { deps, sent, push: (a: unknown) => listener?.(a) };

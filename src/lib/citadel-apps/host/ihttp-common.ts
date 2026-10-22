@@ -2,6 +2,7 @@
  * What both directions of the internal-HTTP router share: the actions it decides on, a call's
  * verdict, head checks (R4.4 limits) and how a caller is keyed. Frame types are the generated ones.
  */
+import type { Address } from '../sdk/generated/Address';
 import type { Caller } from '../sdk/generated/Caller';
 import type { IhttpFrame } from '../sdk/generated/IhttpFrame';
 import type { RequestHead } from '../sdk/generated/RequestHead';
@@ -13,6 +14,15 @@ export type RouterAction =
   | { readonly kind: 'deliver'; readonly peer: Caller; readonly frame: IhttpFrame }
   /** Send this frame to the peer (IhttpPort.respond). */
   | { readonly kind: 'reply'; readonly peer: Caller; readonly frame: IhttpFrame };
+
+/** What closing the instance sends: a Cancel to each caller it serves, and on each call it made. */
+export type ClosingAction =
+  | Extract<RouterAction, { kind: 'reply' }>
+  /** Send this frame on a call the app made (IhttpPort.IhttpCall), addressed as the app addressed it. */
+  | { readonly kind: 'call'; readonly to: Address; readonly frame: IhttpFrame };
+
+/** The Cancel reason closing sends (citadel-ihttp-types CancelReason::Closed). */
+export const CLOSED_REASON: string = 'closed';
 
 /** A guest call the router gated: refused or not, with the frames that decision produced. */
 export type Verdict =

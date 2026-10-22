@@ -12,8 +12,12 @@
  * - `?mode=ok`: a release that verifies.
  * - `?mode=bad-signature`: the same release under a signature that does not.
  * - `?mode=unchecked`: the page's verifier when its check cannot load (wasmAppSignatureCheck).
+ * - `?mode=lifecycle`: `ok`, with room below the zone to scroll it out of view, and `window.__zone`
+ *   counting what the lifecycle must release: live workers (spawn wrapped), live frame loops and
+ *   frames delivered (the frame loop wrapped), the audit lines, and an `unmount()` that removes
+ *   the zone from the page as navigating away from it would.
  */
-import { createRoot } from 'react-dom/client';
+import { createRoot, type Root } from 'react-dom/client';
 import '@/index.css';
 import type { AppInstall, AppListing, AppsRequest } from 'citadel-workspace-client-ts';
 import helloCanvasUrl from '../../../../apps/sdk-fixtures/wasm/hello-canvas.wasm?url';
@@ -27,7 +31,10 @@ import { InstanceSlots } from '@/lib/citadel-apps/host/instance-slots';
 import { STANDARD_HOST_POLICY } from '@/lib/citadel-apps/host/limits';
 import { spawnAppWorker } from '@/lib/citadel-apps/host/spawn-app-worker';
 import { createAppZoneRuntime } from '@/lib/citadel-apps/runtime/zone-runtime';
-import { animationFrames } from '@/lib/citadel-apps/runtime/zone-input';
+import { animationFrames, type FrameLoop } from '@/lib/citadel-apps/runtime/zone-input';
+import { pageZoneWatchers } from '@/lib/citadel-apps/runtime/zone-watchers';
+import type { ZoneAudit } from '@/lib/citadel-apps/runtime/zone-close';
+import type { HostChannel } from '@/lib/citadel-apps/host/worker-protocol';
 import { pageArtifactVerifier, wasmAppSignatureCheck, type AppSignatureCheck } from '@/lib/citadel-apps/runtime/verifier';
 
 const mode: string = new URLSearchParams(window.location.search).get('mode') ?? 'ok';
@@ -36,6 +43,41 @@ const VERSION: string = '1.4.0';
 const hex = (b: ArrayBuffer): string => Array.from(new Uint8Array(b), (x: number) => x.toString(16).padStart(2, '0')).join('');
 const sha = async (b: Uint8Array): Promise<string> => hex(await crypto.subtle.digest('SHA-256', new Uint8Array(b)));
 const standIn = async (key: string, m: string, w: string): Promise<string> => sha(new TextEncoder().encode(`${key}|${APP_ID}|${VERSION}|${m}|${w}`));
+
+/** What check-app-zone-geometry.mjs reads in `lifecycle` mode. */
+interface ZoneProbe {
+  workersLive: number;
+  framesLive: number;
+  frames: number;
+  audits: ZoneAudit[];
+  unmount: () => void;
+}
+const probe: ZoneProbe = { workersLive: 0, framesLive: 0, frames: 0, audits: [], unmount: () => undefined };
+(window as unknown as { __zone: ZoneProbe }).__zone = probe;
+
+const countedSpawn = (): HostChannel => {
+  const worker: HostChannel = spawnAppWorker();
+  probe.workersLive++;
+  return {
+    postMessage: (m, t) => worker.postMessage(m, t),
+    addEventListener: (type, listener) => worker.addEventListener(type, listener),
+    terminate: (): void => {
+      probe.workersLive--;
+      worker.terminate();
+    },
+  };
+};
+const countedFrames: FrameLoop = (tick) => {
+  probe.framesLive++;
+  const stop: () => void = animationFrames((dt: number): void => {
+    probe.frames++;
+    tick(dt);
+  });
+  return (): void => {
+    probe.framesLive--;
+    stop();
+  };
+};
 
 const unloadable: AppSignatureCheck = wasmAppSignatureCheck(() => Promise.reject(new Error('the harness has no wasm client')));
 const standInCheck: AppSignatureCheck = async (i) => hex(i.signature.slice().buffer) === await standIn(i.publicKeyHex, i.manifestSha256Hex, i.wasmSha256Hex);
@@ -72,7 +114,9 @@ async function start(): Promise<void> {
   const runtime = createAppZoneRuntime({
     transport: server, verifier, policy: STANDARD_HOST_POLICY, slots: new InstanceSlots(8),
     clock: { now: () => performance.now(), after: (ms: number, fire: () => void) => { const id: number = window.setTimeout(fire, ms); return () => window.clearTimeout(id); } },
-    spawn: spawnAppWorker, frames: animationFrames, offscreen: (c: HTMLCanvasElement) => c.transferControlToOffscreen(),
+    spawn: countedSpawn, frames: countedFrames, watch: pageZoneWatchers, newInstanceId: () => crypto.randomUUID(),
+    audit: (line: ZoneAudit): void => { probe.audits.push(line); }, report: (what: string, detail: unknown): void => console.error(what, detail),
+    offscreen: (c: HTMLCanvasElement) => c.transferControlToOffscreen(),
     portWorld: async () => ({
       transport: server, agent: { send: async () => undefined, listen: () => () => undefined, newRequestId: () => crypto.randomUUID() }, agentSession: null,
       log: { LogWrite: () => ({ ok: null }) }, pushes: () => () => undefined, sha256Hex: verifier.sha256Hex, nowMs: () => Date.now(), every: () => () => undefined,
@@ -86,12 +130,16 @@ async function start(): Promise<void> {
   };
   const root: HTMLElement | null = document.getElementById('root');
   if (root === null) throw new Error('the harness page has no #root');
-  createRoot(root).render(
+  const page: Root = createRoot(root);
+  const render = (zone: boolean): void => page.render(
     <div className="px-6 lg:px-10 pt-8 pb-4 prose dark:prose-invert prose-sm md:prose-base lg:prose-lg max-w-4xl">
       <h1>Board</h1>
-      <AppZoneContext.Provider value={env}><AppZone app={APP_ID} zone="board" height={240} /></AppZoneContext.Provider>
+      {zone ? <AppZoneContext.Provider value={env}><AppZone app={APP_ID} zone="board" height={240} /></AppZoneContext.Provider> : null}
+      {mode === 'lifecycle' ? <div data-testid="below-the-zone" style={{ height: '3000px' }} /> : null}
     </div>,
   );
+  probe.unmount = (): void => render(false);
+  render(true);
 }
 
 void start();

@@ -35,6 +35,8 @@ export interface ZonePlacement {
   readonly width: number;
   readonly height: number;
   readonly dpr: number;
+  /** The install's manifest `limits.close_grace_ms`: what the app is told its close may take. */
+  readonly closeGraceMs: number;
   readonly locale: string;
   /** Theme token name -> CSS value, as the page resolves them. */
   readonly theme: Readonly<Record<string, string>>;
@@ -45,6 +47,6 @@ export function zoneContext(p: ZonePlacement): AppContext {
     app_id: p.install.app_id, install_id: p.install.id, scope: appScopeOf(p.install.scope),
     granted: [...p.install.granted].sort() as Capability[],
     surface: { md_zone: { zone_id: p.zoneId } }, size: { width: p.width, height: p.height }, dpr: p.dpr,
-    theme: { ...p.theme }, locale: p.locale, acting_username: p.actingUsername, node_id: p.nodeId,
+    theme: { ...p.theme }, locale: p.locale, acting_username: p.actingUsername, node_id: p.nodeId, close_grace_ms: p.closeGraceMs,
   };
 }

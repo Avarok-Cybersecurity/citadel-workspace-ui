@@ -12,6 +12,11 @@
  *
  * Refused (a signature that does not verify; this build's own verifier, which has no ML-DSA check
  * yet): the status fills the zone with the host's words, and nothing was painted.
+ *
+ * Its lifecycle (`?mode=lifecycle`): scrolled out of view, the app is suspended and gets no frames;
+ * back in view, frames again; the page hidden, none; and removed from the page, it is closed: its
+ * worker terminated, no frame loop left, no canvas left, no frame delivered after, one settled
+ * close audited, and not one console error or page error from start to end.
  */
 import { chromium } from 'playwright';
 import { AxeBuilder } from '@axe-core/playwright';
@@ -111,6 +116,58 @@ async function refused(browser, origin, v, mode, words) {
   await context.close();
 }
 
+const probe = (page) => page.evaluate(() => {
+  const z = window.__zone;
+  return { workersLive: z.workersLive, framesLive: z.framesLive, frames: z.frames, audits: z.audits.map((a) => [a.reason, a.ending, a.closeResult]), canvases: document.querySelectorAll('canvas').length };
+});
+
+/** Frames delivered in `ms` from now. */
+async function framesIn(page, ms) {
+  const before = (await probe(page)).frames;
+  await page.waitForTimeout(ms);
+  return (await probe(page)).frames - before;
+}
+
+async function lifecycle(browser, origin) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await context.newPage();
+  const errors = [];
+  page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+  page.on('pageerror', (e) => errors.push(String(e)));
+  await page.goto(`${origin}/?mode=lifecycle`);
+  await page.locator('[data-testid="app-zone-host"][data-app-state="running"]').waitFor({ timeout: 30_000 });
+  const label = 'lifecycle';
+  const started = await probe(page);
+  check(started.workersLive === 1 && started.framesLive === 1, `${label}: running, one worker and one frame loop (${started.workersLive}, ${started.framesLive})`);
+  check(await framesIn(page, 300) > 0, `${label}: frames reach the running app`);
+  await page.getByTestId('below-the-zone').evaluate((el) => el.scrollIntoView({ block: 'end' }));
+  await page.waitForFunction(() => window.__zone.framesLive === 0, null, { timeout: 5_000 }).catch(() => undefined);
+  check((await probe(page)).framesLive === 0 && await framesIn(page, 300) === 0, `${label}: scrolled out of view, it is suspended: no frame loop, no frames`);
+  // Back the way it went: the page's scroller is not necessarily the window.
+  await page.getByTestId('app-zone-host').evaluate((el) => el.scrollIntoView({ block: 'start' }));
+  await page.waitForFunction(() => window.__zone.framesLive === 1, null, { timeout: 5_000 }).catch(() => undefined);
+  check(await framesIn(page, 300) > 0, `${label}: back in view, it is resumed and frames flow again`);
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  check((await probe(page)).framesLive === 0 && await framesIn(page, 300) === 0, `${label}: the page hidden, it is suspended`);
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  check(await framesIn(page, 300) > 0, `${label}: the page shown again, it runs`);
+  await page.evaluate(() => window.__zone.unmount());
+  await page.waitForFunction(() => window.__zone.audits.length === 1, null, { timeout: 5_000 }).catch(() => undefined);
+  const ended = await probe(page);
+  check(ended.workersLive === 0, `${label}: removed from the page, its worker was terminated (${ended.workersLive} live)`);
+  check(ended.framesLive === 0 && await framesIn(page, 300) === 0, `${label}: no frame loop is left and no frame is delivered after`);
+  check(ended.canvases === 0, `${label}: no canvas is left on the page (${ended.canvases})`);
+  check(JSON.stringify(ended.audits) === JSON.stringify([['unmount', 'settled', 0]]), `${label}: one close audited, settled (${JSON.stringify(ended.audits)})`);
+  check(errors.length === 0, `${label}: no console or page error from start to end${errors.length ? ` (${errors.join(' | ')})` : ''}`);
+  await context.close();
+}
+
 const harness = await serveHarness(ROOT, PORT);
 const browser = await chromium.launch();
 try {
@@ -119,6 +176,7 @@ try {
     await refused(browser, harness.origin, v, 'bad-signature', 'Kanban did not pass its signature and hash check, so it was not started.');
     await refused(browser, harness.origin, v, 'unchecked', 'Kanban could not be checked on this device, so it was not started.');
   }
+  await lifecycle(browser, harness.origin);
 } finally {
   await browser.close();
   await harness.close();

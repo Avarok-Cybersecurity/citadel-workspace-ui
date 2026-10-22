@@ -45,7 +45,8 @@ describe('server ports over Call', () => {
   });
 });
 
-function relay(over: Partial<RelayDeps> = {}): { deps: RelayDeps; sent: [IhttpAddress, unknown][]; ads: [string, bigint][]; ticks: (() => void)[]; push: (a: unknown) => void; stopped: number[] } {
+function relay(over: Partial<RelayDeps> = {}): { deps: RelayDeps; sent: [IhttpAddress, unknown][]; ads: [string, bigint][]; ticks: (() => void)[]; push: (a: unknown) => void; stopped: number[]; withdrawals: () => number } {
+  let withdrawals: number = 0;
   const sent: [IhttpAddress, unknown][] = [];
   const ads: [string, bigint][] = [];
   const ticks: (() => void)[] = [];
@@ -55,18 +56,19 @@ function relay(over: Partial<RelayDeps> = {}): { deps: RelayDeps; sent: [IhttpAd
     installId: 'inst-1', sha256Hex: sha, nowMs: () => 1_000,
     send: async (to, frame) => { const d: Decoded = decodeCbor(frame); sent.push([to, d.ok ? d.value : null]); return { ok: true, value: null }; },
     advertise: async (digest, until) => { ads.push([digest, until]); return { ok: true, value: until }; },
+    withdraw: async () => { withdrawals++; return { ok: true, value: 1 }; },
     pushes: (l) => { listener = l; return () => { listener = null; }; },
     every: (ms, fire) => { expect(ms).toBe(ADVERTISE_EVERY_MS); ticks.push(fire); return () => { stopped.push(ms); }; },
     ...over,
   };
-  return { deps, sent, ads, ticks, stopped, push: (a: unknown) => listener?.(a) };
+  return { deps, sent, ads, ticks, stopped, push: (a: unknown) => listener?.(a), withdrawals: () => withdrawals };
 }
 
 const frame: IhttpFrame = { v: 1, stream: 3n, kind: 'End' };
 const from: Omit<InboundIhttpFrame['from'], 'via'> = { username: 'bob', cid: 7n, app_id: 'com.acme.kanban', install_id: 'inst-9' };
 
 describe('internal HTTP over the relay', () => {
-  it('serving advertises sha256 of the routes for 90 s and renews every minute until stopped', async () => {
+  it('serving advertises sha256 of the routes for 90 s and renews every minute until withdrawn', async () => {
     const r: ReturnType<typeof relay> = relay();
     const port: ReturnType<typeof relayIhttpPort> = relayIhttpPort(r.deps);
     expect(await port.IhttpServe({ routes: [{ method: 'GET', path: '/a' }, { method: 'POST', path: '/b/:id' }] })).toEqual({ ok: null });
@@ -74,8 +76,25 @@ describe('internal HTTP over the relay', () => {
     expect(r.ads).toEqual([[digest, BigInt(1_000 + ADVERTISE_TTL_MS)]]);
     r.ticks[0]();
     expect(r.ads.length).toBe(2);
-    port.stop();
-    expect(r.stopped).toEqual([ADVERTISE_EVERY_MS]);
+    expect(await port.withdraw()).toEqual({ ok: true, value: 1 });
+    expect([r.stopped, r.withdrawals()]).toEqual([[ADVERTISE_EVERY_MS], 1]);
+  });
+
+  it('an instance that never served withdraws nothing (control: one that did, once its advertisement landed)', async () => {
+    const idle: ReturnType<typeof relay> = relay();
+    expect(await relayIhttpPort(idle.deps).withdraw()).toBeNull();
+    expect(idle.withdrawals()).toBe(0);
+    let land: () => void = (): void => undefined;
+    const slow: ReturnType<typeof relay> = relay({ advertise: (_d, until) => new Promise((r) => { land = (): void => r({ ok: true, value: until }); }) });
+    const port: ReturnType<typeof relayIhttpPort> = relayIhttpPort(slow.deps);
+    const serving: Promise<unknown> = Promise.resolve(port.IhttpServe({ routes: [] }));
+    await new Promise<void>((r) => setTimeout(r, 0));
+    const withdrawn: Promise<unknown> = port.withdraw();
+    land();
+    await serving;
+    expect(await withdrawn).toEqual({ ok: true, value: 1 });
+    // The advertisement that landed after the withdrawal began is not renewed.
+    expect([slow.withdrawals(), slow.ticks]).toEqual([1, []]);
   });
 
   it('a refused advertisement is the app’s answer, and nothing is renewed', async () => {

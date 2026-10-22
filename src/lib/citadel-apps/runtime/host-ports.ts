@@ -6,14 +6,14 @@
  * `{refused: {unavailable: <port>}}` (host/ports.ts), which is what "not here" means to an app.
  */
 import type { AppInstall } from 'citadel-workspace-client-ts';
-import type { AppsTransport } from '@/lib/workspace-service/apps-operations';
-import { advertiseService, callHost, ihttpSend } from '@/lib/workspace-service/apps-runtime-operations';
-import type { EventsPort, HostNetPort, HostPorts, IhttpPort, LogPort, StoragePort } from '../host/ports';
+import type { AppsResult, AppsTransport } from '@/lib/workspace-service/apps-operations';
+import { advertiseService, callHost, ihttpSend, withdrawService } from '@/lib/workspace-service/apps-runtime-operations';
+import type { EventsPort, HostNetPort, HostPorts, LogPort, StoragePort } from '../host/ports';
 import type { HostPolicy } from '../host/limits';
 import type { AgentLink } from './agent-link';
 import { agentKvPort, splitStorage } from './agent-kv-port';
 import { agentFetchPort } from './agent-fetch-port';
-import { relayIhttpPort } from './ihttp-relay-port';
+import { relayIhttpPort, type RelayIhttpPort } from './ihttp-relay-port';
 import { serverBlob, serverFiles, serverNet, serverStorage, type HostCaller } from './kernel-call-ports';
 
 export interface PortWorld {
@@ -31,10 +31,14 @@ export interface PortWorld {
 
 export interface BoundPorts {
   readonly ports: HostPorts;
+  /** Ends the instance's advertisement (ihttp-relay-port.ts); null when it never served. */
+  readonly withdraw: () => Promise<AppsResult<number> | null>;
+  /** Drops what the ports hold open (host egress streams). */
   readonly stop: () => void;
 }
 
-export function hostPortsFor(install: AppInstall, scopeKey: string, events: EventsPort, w: PortWorld): BoundPorts {
+/** `instance`: this running instance's name, which its advertisement is held under. */
+export function hostPortsFor(install: AppInstall, instance: string, scopeKey: string, events: EventsPort, w: PortWorld): BoundPorts {
   const call: HostCaller = (bytes: Uint8Array) => callHost(w.transport, install.id, bytes);
   const session: { readonly cid: bigint } | null = w.agentSession;
   const local: StoragePort | null = session === null ? null : agentKvPort(w.agent, { cid: session.cid, appId: install.app_id, scopeKey, timeoutMs: w.policy.portTimeoutMs });
@@ -42,10 +46,11 @@ export function hostPortsFor(install: AppInstall, scopeKey: string, events: Even
     cid: session.cid, appId: install.app_id, installId: install.id, timeoutMs: w.policy.hostNetTimeoutMs,
     grant: { hosts: install.details.host_network_hosts, private: install.granted.includes('net.host.private') },
   });
-  const ihttp: IhttpPort & { readonly stop: () => void } = relayIhttpPort({
+  const ihttp: RelayIhttpPort = relayIhttpPort({
     installId: install.id, pushes: w.pushes, sha256Hex: w.sha256Hex, nowMs: w.nowMs, every: w.every,
     send: (to, frame) => ihttpSend(w.transport, install.id, to, frame),
-    advertise: (digest, untilMs) => advertiseService(w.transport, install.id, digest, untilMs),
+    advertise: (digest, untilMs) => advertiseService(w.transport, install.id, instance, digest, untilMs),
+    withdraw: () => withdrawService(w.transport, install.id, instance),
   });
   const ports: HostPorts = {
     storage: splitStorage(serverStorage(call), local), blob: serverBlob(call), storeFiles: serverFiles(call),
@@ -53,9 +58,7 @@ export function hostPortsFor(install: AppInstall, scopeKey: string, events: Even
   };
   return {
     ports,
-    stop: (): void => {
-      ihttp.stop();
-      hostNet?.closeAll();
-    },
+    withdraw: ihttp.withdraw,
+    stop: (): void => hostNet?.closeAll(),
   };
 }

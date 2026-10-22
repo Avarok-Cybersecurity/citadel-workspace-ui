@@ -7,7 +7,7 @@ import { describe, expect, it, vi, type Mock } from 'vitest';
 import { render, screen, waitFor, fireEvent, type RenderResult } from '@testing-library/react';
 import type { AppInstall } from 'citadel-workspace-client-ts';
 import { AppZone } from '../AppZone';
-import { AppZoneContext, zoneClaims, type AppZoneEnvironment, type AppZoneRuntime } from '../app-zone-environment';
+import { AppZoneContext, zoneClaims, type AppZoneEnvironment, type AppZoneHandle, type AppZoneRuntime } from '../app-zone-environment';
 import { listedApps, type ListedApp } from '@/lib/citadel-apps/listing-model';
 import type { Tri } from '@/lib/citadel-apps/scope-options';
 import { recordDisabledForMe } from '@/lib/citadel-apps/disabled-for-me';
@@ -107,7 +107,7 @@ describe('an app zone', () => {
   });
 
   it('with a runtime, an active install is mounted in a host-owned element of the zone’s height', async () => {
-    const mount: Mock<AppZoneRuntime['mount']> = vi.fn((): (() => void) => (): void => {});
+    const mount: Mock<AppZoneRuntime['mount']> = vi.fn((): AppZoneHandle => ({ close: async (): Promise<void> => undefined }));
     zone(env({ installs: [installOf('com.acme.kanban', { SelfOnly: 'alice' }, { id: 'a' })], runtime: { mount } }));
     await waitFor(() => expect(mount).toHaveBeenCalledTimes(1));
     const [host, mounted] = mount.mock.calls[0] as unknown as [HTMLElement, { zoneId: string; height: number; install: AppInstall }];
@@ -116,7 +116,7 @@ describe('an app zone', () => {
   });
 
   it('control: with a runtime, a zone the person may only install is not mounted', async () => {
-    const mount: Mock<AppZoneRuntime['mount']> = vi.fn((): (() => void) => (): void => {});
+    const mount: Mock<AppZoneRuntime['mount']> = vi.fn((): AppZoneHandle => ({ close: async (): Promise<void> => undefined }));
     zone(env({ runtime: { mount } }));
     await state('install');
     expect(mount).not.toHaveBeenCalled();

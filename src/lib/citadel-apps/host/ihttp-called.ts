@@ -8,11 +8,13 @@ import type { Address } from '../sdk/generated/Address';
 import type { Caller } from '../sdk/generated/Caller';
 import type { IhttpFrame } from '../sdk/generated/IhttpFrame';
 import type { ResponseHead } from '../sdk/generated/ResponseHead';
-import { abortBoth, allow, cancel, deny, frame, headersProblem, MAX_CREDIT, peerKey, requestHeadProblem, type RouterAction, type Verdict } from './ihttp-common';
+import { abortBoth, allow, cancel, CLOSED_REASON, deny, frame, headersProblem, MAX_CREDIT, peerKey, requestHeadProblem, type ClosingAction, type RouterAction, type Verdict } from './ihttp-common';
 import { RELAY_STREAM_BIT } from './ihttp-wire';
 import type { IhttpLimits } from './limits';
 
 interface Called {
+  /** The address the app called, which every frame it sends on the call carries. */
+  readonly to: Address;
   readonly appId: string;
   readonly id: bigint;
   readonly deadline: number;
@@ -57,7 +59,7 @@ export class CalledStreams {
       if (bad !== null) return deny({ limit: bad }, []);
       this.last = f.stream;
       this.streams.set(calledKey(appId, f.stream), {
-        appId, id: f.stream, server: null, requestBytes: 0, responseStarted: false, responseBytes: 0,
+        to, appId, id: f.stream, server: null, requestBytes: 0, responseStarted: false, responseBytes: 0,
         creditOut: this.limits.initialCredit, creditIn: this.limits.initialCredit,
         deadline: now + (kind.RequestHead.body_len === null ? this.limits.streamingTimeoutMs : this.limits.streamTimeoutMs),
       });
@@ -130,6 +132,14 @@ export class CalledStreams {
       this.streams.delete(calledKey(c.appId, c.id));
       if (c.server !== null) out.push(...abortBoth(c.server, c.id, 'timeout'));
     }
+    return out;
+  }
+
+  /** The instance is closing: a Cancel on every call it made, and none is open any more. */
+  closeAll(): ClosingAction[] {
+    const out: ClosingAction[] = [...this.streams.values()].map((c: Called): ClosingAction =>
+      ({ kind: 'call', to: c.to, frame: frame(c.id, { Cancel: { reason: CLOSED_REASON } }) }));
+    this.streams.clear();
     return out;
   }
 

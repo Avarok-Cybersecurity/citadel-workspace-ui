@@ -11,6 +11,7 @@ import { eventEmitter } from '@/lib/event-emitter';
 import { websocketService } from '@/lib/websocket-service';
 import { agentCapabilities, type AgentCapabilities } from '@/lib/agent-conversations/capabilities';
 import { getCurrentCid } from '@/lib/p2p/current-cid';
+import type { AppsFailure } from '@/lib/workspace-service/apps-operations';
 import { sessionAppsTransport } from '../apps-api';
 import { InstanceSlots } from '../host/instance-slots';
 import { STANDARD_HOST_POLICY, validateHostPolicy, type HostPolicy } from '../host/limits';
@@ -22,8 +23,10 @@ import type { AppZoneRuntime } from '@/components/office/app-zone/app-zone-envir
 import type { AgentLink } from './agent-link';
 import type { PortWorld } from './host-ports';
 import { pageArtifactVerifier, wasmAppSignatureCheck } from './verifier';
+import type { ZoneAudit } from './zone-close';
 import { animationFrames } from './zone-input';
 import { createAppZoneRuntime } from './zone-runtime';
+import { pageZoneWatchers } from './zone-watchers';
 
 const policy: HostPolicy = validateHostPolicy(STANDARD_HOST_POLICY);
 const verifier: ArtifactVerifierPort = pageArtifactVerifier(crypto.subtle, wasmAppSignatureCheck(loadWasmModule));
@@ -57,6 +60,20 @@ async function agentSession(): Promise<{ readonly cid: bigint } | null> {
   return cid === null ? null : { cid };
 }
 
+const refusalName = (r: AppsFailure): string => (typeof r === 'string' ? r : Object.keys(r).join(','));
+
+/**
+ * The audit line of a zone that closed: which app, why, how it ended, and what its withdrawal
+ * ended. A close that settled is routine (console.info, which production builds strip, see
+ * vite.config.ts `pure`); one that had to be cut short or trapped is a warning, kept in production.
+ */
+function audit(line: ZoneAudit): void {
+  const withdrawal: string = typeof line.withdrawal === 'string' ? line.withdrawal : 'ended' in line.withdrawal ? `${line.withdrawal.ended} stream(s) ended` : `refused (${refusalName(line.withdrawal.refused)})`;
+  const text: string = `[apps] ${line.appId} (install ${line.installId}, zone ${line.zoneId}) closed: ${line.reason}, ${line.ending} in ${Math.round(line.ms)} ms, close result ${String(line.closeResult)}, service ${withdrawal}`;
+  if (line.ending === 'grace-expired' || line.ending === 'trapped') console.warn(text);
+  else console.info(text);
+}
+
 const THEME_TOKENS: readonly string[] = ['background', 'foreground', 'primary', 'primary-foreground', 'muted', 'muted-foreground', 'border', 'destructive'];
 
 function theme(): Readonly<Record<string, string>> {
@@ -74,6 +91,10 @@ export const pageAppZoneRuntime: AppZoneRuntime = createAppZoneRuntime({
   slots: new InstanceSlots(policy.maxLiveInstancesPerPage),
   spawn: spawnAppWorker,
   frames: animationFrames,
+  watch: pageZoneWatchers,
+  newInstanceId: (): string => crypto.randomUUID(),
+  audit,
+  report: (what: string, detail: unknown): void => console.error(what, detail),
   offscreen: (canvas: HTMLCanvasElement): OffscreenCanvas => canvas.transferControlToOffscreen(),
   portWorld: async (): Promise<Omit<PortWorld, 'policy'>> => ({
     transport: sessionAppsTransport, agent, agentSession: await agentSession(), log,

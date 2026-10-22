@@ -20,12 +20,12 @@ export function failureCopy(name: string, failure: ReleaseFailure): string {
   }
 }
 
-/** Null while it runs (or before it has). */
+/** Null while it runs (or before it has), and once it was closed or ended by the host on purpose. */
 export function stoppedCopy(name: string, state: InstanceState): string | null {
   switch (state) {
     case 'init-failed': return `${name} could not start.`;
     case 'stopped-trapped': return `${name} stopped because of an error.`;
     case 'stopped-unresponsive': return `${name} stopped responding and was closed.`;
-    case 'loading': case 'running': case 'terminated': return null;
+    case 'loading': case 'running': case 'terminated': case 'closed': return null;
   }
 }

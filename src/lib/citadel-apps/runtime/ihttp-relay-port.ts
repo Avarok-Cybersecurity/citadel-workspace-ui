@@ -1,6 +1,7 @@
 /**
  * Internal HTTP over the workspace server's relay (R4.4): serving advertises the routes
- * (`AdvertiseService`, again every minute while mounted), a client frame and a response frame go
+ * (`AdvertiseService` for this instance, again every minute while it runs, and `WithdrawService`
+ * when it closes, so its callers learn at once rather than at the expiry), a client frame and a response frame go
  * out as `IhttpSend`, and frames the server relays to this install arrive pushed as
  * `AppsResponse::IhttpFrame`, stamped with who sent them by the server, never by an app. Frames
  * are CBOR of the wire's `IhttpFrame` (citadel-ihttp-types) both ways, translated from and to
@@ -28,7 +29,9 @@ export const ADVERTISE_EVERY_MS: number = 60_000;
 export interface RelayDeps {
   readonly installId: string;
   readonly send: (to: IhttpAddress, frame: Uint8Array) => Promise<AppsResult<null>>;
+  /** AdvertiseService and WithdrawService for this instance of the install. */
   readonly advertise: (routesDigest: string, untilMs: bigint) => Promise<AppsResult<bigint>>;
+  readonly withdraw: () => Promise<AppsResult<number>>;
   /** Every apps answer the server pushes to this tab (`workspace:apps`); returns the unsubscribe. */
   readonly pushes: (listener: (answer: unknown) => void) => () => void;
   readonly sha256Hex: (bytes: Uint8Array) => Promise<string>;
@@ -53,17 +56,32 @@ const wire = (frame: IhttpFrame): Uint8Array => encodeCbor(toWireFrame(frame));
 
 const sent = (r: AppsResult<unknown>): PortAnswer<null> => (r.ok ? { ok: null } : { refused: refusedFor(r.refusal) });
 
-export function relayIhttpPort(d: RelayDeps): IhttpPort & { readonly stop: () => void } {
+/** The relay port, and its end: `withdraw` stops the renewal and, if this instance ever served, withdraws it. */
+export interface RelayIhttpPort extends IhttpPort {
+  /** Null when it never advertised; otherwise the server's answer (the relayed streams it ended). */
+  readonly withdraw: () => Promise<AppsResult<number> | null>;
+}
+
+export function relayIhttpPort(d: RelayDeps): RelayIhttpPort {
   let renew: (() => void) | null = null;
+  let served: boolean = false;
+  let withdrawn: boolean = false;
+  let serving: Promise<PortAnswer<null>> | null = null;
   const advertise = async (digest: string): Promise<PortAnswer<null>> => sent(await d.advertise(digest, BigInt(d.nowMs() + ADVERTISE_TTL_MS)));
+  const serve = async (routes: readonly Route[]): Promise<PortAnswer<null>> => {
+    const digest: string = await routesDigest(routes, d.sha256Hex);
+    renew?.();
+    renew = null;
+    const first: PortAnswer<null> = await advertise(digest);
+    if ('ok' in first) served = true;
+    // A renewal that fails is retried at the next tick; the app learns of trouble from its callers.
+    if ('ok' in first && !withdrawn) renew = d.every(ADVERTISE_EVERY_MS, (): void => { void advertise(digest); });
+    return first;
+  };
   return {
-    IhttpServe: async ({ routes }): Promise<PortAnswer<null>> => {
-      const digest: string = await routesDigest(routes, d.sha256Hex);
-      renew?.();
-      const first: PortAnswer<null> = await advertise(digest);
-      // A renewal that fails is retried at the next tick; the app learns of trouble from its callers.
-      if ('ok' in first) renew = d.every(ADVERTISE_EVERY_MS, (): void => { void advertise(digest); });
-      return first;
+    IhttpServe: ({ routes }): Promise<PortAnswer<null>> => {
+      serving = serve(routes);
+      return serving;
     },
     IhttpCall: async ({ to, frame }): Promise<PortAnswer<null>> => sent(await d.send(addressFor(to), wire(frame))),
     respond: async (peer: Caller, frame: IhttpFrame): Promise<PortAnswer<null>> =>
@@ -77,9 +95,13 @@ export function relayIhttpPort(d: RelayDeps): IhttpPort & { readonly stop: () =>
       const from: Caller = { username: answer.from.username, cid: answer.from.cid, app_id: answer.from.app_id, install_id: answer.from.install_id, via: 'relay' };
       listener({ from, frame });
     }),
-    stop: (): void => {
+    withdraw: async (): Promise<AppsResult<number> | null> => {
+      withdrawn = true;
       renew?.();
       renew = null;
+      // An advertisement still in flight is withdrawn too, once it has landed.
+      if (serving !== null) await serving;
+      return served ? d.withdraw() : null;
     },
   };
 }

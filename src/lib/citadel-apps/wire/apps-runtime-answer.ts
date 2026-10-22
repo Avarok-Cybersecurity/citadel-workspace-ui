@@ -1,7 +1,7 @@
 /**
  * The `AppsResponse` variants a running app's host reads, as strictly as apps-answer.ts reads the
  * marketplace's: a release to verify, an artifact chunk, a server host call's reply, an
- * advertisement's expiry, a relayed frame's receipt, and a frame relayed to one of this person's
+ * advertisement's expiry, a withdrawal's receipt, a relayed frame's receipt, and a frame relayed to one of this person's
  * running apps. Anything not exactly one of these is not one of these.
  */
 import type { AppListing, IhttpFrom } from 'citadel-workspace-client-ts';
@@ -13,6 +13,7 @@ export type RuntimeAnswer =
   /** CBOR of the SDK's `HostReply`, decoded by whoever made the call. */
   | { kind: 'call-reply'; reply: number[] }
   | { kind: 'advertised'; untilMs: bigint }
+  | { kind: 'withdrawn'; installId: string; closedStreams: number }
   | { kind: 'ihttp-sent' }
   | { kind: 'ihttp-frame'; from: IhttpFrom; toInstallId: string; frame: number[] };
 
@@ -37,6 +38,10 @@ export function readRuntimeAnswer(payload: unknown): RuntimeAnswer | null {
   }
   if (single(payload, 'CallReply', (x: unknown) => exactly(x, { reply: isBytes }))) return { kind: 'call-reply', reply: inner(payload, 'CallReply').reply as number[] };
   if (single(payload, 'Advertised', (x: unknown) => exactly(x, { until_ms: isU64 }))) return { kind: 'advertised', untilMs: inner(payload, 'Advertised').until_ms as bigint };
+  if (single(payload, 'Withdrawn', (x: unknown) => exactly(x, { install_id: isString, closed_streams: isU32 }))) {
+    const w: Json = inner(payload, 'Withdrawn');
+    return { kind: 'withdrawn', installId: w.install_id as string, closedStreams: w.closed_streams as number };
+  }
   if (single(payload, 'IhttpFrame', (x: unknown) => exactly(x, { from: isFrom, to_install_id: isString, frame: isBytes }))) {
     const f: Json = inner(payload, 'IhttpFrame');
     return { kind: 'ihttp-frame', from: f.from as IhttpFrom, toInstallId: f.to_install_id as string, frame: f.frame as number[] };

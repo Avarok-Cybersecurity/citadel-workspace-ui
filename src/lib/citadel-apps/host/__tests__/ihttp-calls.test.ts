@@ -8,7 +8,7 @@ import type { Address } from '../../sdk/generated/Address';
 import type { Caller } from '../../sdk/generated/Caller';
 import type { IhttpFrame } from '../../sdk/generated/IhttpFrame';
 import type { RequestHead } from '../../sdk/generated/RequestHead';
-import { IhttpRouter, type RouterAction } from '../ihttp-router';
+import { IhttpRouter, type ClosingAction, type RouterAction } from '../ihttp-router';
 import { parseRoutes, type ParsedRoutes } from '../ihttp-routes';
 import { STANDARD_IHTTP_LIMITS } from '../limits';
 
@@ -103,5 +103,27 @@ describe('one credit path: the host mints every Credit, from IhttpConsumed only'
     expect(r.respond(bob, credit(2n))).toMatchObject({ ok: false, refused: { policy: 'credit_is_granted_by_the_host' } });
     expect(kinds(r.consumed(bob, 1n).actions)).toEqual(['reply:Credit']);
     expect(kinds(r.consumed(bob, 2n).actions)).toEqual(['reply:Credit']);
+  });
+});
+
+describe('closing the instance', () => {
+  it('cancels every stream both ways as `closed`: each caller it serves, and each call on the address it was made to', () => {
+    const r: IhttpRouter = router();
+    const carol: Caller = { ...bob, username: 'carol', cid: 13n, install_id: 'i-3' };
+    expect(kinds(r.inbound(carol, request(5n, '/cards/2'), 0))).toEqual(['deliver:RequestHead']);
+    expect(r.call(toBob, request(1n, '/cards/1'), 0).ok).toBe(true);
+    expect(r.call(toBob, request(2n, '/cards/2'), 0).ok).toBe(true);
+    expect(kinds(r.inbound(bob, response(2n), 0))).toEqual(['deliver:ResponseHead']);
+    const closing: ClosingAction[] = r.closeAll();
+    expect(closing).toEqual([
+      { kind: 'reply', peer: carol, frame: f(5n, { Cancel: { reason: 'closed' } }) },
+      { kind: 'call', to: toBob, frame: f(1n, { Cancel: { reason: 'closed' } }) },
+      { kind: 'call', to: toBob, frame: f(2n, { Cancel: { reason: 'closed' } }) },
+    ]);
+    expect(r.liveStreams).toBe(0);
+    // Nothing is served after: the advertised table went with it.
+    expect(r.inbound(carol, request(6n, '/cards/3'), 0).map((a: RouterAction) => a.frame.kind)).toEqual([{ Cancel: { reason: 'unrouted' } }]);
+    // Control: a second close has nothing left to cancel.
+    expect(r.closeAll()).toEqual([]);
   });
 });

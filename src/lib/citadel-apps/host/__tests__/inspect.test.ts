@@ -113,7 +113,7 @@ describe('hostile modules are refused with the Rust codes', () => {
 
   it('a module with no imports at all', async () => {
     const bare: Uint8Array = buildModule({ imports: [], funcs: [{ export: 'app_init', params: [I32, I32], results: [I32], body: [0x41, 0x00] }] });
-    expect(await reasons(bare)).toEqual(['memory_not_imported', 'missing_export:app_alloc', 'missing_export:app_free', 'missing_export:app_event']);
+    expect(await reasons(bare)).toEqual(['memory_not_imported', 'missing_export:app_alloc', 'missing_export:app_free', 'missing_export:app_event', 'missing_export:app_close']);
   });
 
 });
