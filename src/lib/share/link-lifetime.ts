@@ -45,26 +45,33 @@ export function expiresInText(expiresMs: bigint, nowMs: number): string {
   return plural(Math.floor(hours / 24), 'day');
 }
 
+/** A workspace's link limits; `null` is no limit (an unlimited plan). */
 export interface LinkQuota {
   live: number;
-  perMember: number;
-  pool: number;
+  perMember: number | null;
+  pool: number | null;
   poolUsed: number;
 }
 
-/** Room for another link: within your own allowance, or the shared pool has space. */
+/** Room for another link: within your own allowance, or the shared pool has space. No limit on either is always room. */
 export function atLimit(q: LinkQuota): boolean {
+  if (q.perMember === null || q.pool === null) return false;
   return q.live >= q.perMember && q.poolUsed >= q.pool;
 }
 
-/** "3 of 5 yours", or with a pool "12 of 50 yours · 30 of 100 shared pool". */
+const links = (n: number): string => `${n} secure link${n === 1 ? '' : 's'}`;
+
+/** "3 of 5 yours", with a pool "12 of 50 yours · 30 of 100 shared pool", and with no limit "12 secure links, no limit". */
 export function quotaText(q: LinkQuota): string {
+  if (q.perMember === null) return `${links(q.live)}, no limit`;
   const own: string = `${Math.min(q.live, q.perMember)} of ${q.perMember} yours`;
+  if (q.pool === null) return `${own} · ${q.poolUsed} from the shared pool, no limit`;
   return q.pool === 0 ? own : `${own} · ${q.poolUsed} of ${q.pool} shared pool`;
 }
 
-/** The share of the bar that is used, 0 to 1, across both allowances. */
-export function quotaFraction(q: LinkQuota): number {
+/** The share of the bar that is used, 0 to 1, across both allowances; null when there is no limit to measure against. */
+export function quotaFraction(q: LinkQuota): number | null {
+  if (q.perMember === null || q.pool === null) return null;
   const total: number = q.perMember + q.pool;
   if (total === 0) return 1;
   return Math.min(1, (Math.min(q.live, q.perMember) + q.poolUsed) / total);
