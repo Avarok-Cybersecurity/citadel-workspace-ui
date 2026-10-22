@@ -1,45 +1,44 @@
 /**
- * The mapper port over cdoc-wasm's editor artefact (the product's only implementation).
+ * The mapper port over cdoc-wasm's editor artefact (the product's only implementation): its
+ * StarterKit importer, `tiptap_to_crdt_snapshot(json, client) -> Migrated` and
+ * `tiptap_to_pm(json) -> string` (citadel-docs #49).
  *
- * The StarterKit importer is cdoc-wasm's `tiptap_to_crdt_snapshot(pm_json, client) ->
- * Migrated` and `tiptap_to_pm(pm_json) -> string`, which the engine stream is adding. Until a
- * glue that exports them is vendored, the loader answers null: it looks at the glue's exports
- * (a small script) before fetching the binary, so a build without the importer costs no
- * download and migrates nothing.
+ * The client id crosses into wasm as a u64, and wasm-bindgen does not refuse a BigInt outside
+ * that range: it wraps it (2^64 + 5 arrives as 5, -1 as 2^64 - 1). A wrapped id would write the
+ * snapshot as some other client, or as client 0, which cdoc reserves for the deterministic blank,
+ * silently. So the range is kept here, before the call, and anything outside it is refused.
  */
 import type { MappedSnapshot, MapperLoader, MigrationMapper } from './mapper-port';
 
 type Glue = typeof import('../../../vendor/cdoc/cdoc_wasm_editor.js');
 
-/** cdoc-wasm's `Migrated`, as `pm_to_crdt_snapshot` already returns it. */
+/** cdoc-wasm's `Migrated`. */
 interface MigratedHandle {
   snapshot(): Uint8Array;
   reportJson(): string;
   free(): void;
 }
 
-type ToSnapshot = (pmJson: string, client: bigint) => MigratedHandle;
-type ToPm = (pmJson: string) => string;
-
-const SNAPSHOT_EXPORT: 'tiptap_to_crdt_snapshot' = 'tiptap_to_crdt_snapshot';
-const PM_EXPORT: 'tiptap_to_pm' = 'tiptap_to_pm';
-
-/**
- * The importer's two exports, or null when this glue predates them. Read by name because the
- * vendored declarations do not list them yet; the shapes are the port's contract.
- */
-function importerOf(glue: Glue): { readonly toSnapshot: ToSnapshot; readonly toPm: ToPm } | null {
-  const exports: Readonly<Record<string, unknown>> = glue;
-  const toSnapshot: unknown = exports[SNAPSHOT_EXPORT];
-  const toPm: unknown = exports[PM_EXPORT];
-  if (typeof toSnapshot !== 'function' || typeof toPm !== 'function') return null;
-  return { toSnapshot: toSnapshot as ToSnapshot, toPm: toPm as ToPm };
+export interface StarterKitImporter {
+  readonly toSnapshot: (json: string, client: bigint) => MigratedHandle;
+  readonly toPm: (json: string) => string;
 }
 
-export function mapperOver(importer: { readonly toSnapshot: ToSnapshot; readonly toPm: ToPm }): MigrationMapper {
+/** The ids a migration snapshot may be written as: a non-zero u64. */
+export const MIGRATION_CLIENT_MIN: bigint = 1n;
+export const MIGRATION_CLIENT_MAX: bigint = (1n << 64n) - 1n;
+
+function checkedClient(client: bigint): bigint {
+  if (client < MIGRATION_CLIENT_MIN || client > MIGRATION_CLIENT_MAX) {
+    throw new RangeError(`a migration's client id must be in 1..2^64-1, not ${client.toString()}: the engine would wrap it to another client`);
+  }
+  return client;
+}
+
+export function mapperOver(importer: StarterKitImporter): MigrationMapper {
   return {
     toSnapshot(starterKitJson: string, client: bigint): MappedSnapshot {
-      const migrated: MigratedHandle = importer.toSnapshot(starterKitJson, client);
+      const migrated: MigratedHandle = importer.toSnapshot(starterKitJson, checkedClient(client));
       try {
         return { snapshot: migrated.snapshot(), reportJson: migrated.reportJson() };
       } finally {
@@ -56,11 +55,9 @@ let loaded: Promise<MigrationMapper | null> | null = null;
 export const loadCdocMigrationMapper: MapperLoader = (): Promise<MigrationMapper | null> => {
   loaded ??= (async (): Promise<MigrationMapper | null> => {
     const glue: Glue = await import('../../../vendor/cdoc/cdoc_wasm_editor.js');
-    const importer: { readonly toSnapshot: ToSnapshot; readonly toPm: ToPm } | null = importerOf(glue);
-    if (importer === null) return null;
     const { loadCdocEditorWasm } = await import('@/lib/cdoc/engine/load-wasm');
     await loadCdocEditorWasm((): void => undefined);
-    return mapperOver(importer);
+    return mapperOver({ toSnapshot: glue.tiptap_to_crdt_snapshot, toPm: glue.tiptap_to_pm });
   })().catch((error: unknown): never => {
     loaded = null;
     throw error;
