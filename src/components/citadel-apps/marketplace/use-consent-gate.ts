@@ -8,7 +8,7 @@ import { CONSENT_VISIBLE_MS, gateOpen, gateReducer, HIDDEN_GATE, NAVIGATION_KEYS
 
 export function useConsentGate(): boolean {
   const [state, dispatch] = useReducer(gateReducer, HIDDEN_GATE);
-  const [, setNow] = useState<number>(0);
+  const [tick, setTick] = useState<number>(0);
 
   useEffect(() => {
     const visibility = (): void => {
@@ -27,15 +27,17 @@ export function useConsentGate(): boolean {
     };
   }, []);
 
-  // Draw again when the 600 ms have run, so the button enables without another event.
+  // Draw again when the 600 ms have run, so the button enables without another event. The timer
+  // can fire a millisecond before Date.now() says the time is up (Linux rounds the two clocks
+  // apart), so each draw arms it again until the time has run.
   useEffect(() => {
     const s: GateState = state;
     if (s.shownAt === null) return undefined;
     const remaining: number = s.shownAt + CONSENT_VISIBLE_MS - Date.now();
     if (remaining <= 0) return undefined;
-    const timer: number = window.setTimeout(() => setNow(Date.now()), remaining);
+    const timer: number = window.setTimeout(() => setTick((t: number) => t + 1), remaining);
     return (): void => window.clearTimeout(timer);
-  }, [state]);
+  }, [state, tick]);
 
   return gateOpen(state, Date.now());
 }

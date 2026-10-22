@@ -86,3 +86,46 @@ describe('the consent gate', () => {
     expect(screen.getByTestId('apps-consent-trust').textContent).toContain('first');
   });
 });
+
+describe('the consent gate when the timer and the clock disagree', () => {
+  // Linux rounds the timer clock and Date.now() to the millisecond separately, so a 600 ms
+  // timer can fire while Date.now() still reads 599 ms since the panel appeared.
+  let clock: number = 0;
+  beforeEach(() => {
+    clock = 1_000_000;
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    vi.spyOn(Date, 'now').mockImplementation((): number => clock);
+  });
+  afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); });
+
+  it('a timer that fires a millisecond early draws again once the clock reaches 600 ms', () => {
+    panel();
+    move();
+    clock += 599;
+    after(600);
+    expect(install().disabled).toBe(true);
+    clock += 1;
+    after(1);
+    expect(install().disabled).toBe(false);
+  });
+
+  it('a timer that fires early twice at the same clock reading still draws again', () => {
+    panel();
+    move();
+    clock += 599;
+    after(600);
+    after(1);
+    expect(install().disabled).toBe(true);
+    clock += 1;
+    after(1);
+    expect(install().disabled).toBe(false);
+  });
+
+  it('control: a timer that fires on time opens Install with no further timer', () => {
+    panel();
+    move();
+    clock += 600;
+    after(600);
+    expect(install().disabled).toBe(false);
+  });
+});

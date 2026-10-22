@@ -52,7 +52,7 @@ describe('the install flow', () => {
     const h: Harness = harness({ visible: [NOTES], permissions: new Set(MAY) }, catalogueText([]));
     await toConsent(h);
     expect(screen.getByTestId('apps-consent-scope').textContent).toBe('Just you');
-    expect(screen.getByTestId('apps-consent-fingerprint').textContent).not.toBe('…');
+    await waitFor(() => expect(screen.getByTestId('apps-consent-fingerprint').textContent).not.toBe('…'));
     fireEvent.click(screen.getByTestId('apps-consent-toggle'));
     h.kernel.pause();
     await pressInstall();
