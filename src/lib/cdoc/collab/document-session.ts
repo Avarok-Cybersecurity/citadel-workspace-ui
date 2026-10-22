@@ -12,12 +12,13 @@
 import type { DocumentsResponse } from 'citadel-workspace-client-ts';
 import type { EditorController } from '../editor/controller';
 import type { PeerPresence } from '../editor/peer-overlay';
-import { DocumentPresence } from './document-presence';
+import { DocumentPresence, type PresencePorts, type PresenceSettings } from './document-presence';
 import { DocumentSync } from './document-sync';
 import type { DocumentSessionConfig, DocumentSessionPorts, LinkState } from './ports';
 import { SerialQueue } from './serial-queue';
 import { DocumentSessionError, type DocumentSessionProblem } from './session-errors';
 import { isRecordLocked } from '@/lib/at-rest/at-rest-shape';
+import { fromWire, toWire } from './wire-bytes';
 import type { SaveInputs } from '@/lib/document-save/save-status';
 
 export interface DocumentSessionEvents {
@@ -58,7 +59,7 @@ export class DocumentSession {
       run: (step: () => Promise<void>): void => { void this.queue.run(step); },
       changed: (): void => this.emit('save', this.saveInputs),
     });
-    this.presence = new DocumentPresence(config, ports, this.queue, {
+    this.presence = new DocumentPresence(relayPresence(config), relayPresencePorts(config, ports), this.queue, {
       report,
       // With AutoSave off, a caret moving over text nobody else has would say where the edits are.
       linkUp: (): boolean => linkUp() && this.sync.autoSave,
@@ -160,7 +161,7 @@ export class DocumentSession {
   private received(response: DocumentsResponse): void {
     if (this.closed || !concernsNode(response, this.config.nodeId)) return;
     if ('DocumentAwareness' in response) {
-      void this.presence.heard(response.DocumentAwareness.from_cid, response.DocumentAwareness.payload);
+      void this.presence.heard(response.DocumentAwareness.from_cid, fromWire(response.DocumentAwareness.payload));
       return;
     }
     if ('AwarenessRelayed' in response) return;
@@ -194,6 +195,20 @@ export class DocumentSession {
   private emit<E extends keyof DocumentSessionEvents>(event: E, payload: DocumentSessionEvents[E]): void {
     for (const listener of [...this.listeners[event]]) listener(payload);
   }
+}
+
+/** Presence over the kernel's relay: its limits, and the Awareness request for the node. */
+function relayPresence(config: DocumentSessionConfig): PresenceSettings {
+  const { awarenessHeartbeatMs, peerExpiryMs, maxCaretsPerSession } = config;
+  return { awarenessPerSecond: config.limits.awarenessPerSecond, maxAwarenessBytes: config.limits.maxAwarenessBytes, awarenessHeartbeatMs, peerExpiryMs, maxCaretsPerSession };
+}
+
+function relayPresencePorts(config: DocumentSessionConfig, ports: DocumentSessionPorts): PresencePorts {
+  return {
+    clock: ports.clock,
+    identify: ports.identify,
+    send: (record: Uint8Array): Promise<void> => ports.transport.send({ Awareness: { node_id: config.nodeId, payload: toWire(record) } }),
+  };
 }
 
 /** Whether a Documents response is about `nodeId`; a refusal naming no node is every session's. */
