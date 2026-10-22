@@ -43,11 +43,11 @@ export function protocolAppsTransport(sender: ProtocolSender): AppsTransport {
   };
 }
 
-type Kind = AppsAnswer['kind'];
-type Of<K extends Kind> = Extract<AppsAnswer, { kind: K }>;
+export type Kind = AppsAnswer['kind'];
+export type Of<K extends Kind> = Extract<AppsAnswer, { kind: K }>;
 
 /** Ask, take the answer of `kind` that `fits`, or the refusal; anything else is malformed. */
-async function ask<K extends Kind, T>(t: AppsTransport, request: AppsRequest, kind: K, fits: (a: Of<K>) => boolean, value: (a: Of<K>) => T): Promise<AppsResult<T>> {
+export async function ask<K extends Kind, T>(t: AppsTransport, request: AppsRequest, kind: K, fits: (a: Of<K>) => boolean, value: (a: Of<K>) => T): Promise<AppsResult<T>> {
   const answer: AppsAnswer | null = await answerTo(t, request, (a: AppsAnswer): boolean => a.kind === kind && fits(a as Of<K>));
   if (answer === null) return { ok: false, refusal: 'NoAnswer' };
   if (answer.kind === 'refused') return { ok: false, refusal: answer.refusal };
@@ -77,8 +77,14 @@ export const listCatalogue = (t: AppsTransport): Promise<AppsResult<AppListing[]
 export const getListing = (t: AppsTransport, appId: string): Promise<AppsResult<AppListing>> =>
   ask(t, { GetListing: { app_id: appId } }, 'listing', (a: Of<'listing'>) => listingIsFor(a.listing, appId), (a: Of<'listing'>) => a.listing);
 
-export const listInstalls = (t: AppsTransport): Promise<AppsResult<AppInstall[]>> =>
-  ask(t, 'ListInstalls', 'installs', always, (a: Of<'installs'>) => a.installs);
+/** The installs that reach the caller, and which of them the caller turned off for themselves. */
+export interface InstallsView {
+  installs: AppInstall[];
+  disabledForMe: string[];
+}
+
+export const listInstalls = (t: AppsTransport): Promise<AppsResult<InstallsView>> =>
+  ask(t, 'ListInstalls', 'installs', always, (a: Of<'installs'>) => ({ installs: a.installs, disabledForMe: a.disabledForMe }));
 
 export interface InstallChoice {
   appId: string;

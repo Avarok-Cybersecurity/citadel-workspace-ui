@@ -9,7 +9,7 @@ import { CAPABILITIES } from '../manifest/manifest-shape';
 export type Json = Record<string, unknown>;
 export const isObject = (v: unknown): v is Json => typeof v === 'object' && v !== null && !Array.isArray(v);
 export const isString = (v: unknown): v is string => typeof v === 'string';
-const isStrings = (v: unknown): v is string[] => Array.isArray(v) && v.every(isString);
+export const isStrings = (v: unknown): v is string[] => Array.isArray(v) && v.every(isString);
 const isBigint = (v: unknown): v is bigint => typeof v === 'bigint';
 
 /** No key but these, each passing its check (an absent key is checked as undefined). */

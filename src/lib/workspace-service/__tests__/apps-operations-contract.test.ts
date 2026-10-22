@@ -9,7 +9,7 @@ import type { AppsRequest } from 'citadel-workspace-client-ts';
 import { eventEmitter } from '@/lib/event-emitter';
 import type { WorkspaceProtocolRequestTS } from '@/types/workspace-protocol';
 import {
-  getListing, installApp, listCatalogue, listInstalls, protocolAppsTransport, setDisabledForMe, uninstallApp,
+  getListing, installApp, listCatalogue, listInstalls, protocolAppsTransport, setDisabledForMe, uninstallApp, type InstallsView,
   type AppsResult, type AppsTransport,
 } from '../apps-operations';
 import type { ProtocolSender } from '../workspace-operations';
@@ -24,6 +24,7 @@ const world = (): FakeKernelWorld => ({
   hidden: [listingOf({ id: 'com.acme.secret', audience: { kind: 'members', usernames: ['bob'] } }, 'workspace')],
   installs: [installOf('com.acme.lint', { SelfOnly: 'alice' })],
   permissions: new Set(['AppInstall', 'AppInstallAllowNodeRead']),
+  disabled: new Set(),
 });
 
 /** The production transport over a sender whose answers come from the fake, as raw responses. */
@@ -47,8 +48,19 @@ describe.each([
     const fake: FakeAppsKernel = new FakeAppsKernel(world());
     const listings: AppsResult<unknown[]> = await listCatalogue(transportOf(fake));
     expect(listings.ok && listings.value.length).toBe(1);
-    const installs: AppsResult<unknown[]> = await listInstalls(transportOf(fake));
-    expect(installs.ok && installs.value.length).toBe(1);
+    const installs: AppsResult<InstallsView> = await listInstalls(transportOf(fake));
+    expect(installs.ok && installs.value.installs.length).toBe(1);
+    expect(installs.ok && installs.value.disabledForMe).toEqual([]);
+  });
+
+  it('turned off for me is the server’s: the next ListInstalls says so, and turning it on again clears it', async () => {
+    const fake: FakeAppsKernel = new FakeAppsKernel(world());
+    expect(await setDisabledForMe(transportOf(fake), 'install-com.acme.lint', true)).toEqual({ ok: true, value: true });
+    const after: AppsResult<InstallsView> = await listInstalls(transportOf(fake));
+    expect(after.ok && after.value.disabledForMe).toEqual(['install-com.acme.lint']);
+    await setDisabledForMe(transportOf(fake), 'install-com.acme.lint', false);
+    const again: AppsResult<InstallsView> = await listInstalls(transportOf(fake));
+    expect(again.ok && again.value.disabledForMe).toEqual([]);
   });
 
   it('a hidden app and a missing one get the same answer', async () => {
@@ -75,7 +87,7 @@ describe.each([
     const fake: FakeAppsKernel = new FakeAppsKernel(world());
     expect(await uninstallApp(transportOf(fake), 'install-com.acme.lint', true)).toEqual({ ok: true, value: 'install-com.acme.lint' });
     expect(fake.requests.at(-1)).toEqual({ Uninstall: { install_id: 'install-com.acme.lint', purge_storage: true } });
-    expect(await setDisabledForMe(transportOf(fake), 'x', true)).toEqual({ ok: true, value: true });
+    expect(await setDisabledForMe(transportOf(fake), 'x', true)).toEqual({ ok: false, refusal: 'Unavailable' });
   });
 });
 
@@ -91,6 +103,14 @@ describe('answers that are not ours, or not answers', () => {
     const fake: FakeAppsKernel = new FakeAppsKernel(world());
     fake.scripted.push(raw);
     expect(await listCatalogue(fake)).toEqual({ ok: false, refusal: 'Malformed' });
+  });
+
+  it('the kernel’s Installs answer carries disabled_for_me; one without it is not the kernel’s shape', async () => {
+    const fake: FakeAppsKernel = new FakeAppsKernel(world());
+    const install: unknown = installOf('com.acme.lint', { SelfOnly: 'alice' });
+    fake.scripted.push({ Installs: { installs: [install], disabled_for_me: ['install-com.acme.lint'] } }, { Installs: { installs: [install] } });
+    expect(await listInstalls(fake)).toEqual({ ok: true, value: { installs: [install], disabledForMe: ['install-com.acme.lint'] } });
+    expect(await listInstalls(fake)).toEqual({ ok: false, refusal: 'Malformed' });
   });
 
   it('control: the same answer, well formed, is data', async () => {

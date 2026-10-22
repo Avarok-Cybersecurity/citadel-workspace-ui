@@ -30,7 +30,7 @@ export function catalogueText(listings: readonly AppListing[]): string {
 }
 
 export function harness(world: Partial<FakeKernelWorld>, globalCatalogue: string | Error): Harness {
-  const kernel: FakeAppsKernel = new FakeAppsKernel({ me: 'alice', visible: [], hidden: [], installs: [], permissions: new Set(['AppInstall']), ...world });
+  const kernel: FakeAppsKernel = new FakeAppsKernel({ me: 'alice', visible: [], hidden: [], installs: [], permissions: new Set(['AppInstall']), disabled: new Set(), ...world });
   const copied: string[] = [];
   const deps: MarketplaceDeps = {
     transport: kernel,

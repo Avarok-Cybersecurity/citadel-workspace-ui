@@ -5,12 +5,13 @@
  */
 import type { AppInstall, AppListing, AppsRefusal, Permission } from 'citadel-workspace-client-ts';
 import { Permission as PermissionNames } from '@/lib/permissions-service/types';
-import { exactly, isAppInstall, isAppListing, isCapability, isObject, isString, single } from './install-shape';
+import { exactly, isAppInstall, isAppListing, isCapability, isObject, isString, isStrings, single } from './install-shape';
 
 export type AppsAnswer =
   | { kind: 'catalogue'; listings: AppListing[] }
   | { kind: 'listing'; listing: AppListing }
-  | { kind: 'installs'; installs: AppInstall[] }
+  /** `disabledForMe`: the ids among `installs` the caller hid for themselves, as the server keeps them. */
+  | { kind: 'installs'; installs: AppInstall[]; disabledForMe: string[] }
   | { kind: 'installed'; install: AppInstall }
   | { kind: 'uninstalled'; installId: string }
   | { kind: 'updated'; install: AppInstall }
@@ -51,8 +52,9 @@ export function readAppsAnswer(payload: unknown): AppsAnswer {
   if (single(payload, 'Listing', (x: unknown) => exactly(x, { listing: isAppListing }))) {
     return { kind: 'listing', listing: field<{ listing: AppListing }>(payload, 'Listing').listing };
   }
-  if (single(payload, 'Installs', (x: unknown) => exactly(x, { installs: (l: unknown) => Array.isArray(l) && l.every(isAppInstall) }))) {
-    return { kind: 'installs', installs: field<{ installs: AppInstall[] }>(payload, 'Installs').installs };
+  if (single(payload, 'Installs', (x: unknown) => exactly(x, { installs: (l: unknown) => Array.isArray(l) && l.every(isAppInstall), disabled_for_me: isStrings }))) {
+    const i: { installs: AppInstall[]; disabled_for_me: string[] } = field<{ installs: AppInstall[]; disabled_for_me: string[] }>(payload, 'Installs');
+    return { kind: 'installs', installs: i.installs, disabledForMe: i.disabled_for_me };
   }
   if (hasInstall(payload, 'Installed')) return { kind: 'installed', install: installOf(payload, 'Installed') };
   if (hasInstall(payload, 'Updated')) return { kind: 'updated', install: installOf(payload, 'Updated') };

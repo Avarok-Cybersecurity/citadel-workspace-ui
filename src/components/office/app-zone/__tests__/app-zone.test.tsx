@@ -13,6 +13,8 @@ import type { Tri } from '@/lib/citadel-apps/scope-options';
 import { recordDisabledForMe } from '@/lib/citadel-apps/disabled-for-me';
 import { installOf, listingOf } from '@/test/app-manifests';
 import type { AppLink } from '@/lib/citadel-apps/app-link';
+import { FakeAppsKernel } from '@/test/apps-kernel-fake';
+import { zoneDataFrom } from '../zone-data';
 
 const KANBAN: ListedApp = listedApps([listingOf({ id: 'com.acme.kanban', name: 'Kanban', version: '1.4.0' })])[0];
 
@@ -142,6 +144,17 @@ describe('an app zone', () => {
   ])('refuses %s', (_why: string, props: Record<string, unknown>) => {
     zone(env(), props);
     expect(screen.getByTestId('app-zone-error').textContent).toContain('This app zone cannot be shown');
+  });
+
+  it('turned off for me is read from the server’s ListInstalls, so a fresh page shows Turn on (control: listed on, it is ready)', async () => {
+    const off: AppInstall = installOf('com.acme.kanban', 'Workspace', { id: 'srv-off' });
+    const kernel: FakeAppsKernel = new FakeAppsKernel({ me: 'alice', visible: [listingOf({ id: 'com.acme.kanban', name: 'Kanban', version: '1.4.0' })], hidden: [], installs: [off], permissions: new Set(), disabled: new Set(['srv-off']) });
+    const first: RenderResult = zone({ ...env(), data: zoneDataFrom(kernel) });
+    await state('disabled');
+    first.unmount();
+    kernel.world.disabled.clear();
+    zone({ ...env(), data: zoneDataFrom(kernel) });
+    await state('ready-unmounted');
   });
 
   it('outside a workspace page it says so', () => {
