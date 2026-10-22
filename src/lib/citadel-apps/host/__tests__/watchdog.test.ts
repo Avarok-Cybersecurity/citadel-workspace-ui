@@ -7,31 +7,9 @@ import type { Capability } from '../capabilities';
 import { launchAppInstance, type AppInstance, type Launch } from '../instance';
 import { InstanceSlots } from '../instance-slots';
 import { STANDARD_HOST_POLICY } from '../limits';
-import type { FromWorker, HostChannel, ToWorker } from '../worker-protocol';
 import { FIXTURE_CLOSE_GRACE_MS, fixtureContext } from './app-fixtures';
 import { ManualClock } from './fakes';
-
-interface Scripted {
-  readonly channel: HostChannel;
-  readonly sent: ToWorker[];
-  readonly reply: (m: FromWorker) => void;
-  terminated: number;
-}
-
-function scripted(): Scripted {
-  let listener: (e: MessageEvent<unknown>) => void = () => {};
-  const s: Scripted = {
-    sent: [],
-    terminated: 0,
-    reply: (m: FromWorker): void => listener({ data: m } as MessageEvent<unknown>),
-    channel: {
-      postMessage: (m: ToWorker): void => { s.sent.push(m); },
-      addEventListener: (_t: 'message', l: (e: MessageEvent<unknown>) => void): void => { listener = l; },
-      terminate: (): void => { s.terminated++; },
-    },
-  };
-  return s;
-}
+import { scripted, seqOf, type Scripted } from './scripted-channel';
 
 const BUDGET: number = STANDARD_HOST_POLICY.computeBudgetMs;
 
@@ -43,8 +21,6 @@ function launch(clock: ManualClock, s: Scripted, slots: InstanceSlots = new Inst
   if (!l.ok) throw new Error('no slot');
   return l.instance;
 }
-
-const seqOf = (m: ToWorker): number => ('seq' in m ? m.seq : -1);
 
 /** The worker answers the load, then the start (AppEvent init), so frames are delivered. */
 function loadedAndStarted(s: Scripted, i: AppInstance): void {

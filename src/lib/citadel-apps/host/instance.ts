@@ -16,6 +16,7 @@ import { INIT_RESULT } from './abi';
 import { encodeAppContext, encodeAppEvent } from './app-event';
 import type { Capability } from './capabilities';
 import type { DispatchClock } from './dispatch';
+import { IhttpInbox } from './ihttp-inbox';
 import { PendingClose, type CloseEnding, type CloseOutcome } from './instance-close';
 import type { InstanceSlots } from './instance-slots';
 import { Watchdog } from './instance-watchdog';
@@ -67,7 +68,7 @@ export class AppInstance {
   private readonly listeners: Set<(state: InstanceState) => void> = new Set<(state: InstanceState) => void>();
   private readonly watchdog: Watchdog;
   private nextSeq: number = 0;
-  private unsubscribeIhttp: (() => void) | null = null;
+  private readonly inbox: IhttpInbox;
   private closing: PendingClose | null = null;
   private readonly channel: HostChannel;
   /** Why the guest trapped, when it did. */
@@ -81,6 +82,9 @@ export class AppInstance {
     this.channel = options.spawn();
     this.channel.addEventListener('message', (event: MessageEvent<unknown>): void => {
       if (isFromWorker(event.data)) this.onMessage(event.data);
+    });
+    this.inbox = new IhttpInbox(options.ports.ihttp, (inbound: InboundIhttpFrame): void => {
+      if (!STOPPED.has(this.current) && ALIVE.has(this.life.state)) this.send({ kind: 'ihttp', seq: this.seq(), peer: inbound.from, frame: inbound.frame }, []);
     });
     this.send({
       kind: 'load', seq: this.seq(), module: options.module, appId: options.appId, granted: [...options.granted],
@@ -147,8 +151,7 @@ export class AppInstance {
     if (STOPPED.has(this.current)) pending.end('already-stopped');
     else if (!this.life.step('close')) this.stop('terminated', 'not-started');
     else {
-      this.unsubscribeIhttp?.();
-      this.unsubscribeIhttp = null;
+      this.inbox.close();
       pending.arm(this.options.closeGraceMs, (): void => this.stop('terminated', 'grace-expired'));
       this.channel.postMessage({ kind: 'close', reason }, []);
     }
@@ -210,9 +213,7 @@ export class AppInstance {
       return;
     }
     this.setState('running');
-    this.unsubscribeIhttp = this.options.ports.ihttp?.onFrame((inbound: InboundIhttpFrame): void => {
-      if (!STOPPED.has(this.current) && ALIVE.has(this.life.state)) this.send({ kind: 'ihttp', seq: this.seq(), peer: inbound.from, frame: inbound.frame }, []);
-    }) ?? null;
+    this.inbox.open();
   }
 
   private portCall(message: Extract<FromWorker, { kind: 'port_call' }>): void {
@@ -234,8 +235,7 @@ export class AppInstance {
   private stop(state: InstanceState, ending: CloseEnding): void {
     if (STOPPED.has(this.current)) return;
     this.watchdog.clear();
-    this.unsubscribeIhttp?.();
-    this.unsubscribeIhttp = null;
+    this.inbox.close();
     if (state !== 'closed') this.life.abort();
     this.channel.terminate();
     this.release();
