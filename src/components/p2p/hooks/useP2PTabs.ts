@@ -20,12 +20,31 @@ import type { Dispatch, SetStateAction } from 'react';
 import { citadelApp, creatableIn } from '@/lib/citadel-apps/registry';
 import type { NewChatDocumentInput } from '../LiveDocumentModal';
 
+/** A chat document, made and open. `delivered` settles with its invitation's send; a failure there has a bubble. */
+export interface ChatDocumentMade {
+  delivered: Promise<void>;
+}
+
+interface Invitation {
+  /** The invitation is in the conversation, or its send settled first. */
+  recorded: Promise<void>;
+  delivered: Promise<void>;
+}
+
+/** A send split where its message is recorded: after that point a failure has a bubble to show it on. */
+function whenRecorded(send: (onRecorded: () => void) => Promise<unknown>): Invitation {
+  let markRecorded: () => void = (): void => undefined;
+  const recordedSignal: Promise<void> = new Promise<void>((resolve: () => void): void => { markRecorded = resolve; });
+  const delivered: Promise<void> = send((): void => markRecorded()).then((): void => undefined);
+  return { recorded: Promise.race([recordedSignal, delivered]), delivered };
+}
+
 interface UseP2PTabsOptions {
   peerCid: bigint;
   currentUserCid?: bigint;
 }
 
-export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions): { tabs: ChatTab[]; activeTabId: string; activeTabIdRef: MutableRefObject<string>; tabsWithUnread: { hasUnread: boolean; id: string; type: "messages" | "live_document"; title: string; documentId?: string; }[]; activeTab: ChatTab | undefined; setMessagesHasUnread: Dispatch<SetStateAction<boolean>>; handleTabSelect: (tabId: string) => void; handleCloseTab: (tabId: string) => void; handleOpenDocument: (docId: string, title: string) => void; handleCreateDocument: (input: NewChatDocumentInput) => Promise<void>; handleRenameDocument: (documentId: string, title: string) => Promise<void>; } {
+export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions): { tabs: ChatTab[]; activeTabId: string; activeTabIdRef: MutableRefObject<string>; tabsWithUnread: { hasUnread: boolean; id: string; type: "messages" | "live_document"; title: string; documentId?: string; }[]; activeTab: ChatTab | undefined; setMessagesHasUnread: Dispatch<SetStateAction<boolean>>; handleTabSelect: (tabId: string) => void; handleCloseTab: (tabId: string) => void; handleOpenDocument: (docId: string, title: string) => void; handleCreateDocument: (input: NewChatDocumentInput) => Promise<ChatDocumentMade>; handleRenameDocument: (documentId: string, title: string) => Promise<void>; } {
   const [tabs, setTabs] = useState<ChatTab[]>([MESSAGES_TAB]);
   const [activeTabId, setActiveTabId] = useState('messages');
   const [messagesHasUnread, setMessagesHasUnread] = useState(false);
@@ -107,7 +126,7 @@ export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions): { ta
     }
   }, [tabs, currentUserCid, peerCid]);
 
-  const handleCreateDocument: (input: NewChatDocumentInput) => Promise<void> = useCallback(async ({ app, title, initialContent }: NewChatDocumentInput): Promise<void> => {
+  const handleCreateDocument: (input: NewChatDocumentInput) => Promise<ChatDocumentMade> = useCallback(async ({ app, title, initialContent }: NewChatDocumentInput): Promise<ChatDocumentMade> => {
     // Was `if (!currentUserCid) return;` — a success-shaped no-op that closed
     // the modal and cleared the compose box having created nothing.
     if (!currentUserCid) throw new Error('Cannot create a document before the session has a CID');
@@ -126,16 +145,22 @@ export function useP2PTabs({ peerCid, currentUserCid }: UseP2PTabsOptions): { ta
       currentUserCid.toString(),
       seeded,
     );
-    await messenger.sendMessage(peerCid, `Created live document: ${cleanTitle}`, {
-      messageType: 'live_document',
-      documentId: metadata.id,
-      documentTitle: cleanTitle,
-    });
+    // Opened once the invitation is in the conversation, not once the network has carried it.
+    // Awaiting the whole send (CheckState, the leader's ack, the agent's transmit) left the
+    // document closed behind "Creating...", and closed for good on a delivery failure although
+    // it existed. A text message stops waiting at the same point (useP2PCompose).
+    const invitation: Invitation = whenRecorded((onRecorded: () => void): Promise<unknown> =>
+      messenger.sendMessage(peerCid, `Created live document: ${cleanTitle}`, {
+        messageType: 'live_document',
+        documentId: metadata.id,
+        documentTitle: cleanTitle,
+        onOptimisticAppend: onRecorded,
+      }));
+    // No catch: a failure before the invitation exists is LiveDocumentModal's to render
+    // ("Could not create the document…"); swallowing it here made that branch unreachable.
+    await invitation.recorded;
     handleOpenDocument(metadata.id, cleanTitle);
-    // No catch: LiveDocumentModal was written to render this failure
-    // ("Could not create the document…"), and swallowing it here made that
-    // branch unreachable — the modal closed normally, the title and the typed
-    // content were discarded, and no tab opened.
+    return { delivered: invitation.delivered };
   }, [peerCid, currentUserCid, handleOpenDocument, messenger]);
 
   const handleRenameDocument: (documentId: string, title: string) => Promise<void> = useCallback(

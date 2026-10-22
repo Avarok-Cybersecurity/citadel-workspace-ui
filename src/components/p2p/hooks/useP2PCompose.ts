@@ -23,6 +23,7 @@ import { useMarkdownFormat } from '../MarkdownToolbar';
 import type { MessageType } from '@/types/message-protocol';
 import type { Dispatch, SetStateAction } from 'react';
 import type { NewChatDocumentInput } from '../LiveDocumentModal';
+import type { ChatDocumentMade } from './useP2PTabs';
 
 interface UseP2PComposeParams {
   peerCid: bigint;
@@ -30,7 +31,7 @@ interface UseP2PComposeParams {
   /** Commits an edit through the messages hook. */
   editMessage: (messageId: string, content: string) => Promise<void>;
   /** Creates a live document through the tabs hook. */
-  createDocument: (input: NewChatDocumentInput) => Promise<void>;
+  createDocument: (input: NewChatDocumentInput) => Promise<ChatDocumentMade>;
 }
 
 export function useP2PCompose({ peerCid, messages, editMessage, createDocument }: UseP2PComposeParams): { inputRef: RefObject<HTMLTextAreaElement>; inputMessage: string; setInputMessage: Dispatch<SetStateAction<string>>; isSending: boolean; messageType: MessageType; showDocModal: boolean; closeDocModal: () => void; showMarkdownPreview: boolean; setShowMarkdownPreview: Dispatch<SetStateAction<boolean>>; applyFormat: (format: string, prefix: string, suffix: string) => void; replyingTo: P2PMessage | null; editingMessage: P2PMessage | null; handleReplyMessage: (messageId: string) => void; handleStartEdit: (messageId: string, content: string) => void; cancelComposeContext: () => void; handleSendMessage: () => Promise<void>; handleDocCreate: (input: NewChatDocumentInput) => Promise<void>; handleMessageTypeChange: (type: MessageType) => void; handleInputFocus: () => void; handleInputBlur: () => void; } {
@@ -141,10 +142,14 @@ export function useP2PCompose({ peerCid, messages, editMessage, createDocument }
   }, []);
 
   const handleDocCreate: (input: NewChatDocumentInput) => Promise<void> = useCallback(async (input: NewChatDocumentInput): Promise<void> => {
-    await createDocument(input);
+    const { delivered }: ChatDocumentMade = await createDocument(input);
     closeDocModal();
     setInputMessage('');
-  }, [createDocument, closeDocModal]);
+    // The document is open by now; its invitation's bubble shows the failure and offers the retry.
+    void delivered.catch((error: unknown): void => {
+      toast({ variant: 'destructive', title: 'The invitation was not delivered', description: describeFailure(error, 'Retry it from the conversation.') });
+    });
+  }, [createDocument, closeDocModal, toast]);
 
   const handleMessageTypeChange: (type: MessageType) => void = useCallback((type: MessageType): void => {
     setMessageType(type);
