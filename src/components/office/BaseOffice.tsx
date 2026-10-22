@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { readerIdentity, type ReaderIdentity, type TabIdentity } from '@/lib/tab-identity';
 import { useTabIdentity } from '@/hooks/use-tab-identity';
 import { useChatSurface, type ChatSurface } from './chat-surface';
@@ -8,8 +8,9 @@ import { components } from "./mdxComponents";
 import { OfficeLayout } from "./OfficeLayout";
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { OfficeSkeletonLoader } from "../ui/skeleton-office";
-import { MDXEditor } from "@/components/mdx/MDXEditor";
-import TemplateSelector from "@/components/mdx/TemplateSelector";
+import { OfficeEditorPane } from "./OfficeEditorPane";
+import { AppZonePage } from "./app-zone/AppZonePage";
+import { joinHeader, splitHeader } from "@/lib/citadel-apps/md-header";
 import { templateCategoryFor, type MdxTemplate, type TemplateCategory } from "@/lib/mdx-templates";
 import type { NodeEntityType } from "@/lib/entity-type-registry";
 import { saveOfficeContent } from "./save-office-content";
@@ -138,7 +139,9 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
 
   const level: NodeEntityType = entityData?.entity_type ?? 'Workspace';
   const templateCategory: TemplateCategory | null = templateCategoryFor(level, state.treeSchema);
-  const handleTemplateSelect: (template: MdxTemplate) => void = useApplyTemplate(components, setContent, (): void => setIsNewContent(false));
+  // A template replaces the body; a required-apps header on the first line stays (md-header.ts).
+  const keepHeader: (body: string) => void = useCallback((body: string): void => setContent((prev: string) => joinHeader(splitHeader(prev).header, body)), []);
+  const handleTemplateSelect: (template: MdxTemplate) => void = useApplyTemplate(components, keepHeader, (): void => setIsNewContent(false));
 
   // Show skeleton loader during loading state
   // Chat is enabled, disabled, or NOT YET ANSWERED -- see chat-surface.ts.
@@ -160,29 +163,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
 
   // Content view (MDX editor or rendered content)
   const contentView: JSX.Element = isEditing ? (
-    <div className="px-6 lg:px-10 pt-8 pb-4 max-w-4xl">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-semibold text-foreground">Edit Content</h2>
-        <div className="flex gap-2">
-          {templateCategory && (isNewContent || content.trim() === '') && (
-            <TemplateSelector
-              category={templateCategory}
-              level={level}
-              onSelectTemplate={handleTemplateSelect}
-              buttonVariant="outline"
-              buttonSize="sm"
-              buttonText="Use Template"
-            />
-          )}
-        </div>
-      </div>
-      <MDXEditor
-        value={content}
-        onChange={(value) => setContent(value)}
-        height="400px"
-        placeholder="Write your office content here using Markdown or MDX..."
-      />
-    </div>
+    <OfficeEditorPane content={content} setContent={setContent} isNewContent={isNewContent} templateCategory={templateCategory} level={level} onSelectTemplate={handleTemplateSelect} />
   ) : (
     // dark:prose-invert, not prose-invert. The modifier inverts Typography's
     // colours FOR a dark background, so applying it unconditionally made every
@@ -190,6 +171,8 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
     // document showed its body copy and its emoji, and nothing else.
     <div className="px-6 lg:px-10 pt-8 pb-4 prose dark:prose-invert prose-sm md:prose-base lg:prose-lg max-w-4xl">
       <MDXProvider components={components}>
+        {/* App zones on this page; no runtime yet, so they draw placeholders only. */}
+        <AppZonePage nodeId={domainId} runtime={null}>
         {compiledContent ?? (renderError && (
           // Only when there is nothing to show; outside the editor a failed
           // compile clears the render (use-compiled-mdx), so this is reached.
@@ -200,6 +183,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
             onReplace={(template: MdxTemplate): void => { setIsEditing(true); handleTemplateSelect(template); }}
           />
         ))}
+        </AppZonePage>
       </MDXProvider>
     </div>
   );

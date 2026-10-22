@@ -12,52 +12,31 @@ import { useAgentOptionalHere } from '@/lib/onboarding/agent-optional';
 import { debugLog } from '@/lib/debug-config';
 import { recordIssuedClaim, revealClaimCode, forgetIssuedClaim } from '@/lib/onboarding/claim-handoff';
 import { readControlPlaneBase } from '@/lib/onboarding/control-plane-config';
-import {
-  ControlPlaneError,
-  createControlPlane,
-  type ControlPlane,
-  type CreateTenantRequest,
-  type CreateTenantResult,
-} from '@/lib/onboarding/control-plane-client';
+import { ControlPlaneError, createControlPlane, type ControlPlane, type CreateTenantResult } from '@/lib/onboarding/control-plane-client';
 import {
   FORM_STEP_LABELS,
   INITIAL_PLAN,
   clearDraft,
+  couponForPlan,
   formStepNumber,
   loadDraft,
   saveDraft,
   stepFromUrl,
+  type AppliedCoupon,
   type FlowDraft,
   type FlowStep,
 } from '@/lib/onboarding/create-flow';
+import { CouponField } from '@/components/create-workspace/CouponField';
+import { isCouponRefusal, recheckCoupon, type Recheck } from '@/lib/onboarding/coupon-recheck';
+import { requestFor } from '@/lib/onboarding/tenant-request';
 import { deriveSlug, sanitizeSlugInput } from '@/lib/onboarding/slug';
 import { useSlugAvailability, type Availability } from '@/lib/onboarding/slug-availability';
-import { SHOWN_CUSTOMER_TERMS_VERSION } from '@/lib/terms/customer-terms';
-import { clampLinkPacks, clampSeats, clampStorageBlocks, isPaid, type PlanSelection } from '@/lib/onboarding/tiers';
+import type { PlanSelection } from '@/lib/onboarding/tiers';
 
 export interface CreateWorkspaceFlowProps {
   readonly api: ControlPlane;
   /** Leave for Stripe Checkout. The URL has already been checked against CHECKOUT_ORIGIN. */
   readonly redirect: (checkoutUrl: string) => void;
-}
-
-function requestFor(draft: FlowDraft, turnstileToken: string): CreateTenantRequest {
-  const base: CreateTenantRequest = {
-    slug: draft.slug,
-    display_name: draft.displayName.trim(),
-    tier: draft.plan.tier,
-    turnstile_token: turnstileToken,
-    accepted_customer_terms_version: SHOWN_CUSTOMER_TERMS_VERSION,
-    ...(draft.reservationToken ? { reservation_token: draft.reservationToken } : {}),
-  };
-  if (!isPaid(draft.plan.tier)) return base;
-  return {
-    ...base,
-    interval: draft.plan.interval,
-    seats: clampSeats(draft.plan.tier, draft.plan.seats),
-    storage_blocks: clampStorageBlocks(draft.plan.tier, draft.plan.storageBlocks),
-    link_packs: clampLinkPacks(draft.plan.tier, draft.plan.linkPacks),
-  };
 }
 
 /**
@@ -81,6 +60,7 @@ export function CreateWorkspaceFlow({ api, redirect }: CreateWorkspaceFlowProps)
   const [slug, setSlug] = useState<string>(initial.draft?.slug ?? '');
   const [slugEdited, setSlugEdited] = useState<boolean>(initial.draft !== undefined);
   const [plan, setPlan] = useState<PlanSelection>(initial.draft?.plan ?? INITIAL_PLAN);
+  const [coupon, setCoupon] = useState<AppliedCoupon | undefined>(initial.draft?.coupon);
   const availability: Availability = useSlugAvailability(api, flow.step === 'name' ? slug : '');
 
   const toClaim: (workspaceHost: string, claimCode: string | undefined) => void = useCallback((workspaceHost: string, claimCode: string | undefined): void => {
@@ -98,11 +78,12 @@ export function CreateWorkspaceFlow({ api, redirect }: CreateWorkspaceFlowProps)
     setSlug('');
     setSlugEdited(false);
     setPlan(INITIAL_PLAN);
+    setCoupon(undefined);
     setFlow({ step: 'name' });
   };
 
   const submit = async (turnstileToken: string): Promise<string | undefined> => {
-    const draft: FlowDraft = { displayName, slug, plan, reservationToken: initial.draft?.reservationToken };
+    const draft: FlowDraft = { displayName, slug, plan, reservationToken: initial.draft?.reservationToken, coupon };
     try {
       const result: CreateTenantResult = await api.createTenant(requestFor(draft, turnstileToken));
       if (result.kind === 'created') {
@@ -114,6 +95,12 @@ export function CreateWorkspaceFlow({ api, redirect }: CreateWorkspaceFlowProps)
       }
       return undefined;
     } catch (error: unknown) {
+      if (draft.coupon && isCouponRefusal(error)) {
+        setCoupon(undefined);
+        const recheck: Recheck = await recheckCoupon(api, draft.coupon.code, plan);
+        setCoupon(recheck.coupon);
+        return recheck.message;
+      }
       return error instanceof ControlPlaneError ? error.message : 'Something went wrong. Please try again.';
     }
   };
@@ -141,7 +128,11 @@ export function CreateWorkspaceFlow({ api, redirect }: CreateWorkspaceFlowProps)
         return (
           <PlanStep
             plan={plan}
-            onChange={setPlan}
+            onChange={(next: PlanSelection) => {
+              setCoupon((held: AppliedCoupon | undefined) => couponForPlan(held, plan, next));
+              setPlan(next);
+            }}
+            coupon={<CouponField port={api} plan={plan} applied={coupon} onApplied={setCoupon} />}
             onBack={() => setFlow({ step: 'name' })}
             onContinue={() => setFlow({ step: 'review' })}
           />
@@ -152,6 +143,7 @@ export function CreateWorkspaceFlow({ api, redirect }: CreateWorkspaceFlowProps)
             displayName={displayName.trim()}
             slug={slug}
             plan={plan}
+            coupon={coupon}
             onBack={() => setFlow({ step: 'plan' })}
             onSubmit={submit}
           />

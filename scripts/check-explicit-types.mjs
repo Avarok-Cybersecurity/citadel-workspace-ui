@@ -36,8 +36,8 @@
  * …` states its types in the signature, and demanding a second annotation on
  * the binding is noise.
  *
- * A declaration ending in `as const` is exempt for the same reason, and a
- * stronger one: a const-assertion gives the binding the narrowest type the
+ * A declaration ending in `as const` (or `as const satisfies T`, which only adds a check) is
+ * exempt for the same reason, and a stronger one: a const-assertion gives the binding the narrowest type the
  * value admits. There is no annotation that improves on it — every one is
  * either identical or wider, and writing it out duplicates the literal keys
  * and values, which is the SSOT violation the annotation was meant to prevent.
@@ -117,7 +117,7 @@ function isConstAssertion(lines, line) {
       if ('([{'.includes(character)) depth += 1;
       else if (')]}'.includes(character)) depth -= 1;
     }
-    if (depth <= 0) return /\bas const\s*;?\s*$/.test(lines[i].replace(/\/\/.*$/, '').trim());
+    if (depth <= 0) return /\bas const(?:\s+satisfies\s+.+?)?\s*;?\s*$/.test(lines[i].replace(/\/\/.*$/, '').trim());
   }
   return false;
 }

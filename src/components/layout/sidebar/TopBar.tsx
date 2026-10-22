@@ -21,6 +21,7 @@ import NotificationCenter from "@/components/notification/NotificationCenter";
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { SettingsModal, type SettingsTab } from "@/components/SettingsModal";
 import { takeLinkTarget } from "@/lib/onboarding/link-target";
+import { openAppsModal } from "@/lib/citadel-apps/apps-modal-store";
 import { getUserInitials } from "@/lib/workspace-metadata-service";
 import { LeaderIndicator } from "@/components/ui/leader-indicator";
 import { isDiagnosticsUiEnabled } from "@/lib/debug-config";
@@ -173,6 +174,13 @@ export const TopBar = ({ currentWorkspace }: TopBarProps): JSX.Element => {
               data-testid="account-menu-settings"
             >
               Settings
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="text-foreground cursor-pointer focus:bg-primary-accent/15 focus:text-foreground"
+              onClick={() => openAppsModal({ kind: 'browse' })}
+              data-testid="account-menu-apps"
+            >
+              Apps
             </DropdownMenuItem>
             {canInstall && (
               <DropdownMenuItem

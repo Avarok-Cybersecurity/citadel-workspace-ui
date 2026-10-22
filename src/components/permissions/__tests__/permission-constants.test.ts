@@ -31,6 +31,13 @@ describe('permission-constants', () => {
       expect(PERMISSION_CATEGORIES['User Management'].map((p) => p.id)).toContain(Permission.ManageRoles);
     });
 
+    it('puts every app permission, and only those, under Apps', () => {
+      const apps: Permission[] = PERMISSION_CATEGORIES['Apps'].map((p) => p.id);
+      const appVariants: Permission[] = Object.values(Permission).filter((p) => p.startsWith('App'));
+      expect(appVariants).toHaveLength(18);
+      expect([...apps].sort()).toEqual([...appVariants].sort());
+    });
+
     it('keeps no role table beside the categories', () => {
       expect(Object.keys(constants).sort()).toEqual(['PERMISSION_CATEGORIES']);
     });

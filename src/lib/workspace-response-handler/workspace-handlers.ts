@@ -48,6 +48,16 @@ export function handleWorkspaceVariants(
   // Tree node variants (delegated)
   if (handleNodeVariants(response, connectionInfo)) return true;
 
+  // Citadel Apps, read by key: the kernel's `WorkspaceProtocolResponse::Apps` arrives with its apps
+  // handler, before the generated type names it. apps-operations.ts waits on the raw event for its
+  // own answer and reads it strictly (citadel-apps/wire/apps-answer.ts); `workspace:apps` carries
+  // the answer, unread, for whatever follows installs as they change.
+  if ('Apps' in response) {
+    eventEmitter.emit('workspace:apps', { answer: (response as { Apps: unknown }).Apps });
+    eventEmitter.emit('workspace:raw-response', response);
+    return true;
+  }
+
   return false;
 }
 
