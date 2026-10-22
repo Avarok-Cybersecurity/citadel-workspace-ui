@@ -66,7 +66,9 @@ export async function chatDocumentSays(page: Page, text: string, timeoutMs: numb
   try {
     await expect.poll(async (): Promise<string> => downloadedText(page), { timeout: timeoutMs }).toContain(text);
     return true;
-  } catch {
+  } catch (error: unknown) {
+    // The reason is the report's: a copy that never said it, or a read that could not be made.
+    console.log(`  no read of the document showed "${text}": ${error instanceof Error ? error.message.split('\n')[0] : String(error)}`);
     return false;
   }
 }

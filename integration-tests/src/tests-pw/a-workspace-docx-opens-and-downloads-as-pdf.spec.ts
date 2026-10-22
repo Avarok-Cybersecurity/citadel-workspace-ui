@@ -65,8 +65,10 @@ test.describe.serial('A workspace .docx in Citadel Docs', () => {
   test('uploaded to Server Storage, it is offered to Citadel Docs', async () => {
     await openFileManagerAt(page, 'section=files');
     await expect(fmItem(page, 'Sent Files')).toBeVisible({ timeout: 30_000 });
-    // Armed before the click, or the chooser event races it.
+    // Armed before the click, or the chooser event races it. Marked handled: when the menu throws
+    // or offers no upload the chooser never comes, and its timeout is not the error to report.
     const chooser = page.waitForEvent('filechooser', { timeout: 15_000 });
+    chooser.catch(() => undefined);
     // Offered only once the server has said it stores files; when it is not, the menu says why.
     if (!(await chooseFromNewMenu(page, 'upload'))) {
       const why: Locator = page.getByTestId('vfs-upload-unavailable');
@@ -100,11 +102,10 @@ test.describe.serial('A workspace .docx in Citadel Docs', () => {
     const trigger: Locator = page.getByTestId('docs-download-as');
     await expect(trigger).toHaveAccessibleName('Download as…', { timeout: 15_000 });
     await trigger.click();
-    const downloaded: Promise<Download> = page.waitForEvent('download', { timeout: 120_000 });
     const pdf: Locator = page.getByTestId('docs-download-as-pdf');
     await expect(pdf).toHaveText('PDF (.pdf)');
-    await pdf.click();
-    const download: Download = await downloaded;
+    // Awaited together with the click that starts it, so a failed click is the error raised.
+    const [download]: [Download, void] = await Promise.all([page.waitForEvent('download', { timeout: 120_000 }), pdf.click()]);
     expect(download.suggestedFilename()).toBe(name.replace(/\.docx$/, '.pdf'));
     const path: string | null = await download.path();
     expect(path, 'the download should finish').not.toBeNull();
