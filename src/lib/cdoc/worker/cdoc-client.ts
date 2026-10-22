@@ -7,8 +7,10 @@ import type { CdocKind, CdocResults, RequestOf } from './protocol';
 
 export interface CdocClient {
   request<K extends CdocKind>(body: RequestOf<K>): Promise<CdocResults[K]>;
-  /** Ends the worker; every pending request rejects. */
+  /** Ends the worker; every pending request rejects, and so does every later one. */
   dispose(): void;
+  /** Whether dispose has run: the worker, and every canvas it held, is gone. */
+  readonly disposed: boolean;
 }
 
 export class CdocRequestError extends Error {

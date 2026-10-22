@@ -1,7 +1,8 @@
 /**
  * The two CdocClients. WorkerCdocClient posts each request with its buffers in the transfer
  * list and matches replies by id. InProcessCdocClient calls a CdocHost directly: it is the test
- * double that still runs the production host, engine and wasm, minus only the thread hop.
+ * double that still runs the production host, engine and wasm, minus only the thread hop, and
+ * that refuses every request once disposed exactly as the worker client does.
  */
 import { CdocRequestError, type CdocClient } from './cdoc-client';
 import type { CdocHost, HostReply } from './cdoc-host';
@@ -14,6 +15,8 @@ export interface WorkerLike {
   removeEventListener(type: 'message', listener: (event: MessageEvent<unknown>) => void): void;
 }
 
+const DISPOSED: string = 'the client was disposed';
+
 interface Pending {
   readonly kind: string;
   readonly resolve: (result: CdocResults[CdocKind]) => void;
@@ -23,7 +26,7 @@ interface Pending {
 export class WorkerCdocClient implements CdocClient {
   private next: number = 0;
   private readonly pending: Map<number, Pending> = new Map<number, Pending>();
-  private disposed: boolean = false;
+  private ended: boolean = false;
   private readonly onMessage = (event: MessageEvent<unknown>): void => {
     const response: unknown = event.data;
     if (!isCdocResponse(response)) return;
@@ -39,7 +42,7 @@ export class WorkerCdocClient implements CdocClient {
   }
 
   request<K extends CdocKind>(body: RequestOf<K>): Promise<CdocResults[K]> {
-    if (this.disposed) return Promise.reject(new CdocRequestError(body.kind, 'the client was disposed'));
+    if (this.ended) return Promise.reject(new CdocRequestError(body.kind, DISPOSED));
     const id: number = ++this.next;
     return new Promise<CdocResults[K]>((resolve: (r: CdocResults[K]) => void, reject: (e: Error) => void): void => {
       this.pending.set(id, { kind: body.kind, resolve: resolve as (r: CdocResults[CdocKind]) => void, reject });
@@ -47,26 +50,38 @@ export class WorkerCdocClient implements CdocClient {
     });
   }
 
+  get disposed(): boolean {
+    return this.ended;
+  }
+
   dispose(): void {
-    this.disposed = true;
+    this.ended = true;
     this.worker.removeEventListener('message', this.onMessage);
     this.terminate();
-    for (const [, waiting] of this.pending) waiting.reject(new CdocRequestError(waiting.kind, 'the client was disposed'));
+    for (const [, waiting] of this.pending) waiting.reject(new CdocRequestError(waiting.kind, DISPOSED));
     this.pending.clear();
   }
 }
 
 export class InProcessCdocClient implements CdocClient {
   private next: number = 0;
+  private ended: boolean = false;
 
   constructor(private readonly host: CdocHost) {}
 
+  get disposed(): boolean {
+    return this.ended;
+  }
+
   async request<K extends CdocKind>(body: RequestOf<K>): Promise<CdocResults[K]> {
+    if (this.ended) throw new CdocRequestError(body.kind, DISPOSED);
     const reply: HostReply = await this.host.handle({ ...body, id: ++this.next });
     const response: CdocResponse = reply.response;
     if (!response.ok) throw new CdocRequestError(body.kind, response.error);
     return response.result as CdocResults[K];
   }
 
-  dispose(): void {}
+  dispose(): void {
+    this.ended = true;
+  }
 }
