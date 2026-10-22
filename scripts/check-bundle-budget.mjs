@@ -273,6 +273,12 @@ const DEFERRED_MODULES = [
   'src/components/create-workspace/CouponField.tsx',
   'src/lib/onboarding/coupon-quote.ts',
   'src/lib/onboarding/coupon-recheck.ts',
+  // The chat-document migration: the walker, the runner and the engine's importer load by dynamic
+  // import after sign-in (hooks/use-live-doc-migration-sweep.ts), never on the landing page.
+  'src/lib/live-doc-migration/boot.ts',
+  'src/lib/live-doc-migration/runner.ts',
+  'src/lib/live-doc-migration/yjs-walker.ts',
+  'src/lib/live-doc-migration/cdoc-mapper.ts',
 ];
 
 /**
