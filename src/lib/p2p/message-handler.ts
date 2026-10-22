@@ -33,6 +33,7 @@ import { FileTransferMessageHandler } from './file-transfer-message-handler';
 export type { MessageHandlerConfig } from './message-handler-types';
 import { fnv1a64 } from './message-fingerprint';
 import type { CallSignalPayload } from '@/types/call-signals';
+import { CDOC_CHAT_COMMAND_EVENT, isCdocChatSyncPayload, type CdocChatCommandEvent } from '@/types/cdoc-chat-sync';
 
 export class MessageHandler {
   private readonly config: MessageHandlerConfig;
@@ -139,14 +140,7 @@ export class MessageHandler {
         debugLog('MessageHandler', 'P2P message received:', contentBytes.length, 'bytes fp=' + fnv1a64(contentBytes));
       }
 
-      // `p2p:raw-message` used to be emitted here and re-broadcast to every
-      // other tab. Nothing has listened to it for some time: useP2PTabs and
-      // the Yjs provider both say in their own comments that they moved off
-      // it. So every inbound P2P message was structured-cloned and posted on
-      // the BroadcastChannel, then deserialised by each follower tab and
-      // emitted to nobody. Yjs live-document sync rides the same
-      // notification, so with two remote editors and three tabs open that was
-      // several clones a second, for ever, for no effect.
+      // `p2p:raw-message` was emitted and re-broadcast to every tab here; nothing listened, so it is gone.
 
       // The notification's `cid` names the session it is addressed to, and this
       // tab is very often not that session: the leader holds the WebSocket even
@@ -250,6 +244,12 @@ export class MessageHandler {
         } else {
           debugLog('P2PMessageHandler', 'handleP2PCommand: CallSignal payload failed type check', command.payload);
         }
+        break;
+
+      case P2PCommandType.CdocChatSync:
+        // Emitted, never handled here: the chat document's keeper (lib/cdoc/chat) is lazy, and this module never reaches cdoc.
+        if (isCdocChatSyncPayload(command.payload)) eventEmitter.emit<CdocChatCommandEvent>(CDOC_CHAT_COMMAND_EVENT, { peerCid, recipientCid, payload: command.payload });
+        else debugLog('P2PMessageHandler', 'handleP2PCommand: CdocChatSync payload failed type check');
         break;
 
       default:
