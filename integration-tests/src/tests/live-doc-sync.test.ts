@@ -11,6 +11,7 @@
  * What a document says is read as the person reads it, from its plain-text download.
  */
 import type { Page } from 'playwright';
+import { expect, type Locator } from '@playwright/test';
 import {
   createSeparateBrowsers,
   createAccount,
@@ -50,9 +51,18 @@ function step(title: string): void {
   console.log(`\n${'─'.repeat(50)}\n${title}\n${'─'.repeat(50)}`);
 }
 
-/** The invitation's bubble (not the document's tab, which carries the same title). */
-async function invitationShown(page: Page): Promise<boolean> {
-  return (await page.getByRole('button', { name: new RegExp(`${DOC_TITLE}.*Live Document`) }).count()) > 0;
+/**
+ * The invitation's bubble (not the document's tab, which carries the same title). The bubble lives
+ * in the Messages tab, which is not on screen while the document's tab is, so it is looked for
+ * there and the document's tab is returned to.
+ */
+async function invitationShown(page: Page, docId: string): Promise<boolean> {
+  await page.getByTestId('chat-tab-messages').click();
+  const bubble: Locator = page.getByRole('button', { name: new RegExp(`${DOC_TITLE}.*Live Document`) });
+  // `isVisible({ timeout })` never waits; the expect does.
+  const shown: boolean = await expect(bubble.first()).toBeVisible({ timeout: SYNC_MS }).then((): boolean => true, (): boolean => false);
+  await page.getByTestId(`chat-tab-${docId}`).click();
+  return shown;
 }
 
 async function runTest(): Promise<boolean> {
@@ -84,7 +94,7 @@ async function runTest(): Promise<boolean> {
     await openConversation(page1, USER1, USER2);
     const docId: string = await createChatDocument(page1, USER1, DOC_TITLE);
     results.canvasOpened = true;
-    results.invitationShown = await invitationShown(page1);
+    results.invitationShown = await invitationShown(page1, docId);
 
     step('STEP 3: User 1 types; User 2 opens the invitation and sees it');
     // Unique per run, so text left from an earlier run cannot pass the check.
@@ -110,6 +120,7 @@ async function runTest(): Promise<boolean> {
     await takeScreenshot(page1, 'FINAL_user1');
     await takeScreenshot(page2, 'FINAL_user2');
 
+    console.log(`  Results: ${JSON.stringify(results)}`);
     const testPassed: boolean = results.canvasOpened && results.invitationShown && results.peerOpenedTheSameDocument
       && results.user1ToUser2Sync && results.user2ToUser1Sync;
     console.log(`\nTEST ${testPassed ? 'PASSED' : 'FAILED'}`);
