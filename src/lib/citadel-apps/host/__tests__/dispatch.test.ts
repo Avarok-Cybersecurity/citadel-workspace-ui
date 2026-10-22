@@ -3,7 +3,11 @@
  * control: the same call passing once the guard's condition is not met.
  */
 import { describe, expect, it } from 'vitest';
-import { decodeCbor, encodeCbor } from '../cbor';
+import type { Caller } from '../../sdk/generated/Caller';
+import type { DrawCommand } from '../../sdk/generated/DrawCommand';
+import type { HostFetch } from '../../sdk/generated/HostFetch';
+import type { IhttpFrame } from '../../sdk/generated/IhttpFrame';
+import { decodeCbor, encodeCbor, type Decoded } from '../cbor';
 import type { Capability } from '../capabilities';
 import { Dispatcher, type DispatchOutcome } from '../dispatch';
 import { IhttpRouter } from '../ihttp-router';
@@ -18,7 +22,7 @@ interface Rig {
   readonly clock: ManualClock;
 }
 
-const PAGE = 'https://work.avarok.net/workspace';
+const PAGE: string = 'https://work.avarok.net/workspace';
 
 function rig(granted: readonly Capability[], ports: (rec: Recorder) => HostPorts, policy: Partial<HostPolicy> = {}): Rig {
   const rec: Recorder = { calls: [] };
@@ -35,14 +39,14 @@ const req = (value: unknown): Uint8Array => encodeCbor(value);
 
 export async function answer(outcome: DispatchOutcome): Promise<unknown> {
   const bytes: Uint8Array = 'now' in outcome ? outcome.now : await outcome.later;
-  const decoded = decodeCbor(bytes);
+  const decoded: Decoded = decodeCbor(bytes);
   if (!decoded.ok) throw new Error('reply is not CBOR');
   return decoded.value;
 }
 
 const all = (rec: Recorder): HostPorts => ({ nodes: fakeNodes(rec), storage: fakeStorage(rec), ui: fakeUi(rec), log: fakeLog(rec), hostNet: fakeHostNet(rec) });
 const log = (message: string): Uint8Array => req({ level: 'info', message });
-const fetchReq = { request: { method: 'GET', url: 'https://api.acme.com/', headers: [], body: new Uint8Array() } };
+const fetchReq: HostFetch = { request: { method: 'GET', url: 'https://api.acme.com/', headers: [], body: new Uint8Array() } };
 
 describe('capabilities', () => {
   it('an op whose capability is not granted is ungranted, inside an open group (control: the granted op)', async () => {
@@ -54,14 +58,14 @@ describe('capabilities', () => {
   });
 
   it('storage is gated per backend, KV_BACKEND_CAPABILITY, node backend included', async () => {
-    const node = req({ backend: { node: { node_id: 'n1' } }, key: 'k' });
-    const user = rig(['storage.user'], all);
+    const node: Uint8Array = req({ backend: { node: { node_id: 'n1' } }, key: 'k' });
+    const user: Rig = rig(['storage.user'], all);
     expect(await answer(user.d.call('storage', 1, req({ backend: 'scope', key: 'k' })))).toEqual({ refused: 'ungranted' });
     expect(await answer(user.d.call('storage', 1, node))).toEqual({ refused: 'ungranted' });
     expect(await answer(user.d.call('storage', 1, req({ key: 'k' })))).toEqual({ refused: { policy: 'bad_arguments' } });
     expect(await answer(user.d.call('storage', 1, req({ backend: 'node', key: 'k' })))).toEqual({ refused: { policy: 'bad_arguments' } });
     expect(await answer(user.d.call('storage', 1, req({ backend: 'user', key: 'k' })))).toEqual({ ok: { value: null } });
-    const byNode = rig(['storage.node'], all);
+    const byNode: Rig = rig(['storage.node'], all);
     expect(await answer(byNode.d.call('storage', 1, node))).toEqual({ ok: { value: null } });
     expect(await answer(byNode.d.call('storage', 1, req({ backend: 'user', key: 'k' })))).toEqual({ refused: 'ungranted' });
     expect([user.rec.calls.length, byNode.rec.calls.length]).toEqual([1, 1]);
@@ -126,7 +130,7 @@ describe('size caps and malformed requests', () => {
     const drawn: unknown[] = [];
     const canvas: HostPorts = { canvas: { CanvasMeasure: () => ({ ok: { width: 1, height: 1, dpr: 1 } }), MeasureText: () => ({ ok: { width: 0 } }), CanvasDraw: (a) => { drawn.push(a); return { ok: null }; } } };
     const { d } = rig([], () => canvas);
-    const clear = { clear: { color: 0 } };
+    const clear: DrawCommand = { clear: { color: 0 } };
     for (const bad of [{ fill_rect: { x: 1, y: 2, w: 3, color: 0 } }, { fill_rect: { x: 1, y: 2, w: 3, h: 4, color: 'red; background: url(x)' } }, { draw_image: { url: 'https://evil.example/x.png' } }, 'clear']) {
       expect(await answer(d.call('canvas', 2, req({ commands: [clear, bad] })))).toEqual({ refused: { policy: 'bad_arguments' } });
     }
@@ -137,7 +141,7 @@ describe('size caps and malformed requests', () => {
 
 describe('ports that misbehave never reach the guest as exceptions', () => {
   const ui = (toast: () => unknown): HostPorts => ({ ui: { ...fakeUi({ calls: [] }), ShowToast: toast as () => PortReply<null> } });
-  const toast = req({ text: 'hi' });
+  const toast: Uint8Array = req({ text: 'hi' });
 
   it('a port that throws, rejects or answers garbage is refused', async () => {
     expect(await answer(rig([], () => ui(() => { throw new Error('boom'); })).d.call('ui', 4, toast))).toEqual({ refused: { unavailable: 'port_failed' } });
@@ -164,7 +168,7 @@ describe('ports that misbehave never reach the guest as exceptions', () => {
 describe('navigate: internal links only', () => {
   it('opens a same-origin link as a router path and refuses everything else', async () => {
     const opened: string[] = [];
-    const nav = (): HostPorts => ({ navigate: { currentUrl: () => PAGE, open: (to: string) => { opened.push(to); return { ok: null }; } } });
+    const nav = (): HostPorts => ({ navigate: { currentUrl: () => PAGE, open: (to: string): PortAnswer<null> => { opened.push(to); return { ok: null }; } } });
     const { d } = rig([], nav);
     expect(await answer(d.call('navigate', 1, req({ href: '/workspace?nodeId=7' })))).toEqual({ ok: null });
     expect(await answer(d.call('navigate', 1, req({ href: 'https://work.avarok.net/workspace?nodeId=8' })))).toEqual({ ok: null });
@@ -176,20 +180,20 @@ describe('navigate: internal links only', () => {
 });
 
 describe('ihttp gate', () => {
-  const peer = { username: 'bob', cid: 5n, app_id: 'com.acme.app', install_id: 'i', via: 'p2p' };
+  const peer: Caller = { username: 'bob', cid: 5n, app_id: 'com.acme.app', install_id: 'i', via: 'p2p' };
 
   it('serve refuses a malformed route table; respond and consumed refuse a stream nobody opened', async () => {
     const { d } = rig(['ihttp.serve'], (rec) => ({ ihttp: fakeIhttp(rec) }));
     expect(await answer(d.call('ihttp', 1, req({ routes: [{ method: 'GET', path: 'nope' }] })))).toEqual({ refused: { policy: 'bad_routes' } });
     expect(await answer(d.call('ihttp', 1, req({ routes: [{ method: 'GET', path: '/cards/:id' }] })))).toEqual({ ok: null });
-    const frame = { v: 1, stream: 1n, kind: { ResponseHead: { status: 200, headers: [], body_len: null } } };
+    const frame: IhttpFrame = { v: 1, stream: 1n, kind: { ResponseHead: { status: 200, headers: [], body_len: null } } };
     expect(await answer(d.call('ihttp', 2, req({ peer, frame })))).toEqual({ refused: { policy: 'unknown_stream' } });
     expect(await answer(d.call('ihttp', 4, req({ peer, stream: 1n })))).toEqual({ refused: { policy: 'unknown_stream' } });
     expect(await answer(d.call('ihttp', 3, req({ to: { user: { app_id: 'com.acme.app', username: 'bob' } }, frame })))).toEqual({ refused: 'ungranted' });
   });
 
   it('IhttpConsumed is admitted by either ihttp capability and by nothing else', async () => {
-    const consumed = req({ peer, stream: 1n });
+    const consumed: Uint8Array = req({ peer, stream: 1n });
     for (const cap of ['ihttp.serve', 'ihttp.call'] as const) {
       expect(await answer(rig([cap], (rec) => ({ ihttp: fakeIhttp(rec) })).d.call('ihttp', 4, consumed))).toEqual({ refused: { policy: 'unknown_stream' } });
     }

@@ -81,7 +81,7 @@ describe('memory', () => {
   });
 
   it('each instance gets fresh zeroed memory (control: the same instance reads back what it wrote)', async () => {
-    const MARK = 40_000;
+    const MARK: number = 40_000;
     // init: status = mem[MARK]; mem[MARK] = 0x55; return status. event: init's status again, via a second init-like read.
     const init: number[] = [...op.i32(MARK), 0x28, 0x02, 0x00, ...op.i32(MARK), ...op.i32(0x55), ...op.store];
     const first: AppInstance = running((await launch(appModule({ init }))).launch);
@@ -97,8 +97,8 @@ describe('memory', () => {
   });
 });
 
-const KV_AT = 1024;
-const TOAST_AT = 2048;
+const KV_AT: number = 1024;
+const TOAST_AT: number = 2048;
 const kvGet: Uint8Array = encodeCbor({ backend: 'user', key: 'k' });
 const toast: Uint8Array = encodeCbor({ text: 'got it' });
 

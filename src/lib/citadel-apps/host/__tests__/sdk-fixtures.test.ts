@@ -13,10 +13,10 @@ import type { AppEvent } from '../../sdk/generated/AppEvent';
 import { FIXTURES } from '../../sdk/__tests__/sdk-paths';
 import type { Capability } from '../capabilities';
 import { inspectArtifact, type LoadVerdict } from '../inspect';
-import { launchAppInstance, type AppInstance, type InstanceState } from '../instance';
+import { launchAppInstance, type AppInstance, type InstanceState, type Launch } from '../instance';
 import { InstanceSlots } from '../instance-slots';
 import { instanceMemoryFor, STANDARD_HOST_POLICY, validateHostPolicy, type HostPolicy } from '../limits';
-import type { HostPorts } from '../ports';
+import type { HostPorts, PortAnswer } from '../ports';
 import { fixtureContext } from './app-fixtures';
 import { ihttpRemote, type IhttpRemoteConfig } from './ihttp-remote';
 import { realClock, until } from './in-process';
@@ -43,11 +43,11 @@ interface Fixture {
 }
 
 /** The Rust inspector test's ceiling (harness/tests/inspect.rs CEILING_PAGES). */
-const INSPECT_CEILING_PAGES = 4096;
+const INSPECT_CEILING_PAGES: number = 4096;
 /** The reference run's request/reply cap unless the run states one (harness/tests/run.rs). */
-const DEFAULT_IO_BYTES = 1 << 20;
+const DEFAULT_IO_BYTES: number = 1 << 20;
 /** Long enough for any well-behaved call on a loaded machine; the slow-frame fixture never returns. */
-const BUDGET_MS = 1500;
+const BUDGET_MS: number = 1500;
 
 const manifest: { fixtures: Record<string, Fixture> } | null = FIXTURES.present
   ? JSON.parse(readFileSync(join(FIXTURES.path, 'fixtures.json'), 'utf8')) as { fixtures: Record<string, Fixture> }
@@ -86,7 +86,7 @@ interface Live {
 function referencePorts(log: string[], maxReplyBytes: number, remote: IhttpRemoteConfig | undefined): HostPorts {
   return {
     ...(remote === undefined ? {} : { ihttp: ihttpRemote(remote) }),
-    log: { LogWrite: ({ message }) => { log.push(message); return { ok: null }; } },
+    log: { LogWrite: ({ message }): PortAnswer<null> => { log.push(message); return { ok: null }; } },
     events: { Subscribe: () => ({ ok: null }), RequestFrames: () => ({ ok: null }) },
     navigate: { currentUrl: () => 'https://work.avarok.net/workspace', open: () => ({ ok: null }) },
     files: {
@@ -107,7 +107,7 @@ async function start(name: string, f: Fixture, run: Run): Promise<Live> {
   if (!v.ok) throw new Error(`${name}: refused ${v.reasons.join(', ')}`);
   const log: string[] = [];
   const bundled: BundledEntry = entry as BundledEntry;
-  const launched = launchAppInstance({
+  const launched: Launch = launchAppInstance({
     appId: 'net.avarok.fixture', module: v.module, granted: caps(run.granted), context: fixtureContext(run.granted),
     pageUrl: 'https://work.avarok.net/workspace', memory: instanceMemoryFor(v.memory, run.host.max_memory_pages, policy), policy,
     ports: referencePorts(log, maxReplyBytes, run.host.ihttp_remote), clock: realClock, slots: new InstanceSlots(1), spawn: () => threadChannel(bundled),

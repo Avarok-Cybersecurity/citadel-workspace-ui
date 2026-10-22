@@ -61,7 +61,7 @@ export const HOST_CEILINGS = {
   maxLiveInstancesPerPage: 8,
 } as const;
 
-const ENVELOPE_BYTES = 64 * 1024;
+const ENVELOPE_BYTES: number = 64 * 1024;
 
 export const STANDARD_IHTTP_LIMITS: IhttpLimits = {
   maxPathBytes: 2 * 1024,

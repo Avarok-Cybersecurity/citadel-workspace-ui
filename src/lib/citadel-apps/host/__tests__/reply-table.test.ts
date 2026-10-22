@@ -8,7 +8,7 @@ import { ABI_ERROR } from '../abi';
 import { ReplyTable } from '../reply-table';
 import { ManualClock } from './fakes';
 
-const TTL = 2000;
+const TTL: number = 2000;
 
 describe('ReplyTable', () => {
   it('releases a ready reply nobody read once its TTL passes (control: just before, it is live)', () => {

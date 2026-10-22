@@ -21,7 +21,7 @@ beforeAll(async () => {
 }, 60_000);
 afterAll(() => entry.dispose());
 
-const BUDGET_MS = 300;
+const BUDGET_MS: number = 300;
 const policy: HostPolicy = validateHostPolicy({ ...STANDARD_HOST_POLICY, computeBudgetMs: BUDGET_MS });
 
 async function start(bytes: Uint8Array): Promise<{ instance: AppInstance; channel: ThreadChannel }> {
@@ -43,7 +43,7 @@ async function start(bytes: Uint8Array): Promise<{ instance: AppInstance; channe
 describe('the scrub, in a real worker thread', () => {
   it('fetch and every other probed name is gone after the entry ran (and fetch was there before)', async () => {
     const { instance, channel } = await start(appModule());
-    const probe = await channel.probe;
+    const probe: Awaited<ThreadChannel['probe']> = await channel.probe;
     expect(probe.before.fetch).toBe('function');
     expect(probe.before.BroadcastChannel).toBe('function');
     for (const name of PROBED) expect([name, probe.after[name]]).toEqual([name, 'undefined']);

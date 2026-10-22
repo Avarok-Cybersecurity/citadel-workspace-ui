@@ -25,7 +25,7 @@ export type LoadVerdict =
   }
   | { readonly ok: false; readonly reasons: readonly string[] };
 
-const I32 = 0x7f;
+const I32: number = 0x7f;
 const sig = (params: number, results: number): FuncSig => ({ params: Array<number>(params).fill(I32), results: Array<number>(results).fill(I32) });
 const GROUP_SIG: FuncSig = sig(3, 1);
 const REPLY_LEN_SIG: FuncSig = sig(1, 1);

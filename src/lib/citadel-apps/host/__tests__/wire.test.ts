@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { encodeAppContext, encodeAppEvent } from '../app-event';
-import { decodeCbor, encodeCbor, f32 } from '../cbor';
+import { decodeCbor, encodeCbor, f32, type Decoded } from '../cbor';
 import { parseArgs } from '../op-args';
 import { fixtureContext } from './app-fixtures';
 
@@ -14,13 +14,13 @@ const text = (s: string): number[] => [0x60 + s.length, ...new TextEncoder().enc
 /** {path: "a", bytes: <value>} with `value` already encoded. */
 const filesWrite = (value: readonly number[]): Uint8Array => Uint8Array.from([0xa2, ...text('path'), ...text('a'), ...text('bytes'), ...value]);
 const writeArgs = (value: readonly number[]): unknown => {
-  const d = decodeCbor(filesWrite(value));
+  const d: Decoded = decodeCbor(filesWrite(value));
   return d.ok ? parseArgs('FilesWrite', d.value) : 'undecodable';
 };
 
 describe('byte strings, in every form the Rust side accepts', () => {
   it('a byte string, a tag-64 typed array and an integer array all decode to the same bytes', () => {
-    const want = { path: 'a', bytes: Uint8Array.of(1, 2) };
+    const want: { readonly path: string; readonly bytes: Uint8Array } = { path: 'a', bytes: Uint8Array.of(1, 2) };
     expect(writeArgs([0x42, 1, 2])).toEqual(want);
     expect(writeArgs([0xd8, 0x40, 0x42, 1, 2])).toEqual(want);
     expect(writeArgs([0x82, 1, 2])).toEqual(want);
@@ -47,7 +47,7 @@ describe('floats and integers', () => {
   });
 
   it('u64 fields are bigint after decoding, however small', () => {
-    const d = decodeCbor(encodeCbor({ peer: { username: 'b', cid: 5n, app_id: 'a', install_id: 'i', via: 'p2p' }, stream: 1n }));
+    const d: Decoded = decodeCbor(encodeCbor({ peer: { username: 'b', cid: 5n, app_id: 'a', install_id: 'i', via: 'p2p' }, stream: 1n }));
     expect(d.ok && parseArgs('IhttpConsumed', d.value)).toEqual({ peer: { username: 'b', cid: 5n, app_id: 'a', install_id: 'i', via: 'p2p' }, stream: 1n });
   });
 });

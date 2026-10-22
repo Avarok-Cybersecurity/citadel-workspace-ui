@@ -23,12 +23,12 @@ export interface AppModuleOptions {
 }
 
 /** Where app_alloc hands out memory in these fixtures: one fixed region per call is enough. */
-export const FIXTURE_ALLOC_PTR = 8192;
+export const FIXTURE_ALLOC_PTR: number = 8192;
 
 const fn3 = (n: string): ImportSpec => ({ module: ABI_NAMESPACE, name: n, kind: 'func', params: [I32, I32, I32], results: [I32] });
 
 export function appImports(options: AppModuleOptions): ImportSpec[] {
-  const memory = options.memory ?? { min: 1, max: 16 };
+  const memory: NonNullable<AppModuleOptions['memory']> = options.memory ?? { min: 1, max: 16 };
   const imports: ImportSpec[] = [];
   if (memory !== 'none') imports.push({ module: ABI_NAMESPACE, name: 'memory', kind: 'memory', ...memory });
   imports.push(fn3('reply_read'));

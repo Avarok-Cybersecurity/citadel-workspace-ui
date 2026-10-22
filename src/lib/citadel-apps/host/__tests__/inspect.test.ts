@@ -9,10 +9,10 @@ import { ABI_NAMESPACE } from '../abi';
 import type { Capability } from '../capabilities';
 import { inspectArtifact, type LoadVerdict } from '../inspect';
 import { appModule, appModuleSpec, type AppModuleOptions } from './app-fixtures';
-import { I32, buildModule, type ImportSpec } from './wasm-builder';
+import { I32, buildModule, type FuncSpec, type ImportSpec, type ModuleSpec } from './wasm-builder';
 
 const NONE: ReadonlySet<Capability> = new Set<Capability>();
-const MAX_PAGES = 64;
+const MAX_PAGES: number = 64;
 
 const verdict = (options: AppModuleOptions, declared: ReadonlySet<Capability> = NONE): Promise<LoadVerdict> =>
   inspectArtifact(appModule(options), declared, MAX_PAGES);
@@ -97,8 +97,8 @@ describe('hostile modules are refused with the Rust codes', () => {
   }
 
   it('a required export with the wrong signature', async () => {
-    const spec = appModuleSpec({});
-    const funcs = spec.funcs.map((f) => (f.export === 'app_init' ? { ...f, params: [I32] as const, body: [0x41, 0x00] } : f));
+    const spec: ModuleSpec = appModuleSpec({});
+    const funcs: FuncSpec[] = spec.funcs.map((f) => (f.export === 'app_init' ? { ...f, params: [I32] as const, body: [0x41, 0x00] } : f));
     expect(await reasons(buildModule({ ...spec, funcs }))).toEqual(['wrong_export_signature:app_init']);
   });
 

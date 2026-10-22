@@ -28,7 +28,7 @@ export const IHTTP_METHODS: ReadonlySet<string> = new Set<string>(['GET', 'HEAD'
 export const peerKey = (peer: Caller): string => `${peer.cid.toString()}/${peer.install_id}`;
 
 /** Credit a peer may accumulate; more is clamped, so a counter cannot be inflated without bound. */
-export const MAX_CREDIT = 1024;
+export const MAX_CREDIT: number = 1024;
 
 export function frame(stream: bigint, kind: IhttpFrame['kind']): IhttpFrame {
   return { v: 1, stream, kind };

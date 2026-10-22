@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import type { DrawCommand } from '../../sdk/generated/DrawCommand';
 import { canvasPort, MAX_DRAW_COMMANDS, rgba, type CanvasSurface } from '../canvas-port';
+import type { CanvasPort } from '../ports';
 
 function surface(): CanvasSurface & { readonly calls: string[] } {
   const calls: string[] = [];
@@ -22,12 +23,12 @@ function surface(): CanvasSurface & { readonly calls: string[] } {
   };
 }
 
-const RED = 0xff0000ff;
+const RED: number = 0xff0000ff;
 
 describe('canvasPort', () => {
   it('draws every command, as text where it is text, and reports its size', () => {
-    const s = surface();
-    const port = canvasPort(() => s);
+    const s: CanvasSurface & { readonly calls: string[] } = surface();
+    const port: CanvasPort = canvasPort(() => s);
     const commands: DrawCommand[] = [
       { clear: { color: 0 } },
       { fill_rect: { x: 1, y: 2, w: 3, h: 4, color: RED } },
@@ -46,7 +47,7 @@ describe('canvasPort', () => {
   });
 
   it('refuses a batch over the command cap and draws none of it (control: at the cap draws)', () => {
-    const s = surface();
+    const s: CanvasSurface & { readonly calls: string[] } = surface();
     const one: DrawCommand = { clear: { color: 0 } };
     expect(canvasPort(() => s).CanvasDraw({ commands: Array.from({ length: MAX_DRAW_COMMANDS + 1 }, () => one) })).toEqual({ refused: { limit: 'draw_commands' } });
     expect(s.calls).toEqual([]);

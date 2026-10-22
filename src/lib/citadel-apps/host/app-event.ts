@@ -5,6 +5,7 @@
  */
 import type { AppContext } from '../sdk/generated/AppContext';
 import type { AppEvent } from '../sdk/generated/AppEvent';
+import type { WheelEvent } from '../sdk/generated/WheelEvent';
 import { encodeCbor, f32 } from './cbor';
 
 export function encodeAppContext(context: AppContext): Uint8Array {
@@ -16,7 +17,7 @@ function withFloats(event: AppEvent): unknown {
   if ('resize' in event) return { resize: { ...event.resize, dpr: f32(event.resize.dpr) } };
   if ('pointer' in event) return { pointer: { ...event.pointer, x: f32(event.pointer.x), y: f32(event.pointer.y) } };
   if ('wheel' in event) {
-    const w = event.wheel;
+    const w: WheelEvent = event.wheel;
     return { wheel: { ...w, x: f32(w.x), y: f32(w.y), dx: f32(w.dx), dy: f32(w.dy) } };
   }
   return event;

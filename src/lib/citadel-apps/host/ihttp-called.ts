@@ -7,6 +7,7 @@
 import type { Address } from '../sdk/generated/Address';
 import type { Caller } from '../sdk/generated/Caller';
 import type { IhttpFrame } from '../sdk/generated/IhttpFrame';
+import type { ResponseHead } from '../sdk/generated/ResponseHead';
 import { abortBoth, allow, cancel, deny, frame, headersProblem, MAX_CREDIT, peerKey, requestHeadProblem, type RouterAction, type Verdict } from './ihttp-common';
 import type { IhttpLimits } from './limits';
 
@@ -97,7 +98,7 @@ export class CalledStreams {
       return deliver;
     }
     if ('ResponseHead' in kind) {
-      const head = kind.ResponseHead;
+      const head: ResponseHead = kind.ResponseHead;
       if (c.responseStarted || headersProblem(head.headers, this.limits) !== null) return this.abort(c, peer, 'protocol');
       if (head.body_len !== null && head.body_len > BigInt(this.limits.maxResponseBodyBytes)) return this.abort(c, peer, 'response_body_too_large');
       c.responseStarted = true;

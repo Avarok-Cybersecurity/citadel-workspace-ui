@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { Capability } from '../capabilities';
-import { launchAppInstance, type AppInstance } from '../instance';
+import { launchAppInstance, type AppInstance, type Launch } from '../instance';
 import { InstanceSlots } from '../instance-slots';
 import { STANDARD_HOST_POLICY } from '../limits';
 import type { FromWorker, HostChannel, ToWorker } from '../worker-protocol';
@@ -36,7 +36,7 @@ function scripted(): Scripted {
 const BUDGET: number = STANDARD_HOST_POLICY.computeBudgetMs;
 
 function launch(clock: ManualClock, s: Scripted, slots: InstanceSlots = new InstanceSlots(8)): AppInstance {
-  const l = launchAppInstance({
+  const l: Launch = launchAppInstance({
     appId: 'a.b', module: {} as WebAssembly.Module, granted: new Set<Capability>(), memory: { initialPages: 1, maxPages: 1 },
     context: fixtureContext([]), pageUrl: 'https://work.avarok.net/', policy: STANDARD_HOST_POLICY, ports: {}, clock, slots, spawn: () => s.channel,
   });

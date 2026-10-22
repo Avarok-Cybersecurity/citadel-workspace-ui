@@ -9,7 +9,7 @@ import { ABI_ERROR } from './abi';
 
 type Slot = { readonly state: 'ready'; readonly bytes: Uint8Array; readonly readyAt: number } | { readonly state: 'pending' };
 
-const MAX_HANDLE = 0x7fff_ffff;
+const MAX_HANDLE: number = 0x7fff_ffff;
 
 export class ReplyTable {
   private readonly slots: Map<number, Slot> = new Map<number, Slot>();

@@ -10,7 +10,7 @@ import { IHTTP_INITIAL_CREDIT } from '../../sdk/generated/AbiConstants';
 import type { Address } from '../../sdk/generated/Address';
 import type { Caller } from '../../sdk/generated/Caller';
 import type { IhttpFrame } from '../../sdk/generated/IhttpFrame';
-import type { IhttpPort, InboundIhttpFrame } from '../ports';
+import type { IhttpPort, InboundIhttpFrame, PortAnswer } from '../ports';
 
 export interface IhttpRemoteConfig {
   readonly chunks: number;
@@ -50,7 +50,7 @@ export function ihttpRemote(cfg: IhttpRemoteConfig): IhttpPort {
   };
   return {
     IhttpServe: () => ({ ok: null }),
-    IhttpCall: ({ to, frame }) => {
+    IhttpCall: ({ to, frame }): PortAnswer<null> => {
       const id: bigint = frame.stream;
       const kind: IhttpFrame['kind'] = frame.kind;
       const s: Stream | undefined = streams.get(id);
@@ -67,7 +67,7 @@ export function ihttpRemote(cfg: IhttpRemoteConfig): IhttpPort {
       }
       return { ok: null };
     },
-    respond: (_peer, frame) => {
+    respond: (_peer, frame): PortAnswer<null> => {
       const s: Stream | undefined = streams.get(frame.stream);
       if (s !== undefined && typeof frame.kind === 'object' && 'Credit' in frame.kind) {
         s.credit += frame.kind.Credit.n;

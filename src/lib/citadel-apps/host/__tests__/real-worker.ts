@@ -35,7 +35,7 @@ export interface BundledEntry {
 }
 
 export async function bundleWorkerEntry(): Promise<BundledEntry> {
-  const out = (await build({
+  const out: Rollup.RollupOutput[] | Rollup.RollupOutput = (await build({
     configFile: false,
     logLevel: 'silent',
     resolve: { alias: { '@': SRC } },
@@ -60,7 +60,7 @@ export interface ThreadChannel extends HostChannel {
 export function threadChannel(entry: BundledEntry): ThreadChannel {
   const worker: Worker = new Worker(entry.file);
   let probed: (p: { before: Record<string, string>; after: Record<string, string> }) => void = () => {};
-  const probe = new Promise<{ before: Record<string, string>; after: Record<string, string> }>((r) => { probed = r; });
+  const probe: ThreadChannel['probe'] = new Promise<{ before: Record<string, string>; after: Record<string, string> }>((r) => { probed = r; });
   worker.on('message', (data: unknown): void => {
     if (typeof data === 'object' && data !== null && 'probe' in data) probed((data as { probe: { before: Record<string, string>; after: Record<string, string> } }).probe);
   });

@@ -9,7 +9,7 @@ import { prepareApp, type LoadRequest, type PreparedApp } from '../load-app';
 import { appModule } from './app-fixtures';
 import { fakeSign, fakeVerifier, sha256Hex } from './fake-verifier';
 
-const KEY = 'cc'.repeat(32);
+const KEY: string = 'cc'.repeat(32);
 const manifestBytes: Uint8Array = new TextEncoder().encode('{"id":"com.acme.net"}');
 
 function request(wasm: Uint8Array, declared: readonly Capability[], manifestMemoryPages: number = 1024): LoadRequest {

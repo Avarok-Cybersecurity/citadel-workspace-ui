@@ -34,7 +34,7 @@ interface Guest {
 
 /** Answered in the worker: the canvas it owns, and log (which also tells the page). */
 const LOCAL_PORTS: ReadonlySet<PortKey | 'host'> = new Set<PortKey | 'host'>(['canvas', 'log', 'host']);
-const ROUTER_TICK_MS = 1000;
+const ROUTER_TICK_MS: number = 1000;
 
 /** Surfaces for an attached OffscreenCanvas; the worker entry passes the real `getContext`. */
 export type SurfaceOf = (canvas: OffscreenCanvas, dpr: number) => CanvasSurface | null;

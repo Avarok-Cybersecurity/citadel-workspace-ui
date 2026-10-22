@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { ABI_ERROR, ABI_GROUPS, ABI_NAMESPACE, type AbiGroup } from '../abi';
-import { decodeCbor, encodeCbor } from '../cbor';
+import { decodeCbor, encodeCbor, type Decoded } from '../cbor';
 import type { Capability } from '../capabilities';
 import { Dispatcher } from '../dispatch';
 import { IhttpRouter } from '../ihttp-router';
@@ -19,8 +19,8 @@ import { fakeNodes, ManualClock, type Recorder } from './fakes';
 import { op } from './wasm-builder';
 
 const withNodes = (rec: Recorder): HostPorts => ({ nodes: fakeNodes(rec) });
-const REQUEST_AT = 100;
-const REPLY_AT = 4096;
+const REQUEST_AT: number = 100;
+const REPLY_AT: number = 4096;
 const request: Uint8Array = encodeCbor({ node_id: 'n1' });
 
 /** init: handle = nodes(1, req) -> mem[0]; mem[4] = reply_read(handle, REPLY_AT, 256). event: re-read. */
@@ -47,7 +47,7 @@ async function instantiate(granted: readonly Capability[], ports: (rec: Recorder
   const grant: ReadonlySet<Capability> = new Set<Capability>(granted);
   const dispatcher: Dispatcher = new Dispatcher({
     granted: new Set<Capability>(['canvas', 'ui', 'events', 'navigate', 'log', ...granted]), policy: STANDARD_HOST_POLICY,
-    clock: new ManualClock(), invoker: directInvoker(ports(rec)), router: new IhttpRouter('a.b', STANDARD_HOST_POLICY.ihttp), pageUrl: 'https://work.avarok.net/', routerActions: () => {},
+    clock: new ManualClock(), invoker: directInvoker(ports(rec)), router: new IhttpRouter('a.b', STANDARD_HOST_POLICY.ihttp), pageUrl: 'https://work.avarok.net/', routerActions: (): void => {},
   });
   const clock: ManualClock = new ManualClock();
   const sink: CallSink = { call: (g, o, r) => dispatcher.call(g, o, r), replies: new ReplyTable(8, STANDARD_HOST_POLICY.replyTtlMs, clock.now), replyReady: (h: number) => ready.push(h) };
@@ -58,7 +58,7 @@ async function instantiate(granted: readonly Capability[], ports: (rec: Recorder
 const i32At = (m: WebAssembly.Memory, at: number): number => new DataView(m.buffer).getInt32(at, true);
 const replyAt = (m: WebAssembly.Memory): unknown => {
   const n: number = i32At(m, 4);
-  const d = decodeCbor(new Uint8Array(m.buffer, REPLY_AT, n).slice());
+  const d: Decoded = decodeCbor(new Uint8Array(m.buffer, REPLY_AT, n).slice());
   return d.ok ? d.value : `undecodable (${n})`;
 };
 
@@ -105,7 +105,7 @@ describe('the import object directly', () => {
     for (const g of ungranted) {
       const n: number = fns.reply_read(fns[g](1, 0, 0), 0, 64);
       expect(n).toBeGreaterThan(0);
-      const d = decodeCbor(new Uint8Array(memory.buffer, 0, n).slice());
+      const d: Decoded = decodeCbor(new Uint8Array(memory.buffer, 0, n).slice());
       expect(d.ok && d.value).toEqual({ refused: 'ungranted' });
     }
     expect(dispatched).toBe(0);

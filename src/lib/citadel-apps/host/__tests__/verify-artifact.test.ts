@@ -7,8 +7,8 @@ import { MAX_ARTIFACT_BYTES, verifyArtifact, type ArtifactBundle, type ArtifactV
 import { appModule } from './app-fixtures';
 import { fakeSign as sign, fakeVerifier as port, sha256Hex as hex } from './fake-verifier';
 
-const PINNED = 'aa'.repeat(32);
-const OTHER = 'bb'.repeat(32);
+const PINNED: string = 'aa'.repeat(32);
+const OTHER: string = 'bb'.repeat(32);
 const wasm: Uint8Array = appModule();
 const manifestBytes: Uint8Array = new TextEncoder().encode('{"format":1,"id":"com.acme.kanban"}');
 

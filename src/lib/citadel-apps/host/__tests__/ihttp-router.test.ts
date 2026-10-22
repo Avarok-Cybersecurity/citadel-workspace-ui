@@ -10,7 +10,7 @@ import type { IhttpFrame } from '../../sdk/generated/IhttpFrame';
 import type { RequestHead } from '../../sdk/generated/RequestHead';
 import { STANDARD_IHTTP_LIMITS } from '../limits';
 
-const APP = 'com.acme.kanban';
+const APP: string = 'com.acme.kanban';
 const alice: Caller = { username: 'alice', cid: 11n, app_id: APP, install_id: 'i-1', via: 'p2p' };
 const bob: Caller = { username: 'bob', cid: 12n, app_id: APP, install_id: 'i-1', via: 'relay' };
 

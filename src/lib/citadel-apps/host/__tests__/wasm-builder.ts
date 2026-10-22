@@ -5,7 +5,7 @@
  * function and active data segments. When the real fixtures land they are loaded beside these.
  */
 
-export const I32 = 0x7f;
+export const I32: 0x7f = 0x7f;
 type ValType = typeof I32;
 
 export type ImportSpec =

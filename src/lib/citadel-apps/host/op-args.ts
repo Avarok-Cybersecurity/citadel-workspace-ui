@@ -15,7 +15,7 @@ import { address, caller, drawCommand, httpRequest, ihttpFrame, kvBackend, route
 
 export type OpName = keyof OpArgs;
 
-const s = struct;
+const s: typeof struct = struct;
 const toolbarItem: Schema<ToolbarItem> = s<ToolbarItem>({ id: str, label: str, icon_name: nullable(str) });
 const menuItem: Schema<MenuItem> = s<MenuItem>({ id: str, label: str });
 const dialogAction: Schema<DialogAction> = s<DialogAction>({ id: str, label: str });

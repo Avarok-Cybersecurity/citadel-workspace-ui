@@ -12,7 +12,7 @@ import { IhttpRouter, type RouterAction } from '../ihttp-router';
 import { parseRoutes, type ParsedRoutes } from '../ihttp-routes';
 import { STANDARD_IHTTP_LIMITS } from '../limits';
 
-const APP = 'com.acme.kanban';
+const APP: string = 'com.acme.kanban';
 const bob: Caller = { username: 'bob', cid: 12n, app_id: APP, install_id: 'i-2', via: 'p2p' };
 const toBob: Address = { user: { app_id: APP, username: 'bob' } };
 

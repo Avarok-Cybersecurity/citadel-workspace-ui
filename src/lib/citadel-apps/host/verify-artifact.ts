@@ -56,7 +56,7 @@ export type ArtifactRefusal =
 export type ArtifactVerdict = { readonly ok: true } | { readonly ok: false; readonly refusal: ArtifactRefusal };
 
 /** Design 2.1: the artifact cap, enforced before hashing. */
-export const MAX_ARTIFACT_BYTES = 8 * 1024 * 1024;
+export const MAX_ARTIFACT_BYTES: number = 8 * 1024 * 1024;
 
 const refuse = (refusal: ArtifactRefusal): ArtifactVerdict => ({ ok: false, refusal });
 

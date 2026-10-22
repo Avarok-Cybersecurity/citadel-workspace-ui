@@ -2,6 +2,7 @@
  * TEST FAKES for the injected ports and the clock: the only stand-ins these tests use. Each fake
  * records the op and arguments it was called with and answers what the test configured.
  */
+import type { NodeInfo } from '../../sdk/generated/NodeInfo';
 import type { DispatchClock } from '../dispatch';
 import type { OpName } from '../op-args';
 import type { HostNetPort, IhttpPort, LogPort, NodesPort, PortAnswer, PortReply, StoragePort, UiPort } from '../ports';
@@ -21,7 +22,7 @@ export function recordingCall<A, R>(rec: Recorder, method: OpName, answer: () =>
 const okLater = <T>(value: T) => (): Promise<PortAnswer<T>> => Promise.resolve({ ok: value });
 const okNow = <T>(value: T) => (): PortAnswer<T> => ({ ok: value });
 
-const node = { node_id: 'n1', parent_id: null, name: 'Board', has_children: false };
+const node: NodeInfo = { node_id: 'n1', parent_id: null, name: 'Board', has_children: false };
 
 export function fakeNodes(rec: Recorder): NodesPort {
   return {
@@ -73,7 +74,7 @@ export function fakeIhttp(rec: Recorder, frames: Parameters<IhttpPort['respond']
   return {
     IhttpServe: recordingCall(rec, 'IhttpServe', okLater(null)),
     IhttpCall: recordingCall(rec, 'IhttpCall', okLater(null)),
-    respond: (peer, frame) => {
+    respond: (peer, frame): PortAnswer<null> => {
       frames.push([peer, frame]);
       return { ok: null };
     },
@@ -89,7 +90,7 @@ export class ManualClock implements DispatchClock {
   readonly now = (): number => this.t;
 
   readonly after = (ms: number, fire: () => void): (() => void) => {
-    const timer = { at: this.t + ms, fire, live: true };
+    const timer: { at: number; fire: () => void; live: boolean } = { at: this.t + ms, fire, live: true };
     this.timers.push(timer);
     return (): void => {
       timer.live = false;
@@ -98,7 +99,7 @@ export class ManualClock implements DispatchClock {
 
   advance(ms: number): void {
     this.t += ms;
-    const due = this.timers.filter((x) => x.live && x.at <= this.t);
+    const due: { at: number; fire: () => void; live: boolean }[] = this.timers.filter((x) => x.live && x.at <= this.t);
     this.timers = this.timers.filter((x) => !due.includes(x));
     for (const x of due) x.fire();
   }

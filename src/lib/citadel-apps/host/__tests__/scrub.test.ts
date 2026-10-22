@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { AMBIENT_AUTHORITY, captureChannel, scrubAmbientAuthority, type ScrubbedScope } from '../scrub';
-import type { FromWorker } from '../worker-protocol';
+import type { FromWorker, WorkerChannel } from '../worker-protocol';
 
 class FakeWorkerGlobalScope {
   fetch(): string { return 'network'; }
@@ -45,11 +45,11 @@ describe('scrubAmbientAuthority', () => {
 
   it('the channel captured before the scrub still posts; the scope itself no longer can', () => {
     const posted: FromWorker[] = [];
-    const scope = Object.assign(standIn(), {
+    const scope: ScrubbedScope & { postMessage(m: FromWorker): void; addEventListener(): void } = Object.assign(standIn(), {
       postMessage: (m: FromWorker): void => { posted.push(m); },
       addEventListener: (): void => {},
     }) as ScrubbedScope & { postMessage(m: FromWorker): void; addEventListener(): void };
-    const channel = captureChannel(scope);
+    const channel: WorkerChannel = captureChannel(scope);
     scrubAmbientAuthority(scope, AMBIENT_AUTHORITY);
     channel.post({ kind: 'done', seq: 1 });
     expect(posted).toEqual([{ kind: 'done', seq: 1 }]);
