@@ -31,12 +31,17 @@ const clock: DispatchClock = {
   },
 };
 
+/**
+ * The app draws in CSS pixels (citadel-app-sdk-types calls/canvas.rs); the bitmap is `dpr` times
+ * that, so the context is scaled once and the surface reports its size in CSS pixels.
+ */
 function surfaceOf(canvas: OffscreenCanvas, dpr: number): CanvasSurface | null {
   const ctx: OffscreenCanvasRenderingContext2D | null = canvas.getContext('2d');
   if (ctx === null) return null;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   return {
-    get width(): number { return canvas.width; },
-    get height(): number { return canvas.height; },
+    get width(): number { return Math.round(canvas.width / dpr); },
+    get height(): number { return Math.round(canvas.height / dpr); },
     dpr,
     get fillStyle(): string | CanvasGradient | CanvasPattern { return ctx.fillStyle; },
     set fillStyle(v: string | CanvasGradient | CanvasPattern) { ctx.fillStyle = v; },

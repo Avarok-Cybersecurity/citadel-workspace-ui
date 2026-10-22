@@ -30,6 +30,7 @@
     "check:chat-polish": "node scripts/check-chat-polish-geometry.mjs",
     "check:docs-crispness": "node scripts/check-docs-crispness.mjs",
     "check:docs-pane-states": "node scripts/check-docs-pane-states.mjs",
+    "check:app-zone": "node scripts/check-app-zone-geometry.mjs",
     "check:ui-sweep": "node scripts/check-ui-sweep-geometry.mjs",
     "check:people-avatars": "node scripts/check-people-are-drawn-by-member-avatar.mjs",
     "check:a11y": "node scripts/check-accessibility.mjs",
