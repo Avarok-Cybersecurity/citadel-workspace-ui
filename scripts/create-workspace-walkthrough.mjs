@@ -178,7 +178,9 @@ async function walk(page, tag, variant) {
   const address = page.getByTestId('server-address-input');
   await address.waitFor({ timeout: 30_000 });
   const prefilled = await address.inputValue();
-  record(tag('join wizard prefilled with the new host'), prefilled === 'acme-robotics.work.avarok.net:12400', prefilled);
+  // A hosted workspace host is port-less: the agent dials wss://<host>/ on 443, and a :12400 here
+  // would send it to a port nothing answers on (src/lib/workspace-address.ts, isTenantHost).
+  record(tag('join wizard prefilled with the new host'), prefilled === 'acme-robotics.work.avarok.net', prefilled);
   await page.screenshot({ path: join(OUT, `${tag('05-join-prefilled')}.png`) });
 
   // Paid: out to Checkout and back.

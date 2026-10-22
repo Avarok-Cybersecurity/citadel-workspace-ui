@@ -259,6 +259,15 @@ const DEFERRED_MODULES = [
   'src/components/citadel-apps/marketplace/AppsModal.tsx',
   'src/components/citadel-apps/marketplace/ConsentPanel.tsx',
   'src/lib/citadel-apps/manifest/manifest-rules.ts',
+  // The required-apps header is read when a document opens (Office), and an app link is judged
+  // once the workspace has the apps client (apps-api); boot only keeps the link (app-link-capture).
+  'src/lib/citadel-apps/md-header.ts',
+  'src/lib/citadel-apps/app-link.ts',
+  // Coupons: the plan step's code field, its quote and the re-check load with the create-workspace
+  // page (pages/CreateWorkspace), never on the landing page.
+  'src/components/create-workspace/CouponField.tsx',
+  'src/lib/onboarding/coupon-quote.ts',
+  'src/lib/onboarding/coupon-recheck.ts',
 ];
 
 /**
