@@ -224,15 +224,9 @@ jobs:
         run: npm run build
         working-directory: parent/citadel-workspace-client-ts
       - name: Install Chromium
-        # Retried, each attempt bounded, like the other jobs' copies: a CDN fetch with no retry
-        # of its own is what stalls.
-        run: |
-          attempt=1
-          until timeout 300 npx playwright install --with-deps chromium; do
-            if [ "$attempt" -ge 3 ]; then echo "playwright install still failing after 3 attempts"; exit 1; fi
-            attempt=$((attempt + 1))
-            sleep $((attempt * 15))
-          done
+        # The one browser install: install-chromium.sh waits for apt's locks before every
+        # attempt and bounds and retries the download; its header has the runs that made it so.
+        run: bash scripts/ci/install-chromium.sh
         working-directory: parent/citadel-workspaces
       - name: ${{ matrix.gate.name }}
         run: ${{ matrix.gate.run }}
@@ -423,43 +417,10 @@ jobs:
         working-directory: parent/citadel-workspaces
 
       - name: Install Chromium for the offline check
+        # The one browser install: install-chromium.sh waits for apt's locks before every
+        # attempt and bounds and retries the download; its header has the runs that made it so.
+        run: bash scripts/ci/install-chromium.sh
         if: matrix.project == 'citadel-workspaces'
-        # Retried, and each attempt bounded. The parent repo's copy of this step
-        # stalled for 55 minutes in run 33300992291 and was killed by the job
-        # budget without running a test -- a CDN fetch with no retry and no
-        # timeout of its own. npm retries its own fetches; this download does
-        # not, which is why it is the one that hangs.
-        run: |
-          # `--with-deps` shells out to apt-get, and unattended-upgrades holds
-          # /var/lib/dpkg/lock-frontend for minutes after boot, so every attempt
-          # dies with exit 100. Retrying into a held lock does not help; waiting
-          # for the lock does.
-          wait_for_apt_lock() {
-            command -v fuser >/dev/null 2>&1 || { sleep 30; return 0; }
-            waited=0
-            while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
-              if [ "$waited" -ge 300 ]; then
-                echo "dpkg lock still held after 5m; attempting anyway"
-                return 0
-              fi
-              echo "waiting for the dpkg lock (${waited}s elapsed)"
-              sleep 10
-              waited=$((waited + 10))
-            done
-          }
-          wait_for_apt_lock
-          attempt=1
-          wait_for_apt_lock
-          until timeout 600 npx playwright install --with-deps chromium; do
-            if [ "$attempt" -ge 3 ]; then
-              echo "playwright install still failing after 3 attempts"
-              exit 1
-            fi
-            echo "playwright install failed or stalled (attempt $attempt/3); retrying"
-            attempt=$((attempt + 1))
-            sleep $((attempt * 15))
-            wait_for_apt_lock
-          done
         working-directory: parent/citadel-workspaces
 
       - name: PWA offline behaviour
@@ -685,6 +646,21 @@ jobs:
         run: npm run check:parent-ref
         working-directory: parent/citadel-workspaces
 
+      - name: Every browser install goes through the one script
+        # Seven inline copies drifted: one had no wait for the dpkg lock, and it failed twice on
+        # 2026-10-22 on "Could not get lock /var/lib/dpkg/lock-frontend". The parent runs this
+        # on its own workflows too.
+        if: matrix.project == 'citadel-workspaces'
+        run: npm run check:browser-installs
+        working-directory: parent/citadel-workspaces
+
+      - name: The browser install waits for apt's locks
+        # Fakes for fuser, sudo, npx, timeout and sleep; no root. Each lock case is also run
+        # with the wait removed and must fail there.
+        if: matrix.project == 'citadel-workspaces'
+        run: bash scripts/ci/install-chromium.test.sh
+        working-directory: parent/citadel-workspaces
+
       - name: No fork's pull request can reach the self-hosted Mac
         if: matrix.project == 'citadel-workspaces'
         # The parent's gate, run from the parent checkout: it reads this
@@ -866,47 +842,9 @@ jobs:
         # on the integration-tests job for why both orderings matter.
         run: npm ci
       - name: Install Playwright Browsers
-        # Retried, and each attempt bounded. The parent repo's copy of this step
-        # stalled for 55 minutes in run 33300992291 and was killed by the job
-        # budget without running a test -- a CDN fetch with no retry and no
-        # timeout of its own. npm retries its own fetches; this download does
-        # not, which is why it is the one that hangs.
-        run: |
-          # Wait for apt before asking playwright to use it.
-          #
-          # `--with-deps` shells out to apt-get, and the runner image's
-          # unattended-upgrades holds /var/lib/dpkg/lock-frontend for minutes
-          # after boot. Every attempt then dies on
-          #   E: Could not get lock /var/lib/dpkg/lock-frontend.
-          #      It is held by process NNNN (apt-get)
-          # with exit code 100 — which is not a download failure, so retrying
-          # into it does not help. The existing 30s/45s backoff was not the right
-          # shape: the wait needed is "until the lock is free", not a guess.
-          wait_for_apt_lock() {
-            command -v fuser >/dev/null 2>&1 || { sleep 30; return 0; }
-            waited=0
-            while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
-              if [ "$waited" -ge 300 ]; then
-                echo "dpkg lock still held after 5m; attempting anyway"
-                return 0
-              fi
-              echo "waiting for the dpkg lock (${waited}s elapsed)"
-              sleep 10
-              waited=$((waited + 10))
-            done
-          }
-          attempt=1
-          wait_for_apt_lock
-          until timeout 600 npx playwright install chromium --with-deps; do
-            if [ "$attempt" -ge 3 ]; then
-              echo "playwright install still failing after 3 attempts"
-              exit 1
-            fi
-            echo "playwright install failed or stalled (attempt $attempt/3); retrying"
-            attempt=$((attempt + 1))
-            sleep $((attempt * 15))
-            wait_for_apt_lock
-          done
+        # The one browser install: install-chromium.sh waits for apt's locks before every
+        # attempt and bounds and retries the download; its header has the runs that made it so.
+        run: bash citadel-workspaces/scripts/ci/install-chromium.sh
       - name: Symlink workspace deps for integration-tests
         run: |
           mkdir -p citadel-workspaces/integration-tests/node_modules
@@ -1186,50 +1124,9 @@ jobs:
         # playwright@locked-version expects.
         run: npm ci
       - name: Install Playwright Browsers
-        # Now that deps are installed, this resolves to the locked
-        # version's `playwright install` and downloads the matching
-        # chromium build.
-        # Retried, and each attempt bounded. The parent repo's copy of this step
-        # stalled for 55 minutes in run 33300992291 and was killed by the job
-        # budget without running a test -- a CDN fetch with no retry and no
-        # timeout of its own. npm retries its own fetches; this download does
-        # not, which is why it is the one that hangs.
-        run: |
-          # Wait for apt before asking playwright to use it.
-          #
-          # `--with-deps` shells out to apt-get, and the runner image's
-          # unattended-upgrades holds /var/lib/dpkg/lock-frontend for minutes
-          # after boot. Every attempt then dies on
-          #   E: Could not get lock /var/lib/dpkg/lock-frontend.
-          #      It is held by process NNNN (apt-get)
-          # with exit code 100 — which is not a download failure, so retrying
-          # into it does not help. The existing 30s/45s backoff was not the right
-          # shape: the wait needed is "until the lock is free", not a guess.
-          wait_for_apt_lock() {
-            command -v fuser >/dev/null 2>&1 || { sleep 30; return 0; }
-            waited=0
-            while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
-              if [ "$waited" -ge 300 ]; then
-                echo "dpkg lock still held after 5m; attempting anyway"
-                return 0
-              fi
-              echo "waiting for the dpkg lock (${waited}s elapsed)"
-              sleep 10
-              waited=$((waited + 10))
-            done
-          }
-          attempt=1
-          wait_for_apt_lock
-          until timeout 600 npx playwright install chromium --with-deps; do
-            if [ "$attempt" -ge 3 ]; then
-              echo "playwright install still failing after 3 attempts"
-              exit 1
-            fi
-            echo "playwright install failed or stalled (attempt $attempt/3); retrying"
-            attempt=$((attempt + 1))
-            sleep $((attempt * 15))
-            wait_for_apt_lock
-          done
+        # The one browser install: install-chromium.sh waits for apt's locks before every
+        # attempt and bounds and retries the download; its header has the runs that made it so.
+        run: bash citadel-workspaces/scripts/ci/install-chromium.sh
       - name: Symlink workspace deps for integration-tests build
         # `tsc` in integration-tests walks node_modules up the tree
         # (NodeNext). Symlinking playwright from the workspace-root
