@@ -263,6 +263,11 @@ const DEFERRED_MODULES = [
   // once the workspace has the apps client (apps-api); boot only keeps the link (app-link-capture).
   'src/lib/citadel-apps/md-header.ts',
   'src/lib/citadel-apps/app-link.ts',
+  // The sandbox host: the zone runtime, the instance handle and the worker's host load with the
+  // first app zone that has an app to run (components/office/app-zone/lazy-runtime.ts).
+  'src/lib/citadel-apps/runtime/page-runtime.ts',
+  'src/lib/citadel-apps/host/instance.ts',
+  'src/lib/citadel-apps/host/worker-host.ts',
   // Coupons: the plan step's code field, its quote and the re-check load with the create-workspace
   // page (pages/CreateWorkspace), never on the landing page.
   'src/components/create-workspace/CouponField.tsx',

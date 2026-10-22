@@ -43,6 +43,23 @@ export function protocolAppsTransport(sender: ProtocolSender): AppsTransport {
   };
 }
 
+/**
+ * One request at a time over `inner`: the protocol has no request id and a refusal answers
+ * whichever request is waiting, so two in flight together could swap refusals. Every user of a
+ * tab's session (the marketplace, a page's zones, its running apps) shares the one wrapper.
+ */
+export function serialAppsTransport(inner: AppsTransport): AppsTransport {
+  let queue: Promise<unknown> = Promise.resolve();
+  return {
+    request: (request: AppsRequest, isOurs: (answer: AppsAnswer) => boolean): Promise<AppsAnswer> => {
+      const run = (): Promise<AppsAnswer> => inner.request(request, isOurs);
+      const next: Promise<AppsAnswer> = queue.then(run, run);
+      queue = next.catch((): void => undefined);
+      return next;
+    },
+  };
+}
+
 export type Kind = AppsAnswer['kind'];
 export type Of<K extends Kind> = Extract<AppsAnswer, { kind: K }>;
 

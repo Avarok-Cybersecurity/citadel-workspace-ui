@@ -3,6 +3,7 @@
  * and the zone placeholder take, so their tests substitute a contract fake of the kernel.
  */
 import WorkspaceService from '@/lib/workspace-service';
-import { protocolAppsTransport, type AppsTransport } from '@/lib/workspace-service/apps-operations';
+import { protocolAppsTransport, serialAppsTransport, type AppsTransport } from '@/lib/workspace-service/apps-operations';
 
-export const sessionAppsTransport: AppsTransport = protocolAppsTransport(WorkspaceService);
+/** Serial: every apps request this tab makes waits for the one before it (serialAppsTransport). */
+export const sessionAppsTransport: AppsTransport = serialAppsTransport(protocolAppsTransport(WorkspaceService));

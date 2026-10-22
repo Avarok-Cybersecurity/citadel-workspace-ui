@@ -16,6 +16,8 @@ export interface AppZoneMount {
   manifest: AppManifest;
   zoneId: string;
   nodeId: string;
+  /** Who the app acts for on this page (`acting_username`). */
+  me: string;
   /** The author's height in px, at most 2000; the app may ask to change it (`ui.request_height`). */
   height: number;
 }
@@ -23,8 +25,8 @@ export interface AppZoneMount {
 /**
  * The runtime's seam (design 2.3): mount the app for `zone` into `host`, a host-owned element of
  * the zone's height, and return how to stop it. The app paints only its own canvas inside it:
- * never page DOM, never HTML from the app. Null until the runtime lands; zones then show their
- * placeholder and never execute anything.
+ * never page DOM, never HTML from the app. A page passes lazy-runtime.ts; null (tests) shows
+ * the placeholder and executes nothing.
  */
 export interface AppZoneRuntime {
   mount: (host: HTMLElement, zone: AppZoneMount) => () => void;

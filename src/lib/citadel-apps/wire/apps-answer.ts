@@ -6,6 +6,7 @@
 import type { AppInstall, AppListing, AppsRefusal, Permission } from 'citadel-workspace-client-ts';
 import { Permission as PermissionNames } from '@/lib/permissions-service/types';
 import { exactly, isAppInstall, isAppListing, isCapability, isObject, isString, isStrings, single } from './install-shape';
+import { readRuntimeAnswer, type RuntimeAnswer } from './apps-runtime-answer';
 
 export type AppsAnswer =
   | { kind: 'catalogue'; listings: AppListing[] }
@@ -19,12 +20,13 @@ export type AppsAnswer =
   | { kind: 'consented'; install: AppInstall }
   | { kind: 'disabled-for-me'; installId: string; disabled: boolean }
   | { kind: 'install-requested' }
+  | RuntimeAnswer
   | { kind: 'refused'; refusal: AppsRefusal }
   | { kind: 'malformed' };
 
 const UNIT_REFUSALS: readonly string[] = [
   'Unavailable', 'ScopeNotSupported', 'ScopeOutsideAudience', 'BadSignature', 'ArtifactMismatch', 'VersionNotNewer',
-  'NotActive', 'Policy', 'NoHost', 'HeaderManaged', 'ServerFeatureUnavailable',
+  'NotActive', 'Policy', 'NoHost', 'HeaderManaged', 'ServerFeatureUnavailable', 'InstallRequestsNotOffered', 'ArtifactUnreachable',
 ];
 const CAPABILITY_REFUSALS: readonly string[] = ['CapabilityNotGrantable', 'FirstPartyOnly', 'NotRequested', 'RequiredCapabilityLeftOut', 'Ungranted'];
 const isPermission = (v: unknown): v is Permission => isString(v) && (Object.values(PermissionNames) as string[]).includes(v);
@@ -35,6 +37,7 @@ export function isAppsRefusal(v: unknown): v is AppsRefusal {
   const [name] = Object.keys(v);
   if (CAPABILITY_REFUSALS.includes(name)) return isCapability(v[name]);
   if (name === 'PermissionRequired') return isPermission(v[name]);
+  if (name === 'AlreadyInstalled') return exactly(v[name], { install_id: isString });
   return (name === 'InvalidManifest' || name === 'Limit') && isString(v[name]);
 }
 
@@ -65,5 +68,5 @@ export function readAppsAnswer(payload: unknown): AppsAnswer {
     const d: { install_id: string; disabled: boolean } = field<{ install_id: string; disabled: boolean }>(payload, 'DisabledForMe');
     return { kind: 'disabled-for-me', installId: d.install_id, disabled: d.disabled };
   }
-  return { kind: 'malformed' };
+  return readRuntimeAnswer(payload) ?? { kind: 'malformed' };
 }

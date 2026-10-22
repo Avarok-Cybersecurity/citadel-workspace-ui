@@ -41,7 +41,7 @@ export function isListingSource(v: unknown): v is ListingSource {
     || single(v, 'WorkspaceRegistry', (x: unknown) => exactly(x, { entry_id: isString }));
 }
 
-const isBytes = (v: unknown): v is number[] => Array.isArray(v) && v.every((b: unknown) => typeof b === 'number' && Number.isInteger(b) && b >= 0 && b <= 255);
+export const isBytes = (v: unknown): v is number[] => Array.isArray(v) && v.every((b: unknown) => typeof b === 'number' && Number.isInteger(b) && b >= 0 && b <= 255);
 
 export function isAppListing(v: unknown): v is AppListing {
   return exactly(v, { source: isListingSource, manifest_bytes: isBytes, signature: isString });

@@ -1,9 +1,9 @@
 /**
  * `<AppZone app="com.acme.kanban" zone="board" height={480} />` in a page (registered in
  * mdxComponents.tsx). Its props are the author's and are checked; a zone name already used on the
- * page draws an inline error instead of a second instance. Until the runtime lands this draws only
- * the placeholder (AppZoneRequired.tsx) and never executes anything; with a runtime, an active
- * install's zone is handed to `runtime.mount` with a host-owned element.
+ * page draws an inline error instead of a second instance. Without a runtime this draws only the
+ * placeholder (AppZoneRequired.tsx) and never executes anything; with one (a page passes
+ * lazy-runtime.ts), an active install's zone is handed to `runtime.mount` with a host-owned element.
  */
 import { useContext, useEffect, useId, useRef } from 'react';
 import type { AppLink } from '@/lib/citadel-apps/app-link';
@@ -25,19 +25,20 @@ function ZoneError({ message }: { message: string }): JSX.Element {
   return <p role="alert" className="not-prose my-4 rounded-md border border-destructive/40 p-[12px] text-sm text-destructive-emphasis" data-testid="app-zone-error">{message}</p>;
 }
 
-function RuntimeHost({ runtime, view, props, env }: { runtime: AppZoneRuntime; view: Extract<ZoneView, { kind: 'ready' }>; props: ZoneProps; env: AppZoneEnvironment }): JSX.Element {
+function RuntimeHost({ runtime, view, props, env, me }: { runtime: AppZoneRuntime; view: Extract<ZoneView, { kind: 'ready' }>; props: ZoneProps; env: AppZoneEnvironment; me: string }): JSX.Element {
   const host: React.RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (host.current === null) return undefined;
-    return runtime.mount(host.current, { install: view.install, manifest: view.app.manifest, zoneId: props.zone, nodeId: env.nodeId, height: props.height });
-  }, [runtime, view.install, view.app.manifest, props.zone, props.height, env.nodeId]);
+    return runtime.mount(host.current, { install: view.install, manifest: view.app.manifest, zoneId: props.zone, nodeId: env.nodeId, me, height: props.height });
+  }, [runtime, view.install, view.app.manifest, props.zone, props.height, env.nodeId, me]);
   return <div ref={host} data-testid="app-zone-host" className="not-prose my-4 w-full" style={{ height: `${props.height}px` }} />;
 }
 
 function PlacedZone({ props, env }: { props: ZoneProps; env: AppZoneEnvironment }): JSX.Element {
   const facts: ZoneFacts = useZoneFacts(env, props.app);
   const view: ZoneView = zoneView(props, facts);
-  if (view.kind === 'ready' && env.runtime !== null) return <RuntimeHost runtime={env.runtime} view={view} props={props} env={env} />;
+  // `ready` is only decided once `me` is known (zone-state.ts).
+  if (view.kind === 'ready' && env.runtime !== null && env.me !== null) return <RuntimeHost runtime={env.runtime} view={view} props={props} env={env} me={env.me} />;
   const shown: PlaceholderView = view.kind === 'ready' ? { kind: 'ready-unmounted', name: view.app.manifest.name } : view;
   const link: AppLink = { appId: props.app, nodeId: env.nodeId, version: null, server: null };
   const enable = async (): Promise<void> => {
