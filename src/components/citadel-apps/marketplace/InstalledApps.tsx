@@ -5,10 +5,11 @@
  */
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import type { AppInstall } from 'citadel-workspace-client-ts';
+import type { AppInstall, ListingOffer } from 'citadel-workspace-client-ts';
 import { Permission } from '@/lib/permissions-service/types';
 import { findListedApp, type ListedApp } from '@/lib/citadel-apps/listing-model';
 import { scopeSentence } from '@/lib/citadel-apps/scope-sentence';
+import { updateOffer } from '@/lib/citadel-apps/listing-offer';
 import { refusalCopy } from '@/lib/citadel-apps/refusal-copy';
 import { checkForUpdate, setDisabledForMe, uninstallApp, type AppsResult, type UpdateOutcome } from '@/lib/workspace-service/apps-operations';
 import { recordDisabledForMe, useDisabledForMe } from '@/lib/citadel-apps/disabled-for-me';
@@ -50,6 +51,11 @@ export function InstalledApps({ installs, apps, deps, viewer, onChanged, onRemov
     if (result.ok) then(result.value); else note(id, refusalCopy(result.refusal));
   };
 
+  const updateOf = (install: AppInstall): Promise<AppsResult<UpdateOutcome>> => {
+    const offer: ListingOffer | null = updateOffer(install, apps);
+    return offer === null ? Promise.resolve({ ok: false, refusal: 'Unavailable' }) : checkForUpdate(deps.transport, install.id, offer);
+  };
+
   if (installs.length === 0) return <p className="py-[32px] text-sm text-muted-foreground" data-testid="apps-installed-empty">No apps are installed for you yet.</p>;
 
   return (
@@ -78,7 +84,7 @@ export function InstalledApps({ installs, apps, deps, viewer, onChanged, onRemov
                   {off ? 'Turn on for me' : 'Turn off for me'}
                 </Button>
                 <Button variant="outline" className="min-h-[44px]" disabled={busy === install.id} data-testid="apps-installed-update"
-                  onClick={() => { void run(install.id, () => checkForUpdate(deps.transport, install.id), (u: UpdateOutcome) => { if (u.kind === 'updated') onChanged(u.install); note(install.id, u.kind === 'updated' ? `Updated to ${u.install.version}.` : 'Up to date.'); }); }}>
+                  onClick={() => { void run(install.id, () => updateOf(install), (u: UpdateOutcome) => { if (u.kind === 'updated') onChanged(u.install); note(install.id, u.kind === 'updated' ? `Updated to ${u.install.version}.` : 'Up to date.'); }); }}>
                   Check for updates
                 </Button>
                 <Button variant="outline" className="min-h-[44px]" disabled={!mayRemove || busy === install.id} onClick={() => setConfirming(install.id)} data-testid="apps-installed-uninstall">

@@ -6,7 +6,7 @@
  * takes. Its rules are written out here, not imported from the UI, so it cannot agree with the UI
  * by construction. `apps-operations-contract.test.ts` runs it through the protocol transport too.
  */
-import type { AppInstall, AppListing, AppManifest, AppsRequest, Capability, InstallScope } from 'citadel-workspace-client-ts';
+import type { AppInstall, AppListing, AppManifest, AppsRequest, Capability, InstallScope, ListingOffer } from 'citadel-workspace-client-ts';
 import type { AppsTransport } from '@/lib/workspace-service/apps-operations';
 import { readAppsAnswer, type AppsAnswer } from '@/lib/citadel-apps/wire/apps-answer';
 import { readManifestBytes } from '@/lib/citadel-apps/manifest/manifest-rules';
@@ -87,9 +87,15 @@ export class FakeAppsKernel implements AppsTransport {
     return { Refused: 'Policy' };
   }
 
+  /** Whether `offer` names `listing` as the kernel resolves one (apps_offer.rs `resolve_offer`). */
+  private offers(offer: ListingOffer, listing: AppListing): boolean {
+    if ('Registry' in offer) return typeof listing.source === 'object' && 'WorkspaceRegistry' in listing.source && listing.source.WorkspaceRegistry.entry_id === offer.Registry.entry_id;
+    return offer.Signed.signature === listing.signature && offer.Signed.manifest_bytes.join() === listing.manifest_bytes.join();
+  }
+
   private install(req: Extract<AppsRequest, { Install: unknown }>['Install']): Raw {
-    const found: { manifest: AppManifest } | null = this.find(req.app_id);
-    if (found === null) return { Refused: 'Unavailable' };
+    const found: { listing: AppListing; manifest: AppManifest } | null = this.find(req.app_id);
+    if (found === null || !this.offers(req.listing, found.listing)) return { Refused: 'Unavailable' };
     const m: AppManifest = found.manifest;
     const scope: InstallScope = req.scope;
     const kind: string = scope === 'Workspace' ? 'workspace' : 'SelfOnly' in scope ? 'self' : 'Node' in scope ? 'node' : 'NodeTree' in scope ? 'node_tree' : 'users';

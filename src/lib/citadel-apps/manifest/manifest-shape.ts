@@ -3,17 +3,14 @@
  * (`deny_unknown_fields`), every enum one of its names, every number an integer in its type's
  * range. Anything else is the `Json` refusal, as in Rust.
  */
-import type { AppCategory, AppSurface, Capability, ScopeKind } from 'citadel-workspace-client-ts';
+import type { AppCategory, AppSurface, ScopeKind } from 'citadel-workspace-client-ts';
+import { CAPABILITIES } from '../host/capabilities';
 
 export const CATEGORIES: readonly AppCategory[] = ['planning', 'productivity', 'communication', 'documents', 'files', 'developer', 'design', 'data', 'integrations', 'utilities'];
 export const SURFACES: readonly AppSurface[] = ['canvas_pane', 'md_zone'];
 export const SCOPE_KINDS: readonly ScopeKind[] = ['workspace', 'node', 'node_tree', 'users', 'self'];
-export const CAPABILITIES: readonly Capability[] = [
-  'canvas', 'ui', 'events', 'navigate', 'log', 'nodes.read', 'nodes.write', 'md.edit', 'files.read', 'files.write',
-  'chat.read', 'chat.send', 'members.list', 'members.presence', 'storage.user', 'storage.scope', 'storage.node',
-  'storage.blob', 'storage.local', 'clipboard.read', 'clipboard.write', 'notifications', 'documents', 'net.host',
-  'net.host.private', 'net.server', 'ihttp.serve', 'ihttp.call',
-];
+/** The SDK's closed list (generated from citadel-app-sdk-types), which the Rust manifest reads too. */
+export { CAPABILITIES };
 const U32_MAX: number = 4_294_967_295;
 
 type Json = Record<string, unknown>;

@@ -15,6 +15,8 @@ import {
 import type { ProtocolSender } from '../workspace-operations';
 import { FakeAppsKernel, type FakeKernelWorld } from '@/test/apps-kernel-fake';
 import { installOf, listingOf, PUBLISHER_KEY } from '@/test/app-manifests';
+import { listingOffer } from '@/lib/citadel-apps/listing-offer';
+import type { ListingOffer } from 'citadel-workspace-client-ts';
 
 const world = (): FakeKernelWorld => ({
   me: 'alice',
@@ -58,12 +60,15 @@ describe.each([
 
   it('installs for yourself, and is refused a capability the installer may not grant', async () => {
     const fake: FakeAppsKernel = new FakeAppsKernel(world());
-    const base = { appId: 'com.acme.kanban', version: '1.4.0', scope: { SelfOnly: 'alice' }, pinnedPublisherKey: PUBLISHER_KEY, injectRequirement: false } as const;
+    const listing: ListingOffer = listingOffer(listingOf({ id: 'com.acme.kanban' }));
+    const base = { appId: 'com.acme.kanban', version: '1.4.0', listing, scope: { SelfOnly: 'alice' }, pinnedPublisherKey: PUBLISHER_KEY, injectRequirement: false } as const;
     expect(await installApp(transportOf(fake), { ...base, granted: ['canvas', 'nodes.read', 'storage.user'] }))
       .toEqual({ ok: false, refusal: { CapabilityNotGrantable: 'storage.user' } });
     const done: AppsResult<{ app_id: string }> = await installApp(transportOf(fake), { ...base, granted: ['canvas', 'nodes.read'] });
     expect(done.ok && done.value.app_id).toBe('com.acme.kanban');
-    expect(fake.requests.at(-1)).toEqual({ Install: { app_id: 'com.acme.kanban', version: '1.4.0', scope: { SelfOnly: 'alice' }, granted: ['canvas', 'nodes.read'], pinned_publisher_key: PUBLISHER_KEY, inject_requirement: false } });
+    expect(fake.requests.at(-1)).toEqual({ Install: { app_id: 'com.acme.kanban', version: '1.4.0', listing, scope: { SelfOnly: 'alice' }, granted: ['canvas', 'nodes.read'], pinned_publisher_key: PUBLISHER_KEY, inject_requirement: false } });
+    const elsewhere: ListingOffer = listingOffer(listingOf({ id: 'com.acme.kanban', version: '9.9.9' }));
+    expect(await installApp(transportOf(fake), { ...base, listing: elsewhere, granted: ['canvas', 'nodes.read'] })).toEqual({ ok: false, refusal: 'Unavailable' });
   });
 
   it('uninstall states purge_storage, and disable-for-me names the install', async () => {

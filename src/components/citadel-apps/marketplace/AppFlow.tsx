@@ -12,6 +12,7 @@ import { consentRows, grantOf, grantProblem, keyTrust, type ConsentRow } from '@
 import { scopeSentence } from '@/lib/citadel-apps/scope-sentence';
 import { refusalCopy } from '@/lib/citadel-apps/refusal-copy';
 import { installApp, type AppsResult } from '@/lib/workspace-service/apps-operations';
+import { listingOffer } from '@/lib/citadel-apps/listing-offer';
 import { ListingDetail } from './ListingDetail';
 import { ScopePicker } from './ScopePicker';
 import { ConsentPanel } from './ConsentPanel';
@@ -35,7 +36,7 @@ export function AppFlow({ app, installs, deps, viewer, onInstalled, onDone }: Ap
   const install = async (scope: InstallScope, rows: readonly ConsentRow[]): Promise<void> => {
     dispatch({ kind: 'install' });
     const result: AppsResult<AppInstall> = await installApp(deps.transport, {
-      appId: m.id, version: m.version, scope, granted: grantOf(rows), pinnedPublisherKey: m.publisher.mldsa65_public_key, injectRequirement: false,
+      appId: m.id, version: m.version, listing: listingOffer(app.listing), scope, granted: grantOf(rows), pinnedPublisherKey: m.publisher.mldsa65_public_key, injectRequirement: false,
     });
     if (result.ok) {
       onInstalled(result.value);

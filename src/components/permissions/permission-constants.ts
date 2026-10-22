@@ -72,7 +72,7 @@ const PERMISSION_DESCRIPTIONS: Record<Permission, string> = {
   [Permission.AppInstallAllowMdEdit]: 'Can let an app they install change the part of a document it shows in',
   [Permission.AppInstallAllowFiles]: 'Can let an app they install read and save the workspace’s files',
   [Permission.AppInstallAllowChat]: 'Can let an app they install read and send messages in a page’s chat',
-  [Permission.AppInstallAllowMembers]: 'Can let an app they install see the members of a page and who is online',
+  [Permission.AppInstallAllowMembers]: 'Can let an app they install see the members of a page',
   [Permission.AppInstallAllowStorage]: 'Can let an app they install store its own settings and data',
   [Permission.AppInstallAllowClipboard]: 'Can let an app they install copy and paste, after someone clicks',
   [Permission.AppInstallAllowNotifications]: 'Can let an app they install show short notices',

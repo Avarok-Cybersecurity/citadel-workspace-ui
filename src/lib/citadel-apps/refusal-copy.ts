@@ -22,6 +22,8 @@ const UNIT_COPY: Record<Extract<AppsRefusal, string>, string> = {
   NoHost: 'Nobody is running this app’s service right now.',
   HeaderManaged: 'The apps header is managed by workspace admins.',
   ServerFeatureUnavailable: 'This workspace’s server does not offer apps yet.',
+  InstallRequestsNotOffered: 'This workspace does not take install requests. Send the app’s link to a workspace admin.',
+  ArtifactUnreachable: 'The app’s download could not be reached, so nothing was installed. Try again later.',
 };
 
 export function refusalCopy(refusal: AppsFailure): string {
@@ -35,5 +37,6 @@ export function refusalCopy(refusal: AppsFailure): string {
   if ('RequiredCapabilityLeftOut' in refusal) return `The app cannot work without being able to ${CAPABILITY_COPY[refusal.RequiredCapabilityLeftOut].label.toLowerCase()}.`;
   if ('Ungranted' in refusal) return 'The app was not allowed to do that.';
   if ('InvalidManifest' in refusal) return 'The app’s description is not valid, so it cannot be installed.';
+  if ('AlreadyInstalled' in refusal) return 'This app is already installed there.';
   return 'A limit was reached, so nothing was changed.';
 }

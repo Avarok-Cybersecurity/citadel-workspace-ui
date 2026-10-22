@@ -7,7 +7,7 @@
  * app or an install, names ours (the secure-links-operations pattern). Answers are read strictly
  * (citadel-apps/wire/apps-answer.ts): one that is not exactly a known shape is a refusal.
  */
-import type { AppInstall, AppListing, AppsRefusal, AppsRequest, Capability, InstallScope } from 'citadel-workspace-client-ts';
+import type { AppInstall, AppListing, AppsRefusal, AppsRequest, Capability, InstallScope, ListingOffer } from 'citadel-workspace-client-ts';
 import { readAppsAnswer, type AppsAnswer } from '@/lib/citadel-apps/wire/apps-answer';
 import { readManifestBytes, type ManifestReading } from '@/lib/citadel-apps/manifest/manifest-rules';
 import { debugLog } from '@/lib/debug-config';
@@ -83,6 +83,8 @@ export const listInstalls = (t: AppsTransport): Promise<AppsResult<AppInstall[]>
 export interface InstallChoice {
   appId: string;
   version: string;
+  /** Where the manifest comes from (listing-offer.ts `listingOffer`). */
+  listing: ListingOffer;
   scope: InstallScope;
   granted: Capability[];
   /** The key the installer saw on the consent screen; the server installs only under it. */
@@ -91,7 +93,7 @@ export interface InstallChoice {
 }
 
 export const installApp = (t: AppsTransport, c: InstallChoice): Promise<AppsResult<AppInstall>> =>
-  ask(t, { Install: { app_id: c.appId, version: c.version, scope: c.scope, granted: c.granted, pinned_publisher_key: c.pinnedPublisherKey, inject_requirement: c.injectRequirement } },
+  ask(t, { Install: { app_id: c.appId, version: c.version, listing: c.listing, scope: c.scope, granted: c.granted, pinned_publisher_key: c.pinnedPublisherKey, inject_requirement: c.injectRequirement } },
     'installed', (a: Of<'installed'>) => a.install.app_id === c.appId && a.install.version === c.version, (a: Of<'installed'>) => a.install);
 
 /** `purgeStorage` has no default: the person removing the app says whether its data goes too. */
@@ -104,8 +106,9 @@ export const setDisabledForMe = (t: AppsTransport, installId: string, disabled: 
 
 export type UpdateOutcome = { kind: 'updated'; install: AppInstall } | { kind: 'up-to-date' };
 
-export async function checkForUpdate(t: AppsTransport, installId: string): Promise<AppsResult<UpdateOutcome>> {
-  const answer: AppsAnswer | null = await answerTo(t, { Update: { install_id: installId } }, (a: AppsAnswer): boolean =>
+/** `listing` is where a newer version is looked for (listing-offer.ts `updateOffer`). */
+export async function checkForUpdate(t: AppsTransport, installId: string, listing: ListingOffer): Promise<AppsResult<UpdateOutcome>> {
+  const answer: AppsAnswer | null = await answerTo(t, { Update: { install_id: installId, listing } }, (a: AppsAnswer): boolean =>
     (a.kind === 'updated' && a.install.id === installId) || (a.kind === 'up-to-date' && a.installId === installId));
   if (answer === null) return { ok: false, refusal: 'NoAnswer' };
   if (answer.kind === 'updated') return { ok: true, value: { kind: 'updated', install: answer.install } };
@@ -113,8 +116,9 @@ export async function checkForUpdate(t: AppsTransport, installId: string): Promi
   return { ok: false, refusal: answer.kind === 'refused' ? answer.refusal : 'Malformed' };
 }
 
-export const consentToUpdate = (t: AppsTransport, installId: string, version: string, granted: Capability[]): Promise<AppsResult<AppInstall>> =>
-  ask(t, { Consent: { install_id: installId, version, granted } }, 'consented', (a: Of<'consented'>) => a.install.id === installId, (a: Of<'consented'>) => a.install);
+/** `pinnedPublisherKey` is the key the consent screen showed; the server accepts only under it. */
+export const consentToUpdate = (t: AppsTransport, installId: string, version: string, granted: Capability[], pinnedPublisherKey: string): Promise<AppsResult<AppInstall>> =>
+  ask(t, { Consent: { install_id: installId, version, granted, pinned_publisher_key: pinnedPublisherKey } }, 'consented', (a: Of<'consented'>) => a.install.id === installId, (a: Of<'consented'>) => a.install);
 
 export const requestInstall = (t: AppsTransport, appId: string, nodeId: string): Promise<AppsResult<null>> =>
   ask(t, { RequestInstall: { app_id: appId, node_id: nodeId } }, 'install-requested', always, (): null => null);
