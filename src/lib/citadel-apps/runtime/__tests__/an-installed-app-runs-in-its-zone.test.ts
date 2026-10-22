@@ -10,7 +10,7 @@ import { InstanceSlots } from '../../host/instance-slots';
 import { until } from '../../host/__tests__/in-process';
 import { appModule } from '../../host/__tests__/app-fixtures';
 import { fakeVerifier } from '../../host/__tests__/fake-verifier';
-import { noAppSignatureCheck, pageArtifactVerifier } from '../verifier';
+import { pageArtifactVerifier, wasmAppSignatureCheck } from '../verifier';
 import { APP_ID, FakeRuntimeKernel, hostOf, kvAtInit, release, rig, zoneOf, type Release, type Rig } from './runtime-rig';
 
 let rigs: Rig[] = [];
@@ -96,8 +96,9 @@ describe('nothing starts that did not pass', () => {
     expect(r.spawned()).toBe(0);
   });
 
-  it('this build’s own verifier, which has no signature check yet, starts nothing and says so', async () => {
-    const { host, r } = await stopped(release(appModule(), []), () => undefined, pageArtifactVerifier(globalThis.crypto.subtle, noAppSignatureCheck));
+  it('the page’s verifier, when its signature check cannot load, starts nothing and says so', async () => {
+    const unloadable = wasmAppSignatureCheck(() => Promise.reject(new Error('the wasm client did not load')));
+    const { host, r } = await stopped(release(appModule(), []), () => undefined, pageArtifactVerifier(globalThis.crypto.subtle, unloadable));
     expect(statusOf(host)).toBe('Kanban could not be checked on this device, so it was not started.');
     expect(r.spawned()).toBe(0);
   });

@@ -14,11 +14,16 @@ import type { HttpResponse } from '../sdk/generated/HttpResponse';
 /** Sends one `HostCall` (CBOR) for this install; resolves with the reply bytes or why there were none. */
 export type HostCaller = (call: Uint8Array) => Promise<AppsResult<Uint8Array>>;
 
-/** What the request's own refusal means to the app (the reply, when there is one, is the server's). */
+/**
+ * What the request's own refusal means to the app (the reply, when there is one, is the server's).
+ * `NoHost` is the kernel's one answer for every internal-HTTP target it will not open a stream to,
+ * so it stays one answer here: `{unavailable: "no_host"}`.
+ */
 export function refusedFor(failure: AppsFailure): Refused {
   if (typeof failure === 'object' && 'Ungranted' in failure) return 'ungranted';
   if (typeof failure === 'object' && 'Limit' in failure) return { limit: failure.Limit };
   if (failure === 'Policy') return { policy: 'server' };
+  if (failure === 'NoHost') return { unavailable: 'no_host' };
   return { unavailable: 'server' };
 }
 

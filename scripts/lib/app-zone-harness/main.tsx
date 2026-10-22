@@ -6,11 +6,12 @@
  *
  * Stood in, because a page has no workspace server here: the server's release and artifact
  * answers (from the fixture's bytes, through the production reader), and the ML-DSA-65 check,
- * which the wasm client does not export yet (a SHA-256 stand-in over the same message fields).
+ * which is the wasm client's and has no client to load here (a SHA-256 stand-in over the same
+ * message fields).
  *
  * - `?mode=ok`: a release that verifies.
  * - `?mode=bad-signature`: the same release under a signature that does not.
- * - `?mode=unchecked`: this build's own verifier (noAppSignatureCheck).
+ * - `?mode=unchecked`: the page's verifier when its check cannot load (wasmAppSignatureCheck).
  */
 import { createRoot } from 'react-dom/client';
 import '@/index.css';
@@ -27,7 +28,7 @@ import { STANDARD_HOST_POLICY } from '@/lib/citadel-apps/host/limits';
 import { spawnAppWorker } from '@/lib/citadel-apps/host/spawn-app-worker';
 import { createAppZoneRuntime } from '@/lib/citadel-apps/runtime/zone-runtime';
 import { animationFrames } from '@/lib/citadel-apps/runtime/zone-input';
-import { noAppSignatureCheck, pageArtifactVerifier, type AppSignatureCheck } from '@/lib/citadel-apps/runtime/verifier';
+import { pageArtifactVerifier, wasmAppSignatureCheck, type AppSignatureCheck } from '@/lib/citadel-apps/runtime/verifier';
 
 const mode: string = new URLSearchParams(window.location.search).get('mode') ?? 'ok';
 const APP_ID: string = 'com.acme.kanban';
@@ -36,6 +37,7 @@ const hex = (b: ArrayBuffer): string => Array.from(new Uint8Array(b), (x: number
 const sha = async (b: Uint8Array): Promise<string> => hex(await crypto.subtle.digest('SHA-256', new Uint8Array(b)));
 const standIn = async (key: string, m: string, w: string): Promise<string> => sha(new TextEncoder().encode(`${key}|${APP_ID}|${VERSION}|${m}|${w}`));
 
+const unloadable: AppSignatureCheck = wasmAppSignatureCheck(() => Promise.reject(new Error('the harness has no wasm client')));
 const standInCheck: AppSignatureCheck = async (i) => hex(i.signature.slice().buffer) === await standIn(i.publicKeyHex, i.manifestSha256Hex, i.wasmSha256Hex);
 
 async function start(): Promise<void> {
@@ -66,7 +68,7 @@ async function start(): Promise<void> {
       return a;
     },
   };
-  const verifier = pageArtifactVerifier(crypto.subtle, mode === 'unchecked' ? noAppSignatureCheck : standInCheck);
+  const verifier = pageArtifactVerifier(crypto.subtle, mode === 'unchecked' ? unloadable : standInCheck);
   const runtime = createAppZoneRuntime({
     transport: server, verifier, policy: STANDARD_HOST_POLICY, slots: new InstanceSlots(8),
     clock: { now: () => performance.now(), after: (ms: number, fire: () => void) => { const id: number = window.setTimeout(fire, ms); return () => window.clearTimeout(id); } },

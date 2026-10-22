@@ -28,3 +28,6 @@ export function sdkSource(envVar: string, fromUiRoot: string): SdkSource {
 export const BINDINGS: SdkSource = sdkSource('CITADEL_APP_SDK_BINDINGS', '../citadel-internal-service/citadel-app-sdk-types/bindings');
 export const FIXTURES: SdkSource = sdkSource('CITADEL_APP_SDK_FIXTURES', '../apps/sdk-fixtures');
 export const GENERATED_COPY: string = resolve(UI_ROOT, 'src/lib/citadel-apps/sdk/generated');
+/** The internal-HTTP wire's bindings (citadel-ihttp-types), and the page's copy of them. */
+export const WIRE_BINDINGS: SdkSource = sdkSource('CITADEL_IHTTP_BINDINGS', '../citadel-internal-service/citadel-ihttp-types/bindings');
+export const WIRE_GENERATED_COPY: string = resolve(UI_ROOT, 'src/lib/citadel-apps/sdk/wire-generated');

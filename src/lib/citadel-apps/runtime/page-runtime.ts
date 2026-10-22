@@ -3,9 +3,10 @@
  * lazily, with the first zone that has an app to run (app-zone/lazy-runtime.ts), so the sandbox
  * host and its worker never reach the landing page or a page without an app.
  *
- * Unwired, stated rather than defaulted: the ML-DSA-65 check (verifier.ts, so every load is
- * refused as unchecked until the wasm client exports it), and theme tokens beyond the few below.
+ * The ML-DSA-65 check is the wasm client's (verifier.ts), loaded with the first app to verify.
+ * Unwired, stated rather than defaulted: theme tokens beyond the few below.
  */
+import { loadWasmModule } from 'citadel-workspace-client-ts';
 import { eventEmitter } from '@/lib/event-emitter';
 import { websocketService } from '@/lib/websocket-service';
 import { agentCapabilities, type AgentCapabilities } from '@/lib/agent-conversations/capabilities';
@@ -20,12 +21,12 @@ import type { ArtifactVerifierPort } from '../host/verify-artifact';
 import type { AppZoneRuntime } from '@/components/office/app-zone/app-zone-environment';
 import type { AgentLink } from './agent-link';
 import type { PortWorld } from './host-ports';
-import { noAppSignatureCheck, pageArtifactVerifier } from './verifier';
+import { pageArtifactVerifier, wasmAppSignatureCheck } from './verifier';
 import { animationFrames } from './zone-input';
 import { createAppZoneRuntime } from './zone-runtime';
 
 const policy: HostPolicy = validateHostPolicy(STANDARD_HOST_POLICY);
-const verifier: ArtifactVerifierPort = pageArtifactVerifier(crypto.subtle, noAppSignatureCheck);
+const verifier: ArtifactVerifierPort = pageArtifactVerifier(crypto.subtle, wasmAppSignatureCheck(loadWasmModule));
 
 const clock: DispatchClock = {
   now: (): number => performance.now(),

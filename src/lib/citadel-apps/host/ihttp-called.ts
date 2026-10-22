@@ -1,7 +1,7 @@
 /**
  * Streams this instance OPENED as a client (IhttpCall). Keyed by (target app id, stream id), as
- * the guest SDK keys them. Outbound: monotonic ids, head limits, the 4 MiB request body under the
- * server's credit, 64 KiB chunks, 8 live calls. Inbound: one response head, the 16 MiB response
+ * the guest SDK keys them. Outbound: monotonic ids without the relay's bit, head limits, the
+ * 4 MiB request body under the server's credit, 64 KiB chunks, 8 live calls. Inbound: one response head, the 16 MiB response
  * body under the credit the app grants back (IhttpConsumed), from the one server that answered.
  */
 import type { Address } from '../sdk/generated/Address';
@@ -9,6 +9,7 @@ import type { Caller } from '../sdk/generated/Caller';
 import type { IhttpFrame } from '../sdk/generated/IhttpFrame';
 import type { ResponseHead } from '../sdk/generated/ResponseHead';
 import { abortBoth, allow, cancel, deny, frame, headersProblem, MAX_CREDIT, peerKey, requestHeadProblem, type RouterAction, type Verdict } from './ihttp-common';
+import { RELAY_STREAM_BIT } from './ihttp-wire';
 import type { IhttpLimits } from './limits';
 
 interface Called {
@@ -48,7 +49,7 @@ export class CalledStreams {
     const appId: string = addressApp(to);
     const kind: IhttpFrame['kind'] = f.kind;
     if (typeof kind === 'object' && 'RequestHead' in kind) {
-      if (f.stream <= this.last) return deny({ policy: 'stream_id' }, []);
+      if (f.stream <= this.last || (f.stream & RELAY_STREAM_BIT) !== 0n) return deny({ policy: 'stream_id' }, []);
       if (idInUse) return deny({ policy: 'stream_id_in_use' }, []);
       if (kind.RequestHead.app_id !== appId) return deny({ policy: 'wrong_app' }, []);
       if (this.streams.size >= this.limits.maxStreamsPerCaller) return deny({ limit: 'calls' }, []);
