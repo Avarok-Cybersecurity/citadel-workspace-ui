@@ -8,11 +8,11 @@ import { copyFileSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { sdkSource } from '../../sdk/__tests__/sdk-paths';
+import { sdkSource, type SdkSource } from '../../sdk/__tests__/sdk-paths';
 import type { AppSignatureModule } from '../verifier';
 
-export const WASM_PKG = sdkSource('CITADEL_WASM_CLIENT_PKG', '../citadel-workspace-client-ts/pkg');
-export const SIGNED_APP = sdkSource('CITADEL_SIGNED_APP_FIXTURE', '../citadel-internal-service/citadel-app-signature/fixtures/signed-app.json');
+export const WASM_PKG: SdkSource = sdkSource('CITADEL_WASM_CLIENT_PKG', '../citadel-workspace-client-ts/pkg');
+export const SIGNED_APP: SdkSource = sdkSource('CITADEL_SIGNED_APP_FIXTURE', '../citadel-internal-service/citadel-app-signature/fixtures/signed-app.json');
 
 export interface SignedApp {
   readonly app_id: string;

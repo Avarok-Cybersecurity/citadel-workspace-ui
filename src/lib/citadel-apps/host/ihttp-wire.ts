@@ -12,12 +12,17 @@
 import type { FrameKind } from '../sdk/generated/FrameKind';
 import type { HttpMethod } from '../sdk/generated/HttpMethod';
 import type { IhttpFrame } from '../sdk/generated/IhttpFrame';
+import type { RequestHead } from '../sdk/generated/RequestHead';
+import type { ResponseHead } from '../sdk/generated/ResponseHead';
 import type { CancelReason } from '../sdk/wire-generated/CancelReason';
 import type { IhttpFrame as WireFrame } from '../sdk/wire-generated/IhttpFrame';
 import type { IhttpFrameKind } from '../sdk/wire-generated/IhttpFrameKind';
 import type { IhttpHeader } from '../sdk/wire-generated/IhttpHeader';
 import type { IhttpMethod } from '../sdk/wire-generated/IhttpMethod';
 import { array, bytes, literal, nullable, str, struct, tagged, u16, u32, u64, u8, type Parsed, type Schema } from './schema';
+
+type WireRequestHead = Extract<IhttpFrameKind, { RequestHead: unknown }>['RequestHead'];
+type WireResponseHead = Extract<IhttpFrameKind, { ResponseHead: unknown }>['ResponseHead'];
 
 /** Set on every stream id the relay allocates and on none a caller may choose (kernel ihttp_relay). */
 export const RELAY_STREAM_BIT: bigint = 1n << 63n;
@@ -48,14 +53,14 @@ const headersIn = (h: readonly IhttpHeader[]): [string, string][] => h.map((x: I
 function kindOut(kind: FrameKind): IhttpFrameKind {
   if (kind === 'End') return 'End';
   if ('RequestHead' in kind) {
-    const h = kind.RequestHead;
+    const h: RequestHead = kind.RequestHead;
     return { RequestHead: {
       method: METHODS[h.method], path: h.path, query: h.query === '' ? null : h.query, headers: headersOut(h.headers),
       body_len: h.body_len, app_id: h.app_id, scope_key: h.scope_key,
     } };
   }
   if ('ResponseHead' in kind) {
-    const h = kind.ResponseHead;
+    const h: ResponseHead = kind.ResponseHead;
     return { ResponseHead: { status: h.status, headers: headersOut(h.headers), body_len: h.body_len } };
   }
   if ('Body' in kind) return { Body: { bytes: kind.Body.bytes } };
@@ -82,14 +87,14 @@ const wireFrame: Schema<WireFrame> = struct<WireFrame>({ v: u8, stream: u64, kin
 function kindIn(kind: IhttpFrameKind): FrameKind {
   if (kind === 'End') return 'End';
   if ('RequestHead' in kind) {
-    const h = kind.RequestHead;
+    const h: WireRequestHead = kind.RequestHead;
     return { RequestHead: {
       method: SDK_METHOD.get(h.method) as HttpMethod, path: h.path, query: h.query ?? '', headers: headersIn(h.headers),
       body_len: h.body_len, app_id: h.app_id, scope_key: h.scope_key,
     } };
   }
   if ('ResponseHead' in kind) {
-    const h = kind.ResponseHead;
+    const h: WireResponseHead = kind.ResponseHead;
     return { ResponseHead: { status: h.status, headers: headersIn(h.headers), body_len: h.body_len } };
   }
   if ('Body' in kind) return { Body: { bytes: kind.Body.bytes } };

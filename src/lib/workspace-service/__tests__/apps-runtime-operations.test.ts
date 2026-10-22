@@ -4,7 +4,7 @@
  * (a field missing or extra is malformed); and the session transport takes one request at a time.
  */
 import { describe, expect, it } from 'vitest';
-import type { AppsRequest } from 'citadel-workspace-client-ts';
+import type { AppListing, AppsRequest } from 'citadel-workspace-client-ts';
 import { readAppsAnswer, type AppsAnswer } from '@/lib/citadel-apps/wire/apps-answer';
 import { serialAppsTransport, type AppsTransport } from '../apps-operations';
 import { callHost, fetchArtifact, getRelease } from '../apps-runtime-operations';
@@ -42,7 +42,7 @@ describe('fetching an artifact', () => {
 });
 
 describe('the runtime answers, read strictly', () => {
-  const listing = listingOf();
+  const listing: AppListing = listingOf();
   it('a release, with or without one waiting on consent (an absent Option arrives undefined)', async () => {
     const t: AppsTransport = transportOf(() => ({ Release: { install_id: 'i', current: listing, waiting_on: undefined } }));
     expect(await getRelease(t, 'i')).toEqual({ ok: true, value: { current: listing, waitingOn: null } });

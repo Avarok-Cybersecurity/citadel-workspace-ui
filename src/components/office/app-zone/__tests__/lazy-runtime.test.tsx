@@ -9,10 +9,10 @@ import type { AppInstall } from 'citadel-workspace-client-ts';
 import { AppZone } from '../AppZone';
 import { AppZoneContext, zoneClaims, type AppZoneEnvironment, type AppZoneMount, type AppZoneRuntime } from '../app-zone-environment';
 import { lazyRuntime } from '../lazy-runtime';
-import { listedApps } from '@/lib/citadel-apps/listing-model';
+import { listedApps, type ListedApp } from '@/lib/citadel-apps/listing-model';
 import { installOf, listingOf } from '@/test/app-manifests';
 
-const KANBAN = listedApps([listingOf({ id: 'com.acme.kanban', name: 'Kanban', version: '1.4.0' })])[0];
+const KANBAN: ListedApp = listedApps([listingOf({ id: 'com.acme.kanban', name: 'Kanban', version: '1.4.0' })])[0];
 
 function env(installs: AppInstall[], runtime: AppZoneRuntime): AppZoneEnvironment {
   return {
@@ -29,7 +29,7 @@ describe('the lazily loaded runtime', () => {
   it('is not loaded for a zone whose app is not installed (control: installed, it is loaded and mounts the zone, with who it acts for)', async () => {
     const mount: Mock<AppZoneRuntime['mount']> = vi.fn(() => (): void => undefined);
     const load: Mock<() => Promise<AppZoneRuntime>> = vi.fn(async () => ({ mount }));
-    const idle = zone(env([], lazyRuntime(load)));
+    const idle: ReturnType<typeof render> = zone(env([], lazyRuntime(load)));
     await waitFor(() => expect(screen.getByTestId('app-zone-required').dataset.zoneState).toBe('install'));
     expect(load).not.toHaveBeenCalled();
     idle.unmount();

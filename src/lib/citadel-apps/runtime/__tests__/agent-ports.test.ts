@@ -4,18 +4,23 @@
  * the agent's closed refusals mapped to what an app reads, and streams read against credit.
  */
 import { describe, expect, it } from 'vitest';
-import { agentKvPort, splitStorage } from '../agent-kv-port';
+import { agentKvPort, splitStorage, type LocalKvTarget } from '../agent-kv-port';
 import { agentFetchPort } from '../agent-fetch-port';
+import type { HostFetchTarget } from '../agent-fetch-wire';
+import type { HttpRequest } from '../../sdk/generated/HttpRequest';
 import { MAX_OPEN_FETCH_STREAMS } from '../agent-fetch-stream';
-import type { PortAnswer, StoragePort } from '../../host/ports';
+import type { HostNetPort, PortAnswer, StoragePort } from '../../host/ports';
 import { bodyOf, FakeAgent, variantName } from './fake-agent';
 
-const TARGET = { cid: 42n, appId: 'com.acme.kanban', scopeKey: 'workspace', timeoutMs: 200 } as const;
+const TARGET: LocalKvTarget = { cid: 42n, appId: 'com.acme.kanban', scopeKey: 'workspace', timeoutMs: 200 } as const;
+
+type KvGetBody = { request_id: string; op: { Get: { key: string } } };
+type FetchPort = HostNetPort & { readonly closeAll: () => void };
 
 describe('storage.local over the agent', () => {
   it('a get names the install’s namespace and reads the value; a miss is null', async () => {
     const agent: FakeAgent = new FakeAgent((r) => {
-      const b = bodyOf(r) as { request_id: string; op: { Get: { key: string } } };
+      const b: KvGetBody = bodyOf(r) as KvGetBody;
       return [{ AppKvResponse: { cid: 42n, request_id: b.request_id, result: { Value: b.op.Get.key === 'k' ? [1, 2] : null } } }];
     });
     const port: StoragePort = agentKvPort(agent, TARGET);
@@ -49,13 +54,13 @@ describe('storage.local over the agent', () => {
   });
 });
 
-const FETCH = { cid: 42n, appId: 'com.acme.kanban', installId: 'inst-1', grant: { hosts: ['api.acme.com'], private: false }, timeoutMs: 200 } as const;
-const GET = { method: 'GET', url: 'https://api.acme.com/x', headers: [['accept', 'text/plain']], body: new Uint8Array(0) } as { method: 'GET'; url: string; headers: [string, string][]; body: Uint8Array };
+const FETCH: HostFetchTarget = { cid: 42n, appId: 'com.acme.kanban', installId: 'inst-1', grant: { hosts: ['api.acme.com'], private: false }, timeoutMs: 200 } as const;
+const GET: HttpRequest = { method: 'GET', url: 'https://api.acme.com/x', headers: [['accept', 'text/plain']], body: new Uint8Array(0) };
 
 describe('net.host over the agent', () => {
   it('sends the install’s grant with the request and reads the response', async () => {
     const agent: FakeAgent = new FakeAgent((r) => [{ AppFetchResponse: { cid: 42n, request_id: (bodyOf(r) as { request_id: string }).request_id, status: 200, headers: [{ name: 'content-type', value: 'text/plain' }], body: [104, 105], redirects: 0 } }]);
-    const answer = await agentFetchPort(agent, FETCH).HostFetch({ request: GET });
+    const answer: PortAnswer = await agentFetchPort(agent, FETCH).HostFetch({ request: GET });
     expect(answer).toEqual({ ok: { status: 200, headers: [['content-type', 'text/plain']], body: Uint8Array.from([104, 105]) } });
     expect(agent.sent[0]).toEqual({ AppFetch: {
       request_id: 'req-1', cid: 42n, app_id: 'com.acme.kanban', install_id: 'inst-1', grant: { hosts: ['api.acme.com'], private: false },
@@ -77,7 +82,7 @@ describe('net.host over the agent', () => {
       a.emitSoon({ AppFetchStreamEnd: { cid: 42n, request_id: id, body_bytes: 3n } });
       return [{ AppFetchStreamHead: { cid: 42n, request_id: id, status: 200, headers: [], redirects: 0 } }];
     });
-    const port = agentFetchPort(agent, FETCH);
+    const port: FetchPort = agentFetchPort(agent, FETCH);
     expect(await port.HostFetchOpen({ request: GET })).toEqual({ ok: { stream: 1, status: 200, headers: [] } });
     await new Promise<void>((done) => setTimeout(done, 5));
     expect(await port.NetStreamRead({ stream: 1, max: 2 })).toEqual({ ok: { bytes: Uint8Array.from([1, 2]), end: false } });
@@ -95,7 +100,7 @@ describe('net.host over the agent', () => {
       a.emitSoon({ AppFetchStreamChunk: { cid: 42n, request_id: id, seq: 0, bytes: [9] } });
       return [{ AppFetchStreamHead: { cid: 42n, request_id: id, status: 200, headers: [], redirects: 0 } }];
     });
-    const port = agentFetchPort(agent, FETCH);
+    const port: FetchPort = agentFetchPort(agent, FETCH);
     await port.HostFetchOpen({ request: GET });
     await new Promise<void>((done) => setTimeout(done, 5));
     expect(await port.NetStreamRead({ stream: 1, max: 10 })).toEqual({ ok: { bytes: Uint8Array.from([9]), end: false } });
@@ -107,7 +112,7 @@ describe('net.host over the agent', () => {
 
   it(`at most ${MAX_OPEN_FETCH_STREAMS} streams are open at once`, async () => {
     const agent: FakeAgent = new FakeAgent((r) => [{ AppFetchStreamHead: { cid: 42n, request_id: (bodyOf(r) as { request_id: string }).request_id, status: 200, headers: [], redirects: 0 } }]);
-    const port = agentFetchPort(agent, FETCH);
+    const port: FetchPort = agentFetchPort(agent, FETCH);
     for (let i: number = 0; i < MAX_OPEN_FETCH_STREAMS; i++) expect('ok' in (await port.HostFetchOpen({ request: GET }))).toBe(true);
     expect(await port.HostFetchOpen({ request: GET })).toEqual({ refused: { limit: 'streams' } });
     port.closeAll();

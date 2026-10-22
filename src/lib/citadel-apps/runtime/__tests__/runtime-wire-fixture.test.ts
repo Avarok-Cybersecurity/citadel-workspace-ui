@@ -11,7 +11,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { IhttpAddress } from 'citadel-workspace-client-ts';
 import type { AppsFailure, AppsResult } from '@/lib/workspace-service/apps-operations';
-import { decodeCbor, encodeCbor } from '../../host/cbor';
+import { decodeCbor, encodeCbor, type Decoded } from '../../host/cbor';
 import { parseArgs, type OpName } from '../../host/op-args';
 import type { HostPorts, InboundIhttpFrame, PortAnswer } from '../../host/ports';
 import { CalledStreams } from '../../host/ihttp-called';
@@ -19,12 +19,16 @@ import { RELAY_STREAM_BIT } from '../../host/ihttp-wire';
 import { STANDARD_HOST_POLICY } from '../../host/limits';
 import type { Parsed } from '../../host/schema';
 import { ihttpFrame } from '../../host/wire-schemas';
-import { sdkSource } from '../../sdk/__tests__/sdk-paths';
+import { sdkSource, type SdkSource } from '../../sdk/__tests__/sdk-paths';
+import type { Address } from '../../sdk/generated/Address';
 import type { IhttpFrame } from '../../sdk/generated/IhttpFrame';
 import type { Route } from '../../sdk/generated/Route';
 import { ADVERTISE_EVERY_MS, ADVERTISE_TTL_MS, relayIhttpPort, routesDigest, type RelayDeps } from '../ihttp-relay-port';
 import { refusedFor, serverBlob, serverNet, serverStorage, type HostCaller } from '../kernel-call-ports';
 
+type PortTable = Record<string, Record<string, (a: unknown) => Promise<PortAnswer>>>;
+type Sender = Omit<InboundIhttpFrame['from'], 'via'>;
+type Relay = ReturnType<typeof relayIhttpPort>;
 interface Named { readonly name: string }
 interface Fixture {
   readonly host_calls: readonly (Named & { group: string; op: string; args_hex: string; call_hex: string })[];
@@ -37,14 +41,14 @@ interface Fixture {
   readonly addressing: readonly { from: { username: string; cid: number; app_id: string; install_id: string }; reply_to: IhttpAddress }[];
 }
 
-const SOURCE = sdkSource('CITADEL_APPS_RUNTIME_WIRE_FIXTURE', '../apps/runtime-fixtures/apps-runtime-wire.json');
+const SOURCE: SdkSource = sdkSource('CITADEL_APPS_RUNTIME_WIRE_FIXTURE', '../apps/runtime-fixtures/apps-runtime-wire.json');
 const fixture: Fixture = JSON.parse(readFileSync(SOURCE.path, 'utf8')) as Fixture;
 
 const bytes = (hex: string): Uint8Array => Uint8Array.from(Buffer.from(hex, 'hex'));
 const hexOf = (b: Uint8Array): string => Buffer.from(b).toString('hex');
 const sha = async (b: Uint8Array): Promise<string> => createHash('sha256').update(b).digest('hex');
 const decoded = (hex: string): unknown => {
-  const d = decodeCbor(bytes(hex));
+  const d: Decoded = decodeCbor(bytes(hex));
   if (!d.ok) throw new Error(`fixture hex does not decode: ${hex}`);
   return d.value;
 };
@@ -59,14 +63,14 @@ function capture(): { call: HostCaller; sent: Uint8Array[] } {
 }
 
 async function viaPort(call: HostCaller, op: string, args: unknown): Promise<PortAnswer> {
-  const ports = portsOver(call) as unknown as Record<string, Record<string, (a: unknown) => Promise<PortAnswer>>>;
+  const ports: PortTable = portsOver(call) as unknown as PortTable;
   const port: string = op.startsWith('Blob') ? 'blob' : op === 'ServerFetch' ? 'serverNet' : 'storage';
   return ports[port][op](args);
 }
 
 describe(`the runtime wire, as the kernel encodes it (source: ${SOURCE.label})`, () => {
   it.each(named(fixture.host_calls))('(a) host call: %s goes out as the kernel’s HostCall', async (_n, c) => {
-    const args = parseArgs(c.op as OpName, decoded(c.args_hex));
+    const args: ReturnType<typeof parseArgs> = parseArgs(c.op as OpName, decoded(c.args_hex));
     expect(args).not.toBeNull();
     const { call, sent } = capture();
     await viaPort(call, c.op, args);
@@ -83,7 +87,7 @@ describe(`the runtime wire, as the kernel encodes it (source: ${SOURCE.label})`,
   });
 
   it.each(fixture.routes.map((r) => [r.routes.join(', '), r] as const))('(b) routes digest of %s', async (_n, r) => {
-    const args = parseArgs('IhttpServe', decoded(r.serve_args_hex)) as unknown as { routes: Route[] };
+    const args: { routes: Route[] } = parseArgs('IhttpServe', decoded(r.serve_args_hex)) as unknown as { routes: Route[] };
     expect(await routesDigest(args.routes, sha)).toBe(r.digest);
   });
 });
@@ -100,7 +104,7 @@ function relay(): { deps: RelayDeps; sent: [IhttpAddress, string][]; push: (a: u
   return { deps, sent, push: (a: unknown) => listener?.(a) };
 }
 
-const FROM = { username: 'alice', cid: 10n, app_id: 'com.acme.notes', install_id: 'inst-a' };
+const FROM: Sender = { username: 'alice', cid: 10n, app_id: 'com.acme.notes', install_id: 'inst-a' };
 
 /** The guest's frame as the dispatcher parses IhttpCall/IhttpRespond arguments. */
 const guestFrame = (hex: string): IhttpFrame => {
@@ -111,13 +115,13 @@ const guestFrame = (hex: string): IhttpFrame => {
 
 describe('(c) an internal-HTTP frame between the app’s shapes and the wire’s', () => {
   it.each(named(fixture.frames_to_wire))('out: %s', async (_n, c) => {
-    const r = relay();
+    const r: ReturnType<typeof relay> = relay();
     await relayIhttpPort(r.deps).IhttpCall({ to: { user: { app_id: 'com.acme.kanban', username: 'bob' } }, frame: guestFrame(c.sdk_hex) });
     expect(r.sent.map(([, hex]) => hex)).toEqual([c.wire_hex]);
   });
 
   it.each(named(fixture.frames_from_wire))('in: %s', (_n, c) => {
-    const r = relay();
+    const r: ReturnType<typeof relay> = relay();
     const got: InboundIhttpFrame[] = [];
     relayIhttpPort(r.deps).onFrame((f: InboundIhttpFrame) => got.push(f));
     r.push({ IhttpFrame: { from: FROM, to_install_id: 'inst-b', frame: Array.from(bytes(c.wire_hex)) } });
@@ -129,17 +133,17 @@ describe('(c) an internal-HTTP frame between the app’s shapes and the wire’s
 describe('(d, e) the relay’s rules', () => {
   it('a caller may not choose a stream id with the relay’s bit; the page refuses it as the kernel would', () => {
     expect(RELAY_STREAM_BIT.toString()).toBe(fixture.relay.stream_bit);
-    const called = new CalledStreams(STANDARD_HOST_POLICY.ihttp);
+    const called: CalledStreams = new CalledStreams(STANDARD_HOST_POLICY.ihttp);
     const head = (stream: bigint): IhttpFrame => ({ v: 1, stream, kind: { RequestHead: { method: 'GET', path: '/a', query: '', headers: [], body_len: 0n, app_id: 'com.acme.kanban', scope_key: 'workspace' } } });
-    const to = { user: { app_id: 'com.acme.kanban', username: 'bob' } };
+    const to: Address = { user: { app_id: 'com.acme.kanban', username: 'bob' } };
     expect(called.outbound(to, head(RELAY_STREAM_BIT | 1n), 0, false)).toEqual({ ok: false, refused: { policy: 'stream_id' }, actions: [] });
     expect(called.outbound(to, head(1n), 0, false)).toEqual({ ok: true, actions: [] });
   });
 
   it.each(fixture.addressing.map((a) => [a.from.username, a] as const))('a response to a frame from %s goes back to them', async (_n, a) => {
-    const r = relay();
+    const r: ReturnType<typeof relay> = relay();
     const got: InboundIhttpFrame[] = [];
-    const port = relayIhttpPort(r.deps);
+    const port: Relay = relayIhttpPort(r.deps);
     port.onFrame((f: InboundIhttpFrame) => got.push(f));
     const end: string = (fixture.frames_from_wire.find((c) => c.name === 'end') as { wire_hex: string }).wire_hex;
     r.push({ IhttpFrame: { from: { ...a.from, cid: BigInt(a.from.cid) }, to_install_id: 'inst-b', frame: Array.from(bytes(end)) } });

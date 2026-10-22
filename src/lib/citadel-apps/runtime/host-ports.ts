@@ -8,7 +8,7 @@
 import type { AppInstall } from 'citadel-workspace-client-ts';
 import type { AppsTransport } from '@/lib/workspace-service/apps-operations';
 import { advertiseService, callHost, ihttpSend } from '@/lib/workspace-service/apps-runtime-operations';
-import type { EventsPort, HostPorts, LogPort } from '../host/ports';
+import type { EventsPort, HostNetPort, HostPorts, IhttpPort, LogPort, StoragePort } from '../host/ports';
 import type { HostPolicy } from '../host/limits';
 import type { AgentLink } from './agent-link';
 import { agentKvPort, splitStorage } from './agent-kv-port';
@@ -37,12 +37,12 @@ export interface BoundPorts {
 export function hostPortsFor(install: AppInstall, scopeKey: string, events: EventsPort, w: PortWorld): BoundPorts {
   const call: HostCaller = (bytes: Uint8Array) => callHost(w.transport, install.id, bytes);
   const session: { readonly cid: bigint } | null = w.agentSession;
-  const local = session === null ? null : agentKvPort(w.agent, { cid: session.cid, appId: install.app_id, scopeKey, timeoutMs: w.policy.portTimeoutMs });
-  const hostNet = session === null ? null : agentFetchPort(w.agent, {
+  const local: StoragePort | null = session === null ? null : agentKvPort(w.agent, { cid: session.cid, appId: install.app_id, scopeKey, timeoutMs: w.policy.portTimeoutMs });
+  const hostNet: (HostNetPort & { readonly closeAll: () => void }) | null = session === null ? null : agentFetchPort(w.agent, {
     cid: session.cid, appId: install.app_id, installId: install.id, timeoutMs: w.policy.hostNetTimeoutMs,
     grant: { hosts: install.details.host_network_hosts, private: install.granted.includes('net.host.private') },
   });
-  const ihttp = relayIhttpPort({
+  const ihttp: IhttpPort & { readonly stop: () => void } = relayIhttpPort({
     installId: install.id, pushes: w.pushes, sha256Hex: w.sha256Hex, nowMs: w.nowMs, every: w.every,
     send: (to, frame) => ihttpSend(w.transport, install.id, to, frame),
     advertise: (digest, untilMs) => advertiseService(w.transport, install.id, digest, untilMs),

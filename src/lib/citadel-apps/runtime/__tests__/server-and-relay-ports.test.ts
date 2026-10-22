@@ -9,8 +9,10 @@ import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import type { IhttpAddress } from 'citadel-workspace-client-ts';
 import type { AppsResult } from '@/lib/workspace-service/apps-operations';
-import { decodeCbor, encodeCbor } from '../../host/cbor';
+import { decodeCbor, encodeCbor, type Decoded } from '../../host/cbor';
 import type { InboundIhttpFrame } from '../../host/ports';
+import type { HttpRequest } from '../../sdk/generated/HttpRequest';
+import type { IhttpFrame } from '../../sdk/generated/IhttpFrame';
 import { serverNet, serverStorage, type HostCaller } from '../kernel-call-ports';
 import { ADVERTISE_EVERY_MS, ADVERTISE_TTL_MS, relayIhttpPort, type RelayDeps } from '../ihttp-relay-port';
 import { scopeKeyOf } from '../zone-context';
@@ -21,12 +23,12 @@ describe('server ports over Call', () => {
   it('sends the op as a HostCall and hands back the server’s HostReply', async () => {
     const sent: unknown[] = [];
     const call: HostCaller = async (bytes: Uint8Array): Promise<AppsResult<Uint8Array>> => {
-      const d = decodeCbor(bytes);
+      const d: Decoded = decodeCbor(bytes);
       sent.push(d.ok ? d.value : null);
       return { ok: true, value: encodeCbor({ refused: { limit: 'storage_user' } }) };
     };
     expect(await serverStorage(call).KvSet({ backend: 'user', key: 'k', value: Uint8Array.from([5]) })).toEqual({ refused: { limit: 'storage_user' } });
-    const request = { method: 'GET', url: 'https://api.acme.com/', headers: [], body: new Uint8Array(0) } as const;
+    const request: HttpRequest = { method: 'GET', url: 'https://api.acme.com/', headers: [], body: new Uint8Array(0) };
     await serverNet(call).ServerFetch({ request: { ...request, headers: [] } });
     expect(sent).toEqual([
       { Storage: { KvSet: { backend: 'user', key: 'k', value: Uint8Array.from([5]) } } },
@@ -51,7 +53,7 @@ function relay(over: Partial<RelayDeps> = {}): { deps: RelayDeps; sent: [IhttpAd
   let listener: ((a: unknown) => void) | null = null;
   const deps: RelayDeps = {
     installId: 'inst-1', sha256Hex: sha, nowMs: () => 1_000,
-    send: async (to, frame) => { const d = decodeCbor(frame); sent.push([to, d.ok ? d.value : null]); return { ok: true, value: null }; },
+    send: async (to, frame) => { const d: Decoded = decodeCbor(frame); sent.push([to, d.ok ? d.value : null]); return { ok: true, value: null }; },
     advertise: async (digest, until) => { ads.push([digest, until]); return { ok: true, value: until }; },
     pushes: (l) => { listener = l; return () => { listener = null; }; },
     every: (ms, fire) => { expect(ms).toBe(ADVERTISE_EVERY_MS); ticks.push(fire); return () => { stopped.push(ms); }; },
@@ -60,13 +62,13 @@ function relay(over: Partial<RelayDeps> = {}): { deps: RelayDeps; sent: [IhttpAd
   return { deps, sent, ads, ticks, stopped, push: (a: unknown) => listener?.(a) };
 }
 
-const frame = { v: 1, stream: 3n, kind: 'End' as const };
-const from = { username: 'bob', cid: 7n, app_id: 'com.acme.kanban', install_id: 'inst-9' };
+const frame: IhttpFrame = { v: 1, stream: 3n, kind: 'End' };
+const from: Omit<InboundIhttpFrame['from'], 'via'> = { username: 'bob', cid: 7n, app_id: 'com.acme.kanban', install_id: 'inst-9' };
 
 describe('internal HTTP over the relay', () => {
   it('serving advertises sha256 of the routes for 90 s and renews every minute until stopped', async () => {
-    const r = relay();
-    const port = relayIhttpPort(r.deps);
+    const r: ReturnType<typeof relay> = relay();
+    const port: ReturnType<typeof relayIhttpPort> = relayIhttpPort(r.deps);
     expect(await port.IhttpServe({ routes: [{ method: 'GET', path: '/a' }, { method: 'POST', path: '/b/:id' }] })).toEqual({ ok: null });
     const digest: string = await sha(new TextEncoder().encode('GET /a\nPOST /b/:id'));
     expect(r.ads).toEqual([[digest, BigInt(1_000 + ADVERTISE_TTL_MS)]]);
@@ -77,14 +79,14 @@ describe('internal HTTP over the relay', () => {
   });
 
   it('a refused advertisement is the app’s answer, and nothing is renewed', async () => {
-    const r = relay({ advertise: async () => ({ ok: false, refusal: 'ServerFeatureUnavailable' }) });
+    const r: ReturnType<typeof relay> = relay({ advertise: async () => ({ ok: false, refusal: 'ServerFeatureUnavailable' }) });
     expect(await relayIhttpPort(r.deps).IhttpServe({ routes: [] })).toEqual({ refused: { unavailable: 'server' } });
     expect(r.ticks).toEqual([]);
   });
 
   it('a call goes to the address the app named, a response to the caller the server named', async () => {
-    const r = relay();
-    const port = relayIhttpPort(r.deps);
+    const r: ReturnType<typeof relay> = relay();
+    const port: ReturnType<typeof relayIhttpPort> = relayIhttpPort(r.deps);
     await port.IhttpCall({ to: { scope: { app_id: 'com.acme.kanban', scope_key: 'workspace' } }, frame });
     await port.respond({ ...from, via: 'relay' }, frame);
     expect(r.sent).toEqual([
@@ -94,7 +96,7 @@ describe('internal HTTP over the relay', () => {
   });
 
   it('inbound frames: only this install’s, only well-formed, always via relay', () => {
-    const r = relay();
+    const r: ReturnType<typeof relay> = relay();
     const got: InboundIhttpFrame[] = [];
     relayIhttpPort(r.deps).onFrame((f) => got.push(f));
     const bytes: number[] = Array.from(encodeCbor(frame));
