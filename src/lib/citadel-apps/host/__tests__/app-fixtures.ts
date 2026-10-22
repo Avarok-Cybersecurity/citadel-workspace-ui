@@ -75,11 +75,6 @@ export function callGroup(options: AppModuleOptions, group: AbiGroup, opNumber: 
   return [...op.i32(opNumber), ...op.i32(ptr), ...op.i32(len), ...op.call(importIndex(options, group)), ...op.drop];
 }
 
-/** A body that forwards the event it was given (locals 0, 1) to `group(opNumber, ...)`. */
-export function forwardEvent(options: AppModuleOptions, group: AbiGroup, opNumber: number): number[] {
-  return [...op.i32(opNumber), ...op.localGet(0), ...op.localGet(1), ...op.call(importIndex(options, group)), ...op.drop];
-}
-
 /** A body that grows memory by `pages` and traps if the grow failed. */
 export function growOrTrap(pages: number): number[] {
   return [...op.i32(pages), ...op.memoryGrow, ...op.trapIfMinusOne];
