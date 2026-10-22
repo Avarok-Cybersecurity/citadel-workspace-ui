@@ -20,7 +20,14 @@
 #   spent 55 minutes in it (parent run 33300992291). Each attempt is bounded, and only that
 #   case is what the retry is for.
 #
-# Usage: install-chromium.sh   (no arguments; the constants below are the only knobs)
+#   A slow mirror. The apt half fetched 21.1 MB at ~40 KB/s on 2026-10-22, and a 15-minute job
+#   ran out inside it (UI run 39843446695). apt now downloads into <apt-archive-dir>, which the
+#   install-chromium action restores from and saves to the Actions cache (apt-archive-cache.sh
+#   has the detail); a warm cache downloads nothing, so the mirror's speed stops mattering.
+#
+# Usage: install-chromium.sh <apt-archive-dir>
+#   <apt-archive-dir>: absolute; where apt keeps the packages it downloads. Called only by
+#   .github/actions/install-chromium, which caches it. Unused where there is no apt (macOS).
 # Exits 0 once installed; non-zero, saying why, after ATTEMPTS failures.
 set -euo pipefail
 
@@ -33,10 +40,11 @@ readonly KILL_GRACE_SECONDS=30
 # Pause before attempt n is n * this; the lock wait, not this pause, is what covers apt.
 readonly BACKOFF_STEP_SECONDS=15
 
-if [ "$#" -ne 0 ]; then
-  echo "usage: install-chromium.sh (no arguments; its constants are the configuration)" >&2
+if [ "$#" -ne 1 ] || [ -z "$1" ]; then
+  echo "usage: install-chromium.sh <apt-archive-dir> (the install-chromium action passes it)" >&2
   exit 64
 fi
+readonly APT_ARCHIVE_DIR=$1
 
 for tool in timeout npx; do
   if ! command -v "$tool" >/dev/null 2>&1; then
@@ -49,6 +57,8 @@ here=${BASH_SOURCE[0]%/*}
 [ "$here" = "${BASH_SOURCE[0]}" ] && here=.
 # shellcheck source-path=SCRIPTDIR source=wait-for-apt-locks.sh
 . "$here/wait-for-apt-locks.sh"
+# shellcheck source-path=SCRIPTDIR source=apt-archive-cache.sh
+. "$here/apt-archive-cache.sh"
 
 why_it_failed() {
   case "$1" in
@@ -60,6 +70,13 @@ why_it_failed() {
     *) echo "exit $1" ;;
   esac
 }
+
+if command -v apt-get >/dev/null 2>&1; then
+  trap release_apt_archive_dir EXIT
+  use_apt_archive_dir "$APT_ARCHIVE_DIR"
+else
+  echo "no apt-get here: '$APT_ARCHIVE_DIR' is unused, and --with-deps installs no packages"
+fi
 
 attempt=1
 while :; do

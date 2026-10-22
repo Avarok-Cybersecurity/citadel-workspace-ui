@@ -9,6 +9,11 @@
 # Each lock case is then run again against a copy with the wait removed, and must FAIL there:
 # a case that passes either way is not testing the wait.
 #
+# The apt-archive cases run against a copy whose apt.conf path points into the scratch dir
+# (the real one is /etc/apt/apt.conf.d), with a fake npx that "downloads" each package into
+# whatever Dir::Cache::Archives says. A cold run must leave the packages in the cached dir and
+# a warm one must download none; both are run again with the redirect removed and must FAIL.
+#
 # Usage: bash scripts/ci/install-chromium.test.sh
 set -euo pipefail
 
@@ -52,6 +57,14 @@ if locked; then
 fi
 codes=($FAKE_NPX_CODES); code=${codes[$((n - 1))]:-0}
 echo "npx free at ${clock}s -> $code ($*)" >>"$STATE/log"
+if [ "$code" = 0 ] && [ -n "${FAKE_APT_CONF:-}" ]; then
+  dir=$STATE/system-archives  # where apt would download without the redirect
+  [ -f "$FAKE_APT_CONF" ] && dir=$(sed -n 's/^Dir::Cache::Archives "\(.*\)\/";$/\1/p' "$FAKE_APT_CONF")
+  mkdir -p "$dir/partial"; : >"$dir/lock"; : >"$dir/partial/inflight"
+  for pkg in $FAKE_PKGS; do
+    [ -f "$dir/$pkg.deb" ] || { : >"$dir/$pkg.deb"; echo "fetched $pkg into $dir" >>"$STATE/log"; }
+  done
+fi
 if [ "$code" = 124 ] && [ -n "${FAKE_ORPHAN_SECONDS:-}" ]; then
   echo $((clock + FAKE_ORPHAN_SECONDS)) >"$STATE/release_at"
 fi
@@ -67,9 +80,11 @@ run() {
   : >"$STATE/log"; : >"$STATE/probes"
   CODE=0
   OUT=$(env -i PATH="$2" STATE="$STATE" FAKE_NPX_CODES="$4" FAKE_ORPHAN_SECONDS="${5:-}" \
-    "$BASH_BIN" "$1/install-chromium.sh" 2>&1) || CODE=$?
+    FAKE_APT_CONF="${FAKE_APT_CONF:-}" FAKE_PKGS="${FAKE_PKGS:-}" \
+    "$BASH_BIN" "$1/install-chromium.sh" "${ARGS[@]}" 2>&1) || CODE=$?
 }
 
+ARGS=("$WORK/archives-unused")
 FAILS=()
 expect() { # <description> <test command...>
   local what=$1; shift
@@ -127,11 +142,63 @@ for c in "${LOCK_CASES[@]}"; do
   if "$c" "$MUTANT" "$FUSER_BIN"; then FAILS+=("control: $c passed with the wait removed"); fi
 done
 
-total=$(( ${#LOCK_CASES[@]} * 2 + 4 + ${#LOCK_CASES[@]} ))
+# --- apt archives: <apt-archive-dir> is where apt downloads, and it is left for the cache to save.
+ARGS=()
+run "$HERE" "$FUSER_BIN" 0 "0"
+expect "no archive dir: usage, exit 64, before any install" eval '[ "$CODE" -eq 64 ] && npx_calls 0'
+
+APT_BIN="$WORK/bin-apt"; make_fakes "$APT_BIN" yes yes
+for tool in mkdir rm chown id tee sed cat; do ln -s "$(command -v "$tool")" "$APT_BIN/$tool"; done
+printf '#!/bin/bash\necho "apt-get must not be run directly" >&2; exit 99\n' >"$APT_BIN/apt-get"
+chmod +x "$APT_BIN/apt-get"
+export FAKE_APT_CONF="$WORK/apt.conf.d/99citadel-chromium-archives" FAKE_PKGS="fonts-unifont xfonts-utils"
+mkdir -p "$WORK/apt.conf.d"
+apt_copy() { # <dir> : the scripts, with the apt.conf path moved into the scratch dir
+  mkdir -p "$1"; cp "$HERE"/*.sh "$1/"
+  sed -i.orig "s|^readonly APT_ARCHIVE_CONF=/etc/apt/apt.conf.d/|readonly APT_ARCHIVE_CONF=$WORK/apt.conf.d/|" \
+    "$1/apt-archive-cache.sh"
+  if cmp -s "$1/apt-archive-cache.sh" "$1/apt-archive-cache.sh.orig"; then
+    FAILS+=("apt copy did not apply: no APT_ARCHIVE_CONF=/etc/apt/apt.conf.d/ line in apt-archive-cache.sh")
+  fi
+}
+debs_in() { local d=("$1"/*.deb); [ -e "${d[0]}" ] && [ "${#d[@]}" -eq "$2" ]; }
+case_cold_cache() { # <scripts> : a fresh, empty dir ends holding both packages, owned and tidy
+  local dir
+  dir=$(mktemp -d "$WORK/archives.XXXX")
+  ARGS=("$dir")
+  run "$1" "$APT_BIN" 0 "0"
+  [ "$CODE" -eq 0 ] && debs_in "$dir" 2 && has "0 cached package(s) restored" \
+    && has "2 package(s) in $dir for the next run" && [ ! -e "$dir/partial" ] \
+    && [ ! -e "$dir/lock" ] && [ ! -e "$FAKE_APT_CONF" ]
+}
+case_warm_cache() { # <scripts> : the same dir again downloads nothing
+  case_cold_cache "$1" || return 1
+  run "$1" "$APT_BIN" 0 "0"
+  [ "$CODE" -eq 0 ] && ! logged "fetched" && has "2 cached package(s) restored"
+}
+APT_CASES=(case_cold_cache case_warm_cache)
+apt_copy "$WORK/apt"
+for c in "${APT_CASES[@]}"; do expect "$c" "$c" "$WORK/apt"; done
+ARGS=(relative/dir)
+run "$WORK/apt" "$APT_BIN" 0 "0"
+expect "relative archive dir: refused, exit 2, before any install" \
+  eval '[ "$CODE" -eq 2 ] && has "must be absolute" && npx_calls 0'
+
+# The control: the same apt cases against a copy that never redirects apt.
+apt_copy "$WORK/apt-mutant"
+sed -i.orig2 's/^  use_apt_archive_dir "\$APT_ARCHIVE_DIR"$/  : redirect removed/' "$WORK/apt-mutant/install-chromium.sh"
+if cmp -s "$WORK/apt-mutant/install-chromium.sh" "$WORK/apt-mutant/install-chromium.sh.orig2"; then
+  FAILS+=("control did not apply: no '  use_apt_archive_dir \"\$APT_ARCHIVE_DIR\"' line in install-chromium.sh")
+fi
+for c in "${APT_CASES[@]}"; do
+  if "$c" "$WORK/apt-mutant"; then FAILS+=("control: $c passed with the redirect removed"); fi
+done
+
+total=$(( ${#LOCK_CASES[@]} * 2 + 4 + ${#LOCK_CASES[@]} + 1 + ${#APT_CASES[@]} + 1 + ${#APT_CASES[@]} ))
 if [ "${#FAILS[@]}" -gt 0 ]; then
   printf 'FAIL: %s\n' "${FAILS[@]}" >&2
   echo "install-chromium.test.sh: ${#FAILS[@]} of $total check(s) failed" >&2
   exit 1
 fi
 echo "install-chromium.test.sh: $total checks passed, including ${#LOCK_CASES[@]} lock cases" \
-  "that fail with the wait removed"
+  "that fail with the wait removed and ${#APT_CASES[@]} apt-archive cases that fail without the redirect"
