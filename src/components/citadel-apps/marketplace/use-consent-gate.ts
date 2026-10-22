@@ -2,17 +2,21 @@
  * The consent panel's overlay guard, fed from the page: the panel counts as shown from its mount
  * while the tab is visible (hiding the tab starts the 600 ms again), and any pointer movement or
  * focus-moving key after that counts as the person being there. See lib/citadel-apps/consent-gate.ts.
+ *
+ * Only the timer reads the clock. A timer can fire before its clock says the time is up (Node
+ * arms timers from the event loop's cached time), so a fire that is early arms the timer again
+ * for what is left rather than drawing a closed button nothing would draw again.
  */
-import { useEffect, useReducer, useState } from 'react';
-import { CONSENT_VISIBLE_MS, gateOpen, gateReducer, HIDDEN_GATE, NAVIGATION_KEYS, type GateState } from '@/lib/citadel-apps/consent-gate';
+import { useEffect, useReducer } from 'react';
+import type { Clock } from '@/lib/cdoc/collab/ports';
+import { gateOpen, gateReducer, HIDDEN_GATE, msUntilElapsed, NAVIGATION_KEYS } from '@/lib/citadel-apps/consent-gate';
 
-export function useConsentGate(): boolean {
+export function useConsentGate(clock: Clock): boolean {
   const [state, dispatch] = useReducer(gateReducer, HIDDEN_GATE);
-  const [tick, setTick] = useState<number>(0);
 
   useEffect(() => {
     const visibility = (): void => {
-      dispatch(document.visibilityState === 'visible' ? { kind: 'shown', at: Date.now() } : { kind: 'hidden' });
+      dispatch(document.visibilityState === 'visible' ? { kind: 'shown', at: clock.now() } : { kind: 'hidden' });
     };
     const moved = (): void => dispatch({ kind: 'moved' });
     const key = (event: KeyboardEvent): void => { if (NAVIGATION_KEYS.has(event.key)) moved(); };
@@ -25,19 +29,21 @@ export function useConsentGate(): boolean {
       window.removeEventListener('keydown', key);
       document.removeEventListener('visibilitychange', visibility);
     };
-  }, []);
+  }, [clock]);
 
-  // Draw again when the 600 ms have run, so the button enables without another event. The timer
-  // can fire a millisecond before Date.now() says the time is up (Linux rounds the two clocks
-  // apart), so each draw arms it again until the time has run.
+  const { shownAt, elapsed } = state;
   useEffect(() => {
-    const s: GateState = state;
-    if (s.shownAt === null) return undefined;
-    const remaining: number = s.shownAt + CONSENT_VISIBLE_MS - Date.now();
-    if (remaining <= 0) return undefined;
-    const timer: number = window.setTimeout(() => setTick((t: number) => t + 1), remaining);
-    return (): void => window.clearTimeout(timer);
-  }, [state, tick]);
+    if (shownAt === null || elapsed) return undefined;
+    let cancel: () => void = (): void => {};
+    const check = (): void => {
+      const now: number = clock.now();
+      const wait: number = msUntilElapsed(shownAt, now);
+      if (wait === 0) dispatch({ kind: 'clock', at: now });
+      else cancel = clock.after(wait, check);
+    };
+    check();
+    return (): void => cancel();
+  }, [shownAt, elapsed, clock]);
 
-  return gateOpen(state, Date.now());
+  return gateOpen(state);
 }

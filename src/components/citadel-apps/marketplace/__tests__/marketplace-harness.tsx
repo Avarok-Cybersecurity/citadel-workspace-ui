@@ -1,6 +1,7 @@
 /**
  * The marketplace under test: the real AppsModal over the contract fake of the kernel, a static
- * catalogue served from a string, and a viewer whose permissions the test names.
+ * catalogue served from a string, a clock that moves only when the test moves it, and a viewer
+ * whose permissions the test names.
  */
 import { render, type RenderResult } from '@testing-library/react';
 import type { AppListing } from 'citadel-workspace-client-ts';
@@ -9,6 +10,7 @@ import type { MarketplaceDeps, MarketplaceViewer } from '../marketplace-types';
 import type { AppsModalRequest } from '@/lib/citadel-apps/apps-modal-store';
 import type { Tri } from '@/lib/citadel-apps/scope-options';
 import { FakeAppsKernel, type FakeKernelWorld } from '@/test/apps-kernel-fake';
+import { ManualClock } from '@/lib/cdoc/collab/__tests__/doubles/manual-clock';
 
 export const ROOT: string = 'workspace-root';
 
@@ -16,6 +18,7 @@ export interface Harness {
   kernel: FakeAppsKernel;
   deps: MarketplaceDeps;
   copied: string[];
+  clock: ManualClock;
 }
 
 export function catalogueText(listings: readonly AppListing[]): string {
@@ -32,12 +35,14 @@ export function catalogueText(listings: readonly AppListing[]): string {
 export function harness(world: Partial<FakeKernelWorld>, globalCatalogue: string | Error): Harness {
   const kernel: FakeAppsKernel = new FakeAppsKernel({ me: 'alice', visible: [], hidden: [], installs: [], permissions: new Set(['AppInstall']), disabled: new Set(), ...world });
   const copied: string[] = [];
+  const clock: ManualClock = new ManualClock();
   const deps: MarketplaceDeps = {
     transport: kernel,
     fetchText: async (): Promise<string> => { if (globalCatalogue instanceof Error) throw globalCatalogue; return globalCatalogue; },
     copyText: async (t: string): Promise<void> => { copied.push(t); },
+    clock,
   };
-  return { kernel, deps, copied };
+  return { kernel, deps, copied, clock };
 }
 
 export function viewerHolding(held: ReadonlySet<string>, over: Partial<MarketplaceViewer> = {}): MarketplaceViewer {

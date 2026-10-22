@@ -6,6 +6,7 @@
  * (use-consent-gate.ts), and never while a required permission cannot be granted.
  */
 import { useEffect, useState } from 'react';
+import type { Clock } from '@/lib/cdoc/collab/ports';
 import { Button } from '@/components/ui/button';
 import type { Capability } from 'citadel-workspace-client-ts';
 import type { ListedApp } from '@/lib/citadel-apps/listing-model';
@@ -25,6 +26,8 @@ interface ConsentPanelProps {
   problem: string | null;
   onInstall: () => void;
   onBack: () => void;
+  /** What the 600 ms guard runs on. */
+  clock: Clock;
 }
 
 function useFingerprint(key: string): string | null {
@@ -37,10 +40,10 @@ function useFingerprint(key: string): string | null {
   return shown;
 }
 
-export function ConsentPanel({ app, scopeSentence, rows, onToggle, trust, problem, onInstall, onBack }: ConsentPanelProps): JSX.Element {
+export function ConsentPanel({ app, scopeSentence, rows, onToggle, trust, problem, onInstall, onBack, clock }: ConsentPanelProps): JSX.Element {
   const m: ListedApp['manifest'] = app.manifest;
   const fingerprint: string | null = useFingerprint(m.publisher.mldsa65_public_key);
-  const gateOpen: boolean = useConsentGate();
+  const gateOpen: boolean = useConsentGate(clock);
   return (
     <section className="flex flex-col gap-[16px]" data-testid="apps-consent" aria-labelledby="apps-consent-title">
       <header className="flex items-start gap-[12px]">

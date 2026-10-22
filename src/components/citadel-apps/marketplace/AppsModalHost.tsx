@@ -17,6 +17,7 @@ import { closeAppsModal, openAppsModal, useAppsModalRequest, type AppsModalReque
 import { sessionAppsTransport } from '@/lib/citadel-apps/apps-api';
 import { thisTabsServer } from '@/lib/share/resolve-here';
 import { sessionIsOnServer } from '@/lib/sessions/same-server';
+import { browserClock } from '@/lib/browser-clock';
 import { LazyAppsModal } from './LazyAppsModal';
 import { useMarketplaceViewer } from './use-marketplace-viewer';
 import { authorityFrom, PermissionProbes, probeKey, type OnProbeAnswer, type ProbeAnswers } from './PermissionProbes';
@@ -32,6 +33,7 @@ const DEPS: MarketplaceDeps = {
   transport: sessionAppsTransport,
   fetchText: fetchSameOrigin,
   copyText: (text: string): Promise<void> => navigator.clipboard.writeText(text),
+  clock: browserClock,
 };
 
 /** Open the marketplace on `link`, unless it names another workspace server. */
