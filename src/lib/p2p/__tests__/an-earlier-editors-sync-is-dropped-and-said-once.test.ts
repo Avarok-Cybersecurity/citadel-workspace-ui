@@ -27,7 +27,12 @@ const earlierSync = (n: number): P2PCommand => deserializeP2PCommand(serializeP2
   payload: { type: 'yjs_sync', document_id: 'doc-1', update: [1, 2, n] },
 }));
 
-function world(): { readonly stored: P2PMessage[]; readonly handler: MessageHandler } {
+interface World {
+  readonly stored: P2PMessage[];
+  readonly handler: MessageHandler;
+}
+
+function world(): World {
   const stored: P2PMessage[] = [];
   const config: MessageHandlerConfig = {
     getCurrentCid: async (): Promise<bigint> => 100n,
@@ -39,10 +44,10 @@ function world(): { readonly stored: P2PMessage[]; readonly handler: MessageHand
 
 describe('the earlier chat editor’s sync, received', () => {
   it('is dropped, reaching no listener, and the conversation says so once per peer', async () => {
-    const { stored, handler } = world();
+    const { stored, handler }: World = world();
     const heard: unknown[] = [];
     const off: () => void = eventEmitter.on('yjs:p2p-command', (event: unknown): void => { heard.push(event); });
-    for (let n = 0; n < 5; n += 1) await handler.handleP2PCommand(earlierSync(n), ALICE, 100n);
+    for (let n: number = 0; n < 5; n += 1) await handler.handleP2PCommand(earlierSync(n), ALICE, 100n);
     await handler.handleP2PCommand(earlierSync(9), BOB, 100n);
     off();
     expect(heard).toEqual([]);
