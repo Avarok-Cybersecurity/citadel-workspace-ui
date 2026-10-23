@@ -1,7 +1,7 @@
 /**
  * The Apps section: what is installed for you, and what you can do about each -- turn it off for
- * yourself, look for an update, uninstall (yours, or anyone's with "Manage installed apps"). An
- * install waiting for consent says what it waits for.
+ * yourself, look for an update, uninstall (yours, or anyone's with "Manage installed apps"), and
+ * answer its direct connections for yourself. An install waiting for consent says what it waits for.
  */
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import { updateOffer } from '@/lib/citadel-apps/listing-offer';
 import { refusalCopy } from '@/lib/citadel-apps/refusal-copy';
 import { checkForUpdate, setDisabledForMe, uninstallApp, type AppsResult, type UpdateOutcome } from '@/lib/workspace-service/apps-operations';
 import { recordDisabledForMe, useDisabledForMe } from '@/lib/citadel-apps/disabled-for-me';
+import { InstalledPeerConsent } from './InstalledPeerConsent';
 import { UninstallConfirm } from './UninstallConfirm';
 import type { MarketplaceDeps, MarketplaceViewer } from './marketplace-types';
 
@@ -91,6 +92,7 @@ export function InstalledApps({ installs, apps, deps, viewer, onChanged, onRemov
                   Uninstall
                 </Button>
                 {!mayRemove && <p className="w-full text-xs text-muted-foreground">Only the person who installed it, or an admin, can uninstall it.</p>}
+                <InstalledPeerConsent install={install} appName={name} transport={deps.transport} onNote={(text: string) => note(install.id, text)} />
               </div>
             )}
           </li>

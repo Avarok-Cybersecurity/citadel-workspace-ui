@@ -6,7 +6,7 @@
  * takes. Its rules are written out here, not imported from the UI, so it cannot agree with the UI
  * by construction. `apps-operations-contract.test.ts` runs it through the protocol transport too.
  */
-import type { AppInstall, AppListing, AppManifest, AppsRequest, Capability, InstallScope, ListingOffer } from 'citadel-workspace-client-ts';
+import type { AppInstall, AppListing, AppManifest, AppsRequest, Capability, InstallScope, ListingOffer, PeerConsent, PeerForMe } from 'citadel-workspace-client-ts';
 import type { AppsTransport } from '@/lib/workspace-service/apps-operations';
 import { readAppsAnswer, type AppsAnswer } from '@/lib/citadel-apps/wire/apps-answer';
 import { readManifestBytes } from '@/lib/citadel-apps/manifest/manifest-rules';
@@ -37,6 +37,8 @@ export class FakeAppsKernel implements AppsTransport {
   readonly requests: AppsRequest[] = [];
   /** Answers to send instead of the modelled one, first in first out (for malformed answers). */
   readonly scripted: Raw[] = [];
+  /** The caller's own P2P answers and block lists (user_apps peer_for_me), as the kernel keeps them. */
+  readonly peer: Map<string, PeerForMe> = new Map<string, PeerForMe>();
   private gate: Promise<void> | null = null;
   private release: (() => void) | null = null;
 
@@ -72,7 +74,7 @@ export class FakeAppsKernel implements AppsTransport {
   answer(request: AppsRequest): Raw {
     const w: FakeKernelWorld = this.world;
     if (request === 'ListCatalogue') return { Catalogue: { listings: w.visible } };
-    if (request === 'ListInstalls') return { Installs: { installs: w.installs, disabled_for_me: w.installs.filter((i: AppInstall) => w.disabled.has(i.id)).map((i: AppInstall) => i.id), peer_for_me: [] } };
+    if (request === 'ListInstalls') return { Installs: { installs: w.installs, disabled_for_me: w.installs.filter((i: AppInstall) => w.disabled.has(i.id)).map((i: AppInstall) => i.id), peer_for_me: [...this.peer.values()] } };
     if (typeof request !== 'object') return { Refused: 'Policy' };
     if ('GetListing' in request) {
       const found: { listing: AppListing } | null = this.find(request.GetListing.app_id);
@@ -90,6 +92,20 @@ export class FakeAppsKernel implements AppsTransport {
       if (!w.installs.some((i: AppInstall) => i.id === install_id)) return { Refused: 'Unavailable' };
       if (disabled) w.disabled.add(install_id); else w.disabled.delete(install_id);
       return { DisabledForMe: { install_id, disabled } };
+    }
+    if ('SetPeerConsentForMe' in request) {
+      const { install_id, serve, call, topics } = request.SetPeerConsentForMe;
+      if (!w.installs.some((i: AppInstall) => i.id === install_id)) return { Refused: 'Unavailable' };
+      const consent: PeerConsent = { serve, call, topics, at_ms: BigInt(this.requests.length) };
+      this.peer.set(install_id, { install_id, consent, blocked: this.peer.get(install_id)?.blocked ?? [] });
+      return { PeerConsentForMe: { install_id, consent } };
+    }
+    if ('SetPeerBlockedForMe' in request) {
+      const { install_id, username, blocked } = request.SetPeerBlockedForMe;
+      if (!w.installs.some((i: AppInstall) => i.id === install_id)) return { Refused: 'Unavailable' };
+      const prior: PeerForMe = this.peer.get(install_id) ?? { install_id, consent: { serve: false, call: false, topics: false, at_ms: 0n }, blocked: [] };
+      this.peer.set(install_id, { ...prior, blocked: blocked ? [...new Set([...prior.blocked, username])] : prior.blocked.filter((u: string) => u !== username) });
+      return { PeerBlockedForMe: { install_id, username, blocked } };
     }
     if ('Update' in request) return { UpToDate: { install_id: request.Update.install_id } };
     if ('RequestInstall' in request) return 'InstallRequested';
