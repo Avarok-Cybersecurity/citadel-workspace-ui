@@ -63,6 +63,8 @@ export function peerPorts(install: AppInstall, scopeKey: string, limits: AppLimi
   const p2p: IhttpPort = p2pIhttpPort({
     installId: install.id, appId: install.app_id, cid: session.cid, agent: w.agent, peerCid: w.peerCid, authority, sha256Hex: w.sha256Hex,
     timeoutMs: w.policy.portTimeoutMs, p2pRoutes: install.details.ihttp_p2p_routes, maxRoutes: w.policy.ihttp.maxRoutes, maxPathBytes: w.policy.ihttp.maxPathBytes,
+    noteRefusal: (peerCid: bigint, side: 'serve' | 'call', why: string): void =>
+      w.report(`[apps] ${install.app_id} (install ${install.id}): refused to ${side === 'serve' ? 'serve peer' : 'call peer'} ${peerCid.toString()}`, why),
   });
   const topic: OwnedTopicPort | null = install.details.topics.length === 0 || limits.topics === undefined ? null : topicPort({
     cid: session.cid, agent: w.agent, topics: install.details.topics, limits: limits.topics, authority, record: w.topicRecord,

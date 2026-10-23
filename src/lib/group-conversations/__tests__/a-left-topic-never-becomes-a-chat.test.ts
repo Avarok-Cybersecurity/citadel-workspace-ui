@@ -29,7 +29,7 @@ function joinedTopic(groupId: string): OwnedTopicPort {
       queueMicrotask(() => handlers.forEach((h) => h({ [SUCCESS[variant]]: { cid: ME, group_key: body.group_key, request_id: body.request_id } })));
     },
   };
-  const never = async (): Promise<PeerAuthorization> => ({ ok: false });
+  const never = async (): Promise<PeerAuthorization> => ({ ok: false, why: 'NoHost' });
   return topicPort({
     cid: ME, agent, topics: ['pool'], limits: { max_msg_bytes: 64, max_msgs_per_s: 2 }, nowMs: (): number => 0, timeoutMs: 1000,
     authority: new PeerAuthority(never, (): number => 0, 30), topicGroup: async (): Promise<string> => groupId,

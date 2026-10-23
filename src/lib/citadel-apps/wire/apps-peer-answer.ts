@@ -4,13 +4,13 @@
  * block-list change, the kernel's word on a peer, and a topic's group. Anything not exactly one of
  * these is not one of these.
  */
-import type { IhttpFrom, PeerConsent, PeerForMe } from 'citadel-workspace-client-ts';
+import type { IhttpFrom, PeerConsent, PeerDirection, PeerForMe } from 'citadel-workspace-client-ts';
 import { exactly, isString, single } from './install-shape';
 
 export type PeerAnswer =
   | { kind: 'peer-consent'; installId: string; consent: PeerConsent }
   | { kind: 'peer-blocked'; installId: string; username: string; blocked: boolean }
-  | { kind: 'peer-authorized'; installId: string; peer: IhttpFrom; untilMs: bigint }
+  | { kind: 'peer-authorized'; installId: string; peer: IhttpFrom; direction: PeerDirection; untilMs: bigint }
   | { kind: 'topic-group'; installId: string; topic: string; groupKey: string | null };
 
 const isU64 = (v: unknown): v is bigint => typeof v === 'bigint' && v >= 0n && v < 2n ** 64n;
@@ -38,7 +38,7 @@ export function readPeerAnswer(payload: unknown): PeerAnswer | null {
   }
   if (single(payload, 'PeerAuthorized', (x: unknown) => exactly(x, { install_id: isString, peer: isFrom, direction: isDirection, until_ms: isU64 }))) {
     const a: Json = inner(payload, 'PeerAuthorized');
-    return { kind: 'peer-authorized', installId: a.install_id as string, peer: a.peer as IhttpFrom, untilMs: a.until_ms as bigint };
+    return { kind: 'peer-authorized', installId: a.install_id as string, peer: a.peer as IhttpFrom, direction: a.direction as PeerDirection, untilMs: a.until_ms as bigint };
   }
   if (single(payload, 'TopicGroup', (x: unknown) => exactly(x, { install_id: isString, topic: isString, group_key: optionalString }))) {
     const t: Json = inner(payload, 'TopicGroup');

@@ -31,11 +31,13 @@ interface World {
   now: { ms: number };
   push: (cid: bigint, from: bigint, f: IhttpFrame) => Promise<void>;
   sendFailure: { value: string | null };
+  /** What the page logged about each refusal: side and why. */
+  refusals: string[];
 }
 
 function world(): World {
   const handlers: Set<(m: unknown) => void> = new Set();
-  const w: Partial<World> = { delivered: [], sent: [], asked: [], allow: { value: true }, now: { ms: 0 }, sendFailure: { value: null } };
+  const w: Partial<World> = { delivered: [], sent: [], asked: [], allow: { value: true }, now: { ms: 0 }, sendFailure: { value: null }, refusals: [] };
   let n: number = 0;
   const agent: AgentLink = {
     newRequestId: () => `req-${++n}`,
@@ -54,13 +56,14 @@ function world(): World {
     w.asked!.push(direction);
     return w.allow!.value
       ? { ok: true, peer: { username: 'alice', cid: peerCid, app_id: APP, install_id: 'inst-1' }, untilMs: BigInt(w.now!.ms + 60_000) }
-      : { ok: false };
+      : { ok: false, why: 'NoHost' };
   };
   const authority: PeerAuthority = new PeerAuthority(ask, () => w.now!.ms, 30);
   w.port = p2pIhttpPort({
     installId: 'inst-1', appId: APP, cid: ME, agent, authority, timeoutMs: 1000,
     peerCid: (u: string) => (u === 'alice' ? ALICE : null),
     sha256Hex: async () => 'digest-1', p2pRoutes: ['GET /health'], maxRoutes: 64, maxPathBytes: 2048,
+    noteRefusal: (peer: bigint, side: 'serve' | 'call', why: string): void => { w.refusals!.push(`${side} ${peer.toString()}: ${why}`); },
   });
   w.port.onFrame((i: InboundIhttpFrame) => w.delivered!.push(i));
   w.push = async (cid: bigint, from: bigint, f: IhttpFrame): Promise<void> => {
@@ -90,6 +93,17 @@ describe('serving over P2P', () => {
     await w.push(ME, ALICE, head(1n));
     expect(w.delivered).toEqual([]);
     expect(w.sent).toEqual([{ peer: ALICE, frame: { v: 1, stream: 1n, kind: { Cancel: { reason: 'refused' } } } }]);
+  });
+
+  it('each refusal says why in this page’s log, while the peer hears only `refused`', async () => {
+    const w: World = world();
+    await w.push(ME, ALICE, head(1n));
+    await w.port.IhttpServe({ routes: [{ method: 'GET', path: '/health' }], on: { relay: false, p2p: true } });
+    await w.push(ME, ALICE, { ...head(2n), kind: { RequestHead: { method: 'GET', path: '/other', query: '', headers: [], body_len: 0n, app_id: APP, scope_key: 'ws' } } });
+    w.allow.value = false;
+    await w.push(ME, ALICE, head(3n));
+    expect(w.refusals).toEqual([`serve ${ALICE}: not_serving`, `serve ${ALICE}: route`, `serve ${ALICE}: NoHost`]);
+    expect(new Set(w.sent.map((s) => JSON.stringify(s.frame.kind)))).toEqual(new Set([JSON.stringify({ Cancel: { reason: 'refused' } })]));
   });
 
   it('an instance that does not serve on P2P refuses without asking', async () => {
@@ -125,7 +139,7 @@ describe('calling over P2P', () => {
     const w: World = world();
     w.allow.value = false;
     expect(await w.port.IhttpCall({ to, frame: head(1n), transport: 'p2p' })).toEqual({ refused: { unavailable: 'refused' } });
-    expect([w.asked, w.sent]).toEqual([['Call'], []]);
+    expect([w.asked, w.sent, w.refusals]).toEqual([['Call'], [], [`call ${ALICE}: NoHost`]]);
   });
 
   it('a peer whose agent never advertised internal HTTP is a refusal before opening', async () => {
@@ -162,7 +176,7 @@ describe('the held answer', () => {
 
   it('a flood of uncached asks is limited before the kernel sees it', async () => {
     let asks: number = 0;
-    const a: PeerAuthority = new PeerAuthority(async () => { asks++; return { ok: false }; }, () => 0, 2);
+    const a: PeerAuthority = new PeerAuthority(async () => { asks++; return { ok: false, why: 'NoHost' }; }, () => 0, 2);
     const answers: unknown[] = [await a.authorize(1n, 'Call'), await a.authorize(1n, 'Call'), await a.authorize(1n, 'Call')];
     expect([asks, answers[2]]).toEqual([2, 'limited']);
   });

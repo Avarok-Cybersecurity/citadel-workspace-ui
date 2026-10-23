@@ -55,7 +55,7 @@ function world(claimed: string | null, admit: boolean = true, raced: string | nu
     },
   };
   const ask = async (peerCid: bigint): Promise<PeerAuthorization> =>
-    (admit ? { ok: true, peer: { username: 'alice', cid: peerCid, app_id: 'a', install_id: 'i' }, untilMs: 60_000n } : { ok: false });
+    (admit ? { ok: true, peer: { username: 'alice', cid: peerCid, app_id: 'a', install_id: 'i' }, untilMs: 60_000n } : { ok: false, why: 'NoHost' });
   const arrivals: TopicArrival[] = [];
   const refusedSeen: string[] = [];
   const port: OwnedTopicPort = topicPort({

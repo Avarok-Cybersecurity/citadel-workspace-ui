@@ -6,7 +6,7 @@
  * we asked about.
  */
 import type { PeerConsent, PeerDirection } from 'citadel-workspace-client-ts';
-import type { PeerAuthorization } from '@/lib/citadel-apps/member-consent-types';
+import { peerDirectionKey, type PeerAuthorization } from '@/lib/citadel-apps/member-consent-types';
 import { ask, type AppsResult, type AppsTransport, type Of } from './apps-operations';
 
 export interface ConsentChoice {
@@ -27,9 +27,9 @@ export const setPeerBlockedForMe = (t: AppsTransport, installId: string, usernam
 /** The kernel's word on `peerCid` for `direction`; every refusal (it says only `NoHost`) is a plain no. */
 export async function authorizePeer(t: AppsTransport, installId: string, peerCid: bigint, direction: PeerDirection): Promise<PeerAuthorization> {
   const r: AppsResult<PeerAuthorization> = await ask(t, { AuthorizePeer: { install_id: installId, peer_cid: peerCid, direction } }, 'peer-authorized',
-    (a: Of<'peer-authorized'>) => a.installId === installId && a.peer.cid === peerCid,
+    (a: Of<'peer-authorized'>) => a.installId === installId && a.peer.cid === peerCid && peerDirectionKey(a.direction) === peerDirectionKey(direction),
     (a: Of<'peer-authorized'>): PeerAuthorization => ({ ok: true, peer: a.peer, untilMs: a.untilMs }));
-  return r.ok ? r.value : { ok: false };
+  return r.ok ? r.value : { ok: false, why: typeof r.refusal === 'string' ? r.refusal : JSON.stringify(r.refusal) };
 }
 
 /** The group id the kernel holds for `topic` (null: none), after claiming `claim` when it held none; `refused` when it would not say. */

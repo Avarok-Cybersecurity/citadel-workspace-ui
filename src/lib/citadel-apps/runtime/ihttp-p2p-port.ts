@@ -54,6 +54,8 @@ export interface P2pDeps {
   /** Route limits, as the router parses tables. */
   readonly maxRoutes: number;
   readonly maxPathBytes: number;
+  /** This page's own log of why it refused a peer (the peer hears only `refused`). */
+  readonly noteRefusal: (peerCid: bigint, side: 'serve' | 'call', why: string) => void;
 }
 
 const line = (r: Route): string => `${r.method} ${r.path}`;
@@ -95,20 +97,25 @@ export function p2pIhttpPort(d: P2pDeps): IhttpPort {
       }, d.timeoutMs);
     return out.ok ? out.value : { refused: { unavailable: out.why === 'send_failed' ? 'agent' : 'p2p_no_answer' } };
   };
-  const refuse = (peerCid: bigint, id: bigint): void => { void send(peerCid, makeFrame(id, { Cancel: { reason: 'refused' } })); };
+  const refuse = (peerCid: bigint, id: bigint, why: string): void => {
+    d.noteRefusal(peerCid, 'serve', why);
+    void send(peerCid, makeFrame(id, { Cancel: { reason: 'refused' } }));
+  };
+  const whyNot = (a: PeerAuthorization | 'limited'): string => (a === 'limited' ? 'limited' : a.ok ? 'ok' : a.why);
 
   const admitted = async (peerCid: bigint): Promise<PeerAuthorization | 'limited'> =>
-    (digest === null ? { ok: false } : d.authority.authorize(peerCid, { Serve: { routes_digest: digest } }));
+    (digest === null ? { ok: false, why: 'not_serving' } : d.authority.authorize(peerCid, { Serve: { routes_digest: digest } }));
 
   const inbound = async (peerCid: bigint, f: IhttpFrame, deliver: (i: InboundIhttpFrame) => void): Promise<void> => {
     const key: string = streamKey(peerCid, f.stream);
     const kind: IhttpFrame['kind'] = f.kind;
     if (typeof kind === 'object' && 'RequestHead' in kind) {
       if (kind.RequestHead.app_id !== d.appId) return;
+      if (digest === null) { refuse(peerCid, f.stream, 'not_serving'); return; }
       // The router matches the whole served table; a P2P request may reach only the P2P one.
-      if (matchRoute(table, kind.RequestHead.method, kind.RequestHead.path) === null) { refuse(peerCid, f.stream); return; }
+      if (matchRoute(table, kind.RequestHead.method, kind.RequestHead.path) === null) { refuse(peerCid, f.stream, 'route'); return; }
       const a: PeerAuthorization | 'limited' = await admitted(peerCid);
-      if (a === 'limited' || !a.ok) { refuse(peerCid, f.stream); return; }
+      if (a === 'limited' || !a.ok) { refuse(peerCid, f.stream, whyNot(a)); return; }
       streams.set(key, { caller: callerOf(a.peer), served: true });
       deliver({ from: callerOf(a.peer), frame: f });
       return;
@@ -119,7 +126,7 @@ export function p2pIhttpPort(d: P2pDeps): IhttpPort {
       const a: PeerAuthorization | 'limited' = await admitted(peerCid);
       if (a !== 'limited' && !a.ok) {
         streams.delete(key);
-        refuse(peerCid, f.stream);
+        refuse(peerCid, f.stream, whyNot(a));
         deliver({ from: s.caller, frame: makeFrame(f.stream, { Cancel: { reason: 'refused' } }) });
         return;
       }
@@ -148,6 +155,7 @@ export function p2pIhttpPort(d: P2pDeps): IhttpPort {
       const key: string = streamKey(peerCid, f.stream);
       if (typeof f.kind === 'object' && 'RequestHead' in f.kind) {
         const a: PeerAuthorization | 'limited' = await d.authority.authorize(peerCid, 'Call');
+        if (a === 'limited' || !a.ok) d.noteRefusal(peerCid, 'call', whyNot(a));
         if (a === 'limited') return { refused: { limit: 'rate' } };
         if (!a.ok) return { refused: REFUSED };
         streams.set(key, { caller: callerOf(a.peer), served: false });

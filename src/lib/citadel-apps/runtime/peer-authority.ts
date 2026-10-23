@@ -8,15 +8,12 @@
  */
 import { TokenBucket } from '../host/token-bucket';
 import type { PeerDirection } from 'citadel-workspace-client-ts';
-import type { PeerAuthorization } from '../member-consent-types';
+import { peerDirectionKey, type PeerAuthorization } from '../member-consent-types';
 
 /** At most this long, whatever the kernel's until_ms says. */
 export const AUTHORIZE_CACHE_MS: number = 60_000;
 
 export type AuthorizeAsk = (peerCid: bigint, direction: PeerDirection) => Promise<PeerAuthorization>;
-
-const directionKey = (d: PeerDirection): string =>
-  (d === 'Call' ? 'call' : 'Serve' in d ? `serve/${d.Serve.routes_digest}` : `topic/${d.Topic.topic}`);
 
 interface Held {
   readonly answer: Extract<PeerAuthorization, { ok: true }>;
@@ -33,7 +30,7 @@ export class PeerAuthority {
 
   /** The kernel's answer for this peer, from the cache while it is fresh. `limited`: the peer is over its rate. */
   authorize(peerCid: bigint, direction: PeerDirection): Promise<PeerAuthorization | 'limited'> {
-    const key: string = `${peerCid.toString()}|${directionKey(direction)}`;
+    const key: string = `${peerCid.toString()}|${peerDirectionKey(direction)}`;
     const now: number = this.nowMs();
     const cached: Held | undefined = this.held.get(key);
     if (cached !== undefined && now < cached.until) return Promise.resolve(cached.answer);
@@ -49,7 +46,7 @@ export class PeerAuthority {
       },
       (): PeerAuthorization => {
         if (this.asking.get(key) === asked) this.asking.delete(key);
-        return { ok: false };
+        return { ok: false, why: 'no_answer' };
       },
     );
     this.asking.set(key, asked);
