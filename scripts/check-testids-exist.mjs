@@ -24,7 +24,7 @@
  */
 import { readdirSync, statSync, readFileSync, existsSync } from 'node:fs';
 import { join, resolve, dirname, relative } from 'node:path';
-import { chosenTestIds } from './lib/chosen-testids.mjs';
+import { chosenTestIds, domSetTestIds } from './lib/chosen-testids.mjs';
 
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '..');
 const SRC = join(ROOT, 'src');
@@ -98,6 +98,7 @@ for (const file of files(SRC, /\.tsx?$/)) {
   for (const m of s.matchAll(/['"]data-testid['"]\s*:\s*["']([^"']+)["']/g)) defined.add(m[1]);
   for (const m of s.matchAll(/['"]data-testid['"]\s*:\s*`([^`]+)`/g)) prefixes.push(m[1].split('${')[0]);
   for (const id of chosenTestIds(s)) defined.add(id);
+  for (const id of domSetTestIds(s)) defined.add(id);
 }
 
 const referenced = new Map();
