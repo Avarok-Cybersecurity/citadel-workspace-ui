@@ -5,6 +5,7 @@
  * the production reader.
  */
 import { describe, expect, it } from 'vitest';
+import type { IhttpFrom } from 'citadel-workspace-client-ts';
 import { FakeAppsKernel } from '@/test/apps-kernel-fake';
 import { authorizePeer, setPeerConsentForMe, topicGroup } from '../apps-peer-operations';
 
@@ -13,7 +14,7 @@ const kernel = (...answers: unknown[]): FakeAppsKernel => {
   k.scripted.push(...answers);
   return k;
 };
-const BOB = { username: 'bob', cid: 7n, app_id: 'a', install_id: 'i-2' };
+const BOB: IhttpFrom = { username: 'bob', cid: 7n, app_id: 'a', install_id: 'i-2' };
 
 describe('the per-member P2P requests', () => {
   it('AuthorizePeer: the kernel’s stamp, or a plain no on its refusal', async () => {
@@ -29,7 +30,7 @@ describe('the per-member P2P requests', () => {
   });
 
   it('TopicGroup: a held group, none held, or refused', async () => {
-    const t = (groupKey: string | null) => ({ TopicGroup: { install_id: 'i-1', topic: 'pool', group_key: groupKey } });
+    const t = (groupKey: string | null): { TopicGroup: Record<string, unknown> } => ({ TopicGroup: { install_id: 'i-1', topic: 'pool', group_key: groupKey } });
     expect(await topicGroup(kernel(t('5:9')), 'i-1', 'pool', null)).toBe('5:9');
     expect(await topicGroup(kernel(t(null)), 'i-1', 'pool', null)).toBeNull();
     expect(await topicGroup(kernel({ Refused: 'NoHost' }), 'i-1', 'pool', null)).toBe('refused');

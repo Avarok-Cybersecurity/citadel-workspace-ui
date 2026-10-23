@@ -13,7 +13,10 @@ import { until } from '../../host/__tests__/in-process';
 import { appModule, callGroup, type AppModuleOptions } from '../../host/__tests__/app-fixtures';
 import { MAX_TOOLBAR_ITEMS, MAX_TOOLBAR_LABEL_CHARS, readToolbar } from '../toolbar-model';
 import { zoneUiPort } from '../ui-port';
-import { zoneToolbar } from '../zone-toolbar';
+import { zoneToolbar, type ZoneToolbar } from '../zone-toolbar';
+import type { UiPort } from '../../host/ports';
+import type { ToolbarItem } from '../../sdk/generated/ToolbarItem';
+import type { ZoneHost } from '@/components/office/app-zone/app-zone-environment';
 import { FakeRuntimeKernel, hostOf, release, rig, slotsOf, zoneOf, type Rig } from './runtime-rig';
 
 const TOOLBAR_AT: number = 1024;
@@ -43,7 +46,7 @@ async function running(): Promise<{ kernel: FakeRuntimeKernel; zone: AppZoneHand
   const r: Rig = rig(kernel);
   rigs.push(r);
   const host: HTMLDivElement = hostOf(375);
-  const slots = slotsOf(host);
+  const slots: ZoneHost = slotsOf(host);
   const zone: AppZoneHandle = r.runtime.mount(slots, zoneOf(kernel.rel));
   await until(() => host.dataset.appState === 'running', 4000);
   await new Promise<void>((done) => setTimeout(done, 50));
@@ -78,13 +81,14 @@ describe('an app’s toolbar', () => {
 });
 
 describe('the toolbar’s bounds and updates', () => {
-  const item = (id: string, label: string = id) => ({ id, label, icon_name: null });
+  // The label is the id unless a case names one: most cases are about ids and counts.
+  const item = (id: string, label: string = id): ToolbarItem => ({ id, label, icon_name: null });
 
   it('refuses a toolbar out of bounds whole, keeping the one shown', () => {
-    const t = zoneToolbar(document, 'Kanban', () => undefined);
-    const ui = zoneUiPort(t);
+    const t: ZoneToolbar = zoneToolbar(document, 'Kanban', () => undefined);
+    const ui: UiPort = zoneUiPort(t);
     expect(ui.SetToolbar({ items: [item('a')] })).toEqual({ ok: null });
-    const many = Array.from({ length: MAX_TOOLBAR_ITEMS + 1 }, (_v, i: number) => item(`b${i}`));
+    const many: ToolbarItem[] = Array.from({ length: MAX_TOOLBAR_ITEMS + 1 }, (_v, i: number) => item(`b${i}`));
     expect(ui.SetToolbar({ items: many })).toEqual({ refused: { limit: 'toolbar_items' } });
     expect(ui.SetToolbar({ items: [item('a', 'x'.repeat(MAX_TOOLBAR_LABEL_CHARS + 1))] })).toEqual({ refused: { policy: 'toolbar_label' } });
     expect(ui.SetToolbar({ items: [item('a'), item('a')] })).toEqual({ refused: { policy: 'toolbar_duplicate_id' } });
@@ -95,7 +99,7 @@ describe('the toolbar’s bounds and updates', () => {
 
   it('an update replaces the buttons; an empty one hides the bar; a disposed bar reports nothing', () => {
     const pressed: string[] = [];
-    const t = zoneToolbar(document, 'Kanban', (id: string) => pressed.push(id));
+    const t: ZoneToolbar = zoneToolbar(document, 'Kanban', (id: string) => pressed.push(id));
     t.set([{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }]);
     t.set([{ id: 'c', label: 'C' }]);
     expect(buttons(t.element).map((b) => b.dataset.itemId)).toEqual(['c']);

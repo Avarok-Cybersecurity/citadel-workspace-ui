@@ -4,10 +4,11 @@
  * many, too few or of the wrong type as not an answer at all.
  */
 import { describe, expect, it } from 'vitest';
+import type { IhttpFrom, PeerConsent } from 'citadel-workspace-client-ts';
 import { readPeerAnswer } from '../apps-peer-answer';
 
-const CONSENT = { serve: true, call: false, topics: true, at_ms: 5n };
-const FROM = { username: 'alice', cid: 9n, app_id: 'net.avarok.compute-pool', install_id: 'i' };
+const CONSENT: PeerConsent = { serve: true, call: false, topics: true, at_ms: 5n };
+const FROM: IhttpFrom = { username: 'alice', cid: 9n, app_id: 'net.avarok.compute-pool', install_id: 'i' };
 
 describe('peer answers are read exactly', () => {
   it('reads each of the four', () => {

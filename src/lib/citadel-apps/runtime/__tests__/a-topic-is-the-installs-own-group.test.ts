@@ -12,7 +12,7 @@ import type { PeerAuthorization } from '../../member-consent-types';
 import type { AgentLink } from '../agent-link';
 import { PeerAuthority } from '../peer-authority';
 import { encodeTopicMessage } from '../topic-model';
-import { topicPort } from '../topic-port';
+import { topicPort, type OwnedTopicPort } from '../topic-port';
 
 const ME: bigint = 100n;
 const SUCCESS: Readonly<Record<string, string>> = {
@@ -20,7 +20,19 @@ const SUCCESS: Readonly<Record<string, string>> = {
   GroupMessage: 'GroupMessageSuccess', GroupRespondRequest: 'GroupRespondRequestSuccess',
 };
 
-function world(claimed: string | null, admit: boolean = true, raced: string | null = null, refusal: Record<string, unknown> | null = null) {
+interface World {
+  port: OwnedTopicPort;
+  sent: Record<string, Record<string, unknown>>[];
+  recorded: string[];
+  arrivals: TopicArrival[];
+  push: (m: Record<string, unknown>) => Promise<void>;
+  refusedSeen: string[];
+  listening: () => number;
+  variants: () => string[];
+}
+
+// Test defaults: a member admits, nobody races the claim, and the server refuses nothing, unless a case says so.
+function world(claimed: string | null, admit: boolean = true, raced: string | null = null, refusal: Record<string, unknown> | null = null): World {
   const handlers: Set<(m: unknown) => void> = new Set();
   const sent: Record<string, Record<string, unknown>>[] = [];
   const recorded: string[] = [];
@@ -46,7 +58,7 @@ function world(claimed: string | null, admit: boolean = true, raced: string | nu
     (admit ? { ok: true, peer: { username: 'alice', cid: peerCid, app_id: 'a', install_id: 'i' }, untilMs: 60_000n } : { ok: false });
   const arrivals: TopicArrival[] = [];
   const refusedSeen: string[] = [];
-  const port = topicPort({
+  const port: OwnedTopicPort = topicPort({
     cid: ME, agent, topics: ['pool'], limits: { max_msg_bytes: 64, max_msgs_per_s: 2 }, nowMs: () => 0, timeoutMs: 1000,
     authority: new PeerAuthority(ask, () => 0, 30),
     topicGroup: async (_t: string, claim: string | null) => { if (claim !== null && raced !== null) kernel = raced; if (kernel === null && claim !== null) kernel = claim; return kernel; },
@@ -55,12 +67,12 @@ function world(claimed: string | null, admit: boolean = true, raced: string | nu
   });
   port.onEvent((a: TopicArrival) => arrivals.push(a));
   const push = async (m: Record<string, unknown>): Promise<void> => { handlers.forEach((h) => h(m)); await new Promise<void>((r) => setTimeout(r, 0)); };
-  return { port, sent, recorded, arrivals, push, refusedSeen, listening: () => handlers.size, variants: () => sent.map((s) => Object.keys(s)[0]) };
+  return { port, sent, recorded, arrivals, push, refusedSeen, listening: (): number => handlers.size, variants: (): string[] => sent.map((s) => Object.keys(s)[0]) };
 }
 
 describe('a topic is the install’s own group', () => {
   it('the first member creates and claims it, recording both before the agent answers', async () => {
-    const w = world(null);
+    const w: World = world(null);
     expect(await w.port.TopicOpen({ name: 'pool' })).toEqual({ ok: { name: 'pool', members: [] } });
     expect(w.variants()).toEqual(['GroupCreateAppTopic']);
     expect(w.sent[0]).toMatchObject({ GroupCreateAppTopic: { cid: ME, max_msg_bytes: 64, max_msgs_per_s: 2 } });
@@ -68,14 +80,14 @@ describe('a topic is the install’s own group', () => {
   });
 
   it('a later member joins the claimed group', async () => {
-    const w = world('5:9');
+    const w: World = world('5:9');
     expect(await w.port.TopicOpen({ name: 'pool' })).toMatchObject({ ok: { name: 'pool' } });
     expect(w.variants()).toEqual(['GroupRequestJoin']);
     expect(w.recorded).toEqual(['group 5:9']);
   });
 
   it('a lost claim race leaves our group and joins the winner’s', async () => {
-    const w = world(null, true, '6:1');
+    const w: World = world(null, true, '6:1');
     expect(await w.port.TopicOpen({ name: 'pool' })).toMatchObject({ ok: { name: 'pool' } });
     expect(w.variants()).toEqual(['GroupCreateAppTopic', 'GroupLeave', 'GroupRequestJoin']);
     expect(w.sent[1]).toMatchObject({ GroupLeave: { group_key: { cid: ME, mgid: 7n } } });
@@ -83,13 +95,13 @@ describe('a topic is the install’s own group', () => {
   });
 
   it('a name not granted opens nothing', async () => {
-    const w = world(null);
+    const w: World = world(null);
     expect(await w.port.TopicOpen({ name: 'chat' })).toEqual({ refused: { policy: 'unknown_topic' } });
     expect(w.sent).toEqual([]);
   });
 
   it('publishes in its envelope, under the limits, only once open', async () => {
-    const w = world('5:9');
+    const w: World = world('5:9');
     expect(await w.port.TopicPublish({ name: 'pool', body: new Uint8Array(1) })).toEqual({ refused: { policy: 'topic_not_open' } });
     await w.port.TopicOpen({ name: 'pool' });
     expect(await w.port.TopicPublish({ name: 'pool', body: new Uint8Array(65) })).toEqual({ refused: { limit: 'topic_bytes' } });
@@ -100,7 +112,7 @@ describe('a topic is the install’s own group', () => {
   it('the server’s refusal of a message, which names no request, is reported as the topic limit it names', async () => {
     const seen: string[][] = [];
     for (const refusal of [{ TooLarge: { bytes: 70n, max_bytes: 64 } }, { RateLimited: { max_per_second: 2 } }, null]) {
-      const w = world('5:9', true, null, refusal);
+      const w: World = world('5:9', true, null, refusal);
       await w.port.TopicOpen({ name: 'pool' });
       expect(await w.port.TopicPublish({ name: 'pool', body: new Uint8Array([1]) })).toEqual({ ok: null });
       await new Promise<void>((r) => setTimeout(r, 0));
@@ -110,7 +122,7 @@ describe('a topic is the install’s own group', () => {
   });
 
   it('a refusal for another session or another group is not this topic’s (control: closed, it listens to nothing)', async () => {
-    const w = world('5:9');
+    const w: World = world('5:9');
     await w.port.TopicOpen({ name: 'pool' });
     await w.push({ GroupMessageRefusedNotification: { cid: 999n, group_key: { cid: 5n, mgid: 9n }, refusal: { RateLimited: { max_per_second: 2 } }, request_id: null } });
     await w.push({ GroupMessageRefusedNotification: { cid: ME, group_key: { cid: 5n, mgid: 1n }, refusal: { RateLimited: { max_per_second: 2 } }, request_id: null } });
@@ -126,7 +138,7 @@ describe('a topic is the install’s own group', () => {
 
   it('a member’s message reaches the app stamped by the kernel; a refused sender is dropped', async () => {
     for (const admit of [true, false]) {
-      const w = world('5:9', admit);
+      const w: World = world('5:9', admit);
       await w.port.TopicOpen({ name: 'pool' });
       await w.push({ GroupMessageNotification: { cid: ME, peer_cid: 8n, group_key: { cid: 5n, mgid: 9n }, message: Array.from(encodeTopicMessage('pool', new Uint8Array([4]))), request_id: null } });
       expect(w.arrivals).toEqual([admit
@@ -137,7 +149,7 @@ describe('a topic is the install’s own group', () => {
 
   it('the owner admits a joiner only on the kernel’s word', async () => {
     for (const admit of [true, false]) {
-      const w = world(null, admit);
+      const w: World = world(null, admit);
       await w.port.TopicOpen({ name: 'pool' });
       await w.push({ GroupJoinRequestNotification: { cid: ME, peer_cid: 8n, group_key: { cid: ME, mgid: 7n }, request_id: null } });
       expect(w.sent.at(-1)).toMatchObject({ GroupRespondRequest: { peer_cid: 8n, response: admit } });

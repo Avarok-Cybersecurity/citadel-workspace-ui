@@ -3,6 +3,12 @@
  * group-response-service reads it through app-topic-filter.ts). Learning a topic group also drops
  * any chat record of it a joined-list may have added first: the host can learn a key after the
  * agent listed the group.
+ *
+ * Nothing is ever forgotten while the tab lives. Leaving a topic does not end the group for this
+ * session: another tab of the same account may still be in it, a leave can fail, and messages
+ * already in flight still arrive, and each of those would otherwise surface as a phantom chat. A
+ * group key is never reused for another group (its mgid is fresh per creation), so keeping it
+ * excludes nothing that could ever be a chat.
  */
 import type { GroupConversation } from '@/types/group';
 import type { AppTopicView } from './app-topic-filter';
@@ -24,9 +30,4 @@ export function markTopicRequest(requestId: string): void {
 export function markTopicGroup(groupId: string): void {
   groups.add(groupId);
   updateGroups((prev: GroupConversation[]) => (prev.some((g: GroupConversation) => g.id === groupId) ? prev.filter((g: GroupConversation) => g.id !== groupId) : prev));
-}
-
-/** The topic closed for good (left, ended): the id is forgotten. */
-export function forgetTopicGroup(groupId: string): void {
-  groups.delete(groupId);
 }

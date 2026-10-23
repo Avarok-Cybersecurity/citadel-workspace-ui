@@ -23,15 +23,17 @@ interface Plane { port: IhttpPort; sent: bigint[]; answer: PortAnswer<null>; inb
 function plane(): Plane {
   const p: Plane = { sent: [], answer: { ok: null }, inbound: () => undefined, port: undefined as unknown as IhttpPort };
   p.port = {
-    IhttpServe: async () => ({ ok: null }),
-    IhttpCall: async ({ frame }) => { p.sent.push(frame.stream); return p.answer; },
-    respond: async (_peer: Caller, f: IhttpFrame) => { p.sent.push(f.stream); return { ok: null }; },
-    onFrame: (l) => { p.inbound = l; return () => undefined; },
+    IhttpServe: async (): Promise<PortAnswer<null>> => ({ ok: null }),
+    IhttpCall: async ({ frame }): Promise<PortAnswer<null>> => { p.sent.push(frame.stream); return p.answer; },
+    respond: async (_peer: Caller, f: IhttpFrame): Promise<PortAnswer<null>> => { p.sent.push(f.stream); return { ok: null }; },
+    onFrame: (l): (() => void) => { p.inbound = l; return (): void => undefined; },
   };
   return p;
 }
 
-const rig = (held: Capability[]): { relay: Plane; p2p: Plane; call: (t: Transport, f: IhttpFrame) => Promise<PortAnswer<null>>; router: IhttpPort } => {
+interface Rig { relay: Plane; p2p: Plane; call: (t: Transport, f: IhttpFrame) => Promise<PortAnswer<null>>; router: IhttpPort }
+
+const rig = (held: Capability[]): Rig => {
   const relay: Plane = plane();
   const p2p: Plane = plane();
   const router: IhttpPort = transportRouter({ relay: relay.port, p2p: p2p.port, held: new Set<Capability>(held) });
@@ -40,14 +42,14 @@ const rig = (held: Capability[]): { relay: Plane; p2p: Plane; call: (t: Transpor
 
 describe('a stream keeps the plane it opened on', () => {
   it('prefer opens on P2P and every later frame follows it', async () => {
-    const r = rig(['ihttp.p2p.call', 'ihttp.call']);
+    const r: Rig = rig(['ihttp.p2p.call', 'ihttp.call']);
     expect(await r.call('prefer_p2p_then_relay', head(1n))).toEqual({ ok: null });
     expect(await r.call('prefer_p2p_then_relay', end(1n))).toEqual({ ok: null });
     expect([r.p2p.sent, r.relay.sent]).toEqual([[1n, 1n], []]);
   });
 
   it('falls back to the relay when P2P refused before opening, and stays there', async () => {
-    const r = rig(['ihttp.p2p.call', 'ihttp.call']);
+    const r: Rig = rig(['ihttp.p2p.call', 'ihttp.call']);
     r.p2p.answer = { refused: { unavailable: 'p2p_not_advertised' } };
     expect(await r.call('prefer_p2p_then_relay', head(1n))).toEqual({ ok: null });
     r.p2p.answer = { ok: null };
@@ -56,21 +58,21 @@ describe('a stream keeps the plane it opened on', () => {
   });
 
   it('without the relay capability it answers unavailable:p2p and sends nothing on the relay', async () => {
-    const r = rig(['ihttp.p2p.call']);
+    const r: Rig = rig(['ihttp.p2p.call']);
     r.p2p.answer = { refused: { unavailable: 'refused' } };
     expect(await r.call('prefer_p2p_then_relay', head(1n))).toEqual({ refused: { unavailable: 'p2p' } });
     expect(r.relay.sent).toEqual([]);
   });
 
   it('a refusal after the frame reached the peer is not a reason to fall back', async () => {
-    const r = rig(['ihttp.p2p.call', 'ihttp.call']);
+    const r: Rig = rig(['ihttp.p2p.call', 'ihttp.call']);
     r.p2p.answer = { refused: { unavailable: 'p2p_queue' } };
     expect(await r.call('prefer_p2p_then_relay', head(1n))).toEqual({ refused: { unavailable: 'p2p_queue' } });
     expect(r.relay.sent).toEqual([]);
   });
 
   it('an explicit p2p call never falls back, and an explicit relay call never touches P2P', async () => {
-    const r = rig(['ihttp.p2p.call', 'ihttp.call']);
+    const r: Rig = rig(['ihttp.p2p.call', 'ihttp.call']);
     r.p2p.answer = { refused: { unavailable: 'refused' } };
     expect(await r.call('p2p', head(1n))).toEqual({ refused: { unavailable: 'refused' } });
     expect(await r.call('relay', head(2n))).toEqual({ ok: null });
@@ -78,14 +80,14 @@ describe('a stream keeps the plane it opened on', () => {
   });
 
   it('prefer with only the relay held goes straight to the relay; neither held is ungranted', async () => {
-    const r = rig(['ihttp.call']);
+    const r: Rig = rig(['ihttp.call']);
     expect(await r.call('prefer_p2p_then_relay', head(1n))).toEqual({ ok: null });
     expect([r.p2p.sent, r.relay.sent]).toEqual([[], [1n]]);
     expect(await rig([]).call('prefer_p2p_then_relay', head(1n))).toEqual({ refused: 'ungranted' });
   });
 
   it('a frame on a stream no head opened is refused, and a response goes back the way it came', async () => {
-    const r = rig(['ihttp.p2p.call', 'ihttp.call']);
+    const r: Rig = rig(['ihttp.p2p.call', 'ihttp.call']);
     expect(await r.call('p2p', end(9n))).toEqual({ refused: { policy: 'unknown_stream' } });
     const caller: Caller = { username: 'carol', cid: 3n, app_id: APP, install_id: 'i', via: 'p2p' };
     await r.router.respond(caller, end(4n));

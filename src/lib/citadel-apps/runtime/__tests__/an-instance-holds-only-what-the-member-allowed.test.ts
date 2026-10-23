@@ -6,26 +6,30 @@
  * and TopicGroup, the agent an in-memory AgentLink that accepts every send; the ports are real.
  */
 import { describe, expect, it } from 'vitest';
-import type { AppInstall, AppLimits, AppsRequest, PeerForMe } from 'citadel-workspace-client-ts';
+import type { AppInstall, AppLimits, AppsRequest, Capability, PeerForMe } from 'citadel-workspace-client-ts';
 import { installOf } from '@/test/app-manifests';
-import { readAppsAnswer } from '../../wire/apps-answer';
+import { readAppsAnswer, type AppsAnswer } from '../../wire/apps-answer';
 import type { AppsTransport } from '@/lib/workspace-service/apps-operations';
 import { STANDARD_HOST_POLICY } from '../../host/limits';
 import type { IhttpPort, PortAnswer } from '../../host/ports';
 import type { AgentLink } from '../agent-link';
-import { peerPorts, type PeerWorld } from '../peer-ports';
+import { peerPorts, type PeerPorts, type PeerWorld } from '../peer-ports';
+import type { IhttpFrame } from '../../sdk/generated/IhttpFrame';
 
-const GRANTED = ['ihttp.p2p.serve', 'ihttp.p2p.call', 'group.topic.publish', 'storage.user'] as const;
+const GRANTED: Capability[] = ['ihttp.p2p.serve', 'ihttp.p2p.call', 'group.topic.publish', 'storage.user'];
 const INSTALL: AppInstall = installOf('com.acme.kanban', 'Workspace', {
-  id: 'i-1', granted: [...GRANTED], details: { host_network_hosts: [], server_network_hosts: [], ihttp_routes: [], ihttp_call_targets: [], ihttp_p2p_routes: [], topics: ['pool'] },
+  id: 'i-1', granted: GRANTED, details: { host_network_hosts: [], server_network_hosts: [], ihttp_routes: [], ihttp_call_targets: [], ihttp_p2p_routes: [], topics: ['pool'] },
 });
-const LIMITS = { topics: { max_msg_bytes: 64, max_msgs_per_s: 2 } } as unknown as AppLimits;
+// Only limits.topics is read by the peer planes; the rest of AppLimits is the manifest's and not under test.
+const LIMITS: AppLimits = { topics: { max_msg_bytes: 64, max_msgs_per_s: 2 } } as unknown as AppLimits;
 const relay: IhttpPort = {
   IhttpServe: async () => ({ ok: null }), IhttpCall: async () => ({ refused: { unavailable: 'relay' } }),
   respond: async () => ({ ok: null }), onFrame: () => () => undefined,
 } as unknown as IhttpPort;
 
-function world(session: boolean, mine: PeerForMe | null) {
+interface World { w: PeerWorld; asked: AppsRequest[]; push: (a: unknown) => void }
+
+function world(session: boolean, mine: PeerForMe | null): World {
   const asked: AppsRequest[] = [];
   const pushed: Set<(a: unknown) => void> = new Set();
   const transport: AppsTransport = {
@@ -34,7 +38,7 @@ function world(session: boolean, mine: PeerForMe | null) {
       const raw: unknown = typeof request === 'object' && 'AuthorizePeer' in request
         ? { PeerAuthorized: { install_id: 'i-1', peer: { username: 'bob', cid: request.AuthorizePeer.peer_cid, app_id: 'com.acme.kanban', install_id: 'i-2' }, direction: 'Call', until_ms: 10n ** 13n } }
         : { TopicGroup: { install_id: 'i-1', topic: 'pool', group_key: '5:9' } };
-      const answer = readAppsAnswer(raw);
+      const answer: AppsAnswer = readAppsAnswer(raw);
       if (!isOurs(answer)) throw new Error('not ours');
       return answer;
     },
@@ -57,10 +61,10 @@ function world(session: boolean, mine: PeerForMe | null) {
     peerCid: (u: string) => (u === 'bob' ? 200n : null), peerForMe: () => mine,
     topicRecord: { group: () => undefined, request: () => undefined }, report: () => undefined,
   };
-  return { w, asked, push: (a: unknown) => pushed.forEach((l) => l(a)) };
+  return { w, asked, push: (a: unknown): void => pushed.forEach((l) => l(a)) };
 }
 
-const head = (stream: bigint) => ({ v: 1, stream, kind: { RequestHead: { method: 'GET', path: '/h', query: '', headers: [], body_len: 0n, app_id: 'com.acme.kanban', scope_key: 'ws' } } });
+const head = (stream: bigint): IhttpFrame => ({ v: 1, stream, kind: { RequestHead: { method: 'GET', path: '/h', query: '', headers: [], body_len: 0n, app_id: 'com.acme.kanban', scope_key: 'ws' } } });
 const call = async (p: IhttpPort, stream: bigint): Promise<PortAnswer<null>> =>
   await p.IhttpCall({ to: { user: { app_id: 'com.acme.kanban', username: 'bob' } }, frame: head(stream), transport: 'p2p' } as never);
 const consent = (serve: boolean, callAllowed: boolean, topics: boolean): PeerForMe => ({ install_id: 'i-1', consent: { serve, call: callAllowed, topics, at_ms: 1n }, blocked: [] });
@@ -72,15 +76,15 @@ describe('an instance’s peer planes', () => {
   });
 
   it('without an agent session there is no P2P plane and no topic (control: with one, both)', async () => {
-    const none = peerPorts(INSTALL, LIMITS, relay, world(false, consent(true, true, true)).w);
+    const none: PeerPorts = peerPorts(INSTALL, LIMITS, relay, world(false, consent(true, true, true)).w);
     expect([none.topic, await call(none.ihttp, 1n)]).toEqual([null, { refused: { unavailable: 'p2p' } }]);
-    const some = peerPorts(INSTALL, LIMITS, relay, world(true, consent(true, true, true)).w);
+    const some: PeerPorts = peerPorts(INSTALL, LIMITS, relay, world(true, consent(true, true, true)).w);
     expect([some.topic !== null, await call(some.ihttp, 1n)]).toEqual([true, { ok: null }]);
   });
 
   it('asks the kernel once per peer while held, and again after an install or answer changes', async () => {
-    const x = world(true, consent(true, true, true));
-    const ports = peerPorts(INSTALL, LIMITS, relay, x.w);
+    const x: World = world(true, consent(true, true, true));
+    const ports: PeerPorts = peerPorts(INSTALL, LIMITS, relay, x.w);
     await call(ports.ihttp, 1n);
     await call(ports.ihttp, 2n);
     const authorizations = (): number => x.asked.filter((r) => typeof r === 'object' && 'AuthorizePeer' in r).length;
@@ -92,8 +96,8 @@ describe('an instance’s peer planes', () => {
   });
 
   it('a topic names its group through the kernel', async () => {
-    const x = world(true, consent(false, false, true));
-    const ports = peerPorts(INSTALL, LIMITS, relay, x.w);
+    const x: World = world(true, consent(false, false, true));
+    const ports: PeerPorts = peerPorts(INSTALL, LIMITS, relay, x.w);
     expect(await ports.topic?.TopicOpen({ name: 'pool' })).toEqual({ ok: { name: 'pool', members: [] } });
     expect(x.asked).toEqual([{ TopicGroup: { install_id: 'i-1', topic: 'pool', claim: null } }]);
   });

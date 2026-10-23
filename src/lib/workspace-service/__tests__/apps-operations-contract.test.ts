@@ -5,7 +5,7 @@
  * answer about another app or install is not taken for ours.
  */
 import { describe, expect, it, vi } from 'vitest';
-import type { AppsRequest } from 'citadel-workspace-client-ts';
+import type { AppsRequest, PeerForMe } from 'citadel-workspace-client-ts';
 import { eventEmitter } from '@/lib/event-emitter';
 import type { WorkspaceProtocolRequestTS } from '@/types/workspace-protocol';
 import {
@@ -108,7 +108,7 @@ describe('answers that are not ours, or not answers', () => {
   it('the kernel’s Installs answer carries disabled_for_me and peer_for_me; one without either is not the kernel’s shape', async () => {
     const fake: FakeAppsKernel = new FakeAppsKernel(world());
     const install: unknown = installOf('com.acme.lint', { SelfOnly: 'alice' });
-    const peer = { install_id: 'install-com.acme.lint', consent: { serve: true, call: false, topics: false, at_ms: 5n }, blocked: ['mallory'] };
+    const peer: PeerForMe = { install_id: 'install-com.acme.lint', consent: { serve: true, call: false, topics: false, at_ms: 5n }, blocked: ['mallory'] };
     fake.scripted.push(
       { Installs: { installs: [install], disabled_for_me: ['install-com.acme.lint'], peer_for_me: [peer] } },
       { Installs: { installs: [install], peer_for_me: [] } },

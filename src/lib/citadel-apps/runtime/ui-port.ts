@@ -3,13 +3,13 @@
  * within toolbar-model.ts's bounds). Menus, dialogs, toasts and height changes are not offered on
  * this page yet, and say so: each answers `{unavailable: "ui_<what>"}` rather than nothing.
  */
-import type { UiPort } from '../host/ports';
+import type { PortAnswer, UiPort } from '../host/ports';
 import { readToolbar, type ToolbarReading } from './toolbar-model';
 import type { ZoneToolbar } from './zone-toolbar';
 
 export function zoneUiPort(toolbar: ZoneToolbar): UiPort {
   return {
-    SetToolbar: ({ items }) => {
+    SetToolbar: ({ items }): PortAnswer<null> => {
       const read: ToolbarReading = readToolbar(items);
       if (!read.ok) return { refused: read.refused };
       toolbar.set(read.buttons);
