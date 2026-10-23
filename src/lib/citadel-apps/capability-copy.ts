@@ -48,6 +48,25 @@ export const CAPABILITY_COPY: Record<Capability, CapabilityCopy> = {
   'net.server': { label: 'Reach these websites from the workspace server', risk: 'high', installerNeeds: Permission.AppInstallAllowServerNetwork },
   'ihttp.serve': { label: 'Offer a service other members’ apps can call', risk: 'medium', installerNeeds: Permission.AppInstallAllowInternalServe },
   'ihttp.call': { label: 'Call services other members’ apps offer', risk: 'medium', installerNeeds: Permission.AppInstallAllowInternalCall },
+  'ihttp.p2p.serve': { label: 'Let other members’ copies of this app run requests on each person’s device', risk: 'high', installerNeeds: Permission.AppInstallAllowPeerServe },
+  'ihttp.p2p.call': { label: 'Send requests straight to other members’ devices', risk: 'medium', installerNeeds: Permission.AppInstallAllowPeerCall },
+  'group.topic.subscribe': { label: 'Listen on this app’s own channels', risk: 'medium', installerNeeds: Permission.AppInstallAllowGroupTopics },
+  'group.topic.publish': { label: 'Post on this app’s own channels', risk: 'medium', installerNeeds: Permission.AppInstallAllowGroupTopics },
+};
+
+/** What the workspace server sees of P2P traffic, said wherever a member is asked to allow it. */
+export const PEER_METADATA_DISCLOSURE: string =
+  'The workspace server cannot read this traffic, but it does see who connects to whom, when, and how much is sent.';
+
+/**
+ * The capabilities each member allows for themselves, even when the installer granted them
+ * (consent-model.ts), with the words of that per-member prompt. Keyed by the generated union.
+ */
+export const MEMBER_CONSENT_COPY: Partial<Record<Capability, string>> = {
+  'ihttp.p2p.serve': 'Let other members’ copies of this app run requests on this device. They talk directly to your device; the workspace server cannot see or filter this traffic. Only members who also installed and allowed it can reach you. You can turn this off at any time in Apps → Installed.',
+  'ihttp.p2p.call': 'Let this app send requests directly to other members’ devices. The workspace server cannot see or filter this traffic, but it does see who connects to whom and when.',
+  'group.topic.subscribe': 'Join this app’s channels. Messages there are visible to everyone in the channel (members who installed and allowed this app); the server relays them but cannot read them.',
+  'group.topic.publish': 'Post in this app’s channels. Everyone in the channel (members who installed and allowed this app) sees what it posts; the server relays it but cannot read it.',
 };
 
 /** Granted only to an app signed by the first-party key (`first_party_only` in rules.rs). */

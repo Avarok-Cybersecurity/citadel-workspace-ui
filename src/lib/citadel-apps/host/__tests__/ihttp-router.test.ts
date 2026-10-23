@@ -18,7 +18,7 @@ function router(): IhttpRouter {
   const r: IhttpRouter = new IhttpRouter(APP, STANDARD_IHTTP_LIMITS);
   const parsed: ParsedRoutes = parseRoutes([{ method: 'GET', path: '/cards/:id' }, { method: 'POST', path: '/upload/*' }], 64, 2048);
   if (!parsed.ok) throw new Error(parsed.reason);
-  r.setRoutes(parsed.routes);
+  r.setRoutes(parsed.routes, { relay: true, p2p: true });
   return r;
 }
 

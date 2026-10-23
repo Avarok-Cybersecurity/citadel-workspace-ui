@@ -11,6 +11,7 @@ import type { AbiGroup } from './abi';
 import { decodeCbor, encodeCbor, f32, isCborMap, type CborMap, type Decoded } from './cbor';
 import type { Capability } from './capabilities';
 import type { IhttpRouter, RouterAction, Verdict } from './ihttp-router';
+import { servePlan, type ServePlan } from './ihttp-planes';
 import { parseRoutes, type ParsedRoutes } from './ihttp-routes';
 import type { HostPolicy } from './limits';
 import { parseArgs, type OpName } from './op-args';
@@ -50,6 +51,9 @@ const refused = (why: Refused): Uint8Array => encodeCbor({ refused: why });
 /** Reply fields that are f32 on the Rust side (every other reply number is an integer). */
 const REPLY_FLOATS: Partial<Record<OpName, readonly string[]>> = { CanvasMeasure: ['dpr'], MeasureText: ['width'] };
 
+/** Some requested planes are advertised and one is not: the app hears `ungranted`, unless the port refused anyway. */
+const partialServe = (answer: PortAnswer): PortAnswer => ('ok' in answer ? { refused: 'ungranted' } : answer);
+
 export function isPortAnswer(value: unknown): value is PortAnswer {
   if (!isCborMap(value)) return false;
   const keys: string[] = Object.keys(value);
@@ -88,20 +92,23 @@ export class Dispatcher {
     if (entry.server(args) && !this.serverBucket.take(clock.now())) return { now: refused({ limit: 'server_calls' }) };
     const gate: Refused | null = this.hostGate(entry, args);
     if (gate !== null) return { now: refused(gate) };
+    // An advertisement reaches the port with only the planes held; asking for one not held is `ungranted` after.
+    const serve: ServePlan | null = entry.name === 'IhttpServe' ? servePlan((args as unknown as OpArgs['IhttpServe']).on, granted) : null;
     let reply: PortReply | undefined;
     try {
-      reply = this.deps.invoker.invoke(entry, args);
+      reply = this.deps.invoker.invoke(entry, serve?.kind === 'serve' ? { ...args, on: serve.on } : args);
     } catch {
       return { now: refused({ unavailable: 'port_failed' }) };
     }
     if (reply === undefined) return { now: refused({ unavailable: entry.port }) };
+    if (serve?.kind === 'serve' && serve.partial) reply = Promise.resolve(reply).then(partialServe);
     if (!(reply instanceof Promise)) return { now: this.encodeAnswer(entry.name, reply) };
     return { later: this.bounded(entry.name, reply, this.timeoutFor(entry.clock)) };
   }
 
   /** What the host itself decides before any port: navigation and the ihttp router. */
   private hostGate(entry: OpEntry, args: CborMap): Refused | null {
-    const { router, policy, clock } = this.deps;
+    const { router, policy, clock, granted } = this.deps;
     const verdict = (v: Verdict): Refused | null => {
       if (v.actions.length > 0) this.deps.routerActions(v.actions);
       return v.ok ? null : v.refused;
@@ -114,7 +121,9 @@ export class Dispatcher {
       case 'IhttpServe': {
         const parsed: ParsedRoutes = parseRoutes((args as unknown as OpArgs['IhttpServe']).routes, policy.ihttp.maxRoutes, policy.ihttp.maxPathBytes);
         if (!parsed.ok) return { policy: 'bad_routes' };
-        router.setRoutes(parsed.routes);
+        const plan: ServePlan = servePlan((args as unknown as OpArgs['IhttpServe']).on, granted);
+        if (plan.kind !== 'serve') return { policy: 'bad_arguments' };
+        router.setRoutes(parsed.routes, plan.on);
         return null;
       }
       case 'IhttpRespond': {
@@ -123,7 +132,7 @@ export class Dispatcher {
       }
       case 'IhttpCall': {
         const a: OpArgs['IhttpCall'] = args as unknown as OpArgs['IhttpCall'];
-        return verdict(router.call(a.to, a.frame, clock.now()));
+        return verdict(router.call(a.to, a.frame, a.transport, clock.now()));
       }
       case 'IhttpConsumed': {
         const a: OpArgs['IhttpConsumed'] = args as unknown as OpArgs['IhttpConsumed'];

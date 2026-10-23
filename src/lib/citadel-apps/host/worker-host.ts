@@ -165,7 +165,7 @@ export function startWorkerHost(channel: WorkerChannel, clock: DispatchClock, su
   const closingActions = (actions: readonly ClosingAction[]): void => {
     for (const a of actions) {
       if (a.kind === 'reply') channel.post({ kind: 'ihttp_out', peer: a.peer, frame: a.frame });
-      else channel.post({ kind: 'ihttp_call_out', to: a.to, frame: a.frame });
+      else channel.post({ kind: 'ihttp_call_out', to: a.to, frame: a.frame, transport: a.transport });
     }
   };
 

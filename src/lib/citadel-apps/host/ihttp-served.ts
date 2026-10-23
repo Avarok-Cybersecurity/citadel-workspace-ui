@@ -8,7 +8,9 @@ import type { Caller } from '../sdk/generated/Caller';
 import type { IhttpFrame } from '../sdk/generated/IhttpFrame';
 import type { RequestHead } from '../sdk/generated/RequestHead';
 import type { ResponseHead } from '../sdk/generated/ResponseHead';
+import type { ServeOn } from '../sdk/generated/ServeOn';
 import { abortBoth, allow, cancel, CLOSED_REASON, deny, frame, headersProblem, MAX_CREDIT, peerKey, requestHeadProblem, type ClosingAction, type RouterAction, type Verdict } from './ihttp-common';
+import { servesVia } from './ihttp-planes';
 import { matchRoute, type RoutePattern } from './ihttp-routes';
 import type { IhttpLimits } from './limits';
 import { TokenBucket } from './token-bucket';
@@ -29,6 +31,8 @@ export const servedKey = (peer: Caller, id: bigint): string => `${peerKey(peer)}
 
 export class ServedStreams {
   routes: readonly RoutePattern[] = [];
+  /** Serving nothing until IhttpServe says on which planes. */
+  planes: ServeOn = { relay: false, p2p: false };
   private readonly streams: Map<string, Served> = new Map<string, Served>();
   private readonly lastStream: Map<string, bigint> = new Map<string, bigint>();
   private readonly buckets: Map<string, TokenBucket> = new Map<string, TokenBucket>();
@@ -60,7 +64,8 @@ export class ServedStreams {
     if (this.streams.size >= this.limits.maxStreamsPerServer) return [cancel(peer, id, 'server_concurrency')];
     const bad: string | null = requestHeadProblem(head, this.limits);
     if (bad !== null) return [cancel(peer, id, bad)];
-    if (matchRoute(this.routes, head.method, head.path) === null) return [cancel(peer, id, 'unrouted')];
+    // A plane the app does not serve on looks exactly like a route it does not have.
+    if (!servesVia(this.planes, peer.via) || matchRoute(this.routes, head.method, head.path) === null) return [cancel(peer, id, 'unrouted')];
     this.streams.set(servedKey(peer, id), {
       peer, id, declaredBody: head.body_len, requestBytes: 0,
       creditIn: this.limits.initialCredit, creditOut: this.limits.initialCredit, responseStarted: false, responseBytes: 0,

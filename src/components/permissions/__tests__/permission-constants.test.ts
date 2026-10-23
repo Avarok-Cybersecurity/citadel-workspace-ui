@@ -34,7 +34,7 @@ describe('permission-constants', () => {
     it('puts every app permission, and only those, under Apps', () => {
       const apps: Permission[] = PERMISSION_CATEGORIES['Apps'].map((p) => p.id);
       const appVariants: Permission[] = Object.values(Permission).filter((p) => p.startsWith('App'));
-      expect(appVariants).toHaveLength(18);
+      expect(appVariants).toHaveLength(21);
       expect([...apps].sort()).toEqual([...appVariants].sort());
     });
 

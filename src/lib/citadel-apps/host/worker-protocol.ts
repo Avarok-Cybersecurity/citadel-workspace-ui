@@ -14,6 +14,7 @@ import type { CloseReason } from '../sdk/generated/CloseReason';
 import type { IhttpFrame } from '../sdk/generated/IhttpFrame';
 import type { LifecycleStep } from '../sdk/generated/LifecycleStep';
 import type { LogLevel } from '../sdk/generated/LogLevel';
+import type { Transport } from '../sdk/generated/Transport';
 import type { HostPolicy } from './limits';
 import type { PortAnswer } from './ports';
 
@@ -58,7 +59,7 @@ export type FromWorker =
   | { readonly kind: 'port_call'; readonly id: number; readonly group: AbiGroup; readonly op: number; readonly args: CborMap }
   | { readonly kind: 'ihttp_out'; readonly peer: Caller; readonly frame: IhttpFrame }
   /** A frame on a call whose server has not answered yet, so only its address is known. */
-  | { readonly kind: 'ihttp_call_out'; readonly to: Address; readonly frame: IhttpFrame }
+  | { readonly kind: 'ihttp_call_out'; readonly to: Address; readonly frame: IhttpFrame; readonly transport: Transport }
   | { readonly kind: 'closing'; readonly result: number }
   | { readonly kind: 'settled' };
 

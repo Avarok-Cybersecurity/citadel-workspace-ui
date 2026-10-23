@@ -71,7 +71,7 @@ describe('internal HTTP over the relay', () => {
   it('serving advertises sha256 of the routes for 90 s and renews every minute until withdrawn', async () => {
     const r: ReturnType<typeof relay> = relay();
     const port: ReturnType<typeof relayIhttpPort> = relayIhttpPort(r.deps);
-    expect(await port.IhttpServe({ routes: [{ method: 'GET', path: '/a' }, { method: 'POST', path: '/b/:id' }] })).toEqual({ ok: null });
+    expect(await port.IhttpServe({ routes: [{ method: 'GET', path: '/a' }, { method: 'POST', path: '/b/:id' }], on: { relay: true, p2p: false } })).toEqual({ ok: null });
     const digest: string = await sha(new TextEncoder().encode('GET /a\nPOST /b/:id'));
     expect(r.ads).toEqual([[digest, BigInt(1_000 + ADVERTISE_TTL_MS)]]);
     r.ticks[0]();
@@ -87,7 +87,7 @@ describe('internal HTTP over the relay', () => {
     let land: () => void = (): void => undefined;
     const slow: ReturnType<typeof relay> = relay({ advertise: (_d, until) => new Promise((r) => { land = (): void => r({ ok: true, value: until }); }) });
     const port: ReturnType<typeof relayIhttpPort> = relayIhttpPort(slow.deps);
-    const serving: Promise<unknown> = Promise.resolve(port.IhttpServe({ routes: [] }));
+    const serving: Promise<unknown> = Promise.resolve(port.IhttpServe({ routes: [], on: { relay: true, p2p: false } }));
     await new Promise<void>((r) => setTimeout(r, 0));
     const withdrawn: Promise<unknown> = port.withdraw();
     land();
@@ -99,14 +99,14 @@ describe('internal HTTP over the relay', () => {
 
   it('a refused advertisement is the app’s answer, and nothing is renewed', async () => {
     const r: ReturnType<typeof relay> = relay({ advertise: async () => ({ ok: false, refusal: 'ServerFeatureUnavailable' }) });
-    expect(await relayIhttpPort(r.deps).IhttpServe({ routes: [] })).toEqual({ refused: { unavailable: 'server' } });
+    expect(await relayIhttpPort(r.deps).IhttpServe({ routes: [], on: { relay: true, p2p: false } })).toEqual({ refused: { unavailable: 'server' } });
     expect(r.ticks).toEqual([]);
   });
 
   it('a call goes to the address the app named, a response to the caller the server named', async () => {
     const r: ReturnType<typeof relay> = relay();
     const port: ReturnType<typeof relayIhttpPort> = relayIhttpPort(r.deps);
-    await port.IhttpCall({ to: { scope: { app_id: 'com.acme.kanban', scope_key: 'workspace' } }, frame });
+    await port.IhttpCall({ to: { scope: { app_id: 'com.acme.kanban', scope_key: 'workspace' } }, frame, transport: 'relay' });
     await port.respond({ ...from, via: 'relay' }, frame);
     expect(r.sent).toEqual([
       [{ Scope: { app_id: 'com.acme.kanban', scope_key: 'workspace' } }, { v: 1, stream: 3, kind: 'End' }],

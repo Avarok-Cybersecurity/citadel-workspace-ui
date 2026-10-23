@@ -197,7 +197,7 @@ export class AppInstance {
         return;
       }
       case 'ihttp_out': void this.options.ports.ihttp?.respond(message.peer, message.frame); return;
-      case 'ihttp_call_out': void this.options.ports.ihttp?.IhttpCall({ to: message.to, frame: message.frame }); return;
+      case 'ihttp_call_out': void this.options.ports.ihttp?.IhttpCall({ to: message.to, frame: message.frame, transport: message.transport }); return;
       case 'closing': if (this.closing !== null) this.closing.closeResult = message.result; return;
       case 'settled':
         if (this.life.step('settled')) this.stop('closed', 'settled');

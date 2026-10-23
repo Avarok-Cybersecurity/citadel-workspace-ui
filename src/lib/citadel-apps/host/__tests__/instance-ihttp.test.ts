@@ -22,8 +22,8 @@ import { op } from './wasm-builder';
 const APP: string = 'com.acme.board';
 const ROUTES_AT: number = 256;
 const RESPOND_AT: number = 1024;
-const routes: Uint8Array = encodeCbor({ routes: [{ method: 'GET', path: '/cards/:id' }] });
-const peer: Caller = { username: 'bob', cid: 42n, app_id: APP, install_id: 'i-bob', via: 'p2p' };
+const routes: Uint8Array = encodeCbor({ routes: [{ method: 'GET', path: '/cards/:id' }], on: { relay: true, p2p: false } });
+const peer: Caller = { username: 'bob', cid: 42n, app_id: APP, install_id: 'i-bob', via: 'relay' };
 const ok: IhttpFrame = { v: 1, stream: 2n, kind: { ResponseHead: { status: 200, headers: [], body_len: 0n } } };
 const respond: Uint8Array = encodeCbor({ peer, frame: ok });
 
@@ -61,7 +61,7 @@ async function serving(module: Uint8Array): Promise<Serving> {
   if (!launched.ok) throw new Error('no slot');
   const i: AppInstance = launched.instance;
   await until(() => i.state === 'running' && rec.calls.length === 1, 2000);
-  expect(rec.calls[0]).toEqual({ method: 'IhttpServe', args: { routes: [{ method: 'GET', path: '/cards/:id' }] } });
+  expect(rec.calls[0]).toEqual({ method: 'IhttpServe', args: { routes: [{ method: 'GET', path: '/cards/:id' }], on: { relay: true, p2p: false } } });
   return { i, rec, responded, inbound: (f: InboundIhttpFrame): void => inbound(f) };
 }
 

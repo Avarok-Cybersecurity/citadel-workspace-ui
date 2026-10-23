@@ -118,7 +118,7 @@ const guestFrame = (hex: string): IhttpFrame => {
 describe('(c) an internal-HTTP frame between the app’s shapes and the wire’s', () => {
   it.each(named(fixture.frames_to_wire))('out: %s', async (_n, c) => {
     const r: ReturnType<typeof relay> = relay();
-    await relayIhttpPort(r.deps).IhttpCall({ to: { user: { app_id: 'com.acme.kanban', username: 'bob' } }, frame: guestFrame(c.sdk_hex) });
+    await relayIhttpPort(r.deps).IhttpCall({ to: { user: { app_id: 'com.acme.kanban', username: 'bob' } }, frame: guestFrame(c.sdk_hex), transport: 'relay' });
     expect(r.sent.map(([, hex]) => hex)).toEqual([c.wire_hex]);
   });
 
@@ -138,8 +138,8 @@ describe('(d, e) the relay’s rules', () => {
     const called: CalledStreams = new CalledStreams(STANDARD_HOST_POLICY.ihttp);
     const head = (stream: bigint): IhttpFrame => ({ v: 1, stream, kind: { RequestHead: { method: 'GET', path: '/a', query: '', headers: [], body_len: 0n, app_id: 'com.acme.kanban', scope_key: 'workspace' } } });
     const to: Address = { user: { app_id: 'com.acme.kanban', username: 'bob' } };
-    expect(called.outbound(to, head(RELAY_STREAM_BIT | 1n), 0, false)).toEqual({ ok: false, refused: { policy: 'stream_id' }, actions: [] });
-    expect(called.outbound(to, head(1n), 0, false)).toEqual({ ok: true, actions: [] });
+    expect(called.outbound(to, head(RELAY_STREAM_BIT | 1n), 'relay', 0, false)).toEqual({ ok: false, refused: { policy: 'stream_id' }, actions: [] });
+    expect(called.outbound(to, head(1n), 'relay', 0, false)).toEqual({ ok: true, actions: [] });
   });
 
   it.each(fixture.addressing.map((a) => [a.from.username, a] as const))('a response to a frame from %s goes back to them', async (_n, a) => {

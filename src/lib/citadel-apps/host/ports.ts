@@ -13,6 +13,7 @@ import type { Caller } from '../sdk/generated/Caller';
 import type { HostReply } from '../sdk/generated/HostReply';
 import type { IhttpFrame } from '../sdk/generated/IhttpFrame';
 import type { Refused } from '../sdk/generated/Refused';
+import type { TopicEvent } from '../sdk/generated/TopicEvent';
 import type { OpName } from './op-args';
 
 export type { Refused, HostReply };
@@ -49,6 +50,17 @@ export type NotifyPort = Port<'Notify'>;
 /** The CRDT relay; first-party key only (the install grant decides, not this port). */
 export type DocumentsPort = Port<'DocOpen' | 'DocApply' | 'DocPull'>;
 export type LogPort = Port<'LogWrite'>;
+/** App topics over the install's own Citadel group, never a chat group (runtime/topic-port.ts). */
+export type TopicPort = Port<'TopicOpen' | 'TopicPublish' | 'TopicClose'> & {
+  /** Events on the topics this instance opened; returns the unsubscribe. */
+  readonly onEvent: (listener: (event: TopicArrival) => void) => () => void;
+};
+
+/** One topic event for the app (AppEvent `{topic: {name, event}}`). */
+export interface TopicArrival {
+  readonly name: string;
+  readonly event: TopicEvent;
+}
 
 /** Internal links only: the dispatcher classifies the href first and hands over a router path. */
 export interface NavigatePort {
@@ -92,6 +104,7 @@ export interface HostPorts {
   readonly clipboard?: ClipboardPort;
   readonly notify?: NotifyPort;
   readonly documents?: DocumentsPort;
+  readonly topic?: TopicPort;
   readonly log?: LogPort;
 }
 

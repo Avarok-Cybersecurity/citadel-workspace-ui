@@ -15,6 +15,8 @@ import { installOf } from './app-manifests';
 const INSTALLER_NEEDS: Partial<Record<Capability, string>> = {
   'nodes.read': 'AppInstallAllowNodeRead', 'storage.user': 'AppInstallAllowStorage', 'net.server': 'AppInstallAllowServerNetwork',
   'net.host': 'AppInstallAllowHostNetwork', 'ihttp.serve': 'AppInstallAllowInternalServe', 'ihttp.call': 'AppInstallAllowInternalCall',
+  'ihttp.p2p.serve': 'AppInstallAllowPeerServe', 'ihttp.p2p.call': 'AppInstallAllowPeerCall',
+  'group.topic.subscribe': 'AppInstallAllowGroupTopics', 'group.topic.publish': 'AppInstallAllowGroupTopics',
   'md.edit': 'AppInstallAllowMdEdit', 'files.read': 'AppInstallAllowFiles',
 };
 
