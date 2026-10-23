@@ -72,6 +72,19 @@ export async function runJob(page: Page, log: ZoneLog, action: 'run-primes' | 'r
   };
 }
 
+/**
+ * Press `action` and wait for the job's end; whether `peer` answered any part of it. A member who
+ * blocked this one hears none of its topic messages (kernel peer_rules.rs: a block refuses every
+ * direction, topics too), so they never claim and are never called: the job is done without them.
+ */
+export async function runJobWithout(page: Page, log: ZoneLog, action: 'run-primes' | 'run-sha', peer: string, timeoutMs: number): Promise<{ readonly done: boolean; readonly peerAnswered: boolean }> {
+  const from: number = log.lines.length;
+  await pressAppAction(page, action);
+  const j: RegExpExecArray | null = await log.find(JOB, from, timeoutMs);
+  const prefix: string = `[app info] answer from ${peer} via `;
+  return { done: j !== null && j[3] === 'verified', peerAnswered: log.lines.slice(from).some((l: string) => l.startsWith(prefix)) };
+}
+
 export interface WireCount {
   /** Agent `IhttpSend` requests this page sent to `peerCid`. */
   readonly sentTo: (peerCid: string) => number;

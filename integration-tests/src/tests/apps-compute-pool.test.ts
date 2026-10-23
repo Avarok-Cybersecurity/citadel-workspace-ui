@@ -12,8 +12,9 @@
  *   3. Relay forced: B's answer via relay, verified, and A sent no agent IhttpSend for it (step 2
  *      proved the same counter does count, so its standing still is evidence).
  *   4. Denials: B revokes serve -> A's P2P call is refused; P2P-then-relay falls back and B answers
- *      via relay; B allows serve again but blocks A -> the refusal is word for word the same;
- *      B unblocks A -> B answers via p2p again.
+ *      via relay; B allows serve again but blocks A -> B is out of A's reach entirely: a block
+ *      refuses every direction, the pool's topic too, so B never hears the job, never claims it and
+ *      is never called, and A's job is done without B; B unblocks A -> B answers via p2p again.
  *   5. Revocation while running: A starts a SHA job and B revokes serve; B's answer comes within
  *      60 s, and A's next call is refused.
  *   6. Uninstall while running: both zones report that the app closed.
@@ -30,7 +31,7 @@ import { TestHarness, runTestMain, sleep, waitForP2PChannelReady } from '../lib/
 import { openMultiWindowWorld, makePeers, type MultiWindowWorld, type PeersReady } from '../lib/multi-window-setup.js';
 import { signComputePool, COMPUTE_POOL_ID, type SignedApp } from '../lib/apps-signing.js';
 import { blockPeer, consentPeer, installSignedApp, readZoneLog, revokePeer, uninstallApp, type Plane, type ZoneLog } from '../lib/apps.js';
-import { answered, openPoolZone, placePoolZone, pressAppAction, runJob, sessionCid, watchIhttpWire, type JobRun, type WireCount } from '../lib/apps-zone.js';
+import { answered, openPoolZone, placePoolZone, pressAppAction, runJob, runJobWithout, sessionCid, watchIhttpWire, type JobRun, type WireCount } from '../lib/apps-zone.js';
 import { runTwoTabVariant, type TwoTabResults } from '../lib/apps-two-tabs.js';
 
 const stamp: number = Date.now();
@@ -51,7 +52,7 @@ interface Results {
   peers: PeersReady; channelReady: boolean; installed: boolean; consented: boolean; mounted: boolean;
   p2pJob: boolean; p2pOnTheWire: boolean;
   relayJob: boolean; relayOffTheP2pWire: boolean;
-  revokedServeRefused: boolean; fallsBackToRelay: boolean; blockedSameRefusal: boolean; unblockedReaches: boolean;
+  revokedServeRefused: boolean; fallsBackToRelay: boolean; blockedOutOfReach: boolean; unblockedReaches: boolean;
   revokeEndsWithin60s: boolean; nextCallRefused: boolean;
   uninstallClosesBothZones: boolean;
   noRelayNoFallback: boolean;
@@ -84,7 +85,7 @@ async function runTest(): Promise<boolean> {
   const r: Results = {
     peers: { accounts: false, registered: false, conversations: false, talking: false }, channelReady: false, installed: false, consented: false, mounted: false,
     p2pJob: false, p2pOnTheWire: false, relayJob: false, relayOffTheP2pWire: false,
-    revokedServeRefused: false, fallsBackToRelay: false, blockedSameRefusal: false, unblockedReaches: false,
+    revokedServeRefused: false, fallsBackToRelay: false, blockedOutOfReach: false, unblockedReaches: false,
     revokeEndsWithin60s: false, nextCallRefused: false, uninstallClosesBothZones: false, noRelayNoFallback: false, twoTabs: null,
   };
   try {
@@ -125,8 +126,9 @@ async function runTest(): Promise<boolean> {
     await consentPeer(b, installId, ['serve']);
     await blockPeer(b, installId, A, true);
     await pressAppAction(a, 'mode-p2p');
-    // Not REFUSED again but the first refusal's own words: blocked and unconsented must not differ.
-    r.blockedSameRefusal = revoked.answer !== null && refusedOverP2p(await runJob(a, aLog, 'run-primes', B, JOB_MS), revoked.answer.note);
+    // Not a refusal from B: a block refuses the topic too (kernel peer_rules.rs), so B never claims.
+    const blocked: { done: boolean; peerAnswered: boolean } = await runJobWithout(a, aLog, 'run-primes', B, JOB_MS);
+    r.blockedOutOfReach = blocked.done && !blocked.peerAnswered;
     await blockPeer(b, installId, A, false);
     r.unblockedReaches = p2pOk(await runJob(a, aLog, 'run-primes', B, JOB_MS));
 
