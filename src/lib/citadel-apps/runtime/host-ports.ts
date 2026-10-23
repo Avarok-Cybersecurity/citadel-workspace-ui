@@ -2,13 +2,14 @@
  * The ports one running instance gets, bound to its install: server-side storage, blobs, files and
  * egress over `AppsRequest::Call`; `storage.local` and host egress through the local agent, only
  * when this tab's agent says it serves apps (`apps` in its greeting) and a session is signed in;
- * internal HTTP over the server relay; the events port; the page log. A port left out answers
+ * internal HTTP over the server relay; the zone's own events and ui ports (zone-runtime.ts); the
+ * page log. A port left out answers
  * `{refused: {unavailable: <port>}}` (host/ports.ts), which is what "not here" means to an app.
  */
 import type { AppInstall } from 'citadel-workspace-client-ts';
 import type { AppsResult, AppsTransport } from '@/lib/workspace-service/apps-operations';
 import { advertiseService, callHost, ihttpSend, withdrawService } from '@/lib/workspace-service/apps-runtime-operations';
-import type { EventsPort, HostNetPort, HostPorts, LogPort, StoragePort } from '../host/ports';
+import type { EventsPort, HostNetPort, HostPorts, LogPort, StoragePort, UiPort } from '../host/ports';
 import type { HostPolicy } from '../host/limits';
 import type { AgentLink } from './agent-link';
 import { agentKvPort, splitStorage } from './agent-kv-port';
@@ -37,8 +38,14 @@ export interface BoundPorts {
   readonly stop: () => void;
 }
 
+/** The ports a zone owns: its input (zone-input.ts) and its toolbar (ui-port.ts). */
+export interface ZonePorts {
+  readonly events: EventsPort;
+  readonly ui: UiPort;
+}
+
 /** `instance`: this running instance's name, which its advertisement is held under. */
-export function hostPortsFor(install: AppInstall, instance: string, scopeKey: string, events: EventsPort, w: PortWorld): BoundPorts {
+export function hostPortsFor(install: AppInstall, instance: string, scopeKey: string, zone: ZonePorts, w: PortWorld): BoundPorts {
   const call: HostCaller = (bytes: Uint8Array) => callHost(w.transport, install.id, bytes);
   const session: { readonly cid: bigint } | null = w.agentSession;
   const local: StoragePort | null = session === null ? null : agentKvPort(w.agent, { cid: session.cid, appId: install.app_id, scopeKey, timeoutMs: w.policy.portTimeoutMs });
@@ -54,7 +61,7 @@ export function hostPortsFor(install: AppInstall, instance: string, scopeKey: st
   });
   const ports: HostPorts = {
     storage: splitStorage(serverStorage(call), local), blob: serverBlob(call), storeFiles: serverFiles(call),
-    serverNet: serverNet(call), ihttp, events, log: w.log, ...(hostNet === null ? {} : { hostNet }),
+    serverNet: serverNet(call), ihttp, events: zone.events, ui: zone.ui, log: w.log, ...(hostNet === null ? {} : { hostNet }),
   };
   return {
     ports,

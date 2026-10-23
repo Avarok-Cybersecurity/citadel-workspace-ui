@@ -3,10 +3,11 @@
  * fetch and verify the release, start the instance in its own worker with the ports bound to its
  * install, hand it the canvas, forward input while it runs, suspend it while the zone or the page
  * is out of sight (zone-presence.ts), tell it the zone's new size, and close it gracefully when
- * the zone goes or the page does (zone-close.ts). Every dependency is passed in (SBIO);
+ * the zone goes or the page does (zone-close.ts). The app's toolbar is host buttons above the
+ * canvas (ui-port.ts); a press reaches the app as `ui_action` only while it runs. Every dependency is passed in (SBIO);
  * page-runtime.ts composes the page's.
  */
-import type { AppZoneHandle, AppZoneMount, AppZoneRuntime } from '@/components/office/app-zone/app-zone-environment';
+import type { AppZoneHandle, AppZoneMount, AppZoneRuntime, ZoneHost } from '@/components/office/app-zone/app-zone-environment';
 import type { AppsTransport } from '@/lib/workspace-service/apps-operations';
 import type { DispatchClock } from '../host/dispatch';
 import { launchAppInstance, type AppInstance, type InstanceState, type Launch } from '../host/instance';
@@ -24,6 +25,8 @@ import { scopeKeyOf, zoneContext } from './zone-context';
 import { zoneInput, type FrameLoop, type ZoneInput } from './zone-input';
 import { ZonePresence } from './zone-presence';
 import { zoneSurface, type ZoneSurface } from './zone-surface';
+import { zoneToolbar, type ZoneToolbar } from './zone-toolbar';
+import { zoneUiPort } from './ui-port';
 import type { PageLife, ZoneWatchers } from './zone-watchers';
 
 export interface ZoneRuntimeDeps extends ZoneCloseDeps {
@@ -47,7 +50,8 @@ export interface ZoneRuntimeDeps extends ZoneCloseDeps {
   readonly theme: () => Readonly<Record<string, string>>;
 }
 
-function mountZone(host: HTMLElement, zone: AppZoneMount, deps: ZoneRuntimeDeps): AppZoneHandle {
+function mountZone(slots: ZoneHost, zone: AppZoneMount, deps: ZoneRuntimeDeps): AppZoneHandle {
+  const host: HTMLElement = slots.canvas;
   const name: string = zone.manifest.name;
   const dpr: number = deps.dpr();
   let width: number = Math.max(1, Math.round(host.getBoundingClientRect().width));
@@ -59,6 +63,10 @@ function mountZone(host: HTMLElement, zone: AppZoneMount, deps: ZoneRuntimeDeps)
   let instance: AppInstance | null = null;
   let bound: BoundPorts | null = null;
   let detach: (() => void) | null = null;
+  const toolbar: ZoneToolbar = zoneToolbar(host.ownerDocument, name, (id: string): void => {
+    if (closing === null && instance?.state === 'running') instance.postEvent({ ui_action: { id } });
+  });
+  slots.toolbar.append(toolbar.element);
 
   const stopInput = (): void => {
     detach?.();
@@ -88,6 +96,7 @@ function mountZone(host: HTMLElement, zone: AppZoneMount, deps: ZoneRuntimeDeps)
       quiesce: (): void => {
         for (const stop of watching.splice(0)) stop();
         stopInput();
+        toolbar.dispose();
       },
     }, reason, deps).catch((error: unknown): void => {
       if (!leaving) deps.report(`[apps] closing ${name}'s zone failed`, error);
@@ -125,7 +134,7 @@ function mountZone(host: HTMLElement, zone: AppZoneMount, deps: ZoneRuntimeDeps)
     const world: PortWorld = { ...(await deps.portWorld()), policy: deps.policy };
     const scopeKey: string = await scopeKeyOf(zone.install.scope, world.sha256Hex);
     if (closing !== null) return;
-    bound = hostPortsFor(zone.install, deps.newInstanceId(), scopeKey, input.port, world);
+    bound = hostPortsFor(zone.install, deps.newInstanceId(), scopeKey, { events: input.port, ui: zoneUiPort(toolbar) }, world);
     const closeGraceMs: number = loaded.manifest.limits.close_grace_ms;
     const launch: Launch = launchAppInstance({
       appId: zone.install.app_id, module: loaded.module, granted: new Set(zone.install.granted), memory: loaded.memory, closeGraceMs,
@@ -147,6 +156,7 @@ function mountZone(host: HTMLElement, zone: AppZoneMount, deps: ZoneRuntimeDeps)
         return;
       }
       stopInput();
+      toolbar.dispose();
       const why: string | null = stoppedCopy(name, state);
       if (why !== null) surface.show({ kind: 'stopped', why });
     });
@@ -160,5 +170,5 @@ function mountZone(host: HTMLElement, zone: AppZoneMount, deps: ZoneRuntimeDeps)
 }
 
 export function createAppZoneRuntime(deps: ZoneRuntimeDeps): AppZoneRuntime {
-  return { mount: (host: HTMLElement, zone: AppZoneMount): AppZoneHandle => mountZone(host, zone, deps) };
+  return { mount: (host: ZoneHost, zone: AppZoneMount): AppZoneHandle => mountZone(host, zone, deps) };
 }

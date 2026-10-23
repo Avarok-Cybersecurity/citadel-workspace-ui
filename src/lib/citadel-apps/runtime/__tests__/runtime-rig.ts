@@ -22,7 +22,7 @@ import type { AgentLink } from '../agent-link';
 import type { ZoneAudit } from '../zone-close';
 import { createAppZoneRuntime, type ZoneRuntimeDeps } from '../zone-runtime';
 import { fakeWatchers, type FakeWatchers } from './fake-watchers';
-import type { AppZoneMount, AppZoneRuntime } from '@/components/office/app-zone/app-zone-environment';
+import type { AppZoneMount, AppZoneRuntime, ZoneHost } from '@/components/office/app-zone/app-zone-environment';
 
 export const APP_ID: string = 'com.acme.kanban';
 const KV_ARGS: Uint8Array = encodeCbor({ backend: 'user', key: 'k' });
@@ -147,4 +147,11 @@ export function hostOf(width: number): HTMLDivElement {
   host.getBoundingClientRect = (): DOMRect => ({ x: 0, y: 0, left: 0, top: 0, right: width, bottom: 240, width, height: 240, toJSON: () => ({}) });
   document.body.append(host);
   return host;
+}
+
+/** The zone's two slots, as AppZone.tsx renders them: the toolbar's, then the canvas host. */
+export function slotsOf(host: HTMLDivElement): ZoneHost {
+  const toolbar: HTMLDivElement = document.createElement('div');
+  host.before(toolbar);
+  return { canvas: host, toolbar };
 }

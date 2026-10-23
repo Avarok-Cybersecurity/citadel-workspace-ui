@@ -12,7 +12,7 @@ import { until } from '../../host/__tests__/in-process';
 import { appModule } from '../../host/__tests__/app-fixtures';
 import { fakeVerifier } from '../../host/__tests__/fake-verifier';
 import { pageArtifactVerifier, wasmAppSignatureCheck, type AppSignatureCheck } from '../verifier';
-import { APP_ID, FakeRuntimeKernel, hostOf, kvAtInit, release, rig, zoneOf, type Release, type Rig } from './runtime-rig';
+import { APP_ID, FakeRuntimeKernel, hostOf, slotsOf, kvAtInit, release, rig, zoneOf, type Release, type Rig } from './runtime-rig';
 
 let rigs: Rig[] = [];
 afterEach(() => {
@@ -33,7 +33,7 @@ describe('an installed, granted app', () => {
     const kernel: FakeRuntimeKernel = new FakeRuntimeKernel(release(kvAtInit(), ['storage.user']));
     const r: Rig = make(kernel);
     const host: HTMLDivElement = hostOf(320);
-    r.runtime.mount(host, zoneOf(kernel.rel));
+    r.runtime.mount(slotsOf(host), zoneOf(kernel.rel));
     expect(stateOf(host)).toBe('starting');
     expect(statusOf(host)).toBe('Starting Kanban…');
     await until(() => stateOf(host) === 'running', 4000);
@@ -50,13 +50,13 @@ describe('an installed, granted app', () => {
   it('its granted storage call reaches the kernel as a Call for its install (control: declared, not granted, it never does)', async () => {
     const granted: FakeRuntimeKernel = new FakeRuntimeKernel(release(kvAtInit(), ['storage.user']));
     const host: HTMLDivElement = hostOf(320);
-    make(granted).runtime.mount(host, zoneOf(granted.rel));
+    make(granted).runtime.mount(slotsOf(host), zoneOf(granted.rel));
     await until(() => granted.calls.length === 1, 4000);
     expect(granted.calls).toEqual([{ install_id: 'inst-1', call: { Storage: { KvGet: { backend: 'user', key: 'k' } } } }]);
 
     const ungranted: FakeRuntimeKernel = new FakeRuntimeKernel(release(kvAtInit(), []));
     const other: HTMLDivElement = hostOf(320);
-    make(ungranted).runtime.mount(other, zoneOf(ungranted.rel));
+    make(ungranted).runtime.mount(slotsOf(other), zoneOf(ungranted.rel));
     await until(() => stateOf(other) === 'running', 4000);
     await new Promise<void>((done) => setTimeout(done, 100));
     expect(ungranted.calls).toEqual([]);
@@ -65,7 +65,7 @@ describe('an installed, granted app', () => {
   it('unmounting stops it and removes the canvas', async () => {
     const kernel: FakeRuntimeKernel = new FakeRuntimeKernel(release(appModule(), []));
     const host: HTMLDivElement = hostOf(320);
-    const zone: AppZoneHandle = make(kernel).runtime.mount(host, zoneOf(kernel.rel));
+    const zone: AppZoneHandle = make(kernel).runtime.mount(slotsOf(host), zoneOf(kernel.rel));
     await until(() => stateOf(host) === 'running', 4000);
     await zone.close('unmount');
     expect(host.querySelector('canvas')).toBeNull();
@@ -79,7 +79,7 @@ describe('nothing starts that did not pass', () => {
     setup(kernel);
     const r: Rig = make(kernel, {}, verifier);
     const host: HTMLDivElement = hostOf(320);
-    r.runtime.mount(host, zoneOf(rel));
+    r.runtime.mount(slotsOf(host), zoneOf(rel));
     await until(() => stateOf(host) === 'stopped', 4000);
     return { host, r };
   };
@@ -109,7 +109,7 @@ describe('nothing starts that did not pass', () => {
     kernel.pause();
     const r: Rig = make(kernel);
     const host: HTMLDivElement = hostOf(320);
-    const closing: Promise<void> = r.runtime.mount(host, zoneOf(kernel.rel)).close('unmount');
+    const closing: Promise<void> = r.runtime.mount(slotsOf(host), zoneOf(kernel.rel)).close('unmount');
     kernel.resume();
     await closing;
     await new Promise<void>((done) => setTimeout(done, 200));
@@ -122,9 +122,9 @@ describe('nothing starts that did not pass', () => {
     const r: Rig = make(kernel, { slots: new InstanceSlots(1), policy: STANDARD_HOST_POLICY });
     const first: HTMLDivElement = hostOf(320);
     const second: HTMLDivElement = hostOf(320);
-    r.runtime.mount(first, zoneOf(kernel.rel));
+    r.runtime.mount(slotsOf(first), zoneOf(kernel.rel));
     await until(() => stateOf(first) === 'running', 4000);
-    r.runtime.mount(second, zoneOf(kernel.rel));
+    r.runtime.mount(slotsOf(second), zoneOf(kernel.rel));
     await until(() => stateOf(second) === 'stopped', 4000);
     expect(statusOf(second)).toBe('This page is already running as many apps as it can, so Kanban was not started.');
     expect(APP_ID).toBe(kernel.rel.install.app_id);

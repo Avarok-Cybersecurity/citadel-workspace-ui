@@ -28,14 +28,21 @@ export interface AppZoneHandle {
   close: (reason: CloseReason) => Promise<void>;
 }
 
+/** The host-owned elements a zone is mounted into: `canvas`, of the zone's height, and `toolbar` above it. */
+export interface ZoneHost {
+  readonly canvas: HTMLElement;
+  /** Where the host draws the app's toolbar buttons (`ui.set_toolbar`); empty until the app sets one. */
+  readonly toolbar: HTMLElement;
+}
+
 /**
- * The runtime's seam (design 2.3): mount the app for `zone` into `host`, a host-owned element of
- * the zone's height, and return its handle. The app paints only its own canvas inside it:
- * never page DOM, never HTML from the app. A page passes lazy-runtime.ts; null (tests) shows
- * the placeholder and executes nothing.
+ * The runtime's seam (design 2.3): mount the app for `zone` into `host` and return its handle.
+ * The app paints only its own canvas: never page DOM, never HTML from the app; its toolbar is
+ * the host's buttons with the app's plain-text labels. A page passes lazy-runtime.ts; null
+ * (tests) shows the placeholder and executes nothing.
  */
 export interface AppZoneRuntime {
-  mount: (host: HTMLElement, zone: AppZoneMount) => AppZoneHandle;
+  mount: (host: ZoneHost, zone: AppZoneMount) => AppZoneHandle;
 }
 
 /** The apps data a page's zones read, each request made once per page. */

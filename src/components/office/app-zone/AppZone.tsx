@@ -41,15 +41,21 @@ interface RuntimeHostProps {
 
 function RuntimeHost({ runtime, view, reasonFor, props, env, me }: RuntimeHostProps): JSX.Element {
   const host: React.RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
+  const toolbar: React.RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (host.current === null) return undefined;
+    if (host.current === null || toolbar.current === null) return undefined;
     const running: AppInstall = view.install;
-    const zone: AppZoneHandle = runtime.mount(host.current, { install: running, manifest: view.app.manifest, zoneId: props.zone, nodeId: env.nodeId, me, height: props.height });
+    const zone: AppZoneHandle = runtime.mount({ canvas: host.current, toolbar: toolbar.current }, { install: running, manifest: view.app.manifest, zoneId: props.zone, nodeId: env.nodeId, me, height: props.height });
     // A passive cleanup: it runs after the commit's layout effects, so the reason is this commit's.
     // close() never rejects (zone-runtime.ts reports a failure on a live page).
     return (): void => { void zone.close(reasonFor(running)); };
   }, [runtime, view.install, view.app.manifest, reasonFor, props.zone, props.height, env.nodeId, me]);
-  return <div ref={host} data-testid="app-zone-host" className="not-prose my-4 w-full" style={{ height: `${props.height}px` }} />;
+  return (
+    <div className="not-prose my-4 w-full">
+      <div ref={toolbar} data-testid="app-zone-toolbar-slot" />
+      <div ref={host} data-testid="app-zone-host" className="w-full" style={{ height: `${props.height}px` }} />
+    </div>
+  );
 }
 
 function PlacedZone({ props, env }: { props: ZoneProps; env: AppZoneEnvironment }): JSX.Element {
