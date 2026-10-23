@@ -75,6 +75,10 @@ export const CID_ROUTED_NOTIFICATIONS: Set<ResponseType | AgentReconnectNotifica
   // the event would consume the pending entry the send's answer is waiting on.
   'ConversationEvent',
   'SessionRoleNotification',
+  // cid = the session whose app host the P2P internal-HTTP frame is for; request_id is
+  // the peer's send. Routed by request_id, with two sessions in one browser one
+  // account's app would serve, or read the answers to, the other account's calls.
+  'IhttpFrameNotification',
 ]);
 
 /**

@@ -69,6 +69,9 @@ describe('CID_ROUTED_NOTIFICATIONS — every entry has extractable CID', () => {
     // routed by it the event would consume the pending entry its answer needs.
     ConversationEvent: { cid: targetCid, peer_cid: senderCid, seq: 1n, kind: 'Appended', message: null, message_id: 'm1', metadata: null, account_username: 'bob', peer_username: 'alice', preview: 'hi', request_id: 'r10' },
     SessionRoleNotification: { cid: targetCid, role: 'Secondary', attached: 2, request_id: null },
+    // The generated binding: { cid, peer_cid, frame, request_id }. `cid` is the account whose
+    // app host the frame is for; request_id, when set, is the sending peer's.
+    IhttpFrameNotification: { cid: targetCid, peer_cid: senderCid, frame: [0xa1, 1, 2], request_id: 'r11' },
   };
 
   it('has a test fixture for every CID-routed notification type', () => {
@@ -96,6 +99,7 @@ describe('CID_ROUTED_NOTIFICATIONS — every entry has extractable CID', () => {
         'FileTransferStatusNotification',
         'FileTransferTickNotification',
         'GroupMessageNotification',
+        'IhttpFrameNotification',
         'MediaFrameNotification',
         'MediaGapNotification',
         'MessageNotification',
