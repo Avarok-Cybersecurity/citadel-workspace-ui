@@ -120,6 +120,8 @@ async function start(): Promise<void> {
     portWorld: async () => ({
       transport: server, agent: { send: async () => undefined, listen: () => () => undefined, newRequestId: () => crypto.randomUUID() }, agentSession: null,
       log: { LogWrite: () => ({ ok: null }) }, pushes: () => () => undefined, sha256Hex: verifier.sha256Hex, nowMs: () => Date.now(), every: () => () => undefined,
+      // No agent session here, so no peer plane: nobody to reach and no answer of one's own.
+      peerCid: () => null, peerForMe: () => null, topicRecord: { group: () => undefined, request: () => undefined },
     }),
     pageUrl: () => window.location.href, locale: () => 'en', dpr: () => window.devicePixelRatio, theme: () => ({}),
   });

@@ -14,6 +14,7 @@ function parts(steps: string[], withdrawn: AppsResult<number> | null, leaving: b
     instance: null,
     bound: {
       ports: {},
+      held: new Set(),
       withdraw: async (): Promise<AppsResult<number> | null> => { steps.push('withdraw'); return withdrawn; },
       stop: (): void => { steps.push('drop ports'); },
     },

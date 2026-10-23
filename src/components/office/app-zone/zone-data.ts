@@ -5,6 +5,7 @@
 import type { AppInstall, AppListing } from 'citadel-workspace-client-ts';
 import { getListing, listInstalls, setDisabledForMe, type AppsResult, type AppsTransport, type InstallsView } from '@/lib/workspace-service/apps-operations';
 import { adoptDisabledForMe } from '@/lib/citadel-apps/disabled-for-me';
+import { adoptPeerForMe } from '@/lib/citadel-apps/peer-for-me';
 import { listedApps, type ListedApp } from '@/lib/citadel-apps/listing-model';
 import { readAppsAnswer, type AppsAnswer } from '@/lib/citadel-apps/wire/apps-answer';
 import type { ZoneDataPort } from './app-zone-environment';
@@ -25,6 +26,7 @@ export function zoneDataFrom(transport: AppsTransport): ZoneDataPort {
       installs ??= listInstalls(transport).then((r: AppsResult<InstallsView>): AppsResult<AppInstall[]> => {
         if (!r.ok) return r;
         adoptDisabledForMe(r.value.disabledForMe);
+        adoptPeerForMe(r.value.peerForMe);
         return { ok: true, value: r.value.installs };
       });
       return installs;

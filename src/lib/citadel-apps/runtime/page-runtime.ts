@@ -26,6 +26,9 @@ import { pageArtifactVerifier, wasmAppSignatureCheck } from './verifier';
 import type { ZoneAudit } from './zone-close';
 import { animationFrames } from './zone-input';
 import { createAppZoneRuntime } from './zone-runtime';
+import { peerForMe } from '../peer-for-me';
+import { markTopicGroup, markTopicRequest } from '@/lib/group-conversations/app-topic-groups';
+import { p2pRegistrationService } from '@/lib/p2p-registration-service';
 import { pageZoneWatchers } from './zone-watchers';
 
 const policy: HostPolicy = validateHostPolicy(STANDARD_HOST_POLICY);
@@ -103,6 +106,9 @@ export const pageAppZoneRuntime: AppZoneRuntime = createAppZoneRuntime({
     }),
     sha256Hex: verifier.sha256Hex,
     nowMs: (): number => Date.now(),
+    peerCid: (username: string): bigint | null => p2pRegistrationService.getPeers().registeredPeers.find((p: { username: string }) => p.username === username)?.cid ?? null,
+    peerForMe,
+    topicRecord: { group: markTopicGroup, request: markTopicRequest },
     every: (ms: number, fire: () => void): (() => void) => {
       const id: ReturnType<typeof setInterval> = setInterval(fire, ms);
       return (): void => clearInterval(id);
