@@ -18,6 +18,8 @@ import { getSelectedUser } from '../tab-context';
 import { isForThisSession, notificationCid } from '@/lib/sessions/notification-ownership';
 import { debugLog } from '@/lib/debug-config';
 import { toGroupEvents } from './group-events';
+import { withoutAppTopics } from './app-topic-filter';
+import { appTopicGroups } from './app-topic-groups';
 import { rosterPeerName, rosterPeerUsername } from '@/lib/roster-peer-name';
 import { memberUsernamesFor, usernamesOf } from './member-group-record';
 import { groupIdToKey, isValidGroupId } from './group-key';
@@ -139,7 +141,8 @@ export function startGroupResponseService(): void {
       // all is dropped as malformed. It used to be `cid.toString()`, which is
       // how an invitee's group came to be titled "<twenty digits>'s Group" and
       // every member's message signed with the same twenty digits.
-      for (const event of toGroupEvents(message, self.cid, self.username, rosterPeerName)) {
+      // App topics are the app host's groups, never conversations (app-topic-filter.ts).
+      for (const event of withoutAppTopics(toGroupEvents(message, self.cid, self.username, rosterPeerName), appTopicGroups)) {
         // A message can bring a group this browser has never seen; see member-group-record.
         const payload: Record<string, unknown> = withResolvedNames(event, self.username);
         debugLog('GroupResponseService', `${event.name}`, payload);
