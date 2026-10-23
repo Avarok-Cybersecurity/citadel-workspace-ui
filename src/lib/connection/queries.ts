@@ -15,8 +15,8 @@ import {
   GET_SESSIONS_TIMEOUT_MS,
 } from './constants';
 import { debugLog } from '@/lib/debug-config';
-import type { TabSelectionContext } from '@/lib/connection/types';
 import { sessionIsOnServer } from '@/lib/sessions/same-server';
+import { tabSelectedSession } from './tab-session';
 
 /**
  * The outcome of asking the internal service which sessions exist.
@@ -138,26 +138,6 @@ async function fetchActiveSessions(
 }
 
 /**
- * Get the tab-specific active session index.
- */
-export async function getTabActiveSessionIndex(
-  state: ConnectionState,
-  io: ConnectionIO,
-): Promise<number> {
-  const tabSelection: TabSelectionContext | null = await io.getSelectedUser();
-  if (tabSelection?.selectedUsername && tabSelection?.selectedServerAddress) {
-    const index: number = state.findSessionIndex(
-      tabSelection.selectedUsername,
-      tabSelection.selectedServerAddress
-    );
-    if (index >= 0) {
-      return index;
-    }
-  }
-  return state.getActiveSessionIndex();
-}
-
-/**
  * Handle a ConnectFailure response by emitting appropriate events.
  */
 export async function handleConnectFailure(
@@ -187,8 +167,7 @@ export async function handleConnectFailure(
     const activeSessions: ActiveSession[] = await getActiveSessionsFn();
     debugLog('ConnectionService', 'ConnectionManager: Active sessions after error:', activeSessions);
 
-    const activeIndex: number = state.getActiveSessionIndex();
-    const currentSession: StoredSession = state.storedSessions.sessions[activeIndex];
+    const currentSession: StoredSession | null = tabSelectedSession(state.storedSessions, await io.getSelectedUser());
 
     const matchingSession: ActiveSession | undefined = activeSessions.find(
       (s) =>

@@ -27,6 +27,12 @@ export interface CreateAccountOptions {
   isFirstUser?: boolean;
   password?: string;
   uxTracker?: import('./ux-tracker.js').UxIssueTracker | null;
+  /**
+   * The page is a further tab of a context whose other tab is signed in: its storage is that
+   * tab's too (tab selection, peer requests), so it is not cleared. Clearing it signed the
+   * other tab out from under itself -- the two-tab spec's X tab then acted as nobody.
+   */
+  sharesContextWithASignedInTab?: boolean;
 }
 
 export interface BrowserOptions {

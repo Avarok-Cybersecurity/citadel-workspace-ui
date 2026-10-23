@@ -34,7 +34,7 @@ async function peersInOneBrowser(context: BrowserContext, x: string, y: string, 
   const tx: Page = await context.newPage();
   const ty: Page = await context.newPage();
   const accounts: boolean = (await createAccount(tx, x, { isFirstUser: false, uxTracker })) && (await waitForWorkspaceLoaded(tx, 60_000))
-    && (await createAccount(ty, y, { isFirstUser: false, uxTracker })) && (await waitForWorkspaceLoaded(ty, 60_000));
+    && (await createAccount(ty, y, { isFirstUser: false, uxTracker, sharesContextWithASignedInTab: true })) && (await waitForWorkspaceLoaded(ty, 60_000));
   if (!accounts) return null;
   const registered: boolean = (await p2pRegister(tx, x, y, { uxTracker })) && (await acceptP2PRequest(ty, y, uxTracker, x));
   const talking: boolean = registered && (await openConversation(tx, x, y, uxTracker)) && (await openConversation(ty, y, x, uxTracker))

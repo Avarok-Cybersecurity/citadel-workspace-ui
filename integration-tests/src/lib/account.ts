@@ -33,7 +33,7 @@ export async function createAccount(page: Page, username: string, options: Creat
   // CRITICAL: Clear all browser storage after navigation to avoid stale session/peer data
   // from previous test runs. This prevents P2PAutoConnect from trying to connect to
   // non-existent peers from old sessions.
-  await clearBrowserStorage(page);
+  if (options.sharesContextWithASignedInTab !== true) await clearBrowserStorage(page);
 
   // Reload the page to ensure the app starts fresh without stale state.
   // Second load should be fast since Vite deps are already optimized.
