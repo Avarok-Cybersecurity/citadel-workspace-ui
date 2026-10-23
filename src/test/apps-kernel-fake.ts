@@ -72,7 +72,7 @@ export class FakeAppsKernel implements AppsTransport {
   answer(request: AppsRequest): Raw {
     const w: FakeKernelWorld = this.world;
     if (request === 'ListCatalogue') return { Catalogue: { listings: w.visible } };
-    if (request === 'ListInstalls') return { Installs: { installs: w.installs, disabled_for_me: w.installs.filter((i: AppInstall) => w.disabled.has(i.id)).map((i: AppInstall) => i.id) } };
+    if (request === 'ListInstalls') return { Installs: { installs: w.installs, disabled_for_me: w.installs.filter((i: AppInstall) => w.disabled.has(i.id)).map((i: AppInstall) => i.id), peer_for_me: [] } };
     if (typeof request !== 'object') return { Refused: 'Policy' };
     if ('GetListing' in request) {
       const found: { listing: AppListing } | null = this.find(request.GetListing.app_id);

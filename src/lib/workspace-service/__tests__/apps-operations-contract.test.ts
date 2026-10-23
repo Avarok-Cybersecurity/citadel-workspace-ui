@@ -105,11 +105,20 @@ describe('answers that are not ours, or not answers', () => {
     expect(await listCatalogue(fake)).toEqual({ ok: false, refusal: 'Malformed' });
   });
 
-  it('the kernel’s Installs answer carries disabled_for_me; one without it is not the kernel’s shape', async () => {
+  it('the kernel’s Installs answer carries disabled_for_me and peer_for_me; one without either is not the kernel’s shape', async () => {
     const fake: FakeAppsKernel = new FakeAppsKernel(world());
     const install: unknown = installOf('com.acme.lint', { SelfOnly: 'alice' });
-    fake.scripted.push({ Installs: { installs: [install], disabled_for_me: ['install-com.acme.lint'] } }, { Installs: { installs: [install] } });
-    expect(await listInstalls(fake)).toEqual({ ok: true, value: { installs: [install], disabledForMe: ['install-com.acme.lint'] } });
+    const peer = { install_id: 'install-com.acme.lint', consent: { serve: true, call: false, topics: false, at_ms: 5n }, blocked: ['mallory'] };
+    fake.scripted.push(
+      { Installs: { installs: [install], disabled_for_me: ['install-com.acme.lint'], peer_for_me: [peer] } },
+      { Installs: { installs: [install], peer_for_me: [] } },
+      { Installs: { installs: [install], disabled_for_me: [] } },
+      { Installs: { installs: [install], disabled_for_me: [], peer_for_me: [{ ...peer, consent: { ...peer.consent, at_ms: 5 } }] } },
+    );
+    expect(await listInstalls(fake)).toEqual({ ok: true, value: { installs: [install], disabledForMe: ['install-com.acme.lint'], peerForMe: [peer] } });
+    expect(await listInstalls(fake)).toEqual({ ok: false, refusal: 'Malformed' });
+    expect(await listInstalls(fake)).toEqual({ ok: false, refusal: 'Malformed' });
+    // A u64 crosses the wasm boundary as a BigInt; a plain number is not the kernel's shape.
     expect(await listInstalls(fake)).toEqual({ ok: false, refusal: 'Malformed' });
   });
 

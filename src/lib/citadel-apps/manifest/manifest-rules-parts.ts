@@ -6,6 +6,7 @@ import type { AppLimits, ArtifactLocation, ArtifactRef, CapabilityRequest } from
 import { isAppId } from '../app-identity';
 import { MAX_CLOSE_GRACE_MS } from '../sdk/generated/AbiConstants';
 import { isHostList, isHttpsUrl } from './net-rules';
+import { peerCapabilitiesProblem, peerLimitsProblem, takesRoutes, takesTargets, takesTopics } from './manifest-rules-peer';
 
 const MAX_WHY_CHARS: number = 200;
 const MAX_CALL_TARGETS: number = 16;
@@ -48,18 +49,19 @@ export function capabilitiesProblem(appId: string, requests: readonly Capability
   for (const r of requests) {
     if (!plainText(r.why, MAX_WHY_CHARS, false)) return `${r.cap}: why`;
     const takesHosts: boolean = r.cap === 'net.host' || r.cap === 'net.server';
-    if ((r.hosts !== undefined) !== takesHosts || (r.routes !== undefined) !== (r.cap === 'ihttp.serve') || (r.targets !== undefined) !== (r.cap === 'ihttp.call')) {
-      return `${r.cap}: hosts, routes or targets where they do not belong`;
+    if ((r.hosts !== undefined) !== takesHosts || (r.routes !== undefined) !== takesRoutes(r.cap) || (r.targets !== undefined) !== takesTargets(r.cap) || (r.topics !== undefined) !== takesTopics(r.cap)) {
+      return `${r.cap}: hosts, routes, targets or topics where they do not belong`;
     }
     if (r.hosts !== undefined && !isHostList(r.hosts)) return `${r.cap}: hosts`;
     if (r.routes !== undefined && !(r.routes.length >= 1 && r.routes.length <= MAX_ROUTES && r.routes.every(isRoutePattern) && distinct(r.routes))) return `${r.cap}: routes`;
     if (r.targets !== undefined && !(r.targets.length <= MAX_CALL_TARGETS && r.targets.every((t: string) => isAppId(t) && t !== appId) && distinct(r.targets))) return `${r.cap}: targets`;
   }
   const has = (cap: string): boolean => requests.some((r: CapabilityRequest) => r.cap === cap);
-  return has('net.host.private') && !has('net.host') ? 'net.host.private without net.host' : null;
+  if (has('net.host.private') && !has('net.host')) return 'net.host.private without net.host';
+  return peerCapabilitiesProblem(requests);
 }
 
-export function limitsProblem(limits: AppLimits): string | null {
+export function limitsProblem(limits: AppLimits, requests: readonly CapabilityRequest[]): string | null {
   const within = (v: number, max: number): boolean => v >= 1 && v <= max;
   const checks: Array<[string, boolean]> = [
     ['memory_pages', within(limits.memory_pages, 4096)],
@@ -69,7 +71,7 @@ export function limitsProblem(limits: AppLimits): string | null {
     ['storage_scope_bytes', limits.storage_scope_bytes <= 8 * 1024 * 1024],
     ['close_grace_ms', within(limits.close_grace_ms, MAX_CLOSE_GRACE_MS)],
   ];
-  return checks.find(([, ok]) => !ok)?.[0] ?? null;
+  return checks.find(([, ok]) => !ok)?.[0] ?? peerLimitsProblem(limits, requests);
 }
 
 const githubPart = (part: string): boolean => part.length >= 1 && part.length <= 100 && part !== '.' && part !== '..' && /^[A-Za-z0-9._-]+$/.test(part);

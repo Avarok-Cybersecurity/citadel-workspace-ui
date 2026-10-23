@@ -53,7 +53,7 @@ export function installOf(appId: string, scope: InstallScope, extra: Partial<App
   return {
     id: `install-${appId}`, app_id: appId, version: '1.4.0', manifest_sha256: '1'.repeat(64), artifact_sha256: '0'.repeat(64),
     pinned_publisher_key: PUBLISHER_KEY, scope, granted: ['canvas'],
-    details: { host_network_hosts: [], server_network_hosts: [], ihttp_routes: [], ihttp_call_targets: [] },
+    details: { host_network_hosts: [], server_network_hosts: [], ihttp_routes: [], ihttp_call_targets: [], ihttp_p2p_routes: [], topics: [] },
     installed_by: 'alice', installed_at_ms: 1n, state: 'Active', previous: null, injected_header_into: [],
     source: { Global: { catalogue_version: 1n } }, ...extra,
   };

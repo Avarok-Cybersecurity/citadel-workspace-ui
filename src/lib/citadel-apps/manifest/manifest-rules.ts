@@ -69,7 +69,7 @@ export function validateManifest(m: AppManifest): ManifestReading {
   if (m.scopes.length === 0 || !distinct(m.scopes)) return refuse('Scopes', 'empty or repeated');
   const caps: string | null = capabilitiesProblem(m.id, m.capabilities);
   if (caps !== null) return refuse('Capabilities', caps);
-  const limits: string | null = limitsProblem(m.limits);
+  const limits: string | null = limitsProblem(m.limits, m.capabilities);
   if (limits !== null) return refuse('Limits', limits);
   const artifact: string | null = artifactProblem(m.artifact);
   if (artifact !== null) return refuse('Artifact', artifact);
