@@ -39,6 +39,8 @@ export class FakeAppsKernel implements AppsTransport {
   readonly scripted: Raw[] = [];
   /** The caller's own P2P answers and block lists (user_apps peer_for_me), as the kernel keeps them. */
   readonly peer: Map<string, PeerForMe> = new Map<string, PeerForMe>();
+  /** The listing each install runs when it came from a signed listing (in no registry), by install id: what GetRelease answers. */
+  readonly releases: Map<string, AppListing> = new Map<string, AppListing>();
   private gate: Promise<void> | null = null;
   private release: (() => void) | null = null;
 
@@ -81,6 +83,11 @@ export class FakeAppsKernel implements AppsTransport {
       return found === null ? { Refused: 'Unavailable' } : { Listing: { listing: found.listing } };
     }
     if ('Install' in request) return this.install(request.Install);
+    if ('GetRelease' in request) {
+      const id: string = request.GetRelease.install_id;
+      const current: AppListing | undefined = this.releases.get(id);
+      return current === undefined || !w.installs.some((i: AppInstall) => i.id === id) ? { Refused: 'Unavailable' } : { Release: { install_id: id, current, waiting_on: null } };
+    }
     if ('Uninstall' in request) {
       const id: string = request.Uninstall.install_id;
       if (!w.installs.some((i: AppInstall) => i.id === id)) return { Refused: 'Unavailable' };

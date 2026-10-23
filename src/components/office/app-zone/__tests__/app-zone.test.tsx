@@ -159,6 +159,29 @@ describe('an app zone', () => {
     await state('ready-unmounted');
   });
 
+  it('an app installed from a signed listing (in no registry) is mounted from its release, as the compute-pool spec waits for', async () => {
+    const signed: AppInstall = installOf('com.acme.kanban', 'Workspace', { id: 'signed' });
+    const kernel: FakeAppsKernel = new FakeAppsKernel({ me: 'alice', visible: [], hidden: [], installs: [signed], permissions: new Set(), disabled: new Set() });
+    kernel.releases.set('signed', listingOf({ id: 'com.acme.kanban', name: 'Kanban', version: '1.4.0' }));
+    const mount: Mock<AppZoneRuntime['mount']> = vi.fn((): AppZoneHandle => ({ close: async (): Promise<void> => undefined }));
+    zone({ ...env({ runtime: { mount } }), data: zoneDataFrom(kernel) });
+    const host: HTMLElement = await screen.findByTestId('app-zone-host');
+    await waitFor(() => expect(mount).toHaveBeenCalledTimes(1));
+    const [seam, mounted] = mount.mock.calls[0] as unknown as [ZoneHost, { install: AppInstall }];
+    expect(seam.canvas).toBe(host);
+    expect(mounted.install.id).toBe('signed');
+  });
+
+  it('control: an app in no registry with no release reaching this person reads "not available", and nothing is mounted', async () => {
+    const signed: AppInstall = installOf('com.acme.kanban', 'Workspace', { id: 'signed' });
+    const kernel: FakeAppsKernel = new FakeAppsKernel({ me: 'alice', visible: [], hidden: [], installs: [signed], permissions: new Set(), disabled: new Set() });
+    const mount: Mock<AppZoneRuntime['mount']> = vi.fn((): AppZoneHandle => ({ close: async (): Promise<void> => undefined }));
+    zone({ ...env({ runtime: { mount } }), data: zoneDataFrom(kernel) });
+    await state('not-available');
+    expect(screen.queryByTestId('app-zone-host')).toBeNull();
+    expect(mount).not.toHaveBeenCalled();
+  });
+
   it('outside a workspace page it says so', () => {
     render(<AppZone app="com.acme.kanban" zone="board" height={300} />);
     expect(screen.getByTestId('app-zone-error').textContent).toContain('only be shown on a workspace page');
