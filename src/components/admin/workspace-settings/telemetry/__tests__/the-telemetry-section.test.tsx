@@ -67,7 +67,7 @@ describe('the log viewer', () => {
   it('sends the filter as typed, shows what comes back, and pages', async () => {
     api.list.mockResolvedValue({ has_more: true, records: [{
       user_id: 'alice', received_at_ms: 1n, agent_version: '0.9.1', os: 'macos',
-      entry: { time_ms: 1_700_000_000_000n, level: 'Error', target: 'agent::p2p', message: 'handshake failed', peer_cid: 42n },
+      entry: { time_ms: 1_700_000_000_000n, level: 'Error', target: 'agent::p2p', message: 'handshake failed', peer_cid: 42n, metric: null },
     }] });
     render(<TelemetrySection />);
     await userEvent.type(await screen.findByLabelText('User'), 'alice');
@@ -80,6 +80,23 @@ describe('the log viewer', () => {
     expect(screen.getByText(/peer 42/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Older' }));
     await waitFor(() => expect(api.list).toHaveBeenLastCalledWith(expect.anything(), { offset: 50, limit: 50 }));
+  });
+
+  it('lists metrics with everything, and asks for warnings and errors by name', async () => {
+    api.list.mockResolvedValue({ has_more: false, records: [{
+      user_id: 'alice', received_at_ms: 1n, agent_version: '0.9.1', os: 'macos',
+      entry: { time_ms: 1_700_000_000_000n, level: 'Metric', target: 'citadel::metric', message: 'path attempt 1: DirectOnly plan, attached Direct', peer_cid: 42n, metric: null },
+    }] });
+    render(<TelemetrySection />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Show logs' }));
+    await waitFor(() => expect(api.list).toHaveBeenLastCalledWith(
+      { user_id: null, peer_cid: null, min_level: null, since_ms: null, until_ms: null }, { offset: 0, limit: 50 }));
+    expect(await screen.findByText(/attached Direct/)).toBeInTheDocument();
+    expect(screen.getByText('Metric')).toHaveClass('text-muted-foreground');
+    await userEvent.selectOptions(screen.getByLabelText('Level'), 'Warnings and errors');
+    await userEvent.click(screen.getByRole('button', { name: 'Show logs' }));
+    await waitFor(() => expect(api.list).toHaveBeenLastCalledWith(
+      expect.objectContaining({ min_level: 'Warn' }), { offset: 0, limit: 50 }));
   });
 
   it('refuses a malformed peer CID without asking the server', async () => {
