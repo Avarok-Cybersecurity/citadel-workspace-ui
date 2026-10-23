@@ -54,7 +54,7 @@ export function hostPortsFor(install: AppInstall, limits: AppLimits, instance: s
     advertise: (digest, untilMs) => advertiseService(w.transport, install.id, instance, digest, untilMs),
     withdraw: () => withdrawService(w.transport, install.id, instance),
   });
-  const peer: PeerPorts = peerPorts(install, limits, ihttp, w);
+  const peer: PeerPorts = peerPorts(install, scopeKey, limits, ihttp, w);
   const ports: HostPorts = {
     storage: splitStorage(serverStorage(call), local), blob: serverBlob(call), storeFiles: serverFiles(call),
     serverNet: serverNet(call), ihttp: peer.ihttp, events: zone.events, ui: zone.ui, log: w.log,

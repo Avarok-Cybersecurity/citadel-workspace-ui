@@ -48,10 +48,11 @@ export interface PeerPorts {
 /** A change that may move what the kernel would answer: drop every held answer. */
 const CHANGES: ReadonlySet<AppsAnswer['kind']> = new Set<AppsAnswer['kind']>(['installed', 'updated', 'uninstalled', 'consented', 'disabled-for-me', 'peer-consent', 'peer-blocked']);
 
-export function peerPorts(install: AppInstall, limits: AppLimits, relay: IhttpPort, w: PeerWorld): PeerPorts {
+/** `scopeKey`: the scope key the install is addressed by, which every call's head names. */
+export function peerPorts(install: AppInstall, scopeKey: string, limits: AppLimits, relay: IhttpPort, w: PeerWorld): PeerPorts {
   const held: ReadonlySet<Capability> = new Set(effectiveForMember(install.granted, w.peerForMe(install.id)?.consent ?? null, false));
   const session: { readonly cid: bigint } | null = w.agentSession;
-  if (session === null) return { held, ihttp: transportRouter({ relay, p2p: null, held }), topic: null, stop: (): void => undefined };
+  if (session === null) return { held, ihttp: transportRouter({ relay, p2p: null, held, scopeKey }), topic: null, stop: (): void => undefined };
   const authority: PeerAuthority = new PeerAuthority((peerCid, direction) => authorizePeer(w.transport, install.id, peerCid, direction), w.nowMs, w.policy.peerAuthorizationsPerSecond);
   const stopEvicting: () => void = w.pushes((answer: unknown): void => { if (CHANGES.has(readAppsAnswer(answer).kind)) authority.evictAll(); });
   const p2p: IhttpPort = p2pIhttpPort({
@@ -64,7 +65,7 @@ export function peerPorts(install: AppInstall, limits: AppLimits, relay: IhttpPo
     refused: (name: string, limit: string): void => w.report(`[apps] ${install.app_id} (install ${install.id}): the server refused a message to topic ${name}`, limit),
   });
   return {
-    held, ihttp: transportRouter({ relay, p2p, held }), topic,
+    held, ihttp: transportRouter({ relay, p2p, held, scopeKey }), topic,
     stop: (): void => {
       stopEvicting();
       topic?.closeAll();

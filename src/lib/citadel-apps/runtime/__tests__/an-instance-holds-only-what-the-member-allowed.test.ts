@@ -21,6 +21,8 @@ const INSTALL: AppInstall = installOf('com.acme.kanban', 'Workspace', {
   id: 'i-1', granted: GRANTED, details: { host_network_hosts: [], server_network_hosts: [], ihttp_routes: [], ihttp_call_targets: [], ihttp_p2p_routes: [], topics: ['pool'] },
 });
 // Only limits.topics is read by the peer planes; the rest of AppLimits is the manifest's and not under test.
+/** The install is workspace-scoped (zone-context.ts `scopeKeyOf`). */
+const SCOPE_KEY: string = 'workspace';
 const LIMITS: AppLimits = { topics: { max_msg_bytes: 64, max_msgs_per_s: 2 } } as unknown as AppLimits;
 const relay: IhttpPort = {
   IhttpServe: async () => ({ ok: null }), IhttpCall: async () => ({ refused: { unavailable: 'relay' } }),
@@ -71,20 +73,20 @@ const consent = (serve: boolean, callAllowed: boolean, topics: boolean): PeerFor
 
 describe('an instance’s peer planes', () => {
   it('hold the grant less what this member did not allow; unanswered allows none of them', () => {
-    expect([...peerPorts(INSTALL, LIMITS, relay, world(true, consent(true, false, false)).w).held]).toEqual(['ihttp.p2p.serve', 'storage.user']);
-    expect([...peerPorts(INSTALL, LIMITS, relay, world(true, null).w).held]).toEqual(['storage.user']);
+    expect([...peerPorts(INSTALL, SCOPE_KEY, LIMITS, relay, world(true, consent(true, false, false)).w).held]).toEqual(['ihttp.p2p.serve', 'storage.user']);
+    expect([...peerPorts(INSTALL, SCOPE_KEY, LIMITS, relay, world(true, null).w).held]).toEqual(['storage.user']);
   });
 
   it('without an agent session there is no P2P plane and no topic (control: with one, both)', async () => {
-    const none: PeerPorts = peerPorts(INSTALL, LIMITS, relay, world(false, consent(true, true, true)).w);
+    const none: PeerPorts = peerPorts(INSTALL, SCOPE_KEY, LIMITS, relay, world(false, consent(true, true, true)).w);
     expect([none.topic, await call(none.ihttp, 1n)]).toEqual([null, { refused: { unavailable: 'p2p' } }]);
-    const some: PeerPorts = peerPorts(INSTALL, LIMITS, relay, world(true, consent(true, true, true)).w);
+    const some: PeerPorts = peerPorts(INSTALL, SCOPE_KEY, LIMITS, relay, world(true, consent(true, true, true)).w);
     expect([some.topic !== null, await call(some.ihttp, 1n)]).toEqual([true, { ok: null }]);
   });
 
   it('asks the kernel once per peer while held, and again after an install or answer changes', async () => {
     const x: World = world(true, consent(true, true, true));
-    const ports: PeerPorts = peerPorts(INSTALL, LIMITS, relay, x.w);
+    const ports: PeerPorts = peerPorts(INSTALL, SCOPE_KEY, LIMITS, relay, x.w);
     await call(ports.ihttp, 1n);
     await call(ports.ihttp, 2n);
     const authorizations = (): number => x.asked.filter((r) => typeof r === 'object' && 'AuthorizePeer' in r).length;
@@ -97,7 +99,7 @@ describe('an instance’s peer planes', () => {
 
   it('a topic names its group through the kernel', async () => {
     const x: World = world(true, consent(false, false, true));
-    const ports: PeerPorts = peerPorts(INSTALL, LIMITS, relay, x.w);
+    const ports: PeerPorts = peerPorts(INSTALL, SCOPE_KEY, LIMITS, relay, x.w);
     expect(await ports.topic?.TopicOpen({ name: 'pool' })).toEqual({ ok: { name: 'pool', members: [] } });
     expect(x.asked).toEqual([{ TopicGroup: { install_id: 'i-1', topic: 'pool', claim: null } }]);
   });
