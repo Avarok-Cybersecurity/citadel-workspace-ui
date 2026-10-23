@@ -138,7 +138,7 @@ export function topicPort(d: TopicDeps): OwnedTopicPort {
       if (!open.has(name)) {
         const groupId: string | null = await groupFor(name);
         if (groupId === null) return UNAVAILABLE;
-        open.set(name, { groupId, sender: new TopicSender(d.limits, d.nowMs()) });
+        open.set(name, { groupId, sender: new TopicSender(d.limits) });
       }
       return { ok: { name, members: [] } };
     },

@@ -19,12 +19,22 @@ describe('a topic carries only its own messages', () => {
   });
 
   it('holds the sender to the size, then the rate (control: under both it sends)', () => {
-    const s: TopicSender = new TopicSender(LIMITS, 0);
+    const s: TopicSender = new TopicSender(LIMITS);
     expect(s.admit(new Uint8Array(9), 0)).toEqual({ limit: 'topic_bytes' });
     expect(s.admit(new Uint8Array(8), 0)).toBeNull();
     expect(s.admit(new Uint8Array(1), 0)).toBeNull();
     expect(s.admit(new Uint8Array(1), 0)).toEqual({ limit: 'topic_rate' });
-    expect(s.admit(new Uint8Array(1), 600)).toBeNull();
+    expect(s.admit(new Uint8Array(1), 1000)).toBeNull();
+  });
+
+  it('admits only what the server would: n in a window that opens with the first message and lasts a second', () => {
+    // The server's rule (citadel_proto peer/group_limits.rs). A token bucket refilled at the same
+    // rate admits a third message at 600 ms, which the server refuses as `topic_rate`.
+    const s: TopicSender = new TopicSender(LIMITS);
+    const at = (ms: number): string => (s.admit(new Uint8Array(1), ms) === null ? 'sent' : 'refused');
+    expect([at(0), at(400), at(600), at(999)]).toEqual(['sent', 'sent', 'refused', 'refused']);
+    // A new window opens at the first message after the last one closed; a refusal does not count.
+    expect([at(1000), at(1999), at(1999), at(2000)]).toEqual(['sent', 'sent', 'refused', 'sent']);
   });
 
   it('reads back its own envelope for an open topic, and nothing else', () => {

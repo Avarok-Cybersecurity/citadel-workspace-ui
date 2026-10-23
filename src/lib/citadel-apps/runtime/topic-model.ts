@@ -7,7 +7,6 @@
  */
 import { decodeCbor, encodeCbor, isCborMap, type Decoded } from '../host/cbor';
 import type { Refused } from '../host/ports';
-import { TokenBucket } from '../host/token-bucket';
 import type { TopicLimits } from 'citadel-workspace-client-ts';
 import { isTopicName } from '../manifest/topic-names';
 import { LIMIT_TOPIC_BYTES, LIMIT_TOPIC_RATE, MAX_TOPICS, TOPIC_MAX_MSG_BYTES_CEILING, TOPIC_MAX_MSGS_PER_S_CEILING } from '../sdk/generated/AbiConstants';
@@ -30,18 +29,31 @@ export function mayOpen(name: string, granted: readonly string[]): boolean {
   return granted.length <= MAX_TOPICS && isTopicName(name) && granted.includes(name);
 }
 
-/** The sender's side of the limits, one per open topic. */
-export class TopicSender {
-  private readonly bucket: TokenBucket;
+/** How long a sender's rate window stays open after the message that opened it. */
+const RATE_WINDOW_MS: number = 1000;
 
-  constructor(private readonly limits: TopicLimits, now: number) {
-    this.bucket = new TokenBucket(limits.max_msgs_per_s, now);
-  }
+/**
+ * The sender's side of the limits, one per open topic, by the server's own rule (citadel_proto
+ * `peer/group_limits.rs`): a window opens with the first message and lasts one second, at most
+ * `max_msgs_per_s` are sent in it, and a refused message does not count. A looser rule here (a
+ * token bucket admits a third message 600 ms in) is a message the page sends and the server refuses.
+ */
+export class TopicSender {
+  private opened: number | null = null;
+  private sent: number = 0;
+
+  constructor(private readonly limits: TopicLimits) {}
 
   /** Null: send it. Otherwise the refusal the app reads, at once. */
   admit(body: Uint8Array, now: number): Refused | null {
     if (body.byteLength > this.limits.max_msg_bytes) return { limit: LIMIT_TOPIC_BYTES };
-    return this.bucket.take(now) ? null : { limit: LIMIT_TOPIC_RATE };
+    if (this.opened === null || now - this.opened >= RATE_WINDOW_MS) {
+      this.opened = now;
+      this.sent = 0;
+    }
+    if (this.sent >= this.limits.max_msgs_per_s) return { limit: LIMIT_TOPIC_RATE };
+    this.sent += 1;
+    return null;
   }
 }
 
