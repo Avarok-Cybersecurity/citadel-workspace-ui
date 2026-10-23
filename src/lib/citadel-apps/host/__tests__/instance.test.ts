@@ -13,7 +13,7 @@ import { AppInstance, launchAppInstance, type Launch, type LaunchOptions } from 
 import { InstanceSlots } from '../instance-slots';
 import { STANDARD_HOST_POLICY } from '../limits';
 import type { HostPorts } from '../ports';
-import { appModule, fixtureContext, growOrTrap, importIndex, type AppModuleOptions } from './app-fixtures';
+import { appModule, FIXTURE_CLOSE_GRACE_MS, fixtureContext, growOrTrap, importIndex, type AppModuleOptions } from './app-fixtures';
 import { fakeLog, fakeStorage, fakeUi, type Recorder } from './fakes';
 import { inProcess, realClock, until, type InProcess } from './in-process';
 import { op } from './wasm-builder';
@@ -34,7 +34,7 @@ async function launch(bytes: Uint8Array, opts: Opts = {}): Promise<{ launch: Lau
   const rig: InProcess = inProcess();
   rigs.push(rig);
   const options: LaunchOptions = {
-    appId: 'com.acme.test', module: verdict.module, granted, context: fixtureContext([...granted]), pageUrl: 'https://work.avarok.net/workspace',
+    appId: 'com.acme.test', module: verdict.module, granted, context: fixtureContext([...granted], FIXTURE_CLOSE_GRACE_MS), closeGraceMs: FIXTURE_CLOSE_GRACE_MS, pageUrl: 'https://work.avarok.net/workspace',
     memory: { initialPages: verdict.memory.minPages, maxPages: opts.maxPages ?? 16 }, policy: STANDARD_HOST_POLICY,
     ports: opts.ports ?? {}, clock: realClock, slots: opts.slots ?? new InstanceSlots(8), spawn: rig.spawn,
   };

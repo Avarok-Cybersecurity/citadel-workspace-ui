@@ -8,7 +8,7 @@ import type { Caller } from '../sdk/generated/Caller';
 import type { IhttpFrame } from '../sdk/generated/IhttpFrame';
 import type { RequestHead } from '../sdk/generated/RequestHead';
 import type { ResponseHead } from '../sdk/generated/ResponseHead';
-import { abortBoth, allow, cancel, deny, frame, headersProblem, MAX_CREDIT, peerKey, requestHeadProblem, type RouterAction, type Verdict } from './ihttp-common';
+import { abortBoth, allow, cancel, CLOSED_REASON, deny, frame, headersProblem, MAX_CREDIT, peerKey, requestHeadProblem, type ClosingAction, type RouterAction, type Verdict } from './ihttp-common';
 import { matchRoute, type RoutePattern } from './ihttp-routes';
 import type { IhttpLimits } from './limits';
 import { TokenBucket } from './token-bucket';
@@ -146,6 +146,15 @@ export class ServedStreams {
     s.responseBytes = total;
     s.creditOut -= 1;
     return allow([]);
+  }
+
+  /** The instance is closing: every caller is told, and nothing is served any more. */
+  closeAll(): ClosingAction[] {
+    const out: ClosingAction[] = [...this.streams.values()].map((s: Served): ClosingAction =>
+      ({ kind: 'reply', peer: s.peer, frame: frame(s.id, { Cancel: { reason: CLOSED_REASON } }) }));
+    this.streams.clear();
+    this.routes = [];
+    return out;
   }
 
   private abort(s: Served, reason: string): RouterAction[] {

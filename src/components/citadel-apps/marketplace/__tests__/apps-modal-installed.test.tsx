@@ -8,6 +8,7 @@ import { fireEvent, screen, waitFor, type RenderResult } from '@testing-library/
 import type { AppInstall, AppListing, AppsRequest } from 'citadel-workspace-client-ts';
 import { catalogueText, harness, openModal, viewerHolding, type Harness } from './marketplace-harness';
 import { installOf, listingOf } from '@/test/app-manifests';
+import { adoptDisabledForMe, recordDisabledForMe } from '@/lib/citadel-apps/disabled-for-me';
 
 const KANBAN: AppListing = listingOf({ id: 'com.acme.kanban', name: 'Kanban' });
 const MINE: AppInstall = installOf('com.acme.kanban', { SelfOnly: 'alice' }, { id: 'i-1' });
@@ -58,6 +59,25 @@ describe('installed apps', () => {
     await waitFor(() => expect(screen.getByTestId('apps-installed-toggle').textContent).toBe('Turn on for me'));
     expect(screen.getByTestId('apps-installed-row').textContent).toContain('Turned off for you');
     fireEvent.click(screen.getByTestId('apps-installed-toggle'));
+    await waitFor(() => expect(screen.getByTestId('apps-installed-toggle').textContent).toBe('Turn off for me'));
+  });
+
+  it('turned off for me survives a reload: the tab forgets, and the server’s ListInstalls says it again', async () => {
+    const h: Harness = harness({ visible: [KANBAN], installs: [{ ...MINE, id: 'i-kept' }] }, catalogueText([]));
+    const first: RenderResult = await installedTab(h);
+    fireEvent.click(screen.getByTestId('apps-installed-toggle'));
+    await waitFor(() => expect(screen.getByTestId('apps-installed-toggle').textContent).toBe('Turn on for me'));
+    first.unmount();
+    adoptDisabledForMe([]);
+    await installedTab(h);
+    await waitFor(() => expect(screen.getByTestId('apps-installed-toggle').textContent).toBe('Turn on for me'));
+    expect(h.kernel.world.disabled).toEqual(new Set(['i-kept']));
+  });
+
+  it('control: an install the server does not list as off reads as on after a reload, whatever the tab held', async () => {
+    const h: Harness = harness({ visible: [KANBAN], installs: [{ ...MINE, id: 'i-fresh' }] }, catalogueText([]));
+    recordDisabledForMe('i-fresh', true);
+    await installedTab(h);
     await waitFor(() => expect(screen.getByTestId('apps-installed-toggle').textContent).toBe('Turn off for me'));
   });
 

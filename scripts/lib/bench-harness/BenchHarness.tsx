@@ -33,7 +33,7 @@ interface Opened {
 
 /** Edits a replica of the file's bytes, kept for the page's life. */
 function fileEditing(file: Opened): DocumentEditing {
-  const keep: ReplicaKeeper = (open, show, fail): (() => void) => {
+  const keep: ReplicaKeeper = (open, show, fail): (() => Promise<void>) => {
     let live: boolean = true;
     let held: EditorSession | null = null;
     let unwatch: (() => void) | null = null;
@@ -48,13 +48,13 @@ function fileEditing(file: Opened): DocumentEditing {
         if (live) fail(error);
       },
     );
-    return (): void => {
+    return async (): Promise<void> => {
       live = false;
       unwatch?.();
       held?.dispose();
     };
   };
-  return { kind: 'replica', keep, save: null };
+  return { kind: 'replica', keep, save: null, pictures: null };
 }
 
 export function BenchHarness(): JSX.Element {

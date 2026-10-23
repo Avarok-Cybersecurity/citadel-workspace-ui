@@ -10,6 +10,7 @@ import { encode as cborEncode, decode as cborDecode } from 'cbor-x';
 import type { MessageType } from './message-protocol';
 import type { MessagingLayer } from './messaging-layer';
 import type { CallSignalPayload } from './call-signals';
+import type { CdocChatSyncPayload } from './cdoc-chat-sync';
 
 
 
@@ -40,7 +41,9 @@ export enum P2PCommandType {
    * rides the lossy UDP one. The two have opposite requirements: losing a video
    * frame costs a sixtieth of a second, losing a "call ended" leaves both sides
    * staring at a call that is over. */
-  CallSignal = "CallSignal"
+  CallSignal = "CallSignal",
+  /** A Citadel Docs chat document kept in step between the two peers (cdoc-chat-sync.ts). */
+  CdocChatSync = "CdocChatSync"
 }
 
 export interface P2PMessagingLayerPayload {
@@ -144,7 +147,7 @@ export interface P2PCommand {
   type: P2PCommandType;
   payload: P2PMessagingLayerPayload | P2PMessageAckPayload |
            P2PFileTransferRequestPayload | P2PFileTransferChunkPayload | P2PFileTransferCompletePayload |
-           P2PYjsSyncPayload | CallSignalPayload;
+           P2PYjsSyncPayload | CallSignalPayload | CdocChatSyncPayload;
 }
 
 // Type guards for payload discrimination

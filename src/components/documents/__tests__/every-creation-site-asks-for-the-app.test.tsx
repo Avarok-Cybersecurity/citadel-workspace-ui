@@ -4,8 +4,9 @@
  * Fixture coverage, in three directions, so a new place cannot skip the picker quietly:
  * - `SITES` is a Record over DOCUMENT_CREATION_SITES, so a site added to the registry without a
  *   fixture here does not compile;
- * - every module in src that writes a document (`.createDocument(`, or app metadata encoded by
- *   hand) must be some site's writer, so a new writer without a site fails here;
+ * - every module in src that writes a document (`.createDocument(`, app metadata encoded by
+ *   hand, or a chat document's new id) must be some site's writer, so a new writer without a
+ *   site fails here;
  * - each site's dialog is rendered: the picker lists every registry app, preselects none, and its
  *   Create stays disabled until an app is chosen; the write that site makes refuses an app the
  *   registry does not offer there.
@@ -67,8 +68,8 @@ function sourceFiles(dir: string): string[] {
   });
 }
 
-/** A call (not the definition) of either way to write a document. */
-const DOCUMENT_WRITE: RegExp = /\.createDocument\(|(?<!function )\bencodeNodeApp\(/;
+/** A call (not the definition) of a way to make a document: a node, its app metadata, or a chat's new Citadel Docs id. */
+const DOCUMENT_WRITE: RegExp = /\.createDocument\(|(?<!function )\bencodeNodeApp\(|(?<!function )\bnewChatDocumentId\(/;
 const code = (file: string): string => withoutComments(readFileSync(join(ROOT, file), 'utf8'));
 
 describe('every place a document can be made', () => {

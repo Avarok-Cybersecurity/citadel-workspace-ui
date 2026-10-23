@@ -15,12 +15,17 @@ import { fileURLToPath } from 'node:url';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const APP_ROOT = resolve(HERE, '..', '..', '..');
 
-export async function serveDocsHarness(port) {
+export function serveDocsHarness(port) {
+  return serveHarness(HERE, port);
+}
+
+/** The same build and preview for another harness page: `root` holds its index.html. */
+export async function serveHarness(root, port) {
   const app = await loadConfigFromFile({ command: 'build', mode: 'production', isSsrBuild: false, isPreview: false }, resolve(APP_ROOT, 'vite.config.ts'));
   if (app === null || app.config.esbuild === undefined || app.config.worker === undefined) throw new Error('vite.config.ts gave no esbuild or worker settings');
-  const outDir = mkdtempSync(join(tmpdir(), 'docs-harness-'));
+  const outDir = mkdtempSync(join(tmpdir(), 'harness-'));
   const shared = {
-    root: HERE,
+    root,
     mode: 'production',
     esbuild: app.config.esbuild,
     worker: app.config.worker,

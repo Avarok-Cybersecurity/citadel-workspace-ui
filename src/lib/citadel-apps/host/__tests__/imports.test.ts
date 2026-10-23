@@ -50,7 +50,7 @@ async function instantiate(granted: readonly Capability[], ports: (rec: Recorder
     clock: new ManualClock(), invoker: directInvoker(ports(rec)), router: new IhttpRouter('a.b', STANDARD_HOST_POLICY.ihttp), pageUrl: 'https://work.avarok.net/', routerActions: (): void => {},
   });
   const clock: ManualClock = new ManualClock();
-  const sink: CallSink = { call: (g, o, r) => dispatcher.call(g, o, r), replies: new ReplyTable(8, STANDARD_HOST_POLICY.replyTtlMs, clock.now), replyReady: (h: number) => ready.push(h) };
+  const sink: CallSink = { call: (g, o, r) => dispatcher.call(g, o, r), replies: new ReplyTable(8, STANDARD_HOST_POLICY.replyTtlMs, clock.now), replyReady: (h: number) => ready.push(h), gate: () => null };
   const { instance } = await WebAssembly.instantiate(readerModule(), buildImports(grant, memory, sink)) as unknown as WebAssembly.WebAssemblyInstantiatedSource;
   return { memory, exports: instance.exports, ready, rec };
 }
@@ -88,7 +88,7 @@ describe('the import object directly', () => {
     const memory: WebAssembly.Memory = new WebAssembly.Memory({ initial: 1, maximum: 1 });
     // TTL far beyond the test: these cases are about the ABI codes, not expiry (reply-table.test.ts).
     const replies: ReplyTable = new ReplyTable(2, 60_000, new ManualClock().now);
-    const full: CallSink = { call: () => ({ now: encodeCbor({ ok: 1 }) }), replies, replyReady: () => {}, ...sink };
+    const full: CallSink = { call: () => ({ now: encodeCbor({ ok: 1 }) }), replies, replyReady: () => {}, gate: () => null, ...sink };
     const imports: WebAssembly.Imports = buildImports(new Set<Capability>(granted), memory, full);
     return { fns: imports[ABI_NAMESPACE] as unknown as Record<string, Fn>, memory, replies };
   };

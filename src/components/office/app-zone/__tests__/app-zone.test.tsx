@@ -7,12 +7,14 @@ import { describe, expect, it, vi, type Mock } from 'vitest';
 import { render, screen, waitFor, fireEvent, type RenderResult } from '@testing-library/react';
 import type { AppInstall } from 'citadel-workspace-client-ts';
 import { AppZone } from '../AppZone';
-import { AppZoneContext, zoneClaims, type AppZoneEnvironment, type AppZoneRuntime } from '../app-zone-environment';
+import { AppZoneContext, zoneClaims, type AppZoneEnvironment, type AppZoneHandle, type AppZoneRuntime } from '../app-zone-environment';
 import { listedApps, type ListedApp } from '@/lib/citadel-apps/listing-model';
 import type { Tri } from '@/lib/citadel-apps/scope-options';
 import { recordDisabledForMe } from '@/lib/citadel-apps/disabled-for-me';
 import { installOf, listingOf } from '@/test/app-manifests';
 import type { AppLink } from '@/lib/citadel-apps/app-link';
+import { FakeAppsKernel } from '@/test/apps-kernel-fake';
+import { zoneDataFrom } from '../zone-data';
 
 const KANBAN: ListedApp = listedApps([listingOf({ id: 'com.acme.kanban', name: 'Kanban', version: '1.4.0' })])[0];
 
@@ -105,7 +107,7 @@ describe('an app zone', () => {
   });
 
   it('with a runtime, an active install is mounted in a host-owned element of the zone’s height', async () => {
-    const mount: Mock<AppZoneRuntime['mount']> = vi.fn((): (() => void) => (): void => {});
+    const mount: Mock<AppZoneRuntime['mount']> = vi.fn((): AppZoneHandle => ({ close: async (): Promise<void> => undefined }));
     zone(env({ installs: [installOf('com.acme.kanban', { SelfOnly: 'alice' }, { id: 'a' })], runtime: { mount } }));
     await waitFor(() => expect(mount).toHaveBeenCalledTimes(1));
     const [host, mounted] = mount.mock.calls[0] as unknown as [HTMLElement, { zoneId: string; height: number; install: AppInstall }];
@@ -114,7 +116,7 @@ describe('an app zone', () => {
   });
 
   it('control: with a runtime, a zone the person may only install is not mounted', async () => {
-    const mount: Mock<AppZoneRuntime['mount']> = vi.fn((): (() => void) => (): void => {});
+    const mount: Mock<AppZoneRuntime['mount']> = vi.fn((): AppZoneHandle => ({ close: async (): Promise<void> => undefined }));
     zone(env({ runtime: { mount } }));
     await state('install');
     expect(mount).not.toHaveBeenCalled();
@@ -142,6 +144,17 @@ describe('an app zone', () => {
   ])('refuses %s', (_why: string, props: Record<string, unknown>) => {
     zone(env(), props);
     expect(screen.getByTestId('app-zone-error').textContent).toContain('This app zone cannot be shown');
+  });
+
+  it('turned off for me is read from the server’s ListInstalls, so a fresh page shows Turn on (control: listed on, it is ready)', async () => {
+    const off: AppInstall = installOf('com.acme.kanban', 'Workspace', { id: 'srv-off' });
+    const kernel: FakeAppsKernel = new FakeAppsKernel({ me: 'alice', visible: [listingOf({ id: 'com.acme.kanban', name: 'Kanban', version: '1.4.0' })], hidden: [], installs: [off], permissions: new Set(), disabled: new Set(['srv-off']) });
+    const first: RenderResult = zone({ ...env(), data: zoneDataFrom(kernel) });
+    await state('disabled');
+    first.unmount();
+    kernel.world.disabled.clear();
+    zone({ ...env(), data: zoneDataFrom(kernel) });
+    await state('ready-unmounted');
   });
 
   it('outside a workspace page it says so', () => {

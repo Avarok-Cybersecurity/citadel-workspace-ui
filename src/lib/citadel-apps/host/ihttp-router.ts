@@ -13,12 +13,12 @@ import type { Address } from '../sdk/generated/Address';
 import type { Caller } from '../sdk/generated/Caller';
 import type { IhttpFrame } from '../sdk/generated/IhttpFrame';
 import { addressApp, CalledStreams } from './ihttp-called';
-import { cancel, deny, allow, type RouterAction, type Verdict } from './ihttp-common';
+import { cancel, deny, allow, type ClosingAction, type RouterAction, type Verdict } from './ihttp-common';
 import type { RoutePattern } from './ihttp-routes';
 import { ServedStreams } from './ihttp-served';
 import type { IhttpLimits } from './limits';
 
-export type { RouterAction, Verdict };
+export type { ClosingAction, RouterAction, Verdict };
 
 export class IhttpRouter {
   private readonly served: ServedStreams;
@@ -65,6 +65,11 @@ export class IhttpRouter {
     if (this.served.has(peer, stream)) return allow(this.served.consumed(peer, stream));
     const credit: RouterAction[] | null = this.called.consumed(peer, stream);
     return credit === null ? deny({ policy: 'unknown_stream' }, []) : allow(credit);
+  }
+
+  /** The instance is closing: Cancel `closed` on every stream, both ways; nothing is routed after. */
+  closeAll(): ClosingAction[] {
+    return [...this.served.closeAll(), ...this.called.closeAll()];
   }
 
   /** Cancels every stream past its deadline, both ways. */

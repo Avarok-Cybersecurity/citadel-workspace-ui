@@ -263,11 +263,35 @@ const DEFERRED_MODULES = [
   // once the workspace has the apps client (apps-api); boot only keeps the link (app-link-capture).
   'src/lib/citadel-apps/md-header.ts',
   'src/lib/citadel-apps/app-link.ts',
+  // The sandbox host: the zone runtime, the instance handle and the worker's host load with the
+  // first app zone that has an app to run (components/office/app-zone/lazy-runtime.ts).
+  'src/lib/citadel-apps/runtime/page-runtime.ts',
+  'src/lib/citadel-apps/host/instance.ts',
+  'src/lib/citadel-apps/host/worker-host.ts',
   // Coupons: the plan step's code field, its quote and the re-check load with the create-workspace
   // page (pages/CreateWorkspace), never on the landing page.
   'src/components/create-workspace/CouponField.tsx',
   'src/lib/onboarding/coupon-quote.ts',
   'src/lib/onboarding/coupon-recheck.ts',
+  // The chat-document migration: the walker, the runner and the engine's importer load by dynamic
+  // import after sign-in (hooks/use-live-doc-migration-sweep.ts), never on the landing page.
+  'src/lib/live-doc-migration/boot.ts',
+  'src/lib/live-doc-migration/runner.ts',
+  'src/lib/live-doc-migration/yjs-walker.ts',
+  'src/lib/live-doc-migration/cdoc-mapper.ts',
+  // Chat documents kept in step peer to peer: what records a closed one's incoming edits loads
+  // with the first CdocChatSync command (lib/p2p/chat-document-inbox.ts, in the messenger's
+  // chunk); the message handler only recognises the envelope (types/cdoc-chat-sync.ts).
+  'src/lib/cdoc/chat/chat-inbox.ts',
+  'src/lib/cdoc/chat/chat-local-db.ts',
+  'src/lib/cdoc/chat/chat-wire.ts',
+  // A chat document's canvas, its keeper and its sync load when its tab opens
+  // (components/p2p/chat-document/use-chat-documents.ts, by dynamic import), never before.
+  'src/components/documents/chat-replica.ts',
+  'src/lib/cdoc/chat/chat-replica-keeper.ts',
+  'src/lib/cdoc/chat/chat-sync.ts',
+  'src/lib/cdoc/chat/chat-migration-gate.ts',
+  'src/lib/live-doc-migration/held-apart.ts',
 ];
 
 /**

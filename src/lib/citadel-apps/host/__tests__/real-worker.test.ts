@@ -10,7 +10,7 @@ import { inspectArtifact, type LoadVerdict } from '../inspect';
 import { launchAppInstance, type AppInstance, type Launch } from '../instance';
 import { InstanceSlots } from '../instance-slots';
 import { STANDARD_HOST_POLICY, validateHostPolicy, type HostPolicy } from '../limits';
-import { appModule, fixtureContext } from './app-fixtures';
+import { appModule, FIXTURE_CLOSE_GRACE_MS, fixtureContext } from './app-fixtures';
 import { realClock, until } from './in-process';
 import { bundleWorkerEntry, PROBED, threadChannel, type BundledEntry, type ThreadChannel } from './real-worker';
 import { op } from './wasm-builder';
@@ -29,7 +29,7 @@ async function start(bytes: Uint8Array): Promise<{ instance: AppInstance; channe
   if (!verdict.ok) throw new Error(verdict.reasons.join(', '));
   let channel: ThreadChannel | null = null;
   const launched: Launch = launchAppInstance({
-    appId: 'com.acme.test', module: verdict.module, granted: new Set<Capability>(), context: fixtureContext([]), pageUrl: 'https://work.avarok.net/',
+    appId: 'com.acme.test', module: verdict.module, granted: new Set<Capability>(), context: fixtureContext([], FIXTURE_CLOSE_GRACE_MS), closeGraceMs: FIXTURE_CLOSE_GRACE_MS, pageUrl: 'https://work.avarok.net/',
     memory: { initialPages: 1, maxPages: 16 }, policy, ports: {}, clock: realClock, slots: new InstanceSlots(8),
     spawn: () => {
       channel = threadChannel(entry);
@@ -56,6 +56,7 @@ describe('the watchdog, against a real thread', () => {
   it('a frame that never returns is terminated within the budget and the thread exits', async () => {
     const { instance, channel } = await start(appModule({ frame: op.spin }));
     await until(() => instance.state === 'running', 5000);
+    expect(instance.start()).toBe(true);
     const sent: number = Date.now();
     instance.frame(16);
     await until(() => instance.state === 'stopped-unresponsive', 5000);
@@ -68,6 +69,7 @@ describe('the watchdog, against a real thread', () => {
   it('control: a frame that returns keeps the instance running past the budget', async () => {
     const { instance } = await start(appModule({ frame: [] }));
     await until(() => instance.state === 'running', 5000);
+    expect(instance.start()).toBe(true);
     for (let n: number = 0; n < 5; n++) instance.frame(16);
     await new Promise<void>((r) => setTimeout(r, BUDGET_MS * 2));
     expect(instance.state).toBe('running');

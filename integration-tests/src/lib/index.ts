@@ -97,11 +97,14 @@ export { sendMessage, verifyMessageReceived, verifyMessageOrder, verifyMessagesS
 
 // Live Documents
 export {
-  createLiveDoc,
-  openLiveDoc,
-  typeInLiveDocEditor,
-  getLiveDocContent,
-  verifyLiveDocContent,
+  CHAT_DOCUMENT_MS,
+  chatDocumentPane,
+  expectCanvasOpen,
+  createChatDocument,
+  openChatDocument,
+  typeInChatDocument,
+  chatDocumentSays,
+  chatDocumentText,
 } from './live-docs.js';
 
 // Group Chat

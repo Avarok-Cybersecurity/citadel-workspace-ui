@@ -6,7 +6,7 @@
 import type { EditorSession } from '@/lib/cdoc/editor/editor-session';
 import type { ReplicaKeeper } from './use-docs-document';
 
-export const keepBlankReplica: ReplicaKeeper = (open, show, fail): (() => void) => {
+export const keepBlankReplica: ReplicaKeeper = (open, show, fail): (() => Promise<void>) => {
   let live: boolean = true;
   let held: EditorSession | null = null;
   open({ kind: 'blank' }).then(
@@ -19,7 +19,7 @@ export const keepBlankReplica: ReplicaKeeper = (open, show, fail): (() => void) 
       if (live) fail(error);
     },
   );
-  return (): void => {
+  return async (): Promise<void> => {
     live = false;
     held?.dispose();
   };

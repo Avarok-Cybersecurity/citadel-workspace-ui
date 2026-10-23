@@ -10,6 +10,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { OfficeSkeletonLoader } from "../ui/skeleton-office";
 import { OfficeEditorPane } from "./OfficeEditorPane";
 import { AppZonePage } from "./app-zone/AppZonePage";
+import { pageZoneRuntime } from "./app-zone/lazy-runtime";
 import { joinHeader, splitHeader } from "@/lib/citadel-apps/md-header";
 import { templateCategoryFor, type MdxTemplate, type TemplateCategory } from "@/lib/mdx-templates";
 import type { NodeEntityType } from "@/lib/entity-type-registry";
@@ -171,8 +172,8 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
     // document showed its body copy and its emoji, and nothing else.
     <div className="px-6 lg:px-10 pt-8 pb-4 prose dark:prose-invert prose-sm md:prose-base lg:prose-lg max-w-4xl">
       <MDXProvider components={components}>
-        {/* App zones on this page; no runtime yet, so they draw placeholders only. */}
-        <AppZonePage nodeId={domainId} runtime={null}>
+        {/* App zones on this page; the sandbox host loads with the first zone that runs an app. */}
+        <AppZonePage nodeId={domainId} runtime={pageZoneRuntime}>
         {compiledContent ?? (renderError && (
           // Only when there is nothing to show; outside the editor a failed
           // compile clears the render (use-compiled-mdx), so this is reached.

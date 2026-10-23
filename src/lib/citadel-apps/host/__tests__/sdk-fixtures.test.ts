@@ -4,16 +4,18 @@
  * fixtures.json states: each through this host's inspector, then (when it has a run) through the
  * loader and the production worker entry in a real thread, with the run's own policy, and compared
  * once every pending reply has been delivered. The inspector's codes must equal the Rust
- * inspector's; a run's init, frame, events, report, log and memory must equal the reference host's.
+ * inspector's; a run's init, frame, events, report, log and memory must equal the reference host's,
+ * and so must how its close ends (settled, the grace expiring, or a trap) and what it reported.
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AppEvent } from '../../sdk/generated/AppEvent';
+import type { CloseReason } from '../../sdk/generated/CloseReason';
 import { FIXTURES } from '../../sdk/__tests__/sdk-paths';
 import type { Capability } from '../capabilities';
 import { inspectArtifact, type LoadVerdict } from '../inspect';
-import { launchAppInstance, type AppInstance, type InstanceState, type Launch } from '../instance';
+import { launchAppInstance, type AppInstance, type CloseEnding, type CloseOutcome, type InstanceState, type Launch } from '../instance';
 import { InstanceSlots } from '../instance-slots';
 import { instanceMemoryFor, STANDARD_HOST_POLICY, validateHostPolicy, type HostPolicy } from '../limits';
 import type { HostPorts, PortAnswer } from '../ports';
@@ -22,9 +24,17 @@ import { ihttpRemote, type IhttpRemoteConfig } from './ihttp-remote';
 import { realClock, until } from './in-process';
 import { bundleWorkerEntry, threadChannel, type BundledEntry } from './real-worker';
 
+interface Close {
+  readonly reason: CloseReason;
+  readonly result?: number;
+  readonly outcome: 'settled' | 'terminated' | 'trapped';
+  readonly again?: number;
+  readonly events_after?: readonly AppEvent[];
+}
+
 interface Run {
   readonly granted: Capability[];
-  readonly host: { readonly max_memory_pages: number; readonly max_reply_bytes?: number; readonly ihttp_remote?: IhttpRemoteConfig };
+  readonly host: { readonly max_memory_pages: number; readonly close_grace_ms: number; readonly max_reply_bytes?: number; readonly ihttp_remote?: IhttpRemoteConfig };
   readonly init: number | 'trap';
   readonly frame?: 'ok' | 'trap';
   readonly events?: readonly { readonly event: AppEvent; readonly outcome: 'ok' | 'trap' }[];
@@ -32,6 +42,10 @@ interface Run {
   readonly log?: readonly string[];
   readonly log_contains?: string;
   readonly memory_pages_after?: number;
+  /** false: close with init's replies still pending. */
+  readonly pump_before_close?: boolean;
+  readonly close?: Close;
+  readonly report_absent?: readonly string[];
 }
 
 interface Fixture {
@@ -40,6 +54,7 @@ interface Fixture {
   readonly control?: { readonly declared: Capability[] };
   readonly run?: Run;
   readonly control_run?: Run;
+  readonly extra_runs?: readonly Run[];
 }
 
 /** The Rust inspector test's ceiling (harness/tests/inspect.rs CEILING_PAGES). */
@@ -57,9 +72,9 @@ const wasm = (name: string): Uint8Array => new Uint8Array(readFileSync(join(FIXT
 const caps = (list: readonly Capability[]): ReadonlySet<Capability> => new Set<Capability>(list);
 
 describe(`the SDK fixtures (source: ${FIXTURES.label})`, () => {
-  it.skipIf(!FIXTURES.present)('are the designed eleven, every one committed', () => {
-    expect(fixtures.map(([n]) => n).sort()).toEqual(['exfil-attempts', 'foreign-import', 'hello-canvas', 'huge-reply', 'ihttp-stream-client', 'linker-start',
-      'over-memory', 'panics', 'slow-frame', 'undeclared-import', 'ungranted-calls']);
+  it.skipIf(!FIXTURES.present)('are the designed fifteen, every one committed', () => {
+    expect(fixtures.map(([n]) => n).sort()).toEqual(['close-calls', 'close-flush', 'close-hang', 'close-panic', 'exfil-attempts', 'foreign-import', 'hello-canvas',
+      'huge-reply', 'ihttp-stream-client', 'linker-start', 'over-memory', 'panics', 'slow-frame', 'undeclared-import', 'ungranted-calls']);
   });
 
   for (const [name, f] of fixtures) {
@@ -82,9 +97,24 @@ interface Live {
   readonly log: string[];
 }
 
-/** The reference host's ports (harness/src/respond.rs, remote.rs): log, events, internal navigation, FilesRead, the ihttp far end. */
-function referencePorts(log: string[], maxReplyBytes: number, remote: IhttpRemoteConfig | undefined): HostPorts {
+/**
+ * The reference host's ports (harness/src/respond.rs, remote.rs): log, events, internal navigation,
+ * FilesRead, storage.user over one map, the ihttp far end. Storage answers once `held` resolves:
+ * at once, or (a run closed with init's replies pending) only after the close was sent.
+ */
+function referencePorts(log: string[], maxReplyBytes: number, remote: IhttpRemoteConfig | undefined, held: Promise<void>): HostPorts {
+  const kv: Map<string, Uint8Array> = new Map<string, Uint8Array>();
+  const unavailable: PortAnswer<never> = { refused: { unavailable: 'no port in the reference host' } };
   return {
+    storage: {
+      KvGet: ({ backend, key }) => held.then(() => (backend === 'user' ? { ok: { value: kv.get(key) ?? null } } : unavailable)),
+      KvSet: ({ backend, key, value }) => held.then(() => {
+        if (backend !== 'user') return unavailable;
+        kv.set(key, value);
+        return { ok: null };
+      }),
+      KvSetMany: () => unavailable, KvDelete: () => unavailable, KvList: () => unavailable,
+    },
     ...(remote === undefined ? {} : { ihttp: ihttpRemote(remote) }),
     log: { LogWrite: ({ message }): PortAnswer<null> => { log.push(message); return { ok: null }; } },
     events: { Subscribe: () => ({ ok: null }), RequestFrames: () => ({ ok: null }) },
@@ -98,7 +128,7 @@ function referencePorts(log: string[], maxReplyBytes: number, remote: IhttpRemot
   };
 }
 
-async function start(name: string, f: Fixture, run: Run): Promise<Live> {
+async function start(name: string, f: Fixture, run: Run, held: Promise<void>): Promise<Live> {
   const maxReplyBytes: number = run.host.max_reply_bytes ?? DEFAULT_IO_BYTES;
   const policy: HostPolicy = validateHostPolicy({
     ...STANDARD_HOST_POLICY, memoryMaxPages: run.host.max_memory_pages, maxRequestBytes: DEFAULT_IO_BYTES, maxReplyBytes, computeBudgetMs: BUDGET_MS,
@@ -108,9 +138,9 @@ async function start(name: string, f: Fixture, run: Run): Promise<Live> {
   const log: string[] = [];
   const bundled: BundledEntry = entry as BundledEntry;
   const launched: Launch = launchAppInstance({
-    appId: 'net.avarok.fixture', module: v.module, granted: caps(run.granted), context: fixtureContext(run.granted),
+    appId: 'net.avarok.fixture', module: v.module, granted: caps(run.granted), context: fixtureContext(run.granted, run.host.close_grace_ms), closeGraceMs: run.host.close_grace_ms,
     pageUrl: 'https://work.avarok.net/workspace', memory: instanceMemoryFor(v.memory, run.host.max_memory_pages, policy), policy,
-    ports: referencePorts(log, maxReplyBytes, run.host.ihttp_remote), clock: realClock, slots: new InstanceSlots(1), spawn: () => threadChannel(bundled),
+    ports: referencePorts(log, maxReplyBytes, run.host.ihttp_remote, held), clock: realClock, slots: new InstanceSlots(1), spawn: () => threadChannel(bundled),
   });
   if (!launched.ok) throw new Error('no slot');
   return { instance: launched.instance, log };
@@ -129,17 +159,45 @@ async function settle(live: Live): Promise<void> {
 
 const report = (log: readonly string[]): Record<string, string> =>
   Object.fromEntries(log.flatMap((l: string) => { const at: number = l.indexOf('='); return at < 0 ? [] : [[l.slice(0, at), l.slice(at + 1)]]; }));
-const STOPPED: readonly InstanceState[] = ['init-failed', 'stopped-trapped', 'stopped-unresponsive', 'terminated'];
+const STOPPED: readonly InstanceState[] = ['init-failed', 'stopped-trapped', 'stopped-unresponsive', 'terminated', 'closed'];
+/** How the browser host names each way the reference host's close ends. */
+const ENDING: Readonly<Record<Close['outcome'], readonly [CloseEnding, InstanceState]>> = {
+  settled: ['settled', 'closed'], terminated: ['grace-expired', 'terminated'], trapped: ['trapped', 'stopped-trapped'],
+};
+
+/** An event as the host raises it: the lifecycle's own through its steps, the rest delivered. */
+function raise(i: AppInstance, event: AppEvent): void {
+  if (event === 'init') i.start();
+  else if (event === 'resume') i.resume();
+  else if (typeof event === 'object' && 'suspend' in event) i.suspend(event.suspend.reason);
+  else i.postEvent(event);
+}
+
+async function closeAs(name: string, live: Live, close: Close, release: () => void): Promise<void> {
+  const i: AppInstance = live.instance;
+  const pending: Promise<CloseOutcome> = i.close(close.reason);
+  release();
+  const outcome: CloseOutcome = await pending;
+  expect([name, outcome.ending, i.state]).toEqual([name, ...ENDING[close.outcome]]);
+  if (close.result !== undefined) expect([name, outcome.closeResult]).toEqual([name, close.result]);
+  // Idempotent: a second close is the same close (the guest SDK's own refusal is the harness's to check).
+  if (close.again !== undefined) expect(await i.close(close.reason)).toBe(outcome);
+  for (const event of close.events_after ?? []) raise(i, event);
+  await settle(live);
+}
 
 async function play(name: string, f: Fixture, run: Run): Promise<void> {
-  const live: Live = await start(name, f, run);
+  let release: () => void = (): void => undefined;
+  const held: Promise<void> = run.pump_before_close === false ? new Promise<void>((r) => { release = r; }) : Promise.resolve();
+  const live: Live = await start(name, f, run, held);
   const i: AppInstance = live.instance;
   await until(() => i.state !== 'loading', 10_000);
   if (run.init === 'trap') expect([name, i.state]).toEqual([name, 'stopped-trapped']);
   else expect([name, i.initStatus, i.state]).toEqual([name, run.init, run.init === 0 ? 'running' : 'init-failed']);
-  await settle(live);
+  if (run.init === 0) expect(i.start()).toBe(true);
+  if (run.pump_before_close !== false) await settle(live);
   for (const step of run.events ?? []) {
-    i.postEvent(step.event);
+    raise(i, step.event);
     await settle(live);
     expect([name, step.event, i.state]).toEqual([name, step.event, step.outcome === 'ok' ? 'running' : 'stopped-trapped']);
   }
@@ -148,6 +206,7 @@ async function play(name: string, f: Fixture, run: Run): Promise<void> {
     await new Promise<void>((r) => setTimeout(r, BUDGET_MS + 300));
     expect([name, i.state]).toEqual([name, run.frame === 'ok' ? 'running' : 'stopped-unresponsive']);
   }
+  if (run.close !== undefined) await closeAs(name, live, run.close, release);
   // Pending replies and far-end frames may still be in flight: wait for every expected probe
   // (bounded; a missing one then fails below with its name), then for quiet.
   const probes: string[] = Object.keys(run.report ?? {});
@@ -157,6 +216,7 @@ async function play(name: string, f: Fixture, run: Run): Promise<void> {
   for (const [probe, want] of Object.entries(run.report ?? {})) expect([name, probe, got[probe]]).toEqual([name, probe, want]);
   // As harness/tests/run.rs: exfil-attempts reports every probe and no other.
   if (name === 'exfil-attempts') expect(Object.keys(got).sort()).toEqual(Object.keys(run.report ?? {}).sort());
+  for (const probe of run.report_absent ?? []) expect([name, probe, got[probe]]).toEqual([name, probe, undefined]);
   for (const line of run.log ?? []) expect(live.log).toContain(line);
   if (run.log_contains !== undefined) expect(live.log.some((l: string) => l.includes(run.log_contains as string))).toBe(true);
   if (run.memory_pages_after !== undefined) expect([name, i.trapMemoryPages]).toEqual([name, run.memory_pages_after]);
@@ -165,12 +225,12 @@ async function play(name: string, f: Fixture, run: Run): Promise<void> {
 
 describe(`the SDK fixtures, run in the production worker (source: ${FIXTURES.label})`, () => {
   it.skipIf(!FIXTURES.present)('every fixture with a run is run, controls included', () => {
-    expect(fixtures.flatMap(([, f]) => [f.run, f.control_run]).filter((r) => r !== undefined).length).toBe(10);
+    expect(fixtures.flatMap(([, f]) => [f.run, f.control_run, ...(f.extra_runs ?? [])]).filter((r) => r !== undefined).length).toBe(15);
   });
 
   for (const [name, f] of fixtures) {
-    for (const key of ['run', 'control_run'] as const) {
-      const run: Run | undefined = f[key];
+    const runs: [string, Run | undefined][] = [['run', f.run], ['control_run', f.control_run], ...(f.extra_runs ?? []).map((r: Run, n: number): [string, Run] => [`extra_run ${n + 1}`, r])];
+    for (const [key, run] of runs) {
       if (run !== undefined) it(`${name} ${key}`, () => play(name, f, run), 30_000);
     }
   }

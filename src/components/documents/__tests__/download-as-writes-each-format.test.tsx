@@ -22,7 +22,7 @@ const FILE: DocumentSource = { kind: 'file', format: 'md', bytes: new TextEncode
 
 /** A file opens as the file manager opens it, read only; a blank document is edited through a kept replica. */
 const READ_ONLY: DocumentEditing = { kind: 'readOnly', reason: 'Read only here.' };
-const EDIT_BLANK: DocumentEditing = { kind: 'replica', keep: keepBlankReplica, save: null };
+const EDIT_BLANK: DocumentEditing = { kind: 'replica', keep: keepBlankReplica, save: null, pictures: null };
 
 function host(files: RecordingDocumentFiles, documentSource: DocumentSource = FILE): void {
   const editing: DocumentEditing = documentSource.kind === 'blank' ? EDIT_BLANK : READ_ONLY;

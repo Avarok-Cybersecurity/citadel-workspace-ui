@@ -5,12 +5,14 @@
  */
 import type { AppInstall, AppListing, AppsRefusal, Permission } from 'citadel-workspace-client-ts';
 import { Permission as PermissionNames } from '@/lib/permissions-service/types';
-import { exactly, isAppInstall, isAppListing, isCapability, isObject, isString, single } from './install-shape';
+import { exactly, isAppInstall, isAppListing, isCapability, isObject, isString, isStrings, single } from './install-shape';
+import { readRuntimeAnswer, type RuntimeAnswer } from './apps-runtime-answer';
 
 export type AppsAnswer =
   | { kind: 'catalogue'; listings: AppListing[] }
   | { kind: 'listing'; listing: AppListing }
-  | { kind: 'installs'; installs: AppInstall[] }
+  /** `disabledForMe`: the ids among `installs` the caller hid for themselves, as the server keeps them. */
+  | { kind: 'installs'; installs: AppInstall[]; disabledForMe: string[] }
   | { kind: 'installed'; install: AppInstall }
   | { kind: 'uninstalled'; installId: string }
   | { kind: 'updated'; install: AppInstall }
@@ -18,12 +20,13 @@ export type AppsAnswer =
   | { kind: 'consented'; install: AppInstall }
   | { kind: 'disabled-for-me'; installId: string; disabled: boolean }
   | { kind: 'install-requested' }
+  | RuntimeAnswer
   | { kind: 'refused'; refusal: AppsRefusal }
   | { kind: 'malformed' };
 
 const UNIT_REFUSALS: readonly string[] = [
   'Unavailable', 'ScopeNotSupported', 'ScopeOutsideAudience', 'BadSignature', 'ArtifactMismatch', 'VersionNotNewer',
-  'NotActive', 'Policy', 'NoHost', 'HeaderManaged', 'ServerFeatureUnavailable',
+  'NotActive', 'Policy', 'NoHost', 'HeaderManaged', 'ServerFeatureUnavailable', 'InstallRequestsNotOffered', 'ArtifactUnreachable',
 ];
 const CAPABILITY_REFUSALS: readonly string[] = ['CapabilityNotGrantable', 'FirstPartyOnly', 'NotRequested', 'RequiredCapabilityLeftOut', 'Ungranted'];
 const isPermission = (v: unknown): v is Permission => isString(v) && (Object.values(PermissionNames) as string[]).includes(v);
@@ -34,6 +37,7 @@ export function isAppsRefusal(v: unknown): v is AppsRefusal {
   const [name] = Object.keys(v);
   if (CAPABILITY_REFUSALS.includes(name)) return isCapability(v[name]);
   if (name === 'PermissionRequired') return isPermission(v[name]);
+  if (name === 'AlreadyInstalled') return exactly(v[name], { install_id: isString });
   return (name === 'InvalidManifest' || name === 'Limit') && isString(v[name]);
 }
 
@@ -51,8 +55,9 @@ export function readAppsAnswer(payload: unknown): AppsAnswer {
   if (single(payload, 'Listing', (x: unknown) => exactly(x, { listing: isAppListing }))) {
     return { kind: 'listing', listing: field<{ listing: AppListing }>(payload, 'Listing').listing };
   }
-  if (single(payload, 'Installs', (x: unknown) => exactly(x, { installs: (l: unknown) => Array.isArray(l) && l.every(isAppInstall) }))) {
-    return { kind: 'installs', installs: field<{ installs: AppInstall[] }>(payload, 'Installs').installs };
+  if (single(payload, 'Installs', (x: unknown) => exactly(x, { installs: (l: unknown) => Array.isArray(l) && l.every(isAppInstall), disabled_for_me: isStrings }))) {
+    const i: { installs: AppInstall[]; disabled_for_me: string[] } = field<{ installs: AppInstall[]; disabled_for_me: string[] }>(payload, 'Installs');
+    return { kind: 'installs', installs: i.installs, disabledForMe: i.disabled_for_me };
   }
   if (hasInstall(payload, 'Installed')) return { kind: 'installed', install: installOf(payload, 'Installed') };
   if (hasInstall(payload, 'Updated')) return { kind: 'updated', install: installOf(payload, 'Updated') };
@@ -63,5 +68,5 @@ export function readAppsAnswer(payload: unknown): AppsAnswer {
     const d: { install_id: string; disabled: boolean } = field<{ install_id: string; disabled: boolean }>(payload, 'DisabledForMe');
     return { kind: 'disabled-for-me', installId: d.install_id, disabled: d.disabled };
   }
-  return { kind: 'malformed' };
+  return readRuntimeAnswer(payload) ?? { kind: 'malformed' };
 }

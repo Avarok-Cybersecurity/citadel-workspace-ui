@@ -136,7 +136,7 @@ export async function askLeaderForCapabilities(): Promise<LeaderAnswer> {
   const result: AckResult = await instanceChannel.sendToLeader({ __agentCapabilitiesProxy: true }, requestId);
   if (result.status === 'error') throw new Error(`The leader could not say what the agent hosts: ${result.error}`);
   const data: unknown = result.data;
-  const said: { agentIlm?: unknown; supervisesP2p?: unknown; stagesUploads?: unknown; nativePicker?: unknown; takesConsole?: unknown; noticesHeard?: unknown } = typeof data === 'object' && data !== null ? data : {};
-  // A leader from an older build does not say: nothing is taken to show the agent's notices, to stage, or to take console lines.
-  return { agentIlm: said.agentIlm === true, supervisesP2p: said.supervisesP2p === true, stagesUploads: said.stagesUploads === true, nativePicker: typeof said.nativePicker === 'boolean' ? said.nativePicker : undefined, takesConsole: said.takesConsole === true, noticesHeard: said.noticesHeard === true };
+  const said: { agentIlm?: unknown; supervisesP2p?: unknown; stagesUploads?: unknown; nativePicker?: unknown; takesConsole?: unknown; servesApps?: unknown; noticesHeard?: unknown } = typeof data === 'object' && data !== null ? data : {};
+  // A leader from an older build does not say: nothing is taken to show the agent's notices, to stage, to take console lines, or to serve apps.
+  return { agentIlm: said.agentIlm === true, supervisesP2p: said.supervisesP2p === true, stagesUploads: said.stagesUploads === true, nativePicker: typeof said.nativePicker === 'boolean' ? said.nativePicker : undefined, takesConsole: said.takesConsole === true, servesApps: said.servesApps === true, noticesHeard: said.noticesHeard === true };
 }

@@ -21,6 +21,13 @@ export class ReplyTable {
     return this.slots.size;
   }
 
+  /** Replies issued whose port has not answered yet: what a closing instance still waits on. */
+  get pendingCount(): number {
+    let n: number = 0;
+    for (const slot of this.slots.values()) if (slot.state === 'pending') n++;
+    return n;
+  }
+
   /** A handle for bytes that are ready now, or HANDLES_EXHAUSTED. */
   ready(bytes: Uint8Array): number {
     return this.issue({ state: 'ready', bytes, readyAt: this.now() });

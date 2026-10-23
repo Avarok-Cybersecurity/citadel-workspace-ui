@@ -12,6 +12,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { clearAllDraftsForTests } from '@/lib/chat/draft-store';
 import { useP2PCompose } from '../useP2PCompose';
+import type { ChatDocumentMade } from '../useP2PTabs';
 
 const sendMessage: ReturnType<typeof vi.fn> = vi.fn();
 vi.mock('@/lib/p2p/p2p-messenger-manager', () => ({
@@ -22,7 +23,7 @@ vi.mock('@/hooks/use-toast', () => ({ useToast: (): { toast: ReturnType<typeof v
 type Compose = ReturnType<typeof renderHook<ReturnType<typeof useP2PCompose>, unknown>>;
 
 function setup(): Compose {
-  const createDocument: () => Promise<void> = async (): Promise<void> => {};
+  const createDocument: () => Promise<ChatDocumentMade> = async (): Promise<ChatDocumentMade> => ({ delivered: Promise.resolve() });
   return renderHook(() => useP2PCompose({ peerCid: 42n, messages: [], editMessage: vi.fn(), createDocument }));
 }
 

@@ -28,11 +28,11 @@ describe('the Docs pane while it loads', () => {
     let deliver: ((r: CdocRuntime) => void) | null = null;
     const loadRuntime = (): Promise<CdocRuntime> => new Promise<CdocRuntime>((resolve: (r: CdocRuntime) => void): void => { deliver = resolve; });
     let showOpened: (() => Promise<void>) | null = null;
-    const keeper: ReplicaKeeper = (open: (from: EditorOrigin) => Promise<EditorSession>, show: (e: EditorSession) => void): (() => void) => {
+    const keeper: ReplicaKeeper = (open: (from: EditorOrigin) => Promise<EditorSession>, show: (e: EditorSession) => void): (() => Promise<void>) => {
       showOpened = async (): Promise<void> => show(await open({ kind: 'blank' }));
-      return (): void => undefined;
+      return (): Promise<void> => Promise.resolve();
     };
-    const editing: DocumentEditing = { kind: 'replica', keep: keeper, save: null };
+    const editing: DocumentEditing = { kind: 'replica', keep: keeper, save: null, pictures: null };
     render(<DocsCanvas documentSource={{ kind: 'blank' }} loadRuntime={loadRuntime} editing={editing} statusBar={null} edit={{ enabled: true, reason: null }} commentAuthor="Ada" title="Untitled" files={FILES} original={null} />);
 
     expect(screen.getByTestId('app-loading-pane')).toBeInTheDocument();

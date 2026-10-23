@@ -1,19 +1,43 @@
 /**
  * Who else is in the document and where their carets are: our awareness record out, paced to
- * the kernel's relay limit; peers' records in, turned into rectangles on this replica's pages
- * and handed to the editor's PeerOverlay.
+ * the relay's limit; peers' records in, turned into rectangles on this replica's pages and
+ * handed to the editor's PeerOverlay. Where the record goes is the caller's port: the
+ * workspace server's relay for a workspace document, the P2P channel for a chat document.
  */
 import type { EditorController, PeerView } from '../editor/controller';
 import type { PeerPresence } from '../editor/peer-overlay';
 import { AwarenessPacer } from './awareness-pacer';
 import { PeerBook } from './peer-book';
-import type { DocumentSessionConfig, DocumentSessionPorts } from './ports';
+import type { Clock, PeerIdentity } from './ports';
 import type { SerialQueue } from './serial-queue';
 import type { DocumentSessionProblem } from './session-errors';
-import { fromWire, toWire } from './wire-bytes';
+
+/** Every setting is required (PCND); each transport states its own. */
+export interface PresenceSettings {
+  /** Records sent per second at most: the relay's limit. */
+  readonly awarenessPerSecond: number;
+  /** The largest record the relay carries; a larger one is reported, never sent. */
+  readonly maxAwarenessBytes: number;
+  /** Our record is re-sent this often while nothing moves, so peers do not expire us. */
+  readonly awarenessHeartbeatMs: number;
+  /** A peer not heard from for this long is no longer drawn. */
+  readonly peerExpiryMs: number;
+  /** The most carets one session's records may place. */
+  readonly maxCaretsPerSession: number;
+}
+
+export interface PresencePorts {
+  readonly clock: Clock;
+  readonly identify: PeerIdentity;
+  /** Hands our awareness record to the transport; resolves once it has left. */
+  send(record: Uint8Array): Promise<void>;
+}
+
+/** What presence can go wrong with, in the session's own terms. */
+export type PresenceProblem = Extract<DocumentSessionProblem, { readonly kind: 'sendFailed' | 'editorFailed' | 'tooLarge' }>;
 
 export interface PresenceHost {
-  report(problem: DocumentSessionProblem): void;
+  report(problem: PresenceProblem): void;
   linkUp(): boolean;
   editor(): EditorController | null;
   publish(peers: readonly PeerPresence[]): void;
@@ -25,19 +49,19 @@ export class DocumentPresence {
   private cancelSweep: (() => void) | null = null;
 
   constructor(
-    private readonly config: DocumentSessionConfig,
-    private readonly ports: DocumentSessionPorts,
+    private readonly settings: PresenceSettings,
+    private readonly ports: PresencePorts,
     private readonly queue: SerialQueue,
     private readonly host: PresenceHost,
   ) {
-    this.book = new PeerBook(ports.identify, config.peerExpiryMs, config.maxCaretsPerSession);
+    this.book = new PeerBook(ports.identify, settings.peerExpiryMs, settings.maxCaretsPerSession);
     const sendFailed = (cause: unknown): void => host.report({ kind: 'sendFailed', request: 'Awareness', cause });
     // In the session's queue: the record is read after the updates before it are applied, and
     // the session is not settled while a record is still on its way out.
     this.pacer = new AwarenessPacer(
       ports.clock,
-      config.limits.awarenessPerSecond,
-      config.awarenessHeartbeatMs,
+      settings.awarenessPerSecond,
+      settings.awarenessHeartbeatMs,
       (): Promise<void> => queue.run((): Promise<void> => this.sendRecord().catch(sendFailed)),
       sendFailed,
     );
@@ -59,11 +83,10 @@ export class DocumentPresence {
     });
   }
 
-  heard(fromCid: bigint, payload: readonly number[]): Promise<void> {
+  heard(fromCid: bigint, record: Uint8Array): Promise<void> {
     return this.queue.run(async (): Promise<void> => {
       const editor: EditorController | null = this.host.editor();
       if (!editor) return;
-      const record: Uint8Array = fromWire(payload);
       let view: PeerView;
       try {
         view = await editor.peerView(record);
@@ -95,12 +118,12 @@ export class DocumentPresence {
     const editor: EditorController | null = this.host.editor();
     if (!editor || !this.host.linkUp()) return;
     const record: Uint8Array = await editor.awareness();
-    const max: number = this.config.limits.maxAwarenessBytes;
+    const max: number = this.settings.maxAwarenessBytes;
     if (record.byteLength > max) {
       this.host.report({ kind: 'tooLarge', what: 'awareness', sizeBytes: record.byteLength, maxBytes: max });
       return;
     }
-    await this.ports.transport.send({ Awareness: { node_id: this.config.nodeId, payload: toWire(record) } });
+    await this.ports.send(record);
   }
 
   private publish(): void {
@@ -111,7 +134,7 @@ export class DocumentPresence {
 
   private armSweep(): void {
     if (this.cancelSweep) return;
-    this.cancelSweep = this.ports.clock.after(this.config.peerExpiryMs, (): void => {
+    this.cancelSweep = this.ports.clock.after(this.settings.peerExpiryMs, (): void => {
       this.cancelSweep = null;
       void this.queue.run(async (): Promise<void> => {
         if (this.book.expire(this.ports.clock.now())) this.publish();

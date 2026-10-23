@@ -46,10 +46,15 @@ export class WorkerPageRenderer implements PageRenderer {
     return this.queue.run(slot, priority, () => this.client.request({ kind: 'paintCanvas', slot, pageNumber, zoom, dpr }));
   }
 
+  /**
+   * A detach refused because the client was disposed is not a failure: disposing terminated the
+   * worker, and every canvas it held went with it. That is the usual case on leaving a document,
+   * since the view that owns the client is torn down before the page canvases inside it.
+   */
   unmount(slot: number): void {
     this.queue.drop(slot);
     void this.client.request({ kind: 'detachCanvas', slot }).catch((error: unknown): void => {
-      console.error('cdoc: detaching a page canvas failed', error);
+      if (!this.client.disposed) console.error('cdoc: detaching a page canvas failed', error);
     });
   }
 

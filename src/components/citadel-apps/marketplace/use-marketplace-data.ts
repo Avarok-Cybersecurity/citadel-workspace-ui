@@ -6,7 +6,8 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { AppInstall, AppListing } from 'citadel-workspace-client-ts';
-import { listCatalogue, listInstalls, type AppsFailure, type AppsResult } from '@/lib/workspace-service/apps-operations';
+import { listCatalogue, listInstalls, type AppsFailure, type AppsResult, type InstallsView } from '@/lib/workspace-service/apps-operations';
+import { adoptDisabledForMe } from '@/lib/citadel-apps/disabled-for-me';
 import { listedApps, loadGlobalCatalogue, type ListedApp } from '@/lib/citadel-apps/listing-model';
 import type { MarketplaceDeps } from './marketplace-types';
 
@@ -42,14 +43,15 @@ export function useMarketplaceData(deps: MarketplaceDeps): MarketplaceData {
     const run = async (): Promise<void> => {
       // The two server requests one after the other: the protocol has no request id, and a
       // refusal answers whichever request is waiting, so two at once could take each other's.
-      const fromServer = async (): Promise<[AppsResult<AppListing[]>, AppsResult<AppInstall[]>]> => {
+      const fromServer = async (): Promise<[AppsResult<AppListing[]>, AppsResult<InstallsView>]> => {
         const server: AppsResult<AppListing[]> = await listCatalogue(deps.transport);
         return [server, await listInstalls(deps.transport)];
       };
       const [global, [server, mine]] = await Promise.all([loadGlobalCatalogue(deps.fetchText), fromServer()]);
       if (!live) return;
       setListings([...(global.ok ? global.listings : []), ...(server.ok ? server.value : [])]);
-      setInstalls(mine.ok ? mine.value : []);
+      setInstalls(mine.ok ? mine.value.installs : []);
+      if (mine.ok) adoptDisabledForMe(mine.value.disabledForMe);
       setGlobalProblem(global.ok ? null : global.why);
       setServerProblem(failed(server) ?? failed(mine));
       setLoading(false);

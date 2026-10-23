@@ -45,6 +45,8 @@ const HINT_BY_COMMAND: Record<Exclude<P2PCommandType, P2PCommandType.MessagingLa
   [P2PCommandType.FileTransferComplete]: 'cbor-command',
   [P2PCommandType.YjsP2PSync]: 'yjs-update',
   [P2PCommandType.CallSignal]: 'cbor-command',
+  // CRDT updates over text, as compressible as Yjs's.
+  [P2PCommandType.CdocChatSync]: 'yjs-update',
 };
 
 /** The hint for a command, or undefined (no compression) for one this table does not know. */

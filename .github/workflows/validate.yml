@@ -177,6 +177,10 @@ jobs:
           # The Docs pane while it loads (never empty; Lite and reduced motion) and the save status
           # in every state (no control moves; phone width keeps its row), on the shipped host.
           - { name: Docs pane states, run: 'npm run check:docs-pane-states' }
+          # An installed app in its page zone on the shipped runtime (worker, OffscreenCanvas, the
+          # SDK's hello-canvas): the canvas is the zone at 1x and 2x and the app's card covers it;
+          # a release that fails its check shows the host's words over the zone instead.
+          - { name: App zone geometry, run: 'npm run check:app-zone' }
           # Frame times scrolling the 500-page bench document at 1x on a GitHub runner (never the
           # shared Mac), ONLYOFFICE's own condition: at most its 5% of frames past 16.7 ms and its
           # p95 of 16.8 ms. A traced second pass is uploaded per frame (the step after the gate).
@@ -220,16 +224,10 @@ jobs:
         run: npm run build
         working-directory: parent/citadel-workspace-client-ts
       - name: Install Chromium
-        # Retried, each attempt bounded, like the other jobs' copies: a CDN fetch with no retry
-        # of its own is what stalls.
-        run: |
-          attempt=1
-          until timeout 300 npx playwright install --with-deps chromium; do
-            if [ "$attempt" -ge 3 ]; then echo "playwright install still failing after 3 attempts"; exit 1; fi
-            attempt=$((attempt + 1))
-            sleep $((attempt * 15))
-          done
-        working-directory: parent/citadel-workspaces
+        # The one browser install (its action.yml says what it caches and why).
+        uses: ./parent/citadel-workspaces/.github/actions/install-chromium
+        with:
+          working-directory: parent/citadel-workspaces
       - name: ${{ matrix.gate.name }}
         run: ${{ matrix.gate.run }}
         env:
@@ -396,6 +394,17 @@ jobs:
         run: npm run build && npm run check:bundle
         working-directory: parent/citadel-workspaces
 
+      - name: Hand the build to the browser checks
+        # pwa-browser-checks runs Chromium against exactly this dist/, in its own job; see there.
+        if: matrix.project == 'citadel-workspaces'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pwa-dist
+          path: parent/citadel-workspaces/dist
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Source maps
         # Runs here because it reads dist/, which the bundle-budget step above
         # has just built. It had an npm script and no CI invocation, so it had
@@ -416,82 +425,6 @@ jobs:
         # because people learn to re-run it without reading it.
         if: matrix.project == 'citadel-workspaces'
         run: npm run check:lighthouse
-        working-directory: parent/citadel-workspaces
-
-      - name: Install Chromium for the offline check
-        if: matrix.project == 'citadel-workspaces'
-        # Retried, and each attempt bounded. The parent repo's copy of this step
-        # stalled for 55 minutes in run 33300992291 and was killed by the job
-        # budget without running a test -- a CDN fetch with no retry and no
-        # timeout of its own. npm retries its own fetches; this download does
-        # not, which is why it is the one that hangs.
-        run: |
-          # `--with-deps` shells out to apt-get, and unattended-upgrades holds
-          # /var/lib/dpkg/lock-frontend for minutes after boot, so every attempt
-          # dies with exit 100. Retrying into a held lock does not help; waiting
-          # for the lock does.
-          wait_for_apt_lock() {
-            command -v fuser >/dev/null 2>&1 || { sleep 30; return 0; }
-            waited=0
-            while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
-              if [ "$waited" -ge 300 ]; then
-                echo "dpkg lock still held after 5m; attempting anyway"
-                return 0
-              fi
-              echo "waiting for the dpkg lock (${waited}s elapsed)"
-              sleep 10
-              waited=$((waited + 10))
-            done
-          }
-          wait_for_apt_lock
-          attempt=1
-          wait_for_apt_lock
-          until timeout 600 npx playwright install --with-deps chromium; do
-            if [ "$attempt" -ge 3 ]; then
-              echo "playwright install still failing after 3 attempts"
-              exit 1
-            fi
-            echo "playwright install failed or stalled (attempt $attempt/3); retrying"
-            attempt=$((attempt + 1))
-            sleep $((attempt * 15))
-            wait_for_apt_lock
-          done
-        working-directory: parent/citadel-workspaces
-
-      - name: PWA offline behaviour
-        # The app tells the user it will load without a connection. Nothing
-        # verified that promise until this: a precache that stopped covering the
-        # shell would leave an installed app opening to a blank page offline.
-        if: matrix.project == 'citadel-workspaces'
-        run: npm run check:pwa-offline
-        working-directory: parent/citadel-workspaces
-
-      - name: PWA update flow
-        # The upgrade half of the lifecycle, and the half that fails silently:
-        # an installed worker keeps serving its cached bundle by design, so a
-        # broken update path produces no error and no complaint — the app just
-        # stops changing. The unit test beside PwaUpdatePrompt mocks the
-        # register hook, proving the component reacts to needRefresh but never
-        # that anything sets it.
-        if: matrix.project == 'citadel-workspaces'
-        run: npm run check:pwa-update
-        working-directory: parent/citadel-workspaces
-
-      - name: Reduced motion
-        # Neither axe nor Lighthouse reports motion, so ninety of the app's
-        # hundred animations opted out of prefers-reduced-motion unnoticed.
-        # Also checks that suppressing motion did not suppress the dialogs the
-        # motion was attached to — a failure only reduced-motion users would see.
-        if: matrix.project == 'citadel-workspaces'
-        run: npm run check:reduced-motion
-        working-directory: parent/citadel-workspaces
-
-      - name: Mobile layout
-        # axe measures colour, names and roles — not size. Three controls
-        # shipped under the WCAG 2.2 24px target floor, including the close
-        # button on every dialog in the app, with every a11y gate green.
-        if: matrix.project == 'citadel-workspaces'
-        run: npm run check:mobile
         working-directory: parent/citadel-workspaces
 
       # Delegates to the parent repo's gate rather than reimplementing it.
@@ -526,6 +459,86 @@ jobs:
       - name: The loopback agent origin is wired end to end
         if: matrix.project == 'citadel-workspaces'
         run: node scripts/check-the-loopback-agent-origin-is-wired.mjs
+
+  pwa-browser-checks:
+    # The four checks that drive Chromium against the production build, split out of the
+    # typecheck job. That job's citadel-workspaces leg ran 11-13 minutes of its 15 on a good
+    # day (median 11.6, p90 12.9 over UI runs 2026-10-14..22) -- the WASM container alone is
+    # ~5 -- and its last steps installed Chromium from the Azure apt mirror. On 2026-10-22 the
+    # mirror ran at ~40 KB/s and run 39843446695 hit the cap inside that install twice.
+    # Here the same work has its own budget: setup ~1 minute, the install ~30 s warm, the
+    # checks ~1.5 minutes (Mobile layout ~76 s of it). The build leaves with the typecheck job
+    # (artifact pwa-dist), so nothing is built twice and these measure the same bytes.
+    needs: [parent-ref, typecheck]
+    name: PWA and layout checks in Chromium
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: parent
+    steps:
+      - name: Checkout parent repo (workspace structure)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.PARENT_REPO }}
+          ref: ${{ needs.parent-ref.outputs.ref }}
+          path: parent
+      - name: Checkout submodule code (this PR)
+        uses: actions/checkout@v4
+        with:
+          path: parent/citadel-workspaces
+      - name: Init citadel-internal-service submodule
+        # npm ci installs every workspace, and one of them lives in this submodule.
+        run: git submodule update --init --recursive citadel-internal-service
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: parent/package-lock.json
+      - name: Install Workspace Dependencies
+        run: npm ci
+      - name: Take the build the typecheck job made
+        uses: actions/download-artifact@v4
+        with:
+          name: pwa-dist
+          path: parent/citadel-workspaces/dist
+      - name: Install Chromium
+        # The one browser install (its action.yml says what it caches and why).
+        uses: ./parent/citadel-workspaces/.github/actions/install-chromium
+        with:
+          working-directory: parent/citadel-workspaces
+
+      - name: PWA offline behaviour
+        # The app tells the user it will load without a connection. Nothing
+        # verified that promise until this: a precache that stopped covering the
+        # shell would leave an installed app opening to a blank page offline.
+        run: npm run check:pwa-offline
+        working-directory: parent/citadel-workspaces
+
+      - name: PWA update flow
+        # The upgrade half of the lifecycle, and the half that fails silently:
+        # an installed worker keeps serving its cached bundle by design, so a
+        # broken update path produces no error and no complaint — the app just
+        # stops changing. The unit test beside PwaUpdatePrompt mocks the
+        # register hook, proving the component reacts to needRefresh but never
+        # that anything sets it.
+        run: npm run check:pwa-update
+        working-directory: parent/citadel-workspaces
+
+      - name: Reduced motion
+        # Neither axe nor Lighthouse reports motion, so ninety of the app's
+        # hundred animations opted out of prefers-reduced-motion unnoticed.
+        # Also checks that suppressing motion did not suppress the dialogs the
+        # motion was attached to — a failure only reduced-motion users would see.
+        run: npm run check:reduced-motion
+        working-directory: parent/citadel-workspaces
+
+      - name: Mobile layout
+        # axe measures colour, names and roles — not size. Three controls
+        # shipped under the WCAG 2.2 24px target floor, including the close
+        # button on every dialog in the app, with every a11y gate green.
+        run: npm run check:mobile
+        working-directory: parent/citadel-workspaces
 
   lint:
     needs: parent-ref
@@ -679,6 +692,23 @@ jobs:
         # the wrong parent revision.
         if: matrix.project == 'citadel-workspaces'
         run: npm run check:parent-ref
+        working-directory: parent/citadel-workspaces
+
+      - name: Every browser install goes through the one action
+        # Seven inline copies drifted: one had no wait for the dpkg lock, and it failed twice on
+        # 2026-10-22 on "Could not get lock /var/lib/dpkg/lock-frontend". The action also holds
+        # the browser and apt caches, so a direct script call would skip them. The parent runs
+        # this on its own workflows too.
+        if: matrix.project == 'citadel-workspaces'
+        run: npm run check:browser-installs
+        working-directory: parent/citadel-workspaces
+
+      - name: The browser install waits for apt's locks and keeps its packages
+        # Fakes for fuser, sudo, npx, timeout and sleep; no root. Each lock case is also run
+        # with the wait removed, and each apt-archive case with the redirect removed, and must
+        # fail there.
+        if: matrix.project == 'citadel-workspaces'
+        run: bash scripts/ci/install-chromium.test.sh
         working-directory: parent/citadel-workspaces
 
       - name: No fork's pull request can reach the self-hosted Mac
@@ -862,47 +892,10 @@ jobs:
         # on the integration-tests job for why both orderings matter.
         run: npm ci
       - name: Install Playwright Browsers
-        # Retried, and each attempt bounded. The parent repo's copy of this step
-        # stalled for 55 minutes in run 33300992291 and was killed by the job
-        # budget without running a test -- a CDN fetch with no retry and no
-        # timeout of its own. npm retries its own fetches; this download does
-        # not, which is why it is the one that hangs.
-        run: |
-          # Wait for apt before asking playwright to use it.
-          #
-          # `--with-deps` shells out to apt-get, and the runner image's
-          # unattended-upgrades holds /var/lib/dpkg/lock-frontend for minutes
-          # after boot. Every attempt then dies on
-          #   E: Could not get lock /var/lib/dpkg/lock-frontend.
-          #      It is held by process NNNN (apt-get)
-          # with exit code 100 — which is not a download failure, so retrying
-          # into it does not help. The existing 30s/45s backoff was not the right
-          # shape: the wait needed is "until the lock is free", not a guess.
-          wait_for_apt_lock() {
-            command -v fuser >/dev/null 2>&1 || { sleep 30; return 0; }
-            waited=0
-            while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
-              if [ "$waited" -ge 300 ]; then
-                echo "dpkg lock still held after 5m; attempting anyway"
-                return 0
-              fi
-              echo "waiting for the dpkg lock (${waited}s elapsed)"
-              sleep 10
-              waited=$((waited + 10))
-            done
-          }
-          attempt=1
-          wait_for_apt_lock
-          until timeout 600 npx playwright install chromium --with-deps; do
-            if [ "$attempt" -ge 3 ]; then
-              echo "playwright install still failing after 3 attempts"
-              exit 1
-            fi
-            echo "playwright install failed or stalled (attempt $attempt/3); retrying"
-            attempt=$((attempt + 1))
-            sleep $((attempt * 15))
-            wait_for_apt_lock
-          done
+        # The one browser install (its action.yml says what it caches and why).
+        uses: ./parent/citadel-workspaces/.github/actions/install-chromium
+        with:
+          working-directory: parent
       - name: Symlink workspace deps for integration-tests
         run: |
           mkdir -p citadel-workspaces/integration-tests/node_modules
@@ -1182,50 +1175,10 @@ jobs:
         # playwright@locked-version expects.
         run: npm ci
       - name: Install Playwright Browsers
-        # Now that deps are installed, this resolves to the locked
-        # version's `playwright install` and downloads the matching
-        # chromium build.
-        # Retried, and each attempt bounded. The parent repo's copy of this step
-        # stalled for 55 minutes in run 33300992291 and was killed by the job
-        # budget without running a test -- a CDN fetch with no retry and no
-        # timeout of its own. npm retries its own fetches; this download does
-        # not, which is why it is the one that hangs.
-        run: |
-          # Wait for apt before asking playwright to use it.
-          #
-          # `--with-deps` shells out to apt-get, and the runner image's
-          # unattended-upgrades holds /var/lib/dpkg/lock-frontend for minutes
-          # after boot. Every attempt then dies on
-          #   E: Could not get lock /var/lib/dpkg/lock-frontend.
-          #      It is held by process NNNN (apt-get)
-          # with exit code 100 — which is not a download failure, so retrying
-          # into it does not help. The existing 30s/45s backoff was not the right
-          # shape: the wait needed is "until the lock is free", not a guess.
-          wait_for_apt_lock() {
-            command -v fuser >/dev/null 2>&1 || { sleep 30; return 0; }
-            waited=0
-            while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
-              if [ "$waited" -ge 300 ]; then
-                echo "dpkg lock still held after 5m; attempting anyway"
-                return 0
-              fi
-              echo "waiting for the dpkg lock (${waited}s elapsed)"
-              sleep 10
-              waited=$((waited + 10))
-            done
-          }
-          attempt=1
-          wait_for_apt_lock
-          until timeout 600 npx playwright install chromium --with-deps; do
-            if [ "$attempt" -ge 3 ]; then
-              echo "playwright install still failing after 3 attempts"
-              exit 1
-            fi
-            echo "playwright install failed or stalled (attempt $attempt/3); retrying"
-            attempt=$((attempt + 1))
-            sleep $((attempt * 15))
-            wait_for_apt_lock
-          done
+        # The one browser install (its action.yml says what it caches and why).
+        uses: ./parent/citadel-workspaces/.github/actions/install-chromium
+        with:
+          working-directory: parent
       - name: Symlink workspace deps for integration-tests build
         # `tsc` in integration-tests walks node_modules up the tree
         # (NodeNext). Symlinking playwright from the workspace-root

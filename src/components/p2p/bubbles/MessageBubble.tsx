@@ -8,6 +8,7 @@ import { MESSAGE_ANCHOR_ATTRIBUTE, JUMP_TARGET_CLASSES } from '@/components/chat
 import type { QuotedMessage } from '@/components/chat/shared/reply-quote';
 import type { P2PMessage } from '@/lib/p2p';
 import type { ReactionBinding } from '@/components/chat/shared/reactions/reaction-binding';
+import type { ChatDocumentLink } from '../hooks/useP2PTabs';
 
 interface MessageBubbleProps {
   message: P2PMessage;
@@ -15,7 +16,7 @@ interface MessageBubbleProps {
   /** What a reply quotes; `null` when this is not a reply or the original is not loaded. */
   quoted: QuotedMessage | null;
   onRetry?: () => void;
-  onOpenDocument?: (documentId: string, documentTitle: string) => void;
+  onOpenDocument?: (link: ChatDocumentLink) => void;
   onAcceptTransfer?: (transferId: string) => void;
   onDeclineTransfer?: (transferId: string) => void;
   onCancelTransfer?: (transferId: string) => void;

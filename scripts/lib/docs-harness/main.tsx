@@ -40,7 +40,7 @@ const doc: string | null = params.get('doc');
 
 /** Opens the DOCX at `url` once, as a replica of its own. */
 function keepFile(url: string): ReplicaKeeper {
-  return (open: (from: EditorOrigin) => Promise<EditorSession>, show: (editor: EditorSession) => void, fail: (error: unknown) => void): (() => void) => {
+  return (open: (from: EditorOrigin) => Promise<EditorSession>, show: (editor: EditorSession) => void, fail: (error: unknown) => void): (() => Promise<void>) => {
     let opened: EditorSession | null = null;
     let live: boolean = true;
     fetch(url)
@@ -56,7 +56,7 @@ function keepFile(url: string): ReplicaKeeper {
       }, (error: unknown): void => {
         if (live) fail(error);
       });
-    return (): void => {
+    return async (): Promise<void> => {
       live = false;
       opened?.dispose();
     };
@@ -65,7 +65,7 @@ function keepFile(url: string): ReplicaKeeper {
 
 const save: BindableSaveControl | null = params.get('save') === 'controls' ? saveControl('harness') : null;
 if (save !== null) window.docsHarnessSaveInputs = (inputs: SaveInputs): void => save.inputs.set(inputs);
-const EDITING: DocumentEditing = { kind: 'replica', keep: doc === null ? keepBlankReplica : keepFile(doc), save };
+const EDITING: DocumentEditing = { kind: 'replica', keep: doc === null ? keepBlankReplica : keepFile(doc), save, pictures: null };
 const app: Root = createRoot(root);
 app.render(
   // min-h-0: #root is a flex column (index.css), and a flex item does not shrink below its

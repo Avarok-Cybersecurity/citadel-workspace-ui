@@ -81,6 +81,7 @@ export function AppFlow({ app, installs, deps, viewer, onInstalled, onDone }: Ap
         problem={grantProblem(rows)}
         onInstall={() => { void install(s.scope, rows); }}
         onBack={() => dispatch({ kind: 'back' })}
+        clock={deps.clock}
       />
     );
   }

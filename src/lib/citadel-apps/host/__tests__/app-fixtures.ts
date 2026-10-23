@@ -1,7 +1,7 @@
 /**
  * TEST HELPER: ABI-shaped app modules built with wasm-builder, standing in for the Rust guest
  * SDK's fixtures until they land. `appModule()` with no options is the CLEAN module (the control
- * for every hostile variant): memory imported, the two reply readers, the four required exports.
+ * for every hostile variant): memory imported, the two reply readers, the five required exports.
  */
 import type { AppContext } from '../../sdk/generated/AppContext';
 import { ABI_NAMESPACE, type AbiGroup } from '../abi';
@@ -18,6 +18,8 @@ export interface AppModuleOptions {
   readonly init?: readonly number[];
   readonly event?: readonly number[];
   readonly frame?: readonly number[];
+  /** app_close's body; local 0 is the reason code. Answers CLOSE_RESULT.OK when left out. */
+  readonly close?: readonly number[];
   readonly start?: boolean;
   readonly data?: ModuleSpec['data'];
 }
@@ -53,6 +55,7 @@ export function appModuleSpec(options: AppModuleOptions = {}): ModuleSpec {
     { export: 'app_free', params: [I32, I32], results: [], body: [] },
     { export: 'app_init', params: [I32, I32], results: [I32], body: options.init ?? op.i32(0) },
     { export: 'app_event', params: [I32, I32], results: [], body: options.event ?? [] },
+    { export: 'app_close', params: [I32], results: [I32], body: options.close ?? op.i32(0) },
   ];
   if (options.frame !== undefined) funcs.push({ export: 'app_frame', params: [I32], results: [], body: options.frame });
   const kept: FuncSpec[] = funcs.map((f: FuncSpec): FuncSpec => (f.export !== undefined && omit.has(f.export) ? { ...f, export: undefined } : f));
@@ -80,10 +83,18 @@ export function growOrTrap(pages: number): number[] {
   return [...op.i32(pages), ...op.memoryGrow, ...op.trapIfMinusOne];
 }
 
+/**
+ * The close grace these hand-built modules run under: the reference harness's runs use 500 ms
+ * (apps/sdk-fixtures/fixtures.json `host.close_grace_ms`), and a test about close timing passes
+ * its own; 500 is well inside MAX_CLOSE_GRACE_MS and long enough for a close that settles at once.
+ */
+export const FIXTURE_CLOSE_GRACE_MS: number = 500;
+
 /** The reference harness's context (harness/src/lib.rs `context`), so runs compare like for like. */
-export function fixtureContext(granted: readonly Capability[]): AppContext {
+export function fixtureContext(granted: readonly Capability[], closeGraceMs: number): AppContext {
   return {
     app_id: 'net.avarok.fixture', install_id: 'install-1', scope: 'workspace', granted: [...granted].sort(), surface: 'canvas_pane',
     size: { width: 320, height: 200 }, dpr: 1, theme: {}, locale: 'en', acting_username: 'alice', node_id: 'root',
+    close_grace_ms: closeGraceMs,
   };
 }

@@ -17,13 +17,13 @@ import type { DocumentEditing, ReplicaKeeper } from './use-docs-document';
 /** A workspace document's editing arm: kept collaboratively, saved from the title bar. Memoise it per node. */
 export function collaborationEditing(nodeId: string): DocumentEditing {
   const save: BindableSaveControl = saveControl(nodeId);
-  return { kind: 'replica', keep: collaborationKeeper(nodeId, save), save };
+  return { kind: 'replica', keep: collaborationKeeper(nodeId, save), save, pictures: null };
 }
 
 export function collaborationKeeper(nodeId: string, save: BindableSaveControl): ReplicaKeeper {
-  return (open, show, fail): (() => void) => {
+  return (open, show, fail): (() => Promise<void>) => {
     let live: boolean = true;
-    let release: (() => void) | null = null;
+    let release: (() => Promise<void>) | null = null;
     Promise.all([import('@/lib/cdoc/collab/replica-keeper'), import('@/lib/cdoc/collab/session-errors')]).then(
       ([{ workspaceReplicaKeeper }, { noticeKind }]): void => {
         if (!live) return;
@@ -41,9 +41,9 @@ export function collaborationKeeper(nodeId: string, save: BindableSaveControl): 
         if (live) fail(error);
       },
     );
-    return (): void => {
+    return (): Promise<void> => {
       live = false;
-      release?.();
+      return release?.() ?? Promise.resolve();
     };
   };
 }

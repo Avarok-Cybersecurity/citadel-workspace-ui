@@ -25,6 +25,8 @@ export interface FakeKernelWorld {
   hidden: AppListing[];
   installs: AppInstall[];
   permissions: Set<string>;
+  /** Install ids the caller turned off for themselves, kept as the kernel keeps them (user_apps). */
+  disabled: Set<string>;
 }
 
 type Raw = unknown;
@@ -68,7 +70,7 @@ export class FakeAppsKernel implements AppsTransport {
   answer(request: AppsRequest): Raw {
     const w: FakeKernelWorld = this.world;
     if (request === 'ListCatalogue') return { Catalogue: { listings: w.visible } };
-    if (request === 'ListInstalls') return { Installs: { installs: w.installs } };
+    if (request === 'ListInstalls') return { Installs: { installs: w.installs, disabled_for_me: w.installs.filter((i: AppInstall) => w.disabled.has(i.id)).map((i: AppInstall) => i.id) } };
     if (typeof request !== 'object') return { Refused: 'Policy' };
     if ('GetListing' in request) {
       const found: { listing: AppListing } | null = this.find(request.GetListing.app_id);
@@ -81,7 +83,12 @@ export class FakeAppsKernel implements AppsTransport {
       w.installs = w.installs.filter((i: AppInstall) => i.id !== id);
       return { Uninstalled: { install_id: id } };
     }
-    if ('SetDisabledForMe' in request) return { DisabledForMe: { install_id: request.SetDisabledForMe.install_id, disabled: request.SetDisabledForMe.disabled } };
+    if ('SetDisabledForMe' in request) {
+      const { install_id, disabled } = request.SetDisabledForMe;
+      if (!w.installs.some((i: AppInstall) => i.id === install_id)) return { Refused: 'Unavailable' };
+      if (disabled) w.disabled.add(install_id); else w.disabled.delete(install_id);
+      return { DisabledForMe: { install_id, disabled } };
+    }
     if ('Update' in request) return { UpToDate: { install_id: request.Update.install_id } };
     if ('RequestInstall' in request) return 'InstallRequested';
     return { Refused: 'Policy' };

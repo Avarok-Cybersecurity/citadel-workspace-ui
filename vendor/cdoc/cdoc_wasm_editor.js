@@ -1316,6 +1316,51 @@ export function schema_json() {
 }
 
 /**
+ * The old chat editor's TipTap `StarterKit` JSON to a CRDT snapshot written as `client`, for
+ * moving a chat document onto the canvas; the report JSON is `{"report", "problems"}` and names
+ * what the model could not hold (`docs/tiptap-schema.md`).
+ * @param {string} json
+ * @param {bigint} client
+ * @returns {Migrated}
+ */
+export function tiptap_to_crdt_snapshot(json, client) {
+    const ptr0 = passStringToWasm0(json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.tiptap_to_crdt_snapshot(ptr0, len0, client);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return Migrated.__wrap(ret[0]);
+}
+
+/**
+ * The old chat editor's TipTap `StarterKit` JSON as ProseMirror JSON in this schema (the
+ * document `tiptap_to_crdt_snapshot` writes), to show the original read-only.
+ * @param {string} json
+ * @returns {string}
+ */
+export function tiptap_to_pm(json) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.tiptap_to_pm(ptr0, len0);
+        var ptr2 = ret[0];
+        var len2 = ret[1];
+        if (ret[3]) {
+            ptr2 = 0; len2 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred3_0 = ptr2;
+        deferred3_1 = len2;
+        return getStringFromWasm0(ptr2, len2);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
  * Plain text to JSON `{"pm", "report", "problems"}`. Options JSON:
  * `{"singleNewline": "break" | "space"}`.
  * @param {string} text

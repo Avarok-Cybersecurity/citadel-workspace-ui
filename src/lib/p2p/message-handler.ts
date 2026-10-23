@@ -11,7 +11,6 @@ import {
   deserializeP2PCommand,
   isMessagingLayerPayload,
   isMessageAckPayload,
-  isYjsSyncPayload,
 } from '@/types/p2p-types';
 import { BroadcastChannelService } from '../broadcast-channel-service';
 import { ensureBigIntOrNull } from '../utils';
@@ -28,19 +27,23 @@ import { isForThisSession } from '../sessions/notification-ownership';
 import { isPeerMessage, isMessageNotification, type MessageNotificationPayload , type MessageHandlerConfig } from './message-handler-types';
 import { handleMessagingLayerCommand } from './message-handler-routing';
 import { MessageAckHandler } from './message-ack-handler';
+import { EarlierEditorSync } from './earlier-editor-sync';
 import { FileTransferMessageHandler } from './file-transfer-message-handler';
 
 export type { MessageHandlerConfig } from './message-handler-types';
 import { fnv1a64 } from './message-fingerprint';
 import type { CallSignalPayload } from '@/types/call-signals';
+import { CDOC_CHAT_COMMAND_EVENT, isCdocChatSyncPayload, type CdocChatCommandEvent } from '@/types/cdoc-chat-sync';
 
 export class MessageHandler {
   private readonly config: MessageHandlerConfig;
   private readonly ackHandler: MessageAckHandler;
   private readonly fileTransferHandler: FileTransferMessageHandler;
+  private readonly earlierEditorSync: EarlierEditorSync;
 
   constructor(config: MessageHandlerConfig) {
     this.config = config;
+    this.earlierEditorSync = new EarlierEditorSync(config);
     this.ackHandler = new MessageAckHandler({
       getConversations: config.getConversations,
       updateMessageInPages: config.updateMessageInPages,
@@ -139,14 +142,7 @@ export class MessageHandler {
         debugLog('MessageHandler', 'P2P message received:', contentBytes.length, 'bytes fp=' + fnv1a64(contentBytes));
       }
 
-      // `p2p:raw-message` used to be emitted here and re-broadcast to every
-      // other tab. Nothing has listened to it for some time: useP2PTabs and
-      // the Yjs provider both say in their own comments that they moved off
-      // it. So every inbound P2P message was structured-cloned and posted on
-      // the BroadcastChannel, then deserialised by each follower tab and
-      // emitted to nobody. Yjs live-document sync rides the same
-      // notification, so with two remote editors and three tabs open that was
-      // several clones a second, for ever, for no effect.
+      // `p2p:raw-message` was emitted and re-broadcast to every tab here; nothing listened, so it is gone.
 
       // The notification's `cid` names the session it is addressed to, and this
       // tab is very often not that session: the leader holds the WebSocket even
@@ -216,24 +212,8 @@ export class MessageHandler {
         break;
 
       case P2PCommandType.YjsP2PSync:
-        // Dispatch Yjs sync payloads to the Yjs provider via a dedicated
-        // event. We do NOT call the Yjs handler inline because each
-        // browser tab can host multiple `YjsP2PProvider` instances (one
-        // per open document) — emitting lets every interested provider
-        // filter on `document_id` / `peerCid` itself.
-        if (isYjsSyncPayload(command.payload)) {
-          debugLog('P2PMessageHandler', 'handleP2PCommand: dispatching YjsP2PSync', {
-            yjsType: command.payload.type,
-            documentId: command.payload.document_id,
-            peerCid: peerCid.toString(),
-          });
-          // Pass the canonical `bigint` CID on the wire-internal event
-          // (per the CID policy — string conversion is for display/keys/debug
-          // only). Subscribers `.toString()` it themselves where they compare.
-          eventEmitter.emit('yjs:p2p-command', { peerCid, payload: command.payload });
-        } else {
-          debugLog('P2PMessageHandler', 'handleP2PCommand: YjsP2PSync payload failed type check', command.payload);
-        }
+        // A peer on an earlier version: its editor's sync has no reader here (earlier-editor-sync.ts).
+        await this.earlierEditorSync.heard(peerCid);
         break;
 
       case P2PCommandType.CallSignal:
@@ -250,6 +230,12 @@ export class MessageHandler {
         } else {
           debugLog('P2PMessageHandler', 'handleP2PCommand: CallSignal payload failed type check', command.payload);
         }
+        break;
+
+      case P2PCommandType.CdocChatSync:
+        // Emitted, never handled here: the chat document's keeper (lib/cdoc/chat) is lazy, and this module never reaches cdoc.
+        if (isCdocChatSyncPayload(command.payload)) eventEmitter.emit<CdocChatCommandEvent>(CDOC_CHAT_COMMAND_EVENT, { peerCid, recipientCid, payload: command.payload });
+        else debugLog('P2PMessageHandler', 'handleP2PCommand: CdocChatSync payload failed type check');
         break;
 
       default:

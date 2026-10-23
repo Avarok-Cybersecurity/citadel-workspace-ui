@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AppInstall, AppManifest } from 'citadel-workspace-client-ts';
 import { canNever, consentRows, grantOf, grantProblem, keyTrust, keyTrustCopy, type ConsentRow } from '../consent-model';
-import { gateOpen, gateReducer, HIDDEN_GATE, type GateState } from '../consent-gate';
+import { gateOpen, gateReducer, HIDDEN_GATE, msUntilElapsed, type GateState } from '../consent-gate';
 import { scopeSentence } from '../scope-sentence';
 import type { Authority, Tri } from '../scope-options';
 import { readManifestBytes, type ManifestReading } from '../manifest/manifest-rules';
@@ -81,17 +81,25 @@ describe('the overlay guard', () => {
 
   it('opens only after 600 ms shown AND a pointer move', () => {
     const shown: GateState = at(HIDDEN_GATE, { kind: 'shown', at: 1000 });
-    expect(gateOpen(shown, 5000)).toBe(false);
+    expect(gateOpen(at(shown, { kind: 'clock', at: 5000 }))).toBe(false);
     const moved: GateState = at(shown, { kind: 'moved' });
-    expect(gateOpen(moved, 1599)).toBe(false);
-    expect(gateOpen(moved, 1600)).toBe(true);
+    expect(gateOpen(at(moved, { kind: 'clock', at: 1599 }))).toBe(false);
+    expect(gateOpen(at(moved, { kind: 'clock', at: 1600 }))).toBe(true);
   });
 
   it('a move before the panel showed does not count, and hiding starts again', () => {
     const early: GateState = at(HIDDEN_GATE, { kind: 'moved' }, { kind: 'shown', at: 0 });
-    expect(gateOpen(early, 10_000)).toBe(false);
-    const hidden: GateState = at(early, { kind: 'moved' }, { kind: 'hidden' }, { kind: 'shown', at: 9000 }, { kind: 'moved' });
-    expect(gateOpen(hidden, 9500)).toBe(false);
-    expect(gateOpen(hidden, 9600)).toBe(true);
+    expect(gateOpen(at(early, { kind: 'clock', at: 10_000 }))).toBe(false);
+    const hidden: GateState = at(early, { kind: 'moved' }, { kind: 'clock', at: 700 }, { kind: 'hidden' }, { kind: 'shown', at: 9000 }, { kind: 'moved' });
+    expect(gateOpen(hidden)).toBe(false);
+    expect(gateOpen(at(hidden, { kind: 'clock', at: 9500 }))).toBe(false);
+    expect(gateOpen(at(hidden, { kind: 'clock', at: 9600 }))).toBe(true);
+  });
+
+  it('time left until open never goes below zero', () => {
+    expect(msUntilElapsed(1000, 1000)).toBe(600);
+    expect(msUntilElapsed(1000, 1599)).toBe(1);
+    expect(msUntilElapsed(1000, 1600)).toBe(0);
+    expect(msUntilElapsed(1000, 99_999)).toBe(0);
   });
 });

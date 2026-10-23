@@ -6,31 +6,30 @@
  * Guest code is never re-entered: events the host raises while the guest is inside a host call
  * (a router Cancel, a reply that became ready) queue and are delivered after the export returns.
  * Any exception out of an export is a trap: the worker reports `trapped` and runs nothing more.
+ *
+ * It mirrors the instance's lifecycle (lifecycle.ts), and the imports answer by it first: a
+ * closing app reaches only storage and log. Close, in order: every internal-HTTP stream is
+ * cancelled (`closed`), app_close runs (`closing`), and once no reply it waits on is pending and
+ * nothing is queued for it, `settled`; nothing of the guest runs after that.
  */
-import { PAGE_BYTES } from '../sdk/generated/AbiConstants';
+import { CLOSE_REASON_CODE, CLOSE_RESULT, PAGE_BYTES } from '../sdk/generated/AbiConstants';
+import type { CloseReason } from '../sdk/generated/CloseReason';
 import { ABI_ERROR, INIT_RESULT } from './abi';
 import { encodeAppEvent } from './app-event';
 import type { CborMap } from './cbor';
 import { effectiveGrant, type Capability } from './capabilities';
 import { canvasPort, type CanvasSurface } from './canvas-port';
 import { Dispatcher, isPortAnswer, type DispatchClock, type PortInvoker } from './dispatch';
-import { IhttpRouter, type RouterAction } from './ihttp-router';
+import { IhttpRouter, type ClosingAction, type RouterAction } from './ihttp-router';
 import { buildImports } from './imports';
 import { splitInvoker } from './invoker';
+import { Lifecycle, lifecycleRefusal } from './lifecycle';
 import type { OpEntry } from './ops';
 import type { HostPorts, LogPort, PortAnswer, PortKey } from './ports';
-import { inBounds, ReplyTable } from './reply-table';
+import { ReplyTable } from './reply-table';
+import { bindGuest, withBytes, type Guest } from './worker-guest';
 import type { LoadMessage, ToWorker, WorkerChannel } from './worker-protocol';
 import { isToWorker } from './worker-protocol';
-
-interface Guest {
-  readonly memory: WebAssembly.Memory;
-  readonly alloc: (len: number) => number;
-  readonly free: (ptr: number, len: number) => void;
-  readonly init: (ptr: number, len: number) => number;
-  readonly event: (ptr: number, len: number) => void;
-  readonly frame: ((dtMs: number) => void) | null;
-}
 
 /** Answered in the worker: the canvas it owns, and log (which also tells the page). */
 const LOCAL_PORTS: ReadonlySet<PortKey | 'host'> = new Set<PortKey | 'host'>(['canvas', 'log', 'host']);
@@ -42,11 +41,14 @@ export type SurfaceOf = (canvas: OffscreenCanvas, dpr: number) => CanvasSurface 
 export function startWorkerHost(channel: WorkerChannel, clock: DispatchClock, surfaceOf: SurfaceOf): void {
   let guest: Guest | null = null;
   let dead: boolean = false;
+  let canvas: OffscreenCanvas | null = null;
   let surface: CanvasSurface | null = null;
   let router: IhttpRouter | null = null;
   let replies: ReplyTable | null = null;
   let memoryPages: number = 0;
   let nextCall: number = 0;
+  let selfSeq: number = 0;
+  const life: Lifecycle = new Lifecycle();
   const waiting: Map<number, (answer: PortAnswer) => void> = new Map<number, (answer: PortAnswer) => void>();
   const queue: Uint8Array[] = [];
 
@@ -67,18 +69,12 @@ export function startWorkerHost(channel: WorkerChannel, clock: DispatchClock, su
 
   const trap = (seq: number, error: unknown): void => {
     dead = true;
+    life.abort();
     const message: string = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
     channel.post({ kind: 'trapped', seq, message, memoryPages: guest === null ? memoryPages : guest.memory.buffer.byteLength / PAGE_BYTES });
   };
 
-  /** Copies bytes into guest memory through app_alloc, calls app_event, frees. */
-  const deliver = (g: Guest, bytes: Uint8Array): void => {
-    const ptr: number = g.alloc(bytes.byteLength) >>> 0;
-    if (!inBounds(g.memory, ptr, bytes.byteLength)) throw new Error('app_alloc returned a pointer outside memory');
-    new Uint8Array(g.memory.buffer, ptr, bytes.byteLength).set(bytes);
-    g.event(ptr, bytes.byteLength);
-    g.free(ptr, bytes.byteLength);
-  };
+  const deliver = (g: Guest, bytes: Uint8Array): void => withBytes(g, bytes, g.event);
 
   /** Runs guest code, then every event it queued; false if it trapped. */
   const run = (seq: number, body: (g: Guest) => void): boolean => {
@@ -93,6 +89,13 @@ export function startWorkerHost(channel: WorkerChannel, clock: DispatchClock, su
     }
   };
 
+  /** A closing instance is settled once nothing it waits on is pending and nothing is queued for it. */
+  const settleIfDone = (): void => {
+    if (dead || queue.length > 0 || (replies?.pendingCount ?? 0) > 0 || !life.step('settled')) return;
+    dead = true;
+    channel.post({ kind: 'settled' });
+  };
+
   const routerActions = (actions: readonly RouterAction[]): void => {
     for (const a of actions) {
       if (a.kind === 'reply') channel.post({ kind: 'ihttp_out', peer: a.peer, frame: a.frame });
@@ -104,13 +107,13 @@ export function startWorkerHost(channel: WorkerChannel, clock: DispatchClock, su
    * Delivers queued events outside any message (a reply that became ready, a stream deadline).
    * Worker-initiated, so it announces itself with `busy` and the handle's watchdog times it too.
    */
-  let selfSeq: number = 0;
   const drainSoon = (): void => {
     clock.after(0, (): void => {
       if (dead || guest === null || queue.length === 0) return;
       const seq: number = --selfSeq;
       channel.post({ kind: 'busy', seq });
       if (run(seq, () => {})) channel.post({ kind: 'done', seq });
+      settleIfDone();
     });
   };
 
@@ -121,6 +124,7 @@ export function startWorkerHost(channel: WorkerChannel, clock: DispatchClock, su
       routerActions(router.tick(clock.now()));
       drainSoon();
     }
+    settleIfDone();
     clock.after(ROUTER_TICK_MS, tick);
   };
 
@@ -141,35 +145,49 @@ export function startWorkerHost(channel: WorkerChannel, clock: DispatchClock, su
         queue.push(encodeAppEvent({ reply_ready: { handle } }));
         drainSoon();
       },
+      gate: (group) => lifecycleRefusal(life.state, group),
     });
-    let instance: WebAssembly.Instance;
     try {
-      instance = new WebAssembly.Instance(msg.module, imports);
+      guest = bindGuest(new WebAssembly.Instance(msg.module, imports), memory);
     } catch (error: unknown) {
       trap(msg.seq, error);
       return;
     }
-    const x: WebAssembly.Exports = instance.exports;
-    guest = {
-      memory,
-      alloc: x.app_alloc as Guest['alloc'],
-      free: x.app_free as Guest['free'],
-      init: x.app_init as Guest['init'],
-      event: x.app_event as Guest['event'],
-      frame: typeof x.app_frame === 'function' ? (x.app_frame as (dt: number) => void) : null,
-    };
     let status: number = ABI_ERROR.BAD_REQUEST;
-    const ok: boolean = run(msg.seq, (g: Guest): void => {
-      const ptr: number = g.alloc(msg.context.byteLength) >>> 0;
-      if (!inBounds(g.memory, ptr, msg.context.byteLength)) throw new Error('app_alloc returned a pointer outside memory');
-      new Uint8Array(g.memory.buffer, ptr, msg.context.byteLength).set(msg.context);
-      status = g.init(ptr, msg.context.byteLength);
-      g.free(ptr, msg.context.byteLength);
-    });
-    if (!ok) return;
-    if (status !== INIT_RESULT.OK) dead = true;
+    if (!run(msg.seq, (g: Guest): void => {
+      status = withBytes(g, msg.context, g.init);
+    })) return;
+    if (status !== INIT_RESULT.OK || !life.step('initialised')) dead = true;
     channel.post({ kind: 'loaded', seq: msg.seq, status });
     clock.after(ROUTER_TICK_MS, tick);
+  };
+
+  const closingActions = (actions: readonly ClosingAction[]): void => {
+    for (const a of actions) {
+      if (a.kind === 'reply') channel.post({ kind: 'ihttp_out', peer: a.peer, frame: a.frame });
+      else channel.post({ kind: 'ihttp_call_out', to: a.to, frame: a.frame });
+    }
+  };
+
+  const close = (reason: CloseReason): void => {
+    if (dead || guest === null || !life.step('close')) return;
+    if (router !== null) closingActions(router.closeAll());
+    let result: number = CLOSE_RESULT.NOT_RUNNING;
+    if (!run(--selfSeq, (g: Guest): void => {
+      result = g.close(CLOSE_REASON_CODE[reason]);
+    })) return;
+    channel.post({ kind: 'closing', result });
+    settleIfDone();
+  };
+
+  const resize = (seq: number, width: number, height: number, dpr: number): void => {
+    if (canvas !== null) {
+      canvas.width = Math.max(1, Math.round(width * dpr));
+      canvas.height = Math.max(1, Math.round(height * dpr));
+      surface = surfaceOf(canvas, dpr);
+    }
+    const alive: boolean = life.state === 'running' || life.state === 'suspended';
+    if (!alive || run(seq, (g: Guest) => deliver(g, encodeAppEvent({ resize: { width, height, dpr } })))) channel.post({ kind: 'done', seq });
   };
 
   const handle = (msg: ToWorker): void => {
@@ -178,14 +196,18 @@ export function startWorkerHost(channel: WorkerChannel, clock: DispatchClock, su
         if (guest === null && !dead) load(msg);
         return;
       case 'canvas':
+        canvas = msg.canvas;
         surface = surfaceOf(msg.canvas, msg.dpr);
         return;
       case 'event':
-        if (run(msg.seq, (g: Guest) => deliver(g, msg.event))) channel.post({ kind: 'done', seq: msg.seq });
+        if (msg.step !== null && !life.step(msg.step)) channel.post({ kind: 'done', seq: msg.seq });
+        else if (run(msg.seq, (g: Guest) => deliver(g, msg.event))) channel.post({ kind: 'done', seq: msg.seq });
         return;
       case 'frame':
-        if (run(msg.seq, (g: Guest) => g.frame?.(msg.dtMs))) channel.post({ kind: 'done', seq: msg.seq });
+        if (life.state !== 'running' || run(msg.seq, (g: Guest) => g.frame?.(msg.dtMs))) channel.post({ kind: 'done', seq: msg.seq });
         return;
+      case 'resize': resize(msg.seq, msg.width, msg.height, msg.dpr); return;
+      case 'close': close(msg.reason); return;
       case 'port_reply': {
         const resolve: ((a: PortAnswer) => void) | undefined = waiting.get(msg.id);
         waiting.delete(msg.id);

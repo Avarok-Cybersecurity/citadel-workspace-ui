@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { encodeAppContext, encodeAppEvent } from '../app-event';
 import { decodeCbor, encodeCbor, f32, type Decoded } from '../cbor';
 import { parseArgs } from '../op-args';
-import { fixtureContext } from './app-fixtures';
+import { FIXTURE_CLOSE_GRACE_MS, fixtureContext } from './app-fixtures';
 
 const text = (s: string): number[] => [0x60 + s.length, ...new TextEncoder().encode(s)];
 /** {path: "a", bytes: <value>} with `value` already encoded. */
@@ -39,7 +39,7 @@ describe('byte strings, in every form the Rust side accepts', () => {
 
 describe('floats and integers', () => {
   it('an f32 field is written as a CBOR float even when integral; a bare float is refused (control: f32 wraps it)', () => {
-    const ctx: Uint8Array = encodeAppContext(fixtureContext([]));
+    const ctx: Uint8Array = encodeAppContext(fixtureContext([], FIXTURE_CLOSE_GRACE_MS));
     const at: number = Buffer.from(ctx).indexOf(Buffer.from([0x63, ...new TextEncoder().encode('dpr')]));
     expect(ctx[at + 4]).toBe(0xfb);
     expect(() => encodeCbor({ dpr: 1.5 })).toThrow(/f32/);

@@ -396,6 +396,19 @@ export function pm_to_txt(pm_json: string): string;
 export function schema_json(): string;
 
 /**
+ * The old chat editor's TipTap `StarterKit` JSON to a CRDT snapshot written as `client`, for
+ * moving a chat document onto the canvas; the report JSON is `{"report", "problems"}` and names
+ * what the model could not hold (`docs/tiptap-schema.md`).
+ */
+export function tiptap_to_crdt_snapshot(json: string, client: bigint): Migrated;
+
+/**
+ * The old chat editor's TipTap `StarterKit` JSON as ProseMirror JSON in this schema (the
+ * document `tiptap_to_crdt_snapshot` writes), to show the original read-only.
+ */
+export function tiptap_to_pm(json: string): string;
+
+/**
  * Plain text to JSON `{"pm", "report", "problems"}`. Options JSON:
  * `{"singleNewline": "break" | "space"}`.
  */
@@ -496,6 +509,8 @@ export interface InitOutput {
     readonly renderassets_aliasFont: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly renderassets_new: (a: number, b: number, c: number, d: number) => number;
     readonly schema_json: () => [number, number];
+    readonly tiptap_to_crdt_snapshot: (a: number, b: number, c: bigint) => [number, number, number];
+    readonly tiptap_to_pm: (a: number, b: number) => [number, number, number, number];
     readonly txt_to_pm: (a: number, b: number, c: number, d: number) => [number, number, number, number];
     readonly validate_model: (a: number, b: number) => [number, number, number, number];
     readonly version: () => [number, number];

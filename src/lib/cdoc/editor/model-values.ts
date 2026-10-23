@@ -8,6 +8,12 @@
 /** An opaque sRGB colour, `#RRGGBB`. */
 export type HexColor = `#${string}`;
 
+/** `value` as a HexColor; throws when it is not `#RRGGBB`. */
+export function hexColor(value: string): HexColor {
+  if (!/^#[0-9a-fA-F]{6}$/.test(value)) throw new Error(`not a hex colour: ${value}`);
+  return value as HexColor;
+}
+
 /** Hundredths of a point (7200 = one inch); an integer that fits an i32. */
 export type Pt100 = number;
 

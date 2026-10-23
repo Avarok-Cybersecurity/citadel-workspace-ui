@@ -30,14 +30,15 @@ async function insertPicture(file: File, editor: RibbonEditor, ribbon: Ribbon): 
   await editor.execute({ name: 'insertImageFitted', contentId: image.contentId });
 }
 
-export function PictureControl(): JSX.Element {
+/** `unavailable`: why this document takes no pictures (a chat document's peer could not see them), or null. */
+export function PictureControl({ unavailable }: { readonly unavailable: string | null }): JSX.Element {
   const ribbon: Ribbon = useRibbon();
   const input: RefObject<HTMLInputElement> = useRef<HTMLInputElement>(null);
   const [inserting, setInserting] = useState<boolean>(false);
   return (
     <>
       <RibbonButton testId="ribbon-insert-picture" label="Picture" icon={Image} text={inserting ? 'Inserting…' : 'Picture'}
-        unavailable={inserting ? 'A picture is being inserted.' : null} aria-busy={inserting} onPress={(): void => input.current?.click()} />
+        unavailable={unavailable ?? (inserting ? 'A picture is being inserted.' : null)} aria-busy={inserting} onPress={(): void => input.current?.click()} />
       <input ref={input} type="file" accept={PICTURE_TYPES.join(',')} hidden data-testid="ribbon-picture-file" aria-label="Picture file"
         onChange={(e: ChangeEvent<HTMLInputElement>): void => {
           const file: File | undefined = e.target.files?.[0];

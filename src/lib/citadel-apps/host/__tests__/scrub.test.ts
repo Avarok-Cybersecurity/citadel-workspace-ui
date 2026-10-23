@@ -7,13 +7,14 @@ import { describe, expect, it } from 'vitest';
 import { AMBIENT_AUTHORITY, captureChannel, scrubAmbientAuthority, type ScrubbedScope } from '../scrub';
 import type { FromWorker, WorkerChannel } from '../worker-protocol';
 
-class FakeWorkerGlobalScope {
-  fetch(): string { return 'network'; }
-  postMessage(m: FromWorker): FromWorker { return m; }
-  addEventListener(): void {}
-}
-
+// A class per stand-in: the scrub deletes from the prototype, and a shared one would carry that
+// deletion into whichever test runs next.
 function standIn(): ScrubbedScope {
+  class FakeWorkerGlobalScope {
+    fetch(): string { return 'network'; }
+    postMessage(m: FromWorker): FromWorker { return m; }
+    addEventListener(): void {}
+  }
   const scope: ScrubbedScope = Object.create(FakeWorkerGlobalScope.prototype) as ScrubbedScope;
   for (const name of ['XMLHttpRequest', 'WebSocket', 'indexedDB', 'caches', 'BroadcastChannel', 'EventSource', 'importScripts']) {
     Object.defineProperty(scope, name, { value: () => name, configurable: true, writable: true });

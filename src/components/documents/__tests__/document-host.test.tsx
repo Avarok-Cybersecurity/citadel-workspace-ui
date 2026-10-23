@@ -13,7 +13,7 @@ import { keepBlankReplica } from '../blank-replica';
 import type { DocumentEditing } from '../use-docs-document';
 import { saveControl, type BindableSaveControl } from '../save/save-control';
 
-const EDIT_BLANK: DocumentEditing = { kind: 'replica', keep: keepBlankReplica, save: null };
+const EDIT_BLANK: DocumentEditing = { kind: 'replica', keep: keepBlankReplica, save: null, pictures: null };
 
 const EDITABLE: DocumentHostProps = {
   nodeId: 'plan-1',
@@ -57,7 +57,7 @@ describe('DocumentHost', () => {
   it('puts the save controls in the title bar of a document someone saves, and Ctrl/Cmd+S over its editor to them', () => {
     const save: BindableSaveControl = saveControl('plan-1');
     save.inputs.set({ autoSave: true, link: 'up', unacknowledged: 0, syncRequested: false, local: 'written', halted: false, locked: false });
-    render(<DocumentHost {...EDITABLE} editing={{ kind: 'replica', keep: keepBlankReplica, save }} />);
+    render(<DocumentHost {...EDITABLE} editing={{ kind: 'replica', keep: keepBlankReplica, save, pictures: null }} />);
     const header: HTMLElement = screen.getByRole('banner');
     expect(within(header).getByTestId('docs-save-status')).toHaveAttribute('data-status', 'saved');
     const region: HTMLElement = screen.getByRole('region', { name: 'Citadel Docs editor' });

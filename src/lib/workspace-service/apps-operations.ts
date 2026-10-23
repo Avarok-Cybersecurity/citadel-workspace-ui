@@ -43,11 +43,28 @@ export function protocolAppsTransport(sender: ProtocolSender): AppsTransport {
   };
 }
 
-type Kind = AppsAnswer['kind'];
-type Of<K extends Kind> = Extract<AppsAnswer, { kind: K }>;
+/**
+ * One request at a time over `inner`: the protocol has no request id and a refusal answers
+ * whichever request is waiting, so two in flight together could swap refusals. Every user of a
+ * tab's session (the marketplace, a page's zones, its running apps) shares the one wrapper.
+ */
+export function serialAppsTransport(inner: AppsTransport): AppsTransport {
+  let queue: Promise<unknown> = Promise.resolve();
+  return {
+    request: (request: AppsRequest, isOurs: (answer: AppsAnswer) => boolean): Promise<AppsAnswer> => {
+      const run = (): Promise<AppsAnswer> => inner.request(request, isOurs);
+      const next: Promise<AppsAnswer> = queue.then(run, run);
+      queue = next.catch((): void => undefined);
+      return next;
+    },
+  };
+}
+
+export type Kind = AppsAnswer['kind'];
+export type Of<K extends Kind> = Extract<AppsAnswer, { kind: K }>;
 
 /** Ask, take the answer of `kind` that `fits`, or the refusal; anything else is malformed. */
-async function ask<K extends Kind, T>(t: AppsTransport, request: AppsRequest, kind: K, fits: (a: Of<K>) => boolean, value: (a: Of<K>) => T): Promise<AppsResult<T>> {
+export async function ask<K extends Kind, T>(t: AppsTransport, request: AppsRequest, kind: K, fits: (a: Of<K>) => boolean, value: (a: Of<K>) => T): Promise<AppsResult<T>> {
   const answer: AppsAnswer | null = await answerTo(t, request, (a: AppsAnswer): boolean => a.kind === kind && fits(a as Of<K>));
   if (answer === null) return { ok: false, refusal: 'NoAnswer' };
   if (answer.kind === 'refused') return { ok: false, refusal: answer.refusal };
@@ -77,8 +94,14 @@ export const listCatalogue = (t: AppsTransport): Promise<AppsResult<AppListing[]
 export const getListing = (t: AppsTransport, appId: string): Promise<AppsResult<AppListing>> =>
   ask(t, { GetListing: { app_id: appId } }, 'listing', (a: Of<'listing'>) => listingIsFor(a.listing, appId), (a: Of<'listing'>) => a.listing);
 
-export const listInstalls = (t: AppsTransport): Promise<AppsResult<AppInstall[]>> =>
-  ask(t, 'ListInstalls', 'installs', always, (a: Of<'installs'>) => a.installs);
+/** The installs that reach the caller, and which of them the caller turned off for themselves. */
+export interface InstallsView {
+  installs: AppInstall[];
+  disabledForMe: string[];
+}
+
+export const listInstalls = (t: AppsTransport): Promise<AppsResult<InstallsView>> =>
+  ask(t, 'ListInstalls', 'installs', always, (a: Of<'installs'>) => ({ installs: a.installs, disabledForMe: a.disabledForMe }));
 
 export interface InstallChoice {
   appId: string;

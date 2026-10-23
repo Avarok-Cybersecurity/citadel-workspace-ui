@@ -69,7 +69,7 @@ export function hasManifestShape(v: unknown): boolean {
     surfaces: (x: unknown) => listOf(x, oneOf(SURFACES)),
     scopes: (x: unknown) => listOf(x, oneOf(SCOPE_KINDS)),
     capabilities: (x: unknown) => listOf(x, capabilityShape),
-    limits: (x: unknown) => fields(x, { memory_pages: isU32, max_call_rate_per_s: isU32, frame_budget_ms: isU32, storage_user_bytes: isU32, storage_scope_bytes: isU32 }),
+    limits: (x: unknown) => fields(x, { memory_pages: isU32, max_call_rate_per_s: isU32, frame_budget_ms: isU32, storage_user_bytes: isU32, storage_scope_bytes: isU32, close_grace_ms: isU32 }),
     artifact: (x: unknown) => fields(x, { sha256: isString, bytes: isU32, locations: (l: unknown) => listOf(l, locationShape) }),
   }, { previous_versions: strings });
 }

@@ -6,8 +6,8 @@
  *
  * Order: `threads`; then per import (foreign_import / unknown_import / wrong_import_kind /
  * wrong_import_signature / undeclared_group / shared_memory / memory64 / memory_initial_too_large);
- * then memory_not_imported, memory_defined, start_function; then each required export and
- * app_frame. A module the engine cannot compile, or that is outside wasm 2.0 + threads, is
+ * then memory_not_imported, memory_defined, start_function; then each required export (app_close
+ * among them) and app_frame. A module the engine cannot compile, or that is outside wasm 2.0 + threads, is
  * `malformed` alone. The engine's own import list is cross-checked against the bytes.
  */
 import {
@@ -31,7 +31,7 @@ const GROUP_SIG: FuncSig = sig(3, 1);
 const REPLY_LEN_SIG: FuncSig = sig(1, 1);
 const FRAME_SIG: FuncSig = sig(1, 0);
 const EXPORT_SIGS: Readonly<Record<(typeof REQUIRED_EXPORTS)[number], FuncSig>> = {
-  app_alloc: sig(1, 1), app_free: sig(2, 0), app_init: sig(2, 1), app_event: sig(2, 0),
+  app_alloc: sig(1, 1), app_free: sig(2, 0), app_init: sig(2, 1), app_event: sig(2, 0), app_close: sig(1, 1),
 };
 
 const sameSig = (a: FuncSig, b: FuncSig): boolean =>

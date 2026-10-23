@@ -17,7 +17,7 @@ import { recordingDocumentFiles, type RecordingDocumentFiles } from '@/test-util
 
 // Any fixed instant: these tests download nothing.
 const FILES: RecordingDocumentFiles = recordingDocumentFiles('2026-10-18T00:00:00Z');
-const EDIT_BLANK: DocumentEditing = { kind: 'replica', keep: keepBlankReplica, save: null };
+const EDIT_BLANK: DocumentEditing = { kind: 'replica', keep: keepBlankReplica, save: null, pictures: null };
 
 const VIEWPORT_PX: number = 800;
 let restore: (() => void) | null = null;
@@ -48,7 +48,7 @@ describe('DocsCanvas', () => {
     };
     const opened: EditorSession[] = [];
     let reopen: (() => Promise<void>) | null = null;
-    const keeper: ReplicaKeeper = (open: (from: EditorOrigin) => Promise<EditorSession>, show: (e: EditorSession) => void): (() => void) => {
+    const keeper: ReplicaKeeper = (open: (from: EditorOrigin) => Promise<EditorSession>, show: (e: EditorSession) => void): (() => Promise<void>) => {
       const next: () => Promise<void> = async (): Promise<void> => {
         const editor: EditorSession = await open({ kind: 'blank' });
         const dispose: () => void = editor.dispose.bind(editor);
@@ -66,11 +66,11 @@ describe('DocsCanvas', () => {
       };
       reopen = next;
       void next();
-      return (): void => {
+      return async (): Promise<void> => {
         events.push('keeper torn down');
       };
     };
-    const editing: DocumentEditing = { kind: 'replica', keep: keeper, save: null };
+    const editing: DocumentEditing = { kind: 'replica', keep: keeper, save: null, pictures: null };
     const view: RenderResult = render(<DocsCanvas documentSource={{ kind: 'blank' }} loadRuntime={async (): Promise<CdocRuntime> => runtime} editing={editing} statusBar={null} edit={{ enabled: true, reason: null }} commentAuthor="Ada" title="Untitled" files={FILES} original={null} />);
     await screen.findByTestId('editor-input');
     await act(async (): Promise<void> => { await reopen?.(); });
@@ -79,7 +79,9 @@ describe('DocsCanvas', () => {
     events.length = 0;
     await waitFor(() => expect(document.activeElement).toBe(screen.getByTestId('editor-input')));
     view.unmount();
-    expect(events).toEqual(['keeper torn down', 'client disposed']);
+    // The runtime goes once the keeper's teardown has settled (a keeper may still be writing), never before.
+    expect(events).toEqual(['keeper torn down']);
+    await waitFor(() => expect(events).toEqual(['keeper torn down', 'client disposed']));
     for (const e of opened) e.dispose();
   });
 });
