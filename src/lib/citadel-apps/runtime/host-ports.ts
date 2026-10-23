@@ -28,8 +28,8 @@ export interface BoundPorts {
   readonly held: ReadonlySet<Capability>;
   /** Ends the instance's advertisement (ihttp-relay-port.ts); null when it never served. */
   readonly withdraw: () => Promise<AppsResult<number> | null>;
-  /** Drops what the ports hold open (host egress streams). */
-  readonly stop: () => void;
+  /** Drops what the ports hold open (host egress streams, topics), settling once the agent let go. */
+  readonly stop: () => Promise<void>;
 }
 
 /** The ports a zone owns: its input (zone-input.ts) and its toolbar (ui-port.ts). */
@@ -64,9 +64,9 @@ export function hostPortsFor(install: AppInstall, limits: AppLimits, instance: s
     ports,
     held: peer.held,
     withdraw: ihttp.withdraw,
-    stop: (): void => {
+    stop: (): Promise<void> => {
       hostNet?.closeAll();
-      peer.stop();
+      return peer.stop();
     },
   };
 }

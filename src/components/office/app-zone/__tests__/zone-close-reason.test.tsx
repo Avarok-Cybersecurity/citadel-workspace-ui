@@ -114,6 +114,28 @@ describe('an app zone closes its app with the reason of the commit that removed 
     expect(runtime.closes).toEqual(['unmount', 'access_revoked']);
   });
 
+  it('the next instance starts only once the last one finished closing (control: closed, it starts)', async () => {
+    // A restarted instance joins the topics the last one is leaving; a leave landing after the join took the member out.
+    const pool: AppInstall = installOf('com.acme.kanban', 'Workspace', { id: 'waits-for-close', granted: ['canvas', 'ihttp.p2p.serve', 'ihttp.p2p.call'] });
+    const mounts: AppInstall[] = [];
+    const finish: (() => void)[] = [];
+    const runtime: AppZoneRuntime = {
+      mount: (_host: ZoneHost, zone: AppZoneMount): AppZoneHandle => {
+        mounts.push(zone.install);
+        return { close: (): Promise<void> => new Promise<void>((resolve: () => void) => { finish.push(resolve); }) };
+      },
+    };
+    render(page(env([pool], runtime, zoneClaims())));
+    act(() => recordPeerConsent(pool.id, { serve: true, call: false, topics: false, at_ms: 1n }));
+    await waitFor(() => expect(mounts).toHaveLength(1));
+    act(() => recordPeerConsent(pool.id, { serve: true, call: true, topics: false, at_ms: 2n }));
+    await waitFor(() => expect(finish).toHaveLength(1));
+    await act(async () => { await Promise.resolve(); });
+    expect(mounts).toHaveLength(1);
+    act(() => { for (const done of finish.splice(0)) done(); });
+    await waitFor(() => expect(mounts).toHaveLength(2));
+  });
+
   it('control: an answer that changes nothing it holds does not start it again', async () => {
     const pool: AppInstall = installOf('com.acme.kanban', 'Workspace', { id: 'answers-same', granted: ['canvas', 'ihttp.p2p.serve'] });
     const runtime: AppZoneRuntime & Recorded = recordingRuntime();

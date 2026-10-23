@@ -100,7 +100,7 @@ describe('an instance’s peer planes', () => {
     x.push('InstallsChanged');
     await call(ports.ihttp, 5n);
     expect(authorizations()).toBe(4);
-    ports.stop();
+    await ports.stop();
   });
 
   it('a topic names its group through the kernel', async () => {

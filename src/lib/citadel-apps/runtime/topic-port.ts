@@ -46,8 +46,13 @@ interface Open {
 
 const UNAVAILABLE: PortAnswer<never> = { refused: { unavailable: 'topic' } };
 
-/** A topic port with what its instance's end needs: leave every topic still open. */
-export type OwnedTopicPort = TopicPort & { readonly closeAll: () => void };
+/**
+ * A topic port with what its instance's end needs: leave every topic still open, settling once the
+ * agent has answered every leave. A leave is this session's, not this instance's: one still in
+ * flight when the same session joins again (a restarted instance) would land after the join and
+ * take the session out of the group it just joined.
+ */
+export type OwnedTopicPort = TopicPort & { readonly closeAll: () => Promise<void> };
 
 export function topicPort(d: TopicDeps): OwnedTopicPort {
   const open: Map<string, Open> = new Map<string, Open>();
@@ -75,12 +80,20 @@ export function topicPort(d: TopicDeps): OwnedTopicPort {
       ({ GroupRequestJoin: { cid: d.cid, group_key: groupIdToKey(groupId), request_id } }), 'GroupRequestJoinSuccess', 'GroupRequestJoinFailure');
     return r.ok && r.value !== null;
   };
-  const leave = (groupId: string): void => {
-    void ask((request_id: string): Json => ({ GroupLeave: { cid: d.cid, group_key: groupIdToKey(groupId), request_id } }), 'GroupLeaveSuccess', 'GroupLeaveFailure');
+  /** Leaves still unanswered: a join or create waits for them (see OwnedTopicPort). */
+  const leaving: Set<Promise<unknown>> = new Set<Promise<unknown>>();
+  const leave = (groupId: string): Promise<unknown> => {
+    const left: Promise<unknown> = ask((request_id: string): Json => ({ GroupLeave: { cid: d.cid, group_key: groupIdToKey(groupId), request_id } }), 'GroupLeaveSuccess', 'GroupLeaveFailure');
+    leaving.add(left);
+    const drop = (): void => { leaving.delete(left); };
+    void left.then(drop, drop);
+    return left;
   };
+  const settled = async (): Promise<void> => { await Promise.all([...leaving]); };
 
   /** The topic's group, created and claimed here when the kernel holds none. */
   const groupFor = async (name: string): Promise<string | null> => {
+    await settled();
     const held: string | null | 'refused' = await d.topicGroup(name, null);
     if (held === 'refused') return null;
     if (held !== null) {
@@ -93,7 +106,7 @@ export function topicPort(d: TopicDeps): OwnedTopicPort {
     const kept: string | null | 'refused' = await d.topicGroup(name, mine);
     if (kept === mine) return mine;
     // Another member claimed first (or the claim was refused): theirs is the topic's, ours goes.
-    leave(mine);
+    void leave(mine);
     if (kept === null || kept === 'refused') return null;
     d.record.group(kept);
     return (await join(kept)) ? kept : null;
@@ -155,15 +168,16 @@ export function topicPort(d: TopicDeps): OwnedTopicPort {
       const o: Open | undefined = open.get(name);
       if (o !== undefined) {
         open.delete(name);
-        leave(o.groupId);
+        void leave(o.groupId);
       }
       return { ok: null };
     },
-    closeAll: (): void => {
-      for (const o of open.values()) leave(o.groupId);
+    closeAll: (): Promise<void> => {
+      for (const o of open.values()) void leave(o.groupId);
       open.clear();
       listeners.clear();
       for (const stop of unlisten.splice(0)) stop();
+      return settled();
     },
     onEvent: (listener: (a: TopicArrival) => void): (() => void) => {
       listeners.add(listener);

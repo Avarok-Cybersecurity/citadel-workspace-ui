@@ -50,13 +50,27 @@ function RuntimeHost({ runtime, view, reasonFor, props, env, me }: RuntimeHostPr
   useLayoutEffect(() => {
     allowed.current = view.allowed;
   });
+  // The previous instance's close, settled once it let go of what it held with the agent
+  // (zone-close.ts). The next one starts only after it: a restarted instance joins the topics the
+  // last one is leaving, and a leave landing after the join took this member out of the group.
+  const closed: React.MutableRefObject<Promise<void>> = useRef<Promise<void>>(Promise.resolve());
   useEffect(() => {
-    if (host.current === null || toolbar.current === null) return undefined;
+    const canvas: HTMLDivElement | null = host.current;
+    const bar: HTMLDivElement | null = toolbar.current;
+    if (canvas === null || bar === null) return undefined;
     const running: RunningZone = { install: view.install, allowed: allowed.current };
-    const zone: AppZoneHandle = runtime.mount({ canvas: host.current, toolbar: toolbar.current }, { install: running.install, manifest: view.app.manifest, zoneId: props.zone, nodeId: env.nodeId, me, height: props.height });
+    let live: boolean = true;
+    let zone: AppZoneHandle | null = null;
+    void closed.current.then((): void => {
+      if (live) zone = runtime.mount({ canvas, toolbar: bar }, { install: running.install, manifest: view.app.manifest, zoneId: props.zone, nodeId: env.nodeId, me, height: props.height });
+    });
     // A passive cleanup: it runs after the commit's layout effects, so the reason is this commit's.
-    // close() never rejects (zone-runtime.ts reports a failure on a live page).
-    return (): void => { void zone.close(reasonFor(running)); };
+    // close() never rejects (zone-runtime.ts reports a failure on a live page). One never mounted
+    // (still waiting on the last close) has nothing to close, and the last close is still the wait.
+    return (): void => {
+      live = false;
+      if (zone !== null) closed.current = zone.close(reasonFor(running));
+    };
   }, [runtime, view.install, allowedKey, view.app.manifest, reasonFor, props.zone, props.height, env.nodeId, me]);
   return (
     <div className="not-prose my-4 w-full">

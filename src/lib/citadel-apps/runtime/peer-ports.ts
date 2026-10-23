@@ -42,7 +42,8 @@ export interface PeerPorts {
   readonly held: ReadonlySet<Capability>;
   readonly ihttp: IhttpPort;
   readonly topic: OwnedTopicPort | null;
-  readonly stop: () => void;
+  /** Settles once what the instance held open with the agent is let go (topic-port.ts). */
+  readonly stop: () => Promise<void>;
 }
 
 /**
@@ -57,7 +58,7 @@ const CHANGES: ReadonlySet<AppsAnswer['kind']> = new Set<AppsAnswer['kind']>([
 export function peerPorts(install: AppInstall, scopeKey: string, limits: AppLimits, relay: IhttpPort, w: PeerWorld): PeerPorts {
   const held: ReadonlySet<Capability> = new Set(effectiveForMember(install.granted, w.peerForMe(install.id)?.consent ?? null, false));
   const session: { readonly cid: bigint } | null = w.agentSession;
-  if (session === null) return { held, ihttp: transportRouter({ relay, p2p: null, held, scopeKey }), topic: null, stop: (): void => undefined };
+  if (session === null) return { held, ihttp: transportRouter({ relay, p2p: null, held, scopeKey }), topic: null, stop: async (): Promise<void> => undefined };
   const authority: PeerAuthority = new PeerAuthority((peerCid, direction) => authorizePeer(w.transport, install.id, peerCid, direction), w.nowMs, w.policy.peerAuthorizationsPerSecond);
   const stopEvicting: () => void = w.pushes((answer: unknown): void => { if (CHANGES.has(readAppsAnswer(answer).kind)) authority.evictAll(); });
   const p2p: IhttpPort = p2pIhttpPort({
@@ -73,9 +74,9 @@ export function peerPorts(install: AppInstall, scopeKey: string, limits: AppLimi
   });
   return {
     held, ihttp: transportRouter({ relay, p2p, held, scopeKey }), topic,
-    stop: (): void => {
+    stop: async (): Promise<void> => {
       stopEvicting();
-      topic?.closeAll();
+      await topic?.closeAll();
     },
   };
 }

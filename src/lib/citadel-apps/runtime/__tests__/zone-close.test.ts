@@ -16,7 +16,8 @@ function parts(steps: string[], withdrawn: AppsResult<number> | null, leaving: b
       ports: {},
       held: new Set(),
       withdraw: async (): Promise<AppsResult<number> | null> => { steps.push('withdraw'); return withdrawn; },
-      stop: (): void => { steps.push('drop ports'); },
+      // Settles a turn later, as the agent's answers to the leaves do: the audit waits for it.
+      stop: async (): Promise<void> => { await Promise.resolve(); steps.push('drop ports'); },
     },
     quiesce: (): void => { steps.push('quiesce'); },
     disposeSurface: (): void => { steps.push('canvas'); },

@@ -29,10 +29,13 @@ interface World {
   refusedSeen: string[];
   listening: () => number;
   variants: () => string[];
+  /** Answers the leaves held back so far (world's `holdLeaves`). */
+  releaseLeaves: () => void;
 }
 
-// Test defaults: a member admits, nobody races the claim, and the server refuses nothing, unless a case says so.
-function world(claimed: string | null, admit: boolean = true, raced: string | null = null, refusal: Record<string, unknown> | null = null): World {
+// Test defaults: a member admits, nobody races the claim, the server refuses nothing, and leaves are answered at once, unless a case says so.
+function world(claimed: string | null, admit: boolean = true, raced: string | null = null, refusal: Record<string, unknown> | null = null, holdLeaves: boolean = false): World {
+  const heldLeaves: (() => void)[] = [];
   const handlers: Set<(m: unknown) => void> = new Set();
   const sent: Record<string, Record<string, unknown>>[] = [];
   const recorded: string[] = [];
@@ -50,7 +53,8 @@ function world(claimed: string | null, admit: boolean = true, raced: string | nu
         ? { GroupMessageRefusedNotification: { cid: ME, group_key: body.group_key, refusal, request_id: null } }
         : null;
       // The send is accepted, then the server refuses it on its own, naming no request (as the agent does).
-      queueMicrotask(() => handlers.forEach((h) => h({ [SUCCESS[variant]]: answer })));
+      const answerIt = (): void => handlers.forEach((h) => h({ [SUCCESS[variant]]: answer }));
+      if (holdLeaves && variant === 'GroupLeave') heldLeaves.push(answerIt); else queueMicrotask(answerIt);
       if (reply !== null) queueMicrotask(() => handlers.forEach((h) => h(reply)));
     },
   };
@@ -67,7 +71,8 @@ function world(claimed: string | null, admit: boolean = true, raced: string | nu
   });
   port.onEvent((a: TopicArrival) => arrivals.push(a));
   const push = async (m: Record<string, unknown>): Promise<void> => { handlers.forEach((h) => h(m)); await new Promise<void>((r) => setTimeout(r, 0)); };
-  return { port, sent, recorded, arrivals, push, refusedSeen, listening: (): number => handlers.size, variants: (): string[] => sent.map((s) => Object.keys(s)[0]) };
+  return { port, sent, recorded, arrivals, push, refusedSeen, listening: (): number => handlers.size, variants: (): string[] => sent.map((s) => Object.keys(s)[0]),
+    releaseLeaves: (): void => { for (const answer of heldLeaves.splice(0)) answer(); } };
 }
 
 describe('a topic is the install’s own group', () => {
@@ -92,6 +97,31 @@ describe('a topic is the install’s own group', () => {
     expect(w.variants()).toEqual(['GroupCreateAppTopic', 'GroupLeave', 'GroupRequestJoin']);
     expect(w.sent[1]).toMatchObject({ GroupLeave: { group_key: { cid: ME, mgid: 7n } } });
     expect(w.sent[2]).toMatchObject({ GroupRequestJoin: { group_key: { cid: 6n, mgid: 1n } } });
+  });
+
+  it('a join waits for this session’s own leave of the group to be answered (control: answered, it joins)', async () => {
+    // A restarted instance, or a topic closed and opened again: a leave landing after the join undid it.
+    const w: World = world('5:9', true, null, null, true);
+    await w.port.TopicOpen({ name: 'pool' });
+    await w.port.TopicClose({ name: 'pool' });
+    const reopened: Promise<unknown> = Promise.resolve(w.port.TopicOpen({ name: 'pool' }));
+    await new Promise<void>((r) => setTimeout(r, 0));
+    expect(w.variants()).toEqual(['GroupRequestJoin', 'GroupLeave']);
+    w.releaseLeaves();
+    expect(await reopened).toMatchObject({ ok: { name: 'pool' } });
+    expect(w.variants()).toEqual(['GroupRequestJoin', 'GroupLeave', 'GroupRequestJoin']);
+  });
+
+  it('closing every topic settles only once the agent answered every leave', async () => {
+    const w: World = world('5:9', true, null, null, true);
+    await w.port.TopicOpen({ name: 'pool' });
+    let settled: boolean = false;
+    const closing: Promise<void> = w.port.closeAll().then((): void => { settled = true; });
+    await new Promise<void>((r) => setTimeout(r, 0));
+    expect([w.variants(), settled]).toEqual([['GroupRequestJoin', 'GroupLeave'], false]);
+    w.releaseLeaves();
+    await closing;
+    expect(settled).toBe(true);
   });
 
   it('a name not granted opens nothing', async () => {
@@ -129,7 +159,7 @@ describe('a topic is the install’s own group', () => {
     expect(w.refusedSeen).toEqual([]);
     await w.push({ GroupMessageRefusedNotification: { cid: ME, group_key: { cid: 5n, mgid: 9n }, refusal: { RateLimited: { max_per_second: 2 } }, request_id: null } });
     expect(w.refusedSeen).toEqual(['pool topic_rate']);
-    w.port.closeAll();
+    await w.port.closeAll();
     await new Promise<void>((r) => setTimeout(r, 0));
     expect(w.listening()).toBe(0);
     await w.push({ GroupMessageRefusedNotification: { cid: ME, group_key: { cid: 5n, mgid: 9n }, refusal: { RateLimited: { max_per_second: 2 } }, request_id: null } });
