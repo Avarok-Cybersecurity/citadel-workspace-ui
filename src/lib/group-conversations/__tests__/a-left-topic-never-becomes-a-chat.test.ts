@@ -48,7 +48,7 @@ describe('a left topic', () => {
     const port: OwnedTopicPort = joinedTopic('7:61');
     expect(await port.TopicOpen({ name: 'pool' })).toEqual({ ok: { name: 'pool', members: [] } });
     expect(port.TopicClose({ name: 'pool' })).toEqual({ ok: null });
-    port.closeAll();
+    await port.closeAll();
     expect(messageTo(61n)).toEqual([]);
     expect(messageTo(62n).map((e: GroupEvent) => e.name)).toEqual(['group:message-received']);
   });
