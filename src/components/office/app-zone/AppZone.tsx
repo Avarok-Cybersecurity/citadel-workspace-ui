@@ -7,14 +7,14 @@
  * and closed with the reason the zone stopped showing it (zone-close-reason.ts).
  */
 import { useCallback, useContext, useEffect, useId, useLayoutEffect, useRef } from 'react';
-import type { AppInstall } from 'citadel-workspace-client-ts';
+import type { Capability } from 'citadel-workspace-client-ts';
 import type { AppLink } from '@/lib/citadel-apps/app-link';
 import type { CloseReason } from '@/lib/citadel-apps/sdk/generated/CloseReason';
 import { recordDisabledForMe } from '@/lib/citadel-apps/disabled-for-me';
 import type { AppsResult } from '@/lib/workspace-service/apps-operations';
 import { AppZoneContext, type AppZoneEnvironment, type AppZoneHandle, type AppZoneRuntime } from './app-zone-environment';
 import { AppZoneRequired, type PlaceholderView } from './AppZoneRequired';
-import { closeReasonFor } from './zone-close-reason';
+import { closeReasonFor, type RunningZone } from './zone-close-reason';
 import { readZoneProps, zoneView, type ZoneFacts, type ZoneProps, type ZoneView } from './zone-state';
 import { useZoneFacts } from './use-zone-facts';
 
@@ -33,7 +33,7 @@ interface RuntimeHostProps {
   runtime: AppZoneRuntime;
   view: Extract<ZoneView, { kind: 'ready' }>;
   /** Why the app that ran `running` closes: read from what the zone shows next (zone-close-reason.ts). */
-  reasonFor: (running: AppInstall) => CloseReason;
+  reasonFor: (running: RunningZone) => CloseReason;
   props: ZoneProps;
   env: AppZoneEnvironment;
   me: string;
@@ -42,14 +42,22 @@ interface RuntimeHostProps {
 function RuntimeHost({ runtime, view, reasonFor, props, env, me }: RuntimeHostProps): JSX.Element {
   const host: React.RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
   const toolbar: React.RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
+  // An instance holds the answers it started with, so a change of them starts it again. The key
+  // carries the change (the array is new each render); the ref, set in the layout phase, carries
+  // this commit's set into the passive effect below.
+  const allowedKey: string = view.allowed.join(' ');
+  const allowed: React.MutableRefObject<readonly Capability[]> = useRef<readonly Capability[]>(view.allowed);
+  useLayoutEffect(() => {
+    allowed.current = view.allowed;
+  });
   useEffect(() => {
     if (host.current === null || toolbar.current === null) return undefined;
-    const running: AppInstall = view.install;
-    const zone: AppZoneHandle = runtime.mount({ canvas: host.current, toolbar: toolbar.current }, { install: running, manifest: view.app.manifest, zoneId: props.zone, nodeId: env.nodeId, me, height: props.height });
+    const running: RunningZone = { install: view.install, allowed: allowed.current };
+    const zone: AppZoneHandle = runtime.mount({ canvas: host.current, toolbar: toolbar.current }, { install: running.install, manifest: view.app.manifest, zoneId: props.zone, nodeId: env.nodeId, me, height: props.height });
     // A passive cleanup: it runs after the commit's layout effects, so the reason is this commit's.
     // close() never rejects (zone-runtime.ts reports a failure on a live page).
     return (): void => { void zone.close(reasonFor(running)); };
-  }, [runtime, view.install, view.app.manifest, reasonFor, props.zone, props.height, env.nodeId, me]);
+  }, [runtime, view.install, allowedKey, view.app.manifest, reasonFor, props.zone, props.height, env.nodeId, me]);
   return (
     <div className="not-prose my-4 w-full">
       <div ref={toolbar} data-testid="app-zone-toolbar-slot" />
@@ -66,7 +74,7 @@ function PlacedZone({ props, env }: { props: ZoneProps; env: AppZoneEnvironment 
   useLayoutEffect(() => {
     next.current = view;
   });
-  const reasonFor: (running: AppInstall) => CloseReason = useCallback((running: AppInstall): CloseReason => closeReasonFor(running, next.current), []);
+  const reasonFor: (running: RunningZone) => CloseReason = useCallback((running: RunningZone): CloseReason => closeReasonFor(running, next.current), []);
   // `ready` is only decided once `me` is known (zone-state.ts).
   if (view.kind === 'ready' && env.runtime !== null && env.me !== null) return <RuntimeHost runtime={env.runtime} view={view} reasonFor={reasonFor} props={props} env={env} me={env.me} />;
   const shown: PlaceholderView = view.kind === 'ready' ? { kind: 'ready-unmounted', name: view.app.manifest.name } : view;
