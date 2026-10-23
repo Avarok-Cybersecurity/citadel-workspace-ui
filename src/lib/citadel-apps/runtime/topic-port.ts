@@ -15,6 +15,7 @@ import type { TopicOpened } from '../sdk/generated/TopicOpened';
 import { groupIdToKey, groupKeyToId, parseGroupKey } from '@/lib/group-conversations/group-key';
 import { agentAsk, bytesOf, variantOf, type AgentLink, type AgentOutcome, type Json } from './agent-link';
 import type { PeerAuthority } from './peer-authority';
+import { LIMIT_TOPIC_BYTES, LIMIT_TOPIC_RATE } from '../sdk/generated/AbiConstants';
 import { encodeTopicMessage, mayOpen, readTopicMessage, TopicSender, type TopicLimits } from './topic-model';
 
 export interface TopicDeps {
@@ -23,8 +24,8 @@ export interface TopicDeps {
   /** The install's granted topic names (`details.topics`). */
   readonly topics: readonly string[];
   readonly limits: TopicLimits;
-  /** AppsRequest::TopicGroup: the group id the kernel holds for this topic, after claiming `claim` if none was. */
-  readonly topicGroup: (topic: string, claim: string | null) => Promise<string | null>;
+  /** AppsRequest::TopicGroup: the group id the kernel holds for this topic (null: none), after claiming `claim` if none was; `refused` when it would not say. */
+  readonly topicGroup: (topic: string, claim: string | null) => Promise<string | null | 'refused'>;
   readonly authority: PeerAuthority;
   /** What the chat pipeline must skip (app-topic-groups.ts). */
   readonly record: { readonly group: (groupId: string) => void; readonly request: (requestId: string) => void };
@@ -39,7 +40,10 @@ interface Open {
 
 const UNAVAILABLE: PortAnswer<never> = { refused: { unavailable: 'topic' } };
 
-export function topicPort(d: TopicDeps): TopicPort {
+/** A topic port with what its instance's end needs: leave every topic still open. */
+export type OwnedTopicPort = TopicPort & { readonly closeAll: () => void };
+
+export function topicPort(d: TopicDeps): OwnedTopicPort {
   const open: Map<string, Open> = new Map<string, Open>();
   const listeners: Set<(a: TopicArrival) => void> = new Set<(a: TopicArrival) => void>();
   const emit = (a: TopicArrival): void => { for (const l of [...listeners]) l(a); };
@@ -55,7 +59,8 @@ export function topicPort(d: TopicDeps): TopicPort {
   const create = async (): Promise<string | null> => {
     const r: AgentOutcome<Json | null> = await ask((request_id: string): Json => {
       d.record.request(request_id);
-      return { GroupCreate: { cid: d.cid, request_id, initial_users_to_invite: null } };
+      // The agent's app-topic group: owner-accepted joins, ephemeral, capped server-side by the manifest's topic limits.
+      return { GroupCreateAppTopic: { cid: d.cid, request_id, max_msg_bytes: d.limits.max_msg_bytes, max_msgs_per_s: d.limits.max_msgs_per_s } };
     }, 'GroupCreateSuccess', 'GroupCreateFailure');
     return r.ok && r.value !== null ? groupKeyToId(parseGroupKey(r.value.group_key)) : null;
   };
@@ -70,7 +75,8 @@ export function topicPort(d: TopicDeps): TopicPort {
 
   /** The topic's group, created and claimed here when the kernel holds none. */
   const groupFor = async (name: string): Promise<string | null> => {
-    const held: string | null = await d.topicGroup(name, null);
+    const held: string | null | 'refused' = await d.topicGroup(name, null);
+    if (held === 'refused') return null;
     if (held !== null) {
       d.record.group(held);
       return (await join(held)) ? held : null;
@@ -78,11 +84,11 @@ export function topicPort(d: TopicDeps): TopicPort {
     const mine: string | null = await create();
     if (mine === null) return null;
     d.record.group(mine);
-    const kept: string | null = await d.topicGroup(name, mine);
+    const kept: string | null | 'refused' = await d.topicGroup(name, mine);
     if (kept === mine) return mine;
-    // Another member claimed first: theirs is the topic's, ours goes.
+    // Another member claimed first (or the claim was refused): theirs is the topic's, ours goes.
     leave(mine);
-    if (kept === null) return null;
+    if (kept === null || kept === 'refused') return null;
     d.record.group(kept);
     return (await join(kept)) ? kept : null;
   };
@@ -127,9 +133,17 @@ export function topicPort(d: TopicDeps): TopicPort {
       if (o === undefined) return { refused: { policy: 'topic_not_open' } };
       const limited: ReturnType<TopicSender['admit']> = o.sender.admit(body, d.nowMs());
       if (limited !== null) return { refused: limited };
-      const sent: AgentOutcome<Json | null> = await ask((request_id: string): Json =>
-        ({ GroupMessage: { cid: d.cid, message: Array.from(encodeTopicMessage(name, body)), group_key: groupIdToKey(o.groupId), request_id } }), 'GroupMessageSuccess', 'GroupMessageFailure');
-      return sent.ok && sent.value !== null ? { ok: null } : UNAVAILABLE;
+      const sent: AgentOutcome<PortAnswer<null>> = await agentAsk<PortAnswer<null>>(d.agent, (request_id: string): Json =>
+        ({ GroupMessage: { cid: d.cid, message: Array.from(encodeTopicMessage(name, body)), group_key: groupIdToKey(o.groupId), request_id } }),
+      (m: unknown, id: string): PortAnswer<null> | undefined => {
+        if (variantOf(m, 'GroupMessageSuccess')?.request_id === id) return { ok: null };
+        if (variantOf(m, 'GroupMessageFailure')?.request_id === id) return UNAVAILABLE;
+        // The server holds the group to the same caps; past them it says which.
+        const refused: Json | undefined = variantOf(m, 'GroupMessageRefusedNotification');
+        if (refused?.request_id !== id) return undefined;
+        return { refused: { limit: variantOf(refused.refusal, 'RateLimited') === undefined ? LIMIT_TOPIC_BYTES : LIMIT_TOPIC_RATE } };
+      }, d.timeoutMs);
+      return sent.ok ? sent.value : UNAVAILABLE;
     },
     TopicClose: ({ name }: { name: string }): PortAnswer<null> => {
       const o: Open | undefined = open.get(name);
@@ -138,6 +152,11 @@ export function topicPort(d: TopicDeps): TopicPort {
         leave(o.groupId);
       }
       return { ok: null };
+    },
+    closeAll: (): void => {
+      for (const o of open.values()) leave(o.groupId);
+      open.clear();
+      listeners.clear();
     },
     onEvent: (listener: (a: TopicArrival) => void): (() => void) => {
       listeners.add(listener);

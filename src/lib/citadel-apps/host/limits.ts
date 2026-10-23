@@ -51,6 +51,8 @@ export interface HostPolicy {
    */
   readonly replyTtlMs: number;
   readonly maxLogBytes: number;
+  /** AuthorizePeer asks per peer per second the host makes for one instance, beyond its 60 s cache. */
+  readonly peerAuthorizationsPerSecond: number;
   readonly ihttp: IhttpLimits;
 }
 
@@ -94,6 +96,7 @@ export const STANDARD_HOST_POLICY: HostPolicy = {
   maxLiveReplies: 64,
   replyTtlMs: 2000,
   maxLogBytes: 4 * 1024,
+  peerAuthorizationsPerSecond: 10,
   ihttp: STANDARD_IHTTP_LIMITS,
 };
 

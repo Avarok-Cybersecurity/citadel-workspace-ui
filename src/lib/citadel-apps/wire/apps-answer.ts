@@ -3,12 +3,11 @@
  * exact shape, or `Refused` with a refusal it knows. Anything else -- an unknown variant, a field
  * missing or extra, a wrong type -- is `malformed`, which every request treats as a refusal.
  */
-import type { AppInstall, AppListing, AppsRefusal, Permission } from 'citadel-workspace-client-ts';
+import type { AppInstall, AppListing, AppsRefusal, PeerForMe, Permission } from 'citadel-workspace-client-ts';
 import { Permission as PermissionNames } from '@/lib/permissions-service/types';
 import { exactly, isAppInstall, isAppListing, isCapability, isObject, isString, isStrings, single } from './install-shape';
 import { readRuntimeAnswer, type RuntimeAnswer } from './apps-runtime-answer';
-import type { PeerForMe } from '../member-consent-types';
-import { isPeerForMe } from './apps-peer-answer';
+import { isPeerForMe, readPeerAnswer, type PeerAnswer } from './apps-peer-answer';
 
 export type AppsAnswer =
   | { kind: 'catalogue'; listings: AppListing[] }
@@ -26,6 +25,7 @@ export type AppsAnswer =
   | { kind: 'disabled-for-me'; installId: string; disabled: boolean }
   | { kind: 'install-requested' }
   | RuntimeAnswer
+  | PeerAnswer
   | { kind: 'refused'; refusal: AppsRefusal }
   | { kind: 'malformed' };
 
@@ -75,5 +75,5 @@ export function readAppsAnswer(payload: unknown): AppsAnswer {
     const d: { install_id: string; disabled: boolean } = field<{ install_id: string; disabled: boolean }>(payload, 'DisabledForMe');
     return { kind: 'disabled-for-me', installId: d.install_id, disabled: d.disabled };
   }
-  return readRuntimeAnswer(payload) ?? { kind: 'malformed' };
+  return readRuntimeAnswer(payload) ?? readPeerAnswer(payload) ?? { kind: 'malformed' };
 }

@@ -4,10 +4,9 @@
  * for them, the answer sent when one plane changes, and the per-install block list.
  */
 import { describe, expect, it } from 'vitest';
-import type { Capability } from 'citadel-workspace-client-ts';
+import type { Capability, PeerConsent } from 'citadel-workspace-client-ts';
 import { blockableUsername, blockedAfter, consentWith, effectiveForMember, memberAsks, memberNoteFor, needsMemberPrompt, type MemberAsk } from '../consent-model';
 import { PEER_METADATA_DISCLOSURE } from '../capability-copy';
-import type { PeerConsent } from '../member-consent-types';
 
 const GRANTED: Capability[] = ['storage.user', 'ihttp.serve', 'ihttp.call', 'ihttp.p2p.serve', 'ihttp.p2p.call', 'group.topic.subscribe', 'group.topic.publish'];
 const consent = (serve: boolean, call: boolean, topics: boolean): PeerConsent => ({ serve, call, topics, at_ms: 1n });

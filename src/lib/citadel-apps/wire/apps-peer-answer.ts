@@ -4,7 +4,7 @@
  * block-list change, the kernel's word on a peer, and a topic's group. Anything not exactly one of
  * these is not one of these.
  */
-import type { IhttpFrom, PeerConsent, PeerForMe } from '../member-consent-types';
+import type { IhttpFrom, PeerConsent, PeerForMe } from 'citadel-workspace-client-ts';
 import { exactly, isString, single } from './install-shape';
 
 export type PeerAnswer =

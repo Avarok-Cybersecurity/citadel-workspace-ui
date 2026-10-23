@@ -7,7 +7,8 @@
  * load. Pure over the injected ask and clock.
  */
 import { TokenBucket } from '../host/token-bucket';
-import type { PeerAuthorization, PeerDirection } from '../member-consent-types';
+import type { PeerDirection } from 'citadel-workspace-client-ts';
+import type { PeerAuthorization } from '../member-consent-types';
 
 /** At most this long, whatever the kernel's until_ms says. */
 export const AUTHORIZE_CACHE_MS: number = 60_000;

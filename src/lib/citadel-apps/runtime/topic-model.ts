@@ -8,14 +8,12 @@
 import { decodeCbor, encodeCbor, isCborMap, type Decoded } from '../host/cbor';
 import type { Refused } from '../host/ports';
 import { TokenBucket } from '../host/token-bucket';
+import type { TopicLimits } from 'citadel-workspace-client-ts';
 import { isTopicName } from '../manifest/topic-names';
 import { LIMIT_TOPIC_BYTES, LIMIT_TOPIC_RATE, MAX_TOPICS, TOPIC_MAX_MSG_BYTES_CEILING, TOPIC_MAX_MSGS_PER_S_CEILING } from '../sdk/generated/AbiConstants';
 
 /** `limits.topics` of the manifest. */
-export interface TopicLimits {
-  readonly max_msg_bytes: number;
-  readonly max_msgs_per_s: number;
-}
+export type { TopicLimits };
 
 /** The envelope's version tag: a group message without it is not a topic message. */
 export const TOPIC_ENVELOPE: string = 'citadel-topic/1';

@@ -4,10 +4,10 @@
  * publisher's reason, its risk, its hosts one by one), what the app can never do, whose key this
  * is, and exactly what Install would grant. `check_grant` (rules.rs) is the control.
  */
-import type { AppInstall, AppManifest, Capability, CapabilityRequest } from 'citadel-workspace-client-ts';
+import type { AppInstall, AppManifest, Capability, CapabilityRequest, PeerConsent } from 'citadel-workspace-client-ts';
 import { PERMISSION_LABELS } from '@/lib/permissions-service/types';
 import { CAPABILITY_COPY, FIRST_PARTY_ONLY, MEMBER_CONSENT_COPY, NETWORK_CAPABILITIES, PEER_METADATA_DISCLOSURE, type Risk } from './capability-copy';
-import type { ConsentPlane, PeerConsent } from './member-consent-types';
+import type { ConsentPlane } from './member-consent-types';
 import type { Authority } from './scope-options';
 
 export interface ConsentRow {

@@ -16,11 +16,11 @@ import { topicPort } from '../topic-port';
 
 const ME: bigint = 100n;
 const SUCCESS: Readonly<Record<string, string>> = {
-  GroupCreate: 'GroupCreateSuccess', GroupRequestJoin: 'GroupRequestJoinSuccess', GroupLeave: 'GroupLeaveSuccess',
+  GroupCreateAppTopic: 'GroupCreateSuccess', GroupRequestJoin: 'GroupRequestJoinSuccess', GroupLeave: 'GroupLeaveSuccess',
   GroupMessage: 'GroupMessageSuccess', GroupRespondRequest: 'GroupRespondRequestSuccess',
 };
 
-function world(claimed: string | null, admit: boolean = true, raced: string | null = null) {
+function world(claimed: string | null, admit: boolean = true, raced: string | null = null, refusal: Record<string, unknown> | null = null) {
   const handlers: Set<(m: unknown) => void> = new Set();
   const sent: Record<string, Record<string, unknown>>[] = [];
   const recorded: string[] = [];
@@ -31,10 +31,13 @@ function world(claimed: string | null, admit: boolean = true, raced: string | nu
     listen: (h) => { handlers.add(h); return () => handlers.delete(h); },
     send: async (request: Record<string, unknown>) => {
       const [variant, body] = Object.entries(request)[0] as [string, Record<string, unknown>];
-      expect(recorded.length > 0 || variant !== 'GroupCreate').toBe(true);
+      expect(recorded.length > 0 || variant !== 'GroupCreateAppTopic').toBe(true);
       sent.push({ [variant]: body });
-      const answer: Record<string, unknown> = { cid: ME, request_id: body.request_id, group_key: variant === 'GroupCreate' ? { cid: ME, mgid: 7n } : body.group_key };
-      queueMicrotask(() => handlers.forEach((h) => h({ [SUCCESS[variant]]: answer })));
+      const answer: Record<string, unknown> = { cid: ME, request_id: body.request_id, group_key: variant === 'GroupCreateAppTopic' ? { cid: ME, mgid: 7n } : body.group_key };
+      const reply: Record<string, unknown> = variant === 'GroupMessage' && refusal !== null
+        ? { GroupMessageRefusedNotification: { cid: ME, group_key: body.group_key, refusal, request_id: body.request_id } }
+        : { [SUCCESS[variant]]: answer };
+      queueMicrotask(() => handlers.forEach((h) => h(reply)));
     },
   };
   const ask = async (peerCid: bigint): Promise<PeerAuthorization> =>
@@ -55,7 +58,8 @@ describe('a topic is the install’s own group', () => {
   it('the first member creates and claims it, recording both before the agent answers', async () => {
     const w = world(null);
     expect(await w.port.TopicOpen({ name: 'pool' })).toEqual({ ok: { name: 'pool', members: [] } });
-    expect(w.variants()).toEqual(['GroupCreate']);
+    expect(w.variants()).toEqual(['GroupCreateAppTopic']);
+    expect(w.sent[0]).toMatchObject({ GroupCreateAppTopic: { cid: ME, max_msg_bytes: 64, max_msgs_per_s: 2 } });
     expect(w.recorded).toEqual(['request req-1', `group ${ME}:7`]);
   });
 
@@ -69,7 +73,7 @@ describe('a topic is the install’s own group', () => {
   it('a lost claim race leaves our group and joins the winner’s', async () => {
     const w = world(null, true, '6:1');
     expect(await w.port.TopicOpen({ name: 'pool' })).toMatchObject({ ok: { name: 'pool' } });
-    expect(w.variants()).toEqual(['GroupCreate', 'GroupLeave', 'GroupRequestJoin']);
+    expect(w.variants()).toEqual(['GroupCreateAppTopic', 'GroupLeave', 'GroupRequestJoin']);
     expect(w.sent[1]).toMatchObject({ GroupLeave: { group_key: { cid: ME, mgid: 7n } } });
     expect(w.sent[2]).toMatchObject({ GroupRequestJoin: { group_key: { cid: 6n, mgid: 1n } } });
   });
@@ -87,6 +91,16 @@ describe('a topic is the install’s own group', () => {
     expect(await w.port.TopicPublish({ name: 'pool', body: new Uint8Array(65) })).toEqual({ refused: { limit: 'topic_bytes' } });
     expect(await w.port.TopicPublish({ name: 'pool', body: new Uint8Array([1]) })).toEqual({ ok: null });
     expect(w.variants()).toEqual(['GroupRequestJoin', 'GroupMessage']);
+  });
+
+  it('the server’s refusal of a message is the topic limit it names (control: accepted, ok)', async () => {
+    const answers: unknown[] = [];
+    for (const refusal of [{ TooLarge: { bytes: 70n, max_bytes: 64 } }, { RateLimited: { max_per_second: 2 } }, null]) {
+      const w = world('5:9', true, null, refusal);
+      await w.port.TopicOpen({ name: 'pool' });
+      answers.push(await w.port.TopicPublish({ name: 'pool', body: new Uint8Array([1]) }));
+    }
+    expect(answers).toEqual([{ refused: { limit: 'topic_bytes' } }, { refused: { limit: 'topic_rate' } }, { ok: null }]);
   });
 
   it('a member’s message reaches the app stamped by the kernel; a refused sender is dropped', async () => {

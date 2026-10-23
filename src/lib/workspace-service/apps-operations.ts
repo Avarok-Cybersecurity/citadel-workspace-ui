@@ -7,10 +7,9 @@
  * app or an install, names ours (the secure-links-operations pattern). Answers are read strictly
  * (citadel-apps/wire/apps-answer.ts): one that is not exactly a known shape is a refusal.
  */
-import type { AppInstall, AppListing, AppsRefusal, AppsRequest, Capability, InstallScope, ListingOffer } from 'citadel-workspace-client-ts';
+import type { AppInstall, AppListing, AppsRefusal, AppsRequest, Capability, InstallScope, ListingOffer, PeerForMe } from 'citadel-workspace-client-ts';
 import { readAppsAnswer, type AppsAnswer } from '@/lib/citadel-apps/wire/apps-answer';
 import { readManifestBytes, type ManifestReading } from '@/lib/citadel-apps/manifest/manifest-rules';
-import type { PeerForMe } from '@/lib/citadel-apps/member-consent-types';
 import { debugLog } from '@/lib/debug-config';
 import { awaitWriteResponse } from './await-write-response';
 import type { ProtocolSender } from './workspace-operations';
