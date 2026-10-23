@@ -109,6 +109,7 @@ export const pageAppZoneRuntime: AppZoneRuntime = createAppZoneRuntime({
     peerCid: (username: string): bigint | null => p2pRegistrationService.getPeers().registeredPeers.find((p: { username: string }) => p.username === username)?.cid ?? null,
     peerForMe,
     topicRecord: { group: markTopicGroup, request: markTopicRequest },
+    report: (what: string, detail: unknown): void => console.warn(what, detail),
     every: (ms: number, fire: () => void): (() => void) => {
       const id: ReturnType<typeof setInterval> = setInterval(fire, ms);
       return (): void => clearInterval(id);

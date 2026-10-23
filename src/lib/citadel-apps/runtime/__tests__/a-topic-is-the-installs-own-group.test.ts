@@ -34,24 +34,28 @@ function world(claimed: string | null, admit: boolean = true, raced: string | nu
       expect(recorded.length > 0 || variant !== 'GroupCreateAppTopic').toBe(true);
       sent.push({ [variant]: body });
       const answer: Record<string, unknown> = { cid: ME, request_id: body.request_id, group_key: variant === 'GroupCreateAppTopic' ? { cid: ME, mgid: 7n } : body.group_key };
-      const reply: Record<string, unknown> = variant === 'GroupMessage' && refusal !== null
-        ? { GroupMessageRefusedNotification: { cid: ME, group_key: body.group_key, refusal, request_id: body.request_id } }
-        : { [SUCCESS[variant]]: answer };
-      queueMicrotask(() => handlers.forEach((h) => h(reply)));
+      const reply: Record<string, unknown> | null = variant === 'GroupMessage' && refusal !== null
+        ? { GroupMessageRefusedNotification: { cid: ME, group_key: body.group_key, refusal, request_id: null } }
+        : null;
+      // The send is accepted, then the server refuses it on its own, naming no request (as the agent does).
+      queueMicrotask(() => handlers.forEach((h) => h({ [SUCCESS[variant]]: answer })));
+      if (reply !== null) queueMicrotask(() => handlers.forEach((h) => h(reply)));
     },
   };
   const ask = async (peerCid: bigint): Promise<PeerAuthorization> =>
     (admit ? { ok: true, peer: { username: 'alice', cid: peerCid, app_id: 'a', install_id: 'i' }, untilMs: 60_000n } : { ok: false });
   const arrivals: TopicArrival[] = [];
+  const refusedSeen: string[] = [];
   const port = topicPort({
     cid: ME, agent, topics: ['pool'], limits: { max_msg_bytes: 64, max_msgs_per_s: 2 }, nowMs: () => 0, timeoutMs: 1000,
     authority: new PeerAuthority(ask, () => 0, 30),
     topicGroup: async (_t: string, claim: string | null) => { if (claim !== null && raced !== null) kernel = raced; if (kernel === null && claim !== null) kernel = claim; return kernel; },
     record: { group: (id: string) => recorded.push(`group ${id}`), request: (id: string) => recorded.push(`request ${id}`) },
+    refused: (topic: string, limit: string) => refusedSeen.push(`${topic} ${limit}`),
   });
   port.onEvent((a: TopicArrival) => arrivals.push(a));
   const push = async (m: Record<string, unknown>): Promise<void> => { handlers.forEach((h) => h(m)); await new Promise<void>((r) => setTimeout(r, 0)); };
-  return { port, sent, recorded, arrivals, push, variants: () => sent.map((s) => Object.keys(s)[0]) };
+  return { port, sent, recorded, arrivals, push, refusedSeen, listening: () => handlers.size, variants: () => sent.map((s) => Object.keys(s)[0]) };
 }
 
 describe('a topic is the install’s own group', () => {
@@ -93,14 +97,31 @@ describe('a topic is the install’s own group', () => {
     expect(w.variants()).toEqual(['GroupRequestJoin', 'GroupMessage']);
   });
 
-  it('the server’s refusal of a message is the topic limit it names (control: accepted, ok)', async () => {
-    const answers: unknown[] = [];
+  it('the server’s refusal of a message, which names no request, is reported as the topic limit it names', async () => {
+    const seen: string[][] = [];
     for (const refusal of [{ TooLarge: { bytes: 70n, max_bytes: 64 } }, { RateLimited: { max_per_second: 2 } }, null]) {
       const w = world('5:9', true, null, refusal);
       await w.port.TopicOpen({ name: 'pool' });
-      answers.push(await w.port.TopicPublish({ name: 'pool', body: new Uint8Array([1]) }));
+      expect(await w.port.TopicPublish({ name: 'pool', body: new Uint8Array([1]) })).toEqual({ ok: null });
+      await new Promise<void>((r) => setTimeout(r, 0));
+      seen.push(w.refusedSeen);
     }
-    expect(answers).toEqual([{ refused: { limit: 'topic_bytes' } }, { refused: { limit: 'topic_rate' } }, { ok: null }]);
+    expect(seen).toEqual([['pool topic_bytes'], ['pool topic_rate'], []]);
+  });
+
+  it('a refusal for another session or another group is not this topic’s (control: closed, it listens to nothing)', async () => {
+    const w = world('5:9');
+    await w.port.TopicOpen({ name: 'pool' });
+    await w.push({ GroupMessageRefusedNotification: { cid: 999n, group_key: { cid: 5n, mgid: 9n }, refusal: { RateLimited: { max_per_second: 2 } }, request_id: null } });
+    await w.push({ GroupMessageRefusedNotification: { cid: ME, group_key: { cid: 5n, mgid: 1n }, refusal: { RateLimited: { max_per_second: 2 } }, request_id: null } });
+    expect(w.refusedSeen).toEqual([]);
+    await w.push({ GroupMessageRefusedNotification: { cid: ME, group_key: { cid: 5n, mgid: 9n }, refusal: { RateLimited: { max_per_second: 2 } }, request_id: null } });
+    expect(w.refusedSeen).toEqual(['pool topic_rate']);
+    w.port.closeAll();
+    await new Promise<void>((r) => setTimeout(r, 0));
+    expect(w.listening()).toBe(0);
+    await w.push({ GroupMessageRefusedNotification: { cid: ME, group_key: { cid: 5n, mgid: 9n }, refusal: { RateLimited: { max_per_second: 2 } }, request_id: null } });
+    expect(w.refusedSeen).toEqual(['pool topic_rate']);
   });
 
   it('a member’s message reaches the app stamped by the kernel; a refused sender is dropped', async () => {

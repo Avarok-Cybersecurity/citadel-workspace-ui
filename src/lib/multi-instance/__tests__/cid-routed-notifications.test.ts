@@ -72,6 +72,8 @@ describe('CID_ROUTED_NOTIFICATIONS — every entry has extractable CID', () => {
     // The generated binding: { cid, peer_cid, frame, request_id }. `cid` is the account whose
     // app host the frame is for; request_id, when set, is the sending peer's.
     IhttpFrameNotification: { cid: targetCid, peer_cid: senderCid, frame: [0xa1, 1, 2], request_id: 'r11' },
+    // The generated binding: { cid, group_key, refusal, request_id }; the agent never sets request_id.
+    GroupMessageRefusedNotification: { cid: targetCid, group_key: { cid: senderCid, mgid: 3n }, refusal: { RateLimited: { max_per_second: 2 } }, request_id: null },
   };
 
   it('has a test fixture for every CID-routed notification type', () => {
@@ -99,6 +101,7 @@ describe('CID_ROUTED_NOTIFICATIONS — every entry has extractable CID', () => {
         'FileTransferStatusNotification',
         'FileTransferTickNotification',
         'GroupMessageNotification',
+        'GroupMessageRefusedNotification',
         'IhttpFrameNotification',
         'MediaFrameNotification',
         'MediaGapNotification',

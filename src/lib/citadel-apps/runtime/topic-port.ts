@@ -31,6 +31,12 @@ export interface TopicDeps {
   readonly record: { readonly group: (groupId: string) => void; readonly request: (requestId: string) => void };
   readonly nowMs: () => number;
   readonly timeoutMs: number;
+  /**
+   * The server refused one of this session's messages to an open topic (its caps are the
+   * manifest's limits, which the sender already holds to, so this means they disagree). The
+   * agent names no request (request_id is always null), so it answers no publish: it is reported.
+   */
+  readonly refused: (topic: string, limit: typeof LIMIT_TOPIC_BYTES | typeof LIMIT_TOPIC_RATE) => void;
 }
 
 interface Open {
@@ -95,7 +101,15 @@ export function topicPort(d: TopicDeps): OwnedTopicPort {
 
   const sender = async (peerCid: bigint, name: string): Promise<PeerAuthorization | 'limited'> => d.authority.authorize(peerCid, { Topic: { topic: name } });
 
-  d.agent.listen((m: unknown): void => {
+  const unlisten: (() => void)[] = [];
+  unlisten.push(d.agent.listen((m: unknown): void => {
+    const refusal: Json | undefined = variantOf(m, 'GroupMessageRefusedNotification');
+    if (refusal === undefined || refusal.cid !== d.cid) return;
+    const topic: string | undefined = topicOf(groupKeyToId(parseGroupKey(refusal.group_key)));
+    if (topic !== undefined) d.refused(topic, variantOf(refusal.refusal, 'RateLimited') === undefined ? LIMIT_TOPIC_BYTES : LIMIT_TOPIC_RATE);
+  }));
+
+  unlisten.push(d.agent.listen((m: unknown): void => {
     const message: Json | undefined = variantOf(m, 'GroupMessageNotification');
     const joinAsk: Json | undefined = variantOf(m, 'GroupJoinRequestNotification');
     const n: Json | undefined = message ?? joinAsk;
@@ -116,7 +130,7 @@ export function topicPort(d: TopicDeps): OwnedTopicPort {
       if (a === 'limited' || !a.ok) { emit({ name, event: { dropped: { from: peerCid.toString() } } }); return; }
       emit({ name, event: { message: { from: { username: a.peer.username, cid: a.peer.cid, app_id: a.peer.app_id, install_id: a.peer.install_id, via: 'group' }, body: read.body } } });
     });
-  });
+  }));
 
   return {
     TopicOpen: async ({ name }: { name: string }): Promise<PortAnswer<TopicOpened>> => {
@@ -133,17 +147,9 @@ export function topicPort(d: TopicDeps): OwnedTopicPort {
       if (o === undefined) return { refused: { policy: 'topic_not_open' } };
       const limited: ReturnType<TopicSender['admit']> = o.sender.admit(body, d.nowMs());
       if (limited !== null) return { refused: limited };
-      const sent: AgentOutcome<PortAnswer<null>> = await agentAsk<PortAnswer<null>>(d.agent, (request_id: string): Json =>
-        ({ GroupMessage: { cid: d.cid, message: Array.from(encodeTopicMessage(name, body)), group_key: groupIdToKey(o.groupId), request_id } }),
-      (m: unknown, id: string): PortAnswer<null> | undefined => {
-        if (variantOf(m, 'GroupMessageSuccess')?.request_id === id) return { ok: null };
-        if (variantOf(m, 'GroupMessageFailure')?.request_id === id) return UNAVAILABLE;
-        // The server holds the group to the same caps; past them it says which.
-        const refused: Json | undefined = variantOf(m, 'GroupMessageRefusedNotification');
-        if (refused?.request_id !== id) return undefined;
-        return { refused: { limit: variantOf(refused.refusal, 'RateLimited') === undefined ? LIMIT_TOPIC_BYTES : LIMIT_TOPIC_RATE } };
-      }, d.timeoutMs);
-      return sent.ok ? sent.value : UNAVAILABLE;
+      const sent: AgentOutcome<Json | null> = await ask((request_id: string): Json =>
+        ({ GroupMessage: { cid: d.cid, message: Array.from(encodeTopicMessage(name, body)), group_key: groupIdToKey(o.groupId), request_id } }), 'GroupMessageSuccess', 'GroupMessageFailure');
+      return sent.ok && sent.value !== null ? { ok: null } : UNAVAILABLE;
     },
     TopicClose: ({ name }: { name: string }): PortAnswer<null> => {
       const o: Open | undefined = open.get(name);
@@ -157,6 +163,7 @@ export function topicPort(d: TopicDeps): OwnedTopicPort {
       for (const o of open.values()) leave(o.groupId);
       open.clear();
       listeners.clear();
+      for (const stop of unlisten.splice(0)) stop();
     },
     onEvent: (listener: (a: TopicArrival) => void): (() => void) => {
       listeners.add(listener);

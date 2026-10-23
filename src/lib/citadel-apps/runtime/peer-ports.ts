@@ -34,6 +34,8 @@ export interface PeerWorld {
   readonly peerForMe: (installId: string) => PeerForMe | null;
   /** What the chat pipeline must skip (group-conversations/app-topic-groups.ts). */
   readonly topicRecord: { readonly group: (groupId: string) => void; readonly request: (requestId: string) => void };
+  /** Something the page should hear about that no app call answers (a topic message the server refused). */
+  readonly report: (what: string, detail: unknown) => void;
 }
 
 export interface PeerPorts {
@@ -59,6 +61,7 @@ export function peerPorts(install: AppInstall, limits: AppLimits, relay: IhttpPo
   const topic: OwnedTopicPort | null = install.details.topics.length === 0 || limits.topics === undefined ? null : topicPort({
     cid: session.cid, agent: w.agent, topics: install.details.topics, limits: limits.topics, authority, record: w.topicRecord,
     topicGroup: (name: string, claim: string | null) => topicGroup(w.transport, install.id, name, claim), nowMs: w.nowMs, timeoutMs: w.policy.portTimeoutMs,
+    refused: (name: string, limit: string): void => w.report(`[apps] ${install.app_id} (install ${install.id}): the server refused a message to topic ${name}`, limit),
   });
   return {
     held, ihttp: transportRouter({ relay, p2p, held }), topic,

@@ -79,6 +79,10 @@ export const CID_ROUTED_NOTIFICATIONS: Set<ResponseType | AgentReconnectNotifica
   // the peer's send. Routed by request_id, with two sessions in one browser one
   // account's app would serve, or read the answers to, the other account's calls.
   'IhttpFrameNotification',
+  // cid = the session whose app-topic message the server refused (too large, over the rate).
+  // The agent always sends it with request_id null (kernel/responses/group_refusal.rs), so
+  // routed by request_id it would reach no tab and the refusal would be lost.
+  'GroupMessageRefusedNotification',
 ]);
 
 /**

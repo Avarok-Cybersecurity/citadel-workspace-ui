@@ -55,7 +55,7 @@ function world(session: boolean, mine: PeerForMe | null) {
     transport, agent, agentSession: session ? { cid: 100n } : null, sha256Hex: async () => 'd', nowMs: () => 0, policy: STANDARD_HOST_POLICY,
     pushes: (l) => { pushed.add(l); return () => pushed.delete(l); },
     peerCid: (u: string) => (u === 'bob' ? 200n : null), peerForMe: () => mine,
-    topicRecord: { group: () => undefined, request: () => undefined },
+    topicRecord: { group: () => undefined, request: () => undefined }, report: () => undefined,
   };
   return { w, asked, push: (a: unknown) => pushed.forEach((l) => l(a)) };
 }

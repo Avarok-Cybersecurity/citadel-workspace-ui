@@ -129,7 +129,7 @@ export function rig(kernel: FakeRuntimeKernel, over: Partial<ZoneRuntimeDeps> = 
       pushes: () => (): void => undefined, sha256Hex: async (b: Uint8Array): Promise<string> => sha256Hex(b),
       nowMs: (): number => Date.now(), every: () => (): void => undefined,
       // agentSession is null, so the peer plane is absent; these are never asked.
-      peerCid: () => null, peerForMe: () => null, topicRecord: { group: () => undefined, request: () => undefined },
+      peerCid: () => null, peerForMe: () => null, topicRecord: { group: () => undefined, request: () => undefined }, report: (what: string): void => { reports.push(what); },
     }),
     pageUrl: (): string => 'https://work.example/workspace', locale: (): string => 'en', dpr: (): number => 2, theme: () => ({}),
     ...over,
