@@ -103,11 +103,16 @@ export function watchGreeting(): Greeting {
   };
 }
 
-function declareRequest(requestId: string): InternalServiceRequest {
+/**
+ * `ihttp`: this window hosts Citadel apps, so the agent hands it P2P internal-HTTP frames
+ * (`IhttpFrameNotification`). Every page hosts apps where the agent serves them; the field is
+ * left out for an agent that does not, which never sends such frames.
+ */
+function declareRequest(requestId: string, hostsApps: boolean): InternalServiceRequest {
   return {
     ConnectionManagement: {
       request_id: requestId,
-      management_command: { DeclareCapabilities: { capabilities: { agent_ilm: true } } },
+      management_command: { DeclareCapabilities: { capabilities: hostsApps ? { agent_ilm: true, ihttp: true } : { agent_ilm: true } } },
     },
   };
 }
@@ -135,7 +140,7 @@ async function declare(client: DeclaringClient, greeting: Greeting): Promise<Age
     (message: InternalServiceResponse) => capabilitiesAnswering(message, requestId),
     TIMEOUT.SESSION_MANAGEMENT_MS,
   );
-  await client.sendDirectToInternalService(declareRequest(requestId));
+  await client.sendDirectToInternalService(declareRequest(requestId, offers.servesApps));
   const answered: Record<string, unknown> = await answer;
   // Absent from an older agent's answer, which is a "no".
   noticesHeard.set(answered.notices_heard === true);
