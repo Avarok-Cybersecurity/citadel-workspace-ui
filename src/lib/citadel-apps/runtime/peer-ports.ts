@@ -45,8 +45,13 @@ export interface PeerPorts {
   readonly stop: () => void;
 }
 
-/** A change that may move what the kernel would answer: drop every held answer. */
-const CHANGES: ReadonlySet<AppsAnswer['kind']> = new Set<AppsAnswer['kind']>(['installed', 'updated', 'uninstalled', 'consented', 'disabled-for-me', 'peer-consent', 'peer-blocked']);
+/**
+ * A change that may move what the kernel would answer: drop every held answer. This member's own
+ * answers arrive as themselves; another member's only as the server's content-free notices.
+ */
+const CHANGES: ReadonlySet<AppsAnswer['kind']> = new Set<AppsAnswer['kind']>([
+  'installed', 'updated', 'uninstalled', 'consented', 'disabled-for-me', 'peer-consent', 'peer-blocked', 'installs-changed', 'peer-answers-changed',
+]);
 
 /** `scopeKey`: the scope key the install is addressed by, which every call's head names. */
 export function peerPorts(install: AppInstall, scopeKey: string, limits: AppLimits, relay: IhttpPort, w: PeerWorld): PeerPorts {

@@ -24,6 +24,10 @@ export type AppsAnswer =
   | { kind: 'consented'; install: AppInstall }
   | { kind: 'disabled-for-me'; installId: string; disabled: boolean }
   | { kind: 'install-requested' }
+  /** Pushed to the other members: an install changed; read the installs again. Says nothing more. */
+  | { kind: 'installs-changed' }
+  /** Pushed to the other members: a member's own answers changed, so what AuthorizePeer says may have. */
+  | { kind: 'peer-answers-changed' }
   | RuntimeAnswer
   | PeerAnswer
   | { kind: 'refused'; refusal: AppsRefusal }
@@ -53,6 +57,8 @@ const hasId = (v: unknown, name: string): boolean => single(v, name, (x: unknown
 
 export function readAppsAnswer(payload: unknown): AppsAnswer {
   if (payload === 'InstallRequested') return { kind: 'install-requested' };
+  if (payload === 'InstallsChanged') return { kind: 'installs-changed' };
+  if (payload === 'PeerAnswersChanged') return { kind: 'peer-answers-changed' };
   if (single(payload, 'Refused', isAppsRefusal)) return { kind: 'refused', refusal: field<AppsRefusal>(payload, 'Refused') };
   if (single(payload, 'Catalogue', (x: unknown) => exactly(x, { listings: (l: unknown) => Array.isArray(l) && l.every(isAppListing) }))) {
     return { kind: 'catalogue', listings: field<{ listings: AppListing[] }>(payload, 'Catalogue').listings };

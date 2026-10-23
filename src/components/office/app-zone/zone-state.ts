@@ -6,9 +6,10 @@
  * A zone never runs anything here: `ready` is where the runtime's seam mounts a host-owned canvas
  * (app-zone-runtime.ts); until it does, `ready` draws a placeholder too.
  */
-import type { AppInstall, InstallScope } from 'citadel-workspace-client-ts';
+import type { AppInstall, InstallScope, PeerForMe } from 'citadel-workspace-client-ts';
 import { compareVersions, isAppId, parseAppVersion, type AppVersion } from '@/lib/citadel-apps/app-identity';
 import type { ListedApp } from '@/lib/citadel-apps/listing-model';
+import { memberAsks, needsMemberPrompt } from '@/lib/citadel-apps/consent-model';
 import type { Tri } from '@/lib/citadel-apps/scope-options';
 
 export const MAX_ZONE_HEIGHT: number = 2000;
@@ -39,6 +40,8 @@ export interface ZoneFacts {
   /** The page's ancestors, nearest first. */
   ancestors: readonly string[];
   disabledForMe: ReadonlySet<string>;
+  /** This person's own P2P and topic answers, per install (peer-for-me.ts). */
+  peerForMe: ReadonlyMap<string, PeerForMe>;
   mayInstall: Tri;
 }
 
@@ -51,6 +54,8 @@ export type ZoneView =
   | { kind: 'needs-consent'; name: string; version: string }
   | { kind: 'suspended'; name: string }
   | { kind: 'outdated'; name: string; installed: string }
+  /** Granted P2P or topics this person has not answered: the app starts once they have, holding what they allowed. */
+  | { kind: 'needs-answer'; name: string }
   | { kind: 'ready'; app: ListedApp; install: AppInstall };
 
 export function covers(scope: InstallScope, me: string, nodeId: string, ancestors: readonly string[]): boolean {
@@ -77,5 +82,7 @@ export function zoneView(props: ZoneProps, f: ZoneFacts): ZoneView {
   }
   const installed: AppVersion | null = parseAppVersion(active.version);
   if (props.floor !== null && (installed === null || compareVersions(installed, props.floor) < 0)) return { kind: 'outdated', name, installed: active.version };
+  // An instance holds the answers it started with (runtime/peer-ports.ts), so it starts only after them.
+  if (needsMemberPrompt(memberAsks(active.granted, f.peerForMe.get(active.id)?.consent ?? null))) return { kind: 'needs-answer', name };
   return { kind: 'ready', app: f.listing, install: active };
 }

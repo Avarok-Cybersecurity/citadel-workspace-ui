@@ -65,7 +65,8 @@ export function zoneDataFrom(transport: AppsTransport): ZoneDataPort {
   };
 }
 
-const CHANGES_INSTALLS: ReadonlySet<AppsAnswer['kind']> = new Set(['installed', 'updated', 'consented', 'uninstalled']);
+/** This tab's own answers, and the server's notice that another member changed an install. */
+const CHANGES_INSTALLS: ReadonlySet<AppsAnswer['kind']> = new Set(['installed', 'updated', 'consented', 'uninstalled', 'installs-changed']);
 
 /** Whether an apps answer (`workspace:apps`) changed what is installed, so a page's zones read again. */
 export function changesInstalls(answer: unknown): boolean {

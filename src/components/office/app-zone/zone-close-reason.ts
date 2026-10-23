@@ -15,7 +15,7 @@ export function closeReasonFor(running: AppInstall, next: ZoneView): CloseReason
     case 'ready': return next.install.id === running.id && next.install.manifest_sha256 !== running.manifest_sha256 ? 'version_update' : 'unmount';
     case 'loading': case 'not-available': return 'unmount';
     case 'install': case 'ask-admin': return 'uninstall';
-    case 'disabled': case 'suspended': return 'access_revoked';
+    case 'disabled': case 'suspended': case 'needs-answer': return 'access_revoked';
     case 'needs-consent': case 'outdated': return 'version_update';
   }
 }

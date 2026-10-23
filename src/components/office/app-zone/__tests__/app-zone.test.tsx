@@ -4,13 +4,14 @@
  * one, only an active install's zone is handed to it.
  */
 import { describe, expect, it, vi, type Mock } from 'vitest';
-import { render, screen, waitFor, fireEvent, type RenderResult } from '@testing-library/react';
+import { act, render, screen, waitFor, fireEvent, type RenderResult } from '@testing-library/react';
 import type { AppInstall } from 'citadel-workspace-client-ts';
 import { AppZone } from '../AppZone';
 import { AppZoneContext, zoneClaims, type AppZoneEnvironment, type AppZoneHandle, type AppZoneRuntime, type ZoneHost } from '../app-zone-environment';
 import { listedApps, type ListedApp } from '@/lib/citadel-apps/listing-model';
 import type { Tri } from '@/lib/citadel-apps/scope-options';
 import { recordDisabledForMe } from '@/lib/citadel-apps/disabled-for-me';
+import { recordPeerConsent } from '@/lib/citadel-apps/peer-for-me';
 import { installOf, listingOf } from '@/test/app-manifests';
 import type { AppLink } from '@/lib/citadel-apps/app-link';
 import { FakeAppsKernel } from '@/test/apps-kernel-fake';
@@ -180,6 +181,17 @@ describe('an app zone', () => {
     await state('not-available');
     expect(screen.queryByTestId('app-zone-host')).toBeNull();
     expect(mount).not.toHaveBeenCalled();
+  });
+
+  it('an app granted P2P or topics waits for this member’s own answer, then runs with it (control: answered, it mounts)', async () => {
+    // peer-ports.ts reads the member's answer once, as the instance starts: one started before it would never hold what they allow.
+    const pool: AppInstall = installOf('com.acme.kanban', 'Workspace', { id: 'asks-first', granted: ['canvas', 'ihttp.p2p.serve', 'group.topic.publish'] });
+    const mount: Mock<AppZoneRuntime['mount']> = vi.fn((): AppZoneHandle => ({ close: async (): Promise<void> => undefined }));
+    zone(env({ installs: [pool], runtime: { mount } }));
+    expect((await state('needs-answer')).textContent).toContain('Kanban asks you first');
+    expect(mount).not.toHaveBeenCalled();
+    act(() => recordPeerConsent('asks-first', { serve: true, call: false, topics: true, at_ms: 1n }));
+    await waitFor(() => expect(mount).toHaveBeenCalledTimes(1));
   });
 
   it('outside a workspace page it says so', () => {

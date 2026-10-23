@@ -94,6 +94,12 @@ describe('an instance’s peer planes', () => {
     x.push({ PeerConsentForMe: { install_id: 'i-1', consent: { serve: true, call: true, topics: true, at_ms: 2n } } });
     await call(ports.ihttp, 3n);
     expect(authorizations()).toBe(2);
+    // Another member's change reaches this page only as the server's notice, which drops them too.
+    x.push('PeerAnswersChanged');
+    await call(ports.ihttp, 4n);
+    x.push('InstallsChanged');
+    await call(ports.ihttp, 5n);
+    expect(authorizations()).toBe(4);
     ports.stop();
   });
 
