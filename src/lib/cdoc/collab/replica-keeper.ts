@@ -14,6 +14,7 @@ import { CDOC_CRDT_DOC_VERSION, DOCUMENTS_RELAY_LIMITS } from './relay-limits';
 import type { DocumentSessionError } from './session-errors';
 import { randomClientSeqBase, workspaceCollabPorts } from './workspace-ports';
 import { WRITE_RESPONSE_TIMEOUT_MS } from '@/lib/workspace-service/await-write-response';
+import { registerDocumentSync } from '@/lib/document-sync-requests';
 
 export const R1_COLLABORATION: Omit<DocumentSessionConfig, 'nodeId' | 'clientSeqBase'> = {
   docVersion: CDOC_CRDT_DOC_VERSION,
@@ -93,6 +94,7 @@ export function workspaceReplicaKeeper<E extends EditorController>(nodeId: strin
 /** The app's keeper for the document `chatDoc` shared in `nodeId`'s chat: the page's, on its own log. */
 export function chatDocumentReplicaKeeper<E extends EditorController>(nodeId: string, chatDoc: string, onProblem: (problem: DocumentSessionError) => void): Keeper<E> {
   const ports = (open: EditorOpener): DocumentSessionPorts => workspaceCollabPorts(open, chatDoc);
-  // Nothing outside the document binds to its session: a chat document has no Save control or share trigger.
-  return replicaKeeper<E>({ ...R1_COLLABORATION, nodeId, clientSeqBase: randomClientSeqBase() }, ports, onProblem, (): (() => void) => (): void => undefined);
+  // No Save control or share trigger; a sign-out's sync asks the open session, as it does a page's.
+  const bind: SessionBinder = (session: DocumentSession): (() => void) => registerDocumentSync({ nodeId, chatDoc }, (): Promise<void> => session.save());
+  return replicaKeeper<E>({ ...R1_COLLABORATION, nodeId, clientSeqBase: randomClientSeqBase() }, ports, onProblem, bind);
 }

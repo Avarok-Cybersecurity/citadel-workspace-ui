@@ -5,27 +5,31 @@
  * are sent by a session opened for that alone (lib/cdoc/collab/headless-sync.ts), loaded only
  * then so neither it nor Citadel Docs is in the shell's bundle.
  */
+import { documentRecordId, type DocumentPlace } from '@/lib/document-replica-cache';
+
 type Sync = () => Promise<void>;
 
+/** By record id: a page and the documents shared in its node's chat are each their own. */
 const open: Map<string, Set<Sync>> = new Map<string, Set<Sync>>();
 
-/** A session for `nodeId` is open in this tab; the returned function says it closed. */
-export function registerDocumentSync(nodeId: string, sync: Sync): () => void {
-  const syncs: Set<Sync> = open.get(nodeId) ?? new Set<Sync>();
+/** A session for `place` is open in this tab; the returned function says it closed. */
+export function registerDocumentSync(place: DocumentPlace, sync: Sync): () => void {
+  const id: string = documentRecordId(place);
+  const syncs: Set<Sync> = open.get(id) ?? new Set<Sync>();
   syncs.add(sync);
-  open.set(nodeId, syncs);
+  open.set(id, syncs);
   return (): void => {
     syncs.delete(sync);
-    if (syncs.size === 0) open.delete(nodeId);
+    if (syncs.size === 0) open.delete(id);
   };
 }
 
-export async function requestDocumentSync(nodeId: string): Promise<void> {
-  const syncs: Set<Sync> | undefined = open.get(nodeId);
+export async function requestDocumentSync(place: DocumentPlace): Promise<void> {
+  const syncs: Set<Sync> | undefined = open.get(documentRecordId(place));
   if (syncs) {
     await Promise.all([...syncs].map((sync: Sync): Promise<void> => sync()));
     return;
   }
   const { syncHeldEditsHere } = await import('@/lib/cdoc/collab/headless-sync');
-  await syncHeldEditsHere(nodeId);
+  await syncHeldEditsHere(place);
 }

@@ -31,7 +31,7 @@ export function collaborationKeeper(nodeId: string, save: BindableSaveControl): 
         const notify = (error: DocumentSessionError): void => { toast.error(error.message, { id: `document-collab:${nodeId}:${noticeKind(error.problem)}` }); };
         const bind = (session: DocumentSession): (() => void) => {
           const unbind: () => void = save.bind(session);
-          const unregister: () => void = registerDocumentSync(nodeId, (): Promise<void> => session.save());
+          const unregister: () => void = registerDocumentSync({ nodeId, chatDoc: null }, (): Promise<void> => session.save());
           return (): void => { unregister(); unbind(); };
         };
         const keep: ReplicaKeeper = workspaceReplicaKeeper<EditorSession>(nodeId, notify, bind);

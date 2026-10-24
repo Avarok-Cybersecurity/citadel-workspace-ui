@@ -16,6 +16,7 @@ import { R1_COLLABORATION } from './replica-keeper';
 import type { SaveInputs } from '@/lib/document-save/save-status';
 import { randomClientSeqBase, workspaceCollabPorts } from './workspace-ports';
 import { browserClock } from '@/lib/browser-clock';
+import type { DocumentPlace } from '@/lib/document-replica-cache';
 import { WRITE_RESPONSE_TIMEOUT_MS } from '@/lib/workspace-service/await-write-response';
 
 export type HeadlessOutcome = 'nothingHeld' | 'synced' | 'stillHeld';
@@ -53,14 +54,15 @@ function acknowledged(session: DocumentSession, clock: Clock, timeoutMs: number)
   });
 }
 
-/** The app's: this tab's workspace session, the R1 configuration, a write's patience. */
-export async function syncHeldEditsHere(nodeId: string): Promise<HeadlessOutcome> {
+/** The app's: this tab's workspace session, the R1 configuration, a write's patience; a chat document on its own log. */
+export async function syncHeldEditsHere(place: DocumentPlace): Promise<HeadlessOutcome> {
+  const { nodeId, chatDoc } = place;
   let opener: ((from: EditorOrigin) => Promise<EditorSession>) | null = null;
   const opened: EditorSession[] = [];
   const ports: DocumentSessionPorts = workspaceCollabPorts((from: EditorOrigin): Promise<EditorSession> => {
     if (opener === null) throw new Error('the headless session opened a replica before Citadel Docs loaded');
     return opener(from).then((editor: EditorSession): EditorSession => { opened.push(editor); return editor; });
-  }, null);
+  }, chatDoc);
   if (ports.cache === null) throw new Error('this device keeps no documents, so it holds no edits to send');
   const start = async (): Promise<HeadlessSession> => {
     const runtime: CdocRuntime = await loadCdocRuntime();

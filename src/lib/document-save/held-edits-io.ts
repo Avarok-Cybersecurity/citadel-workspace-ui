@@ -2,7 +2,7 @@
  * The app's HeldEditsIO (leave-held-edits.ts): the account's records on this device, this
  * tab's link, a share-style sync of each document (lib/document-sync-requests.ts).
  */
-import { documentsWithHeldEdits } from '@/lib/document-replica-cache';
+import { documentsWithHeldEdits, type DocumentPlace } from '@/lib/document-replica-cache';
 import { requestDocumentSync } from '@/lib/document-sync-requests';
 import { reconnectingTo } from '@/lib/reconnect/server-reconnect';
 import { mayLeaveHeldEdits, type HeldEditsIO } from './leave-held-edits';
@@ -16,9 +16,9 @@ export type Confirm = (prompt: HeldEditsPrompt) => Promise<boolean>;
  */
 export function heldEditsIO(account: bigint, thisTabsAccount: boolean, confirm: Confirm): HeldEditsIO {
   return {
-    held: (): Promise<readonly string[]> => documentsWithHeldEdits(account),
+    held: (): Promise<readonly DocumentPlace[]> => documentsWithHeldEdits(account),
     canSync: (): boolean => thisTabsAccount && reconnectingTo.get() === null,
-    sync: (nodeId: string): Promise<void> => requestDocumentSync(nodeId),
+    sync: (place: DocumentPlace): Promise<void> => requestDocumentSync(place),
     confirm,
   };
 }

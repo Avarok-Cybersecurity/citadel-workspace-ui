@@ -42,6 +42,20 @@ export const documentDeviceKey = (account: bigint, nodeId: string): string => `$
 export const documentAccessKey = (account: bigint, nodeId: string): string => `${nodeKey(account, nodeId)}${RESERVED}access`;
 /** Where a chat document's records sit: under its node, so the node's removal takes them too. */
 export const chatDocumentRecordId = (nodeId: string, chatDoc: string): string => `${nodeId}${CHAT}${chatDoc}`;
+
+/** Which document records are of: a node's page (`chatDoc` null) or a document shared in its chat. */
+export interface DocumentPlace {
+  readonly nodeId: string;
+  readonly chatDoc: string | null;
+}
+
+export const documentRecordId = (place: DocumentPlace): string => (place.chatDoc === null ? place.nodeId : chatDocumentRecordId(place.nodeId, place.chatDoc));
+
+/** The place a record id names: the inverse of documentRecordId. */
+export function documentPlaceOf(recordId: string): DocumentPlace {
+  const split: number = recordId.indexOf(CHAT);
+  return split < 0 ? { nodeId: recordId, chatDoc: null } : { nodeId: recordId.slice(0, split), chatDoc: recordId.slice(split + 1) };
+}
 export const workspaceTreeKey = (account: bigint): string => `${accountPrefix(account)}${RESERVED}tree`;
 export const atRestModeKey = (account: bigint): string => `${accountPrefix(account)}${RESERVED}at-rest`;
 export const accountRecordsPrefix = (account: bigint): string => accountPrefix(account);
@@ -111,13 +125,13 @@ async function forgetKeys(keys: readonly string[]): Promise<void> {
   for (const key of keys) await localRecordRemove(key);
 }
 
-/** The documents this account has edits held of on this device (sent by no tab yet). */
-export async function documentsWithHeldEdits(account: bigint): Promise<string[]> {
+/** The documents this account has edits held of on this device (sent by no tab yet), pages and chat documents alike. */
+export async function documentsWithHeldEdits(account: bigint): Promise<DocumentPlace[]> {
   const held: Set<string> = new Set<string>();
   for (const key of await dbKeysWithPrefix('keyValue', accountPrefix(account))) {
     if (key.includes(`${RESERVED}edits:`)) held.add(nodeOf(key));
   }
-  return [...held];
+  return [...held].map(documentPlaceOf);
 }
 
 /** Sign-out: every record of the account, documents, edits, choices and tree. */
@@ -125,18 +139,27 @@ export async function forgetAccountDocuments(account: bigint): Promise<void> {
   await forgetKeys(await dbKeysWithPrefix('keyValue', accountPrefix(account)));
 }
 
-/** Every record about these nodes for one account: the copy, its edits and its choices. */
-export async function forgetNodeDocuments(account: bigint, nodeIds: readonly string[]): Promise<void> {
-  // An id that is no node's ('', '#tree') would match the tree's record, never a document's.
-  const nodes: ReadonlySet<string> = new Set<string>(nodeIds.filter(isNodeId));
-  const ownerOf = (key: string): string => nodeOf(key).split(CHAT, 1)[0];
-  await forgetKeys((await dbKeysWithPrefix('keyValue', accountPrefix(account))).filter((key: string): boolean => nodes.has(ownerOf(key))));
+/**
+ * Whether `key` is a record of one of `ids`: a node id takes its page's and its chat documents'
+ * records; a chat document's record id takes only its own. An id that is no node's ('', '#tree')
+ * would match the tree's record, never a document's, so it matches nothing.
+ */
+function recordOfAny(ids: readonly string[]): (key: string) => boolean {
+  const wanted: ReadonlySet<string> = new Set<string>(ids.filter(isNodeId));
+  return (key: string): boolean => {
+    const record: string = nodeOf(key);
+    return wanted.has(record) || wanted.has(documentPlaceOf(record).nodeId);
+  };
 }
 
-/** A node deleted on its server is gone for every account here that held a copy of it. */
+/** Every record about these nodes (or chat documents) for one account: the copy, its edits and its choices. */
+export async function forgetNodeDocuments(account: bigint, ids: readonly string[]): Promise<void> {
+  await forgetKeys((await dbKeysWithPrefix('keyValue', accountPrefix(account))).filter(recordOfAny(ids)));
+}
+
+/** A node deleted on its server is gone, chat documents and all, for every account here that held a copy of it. */
 export async function forgetDeletedNodes(nodeIds: readonly string[]): Promise<void> {
-  const deleted: ReadonlySet<string> = new Set<string>(nodeIds.filter(isNodeId));
-  await forgetKeys((await dbKeysWithPrefix('keyValue', ROOT)).filter((key: string): boolean => deleted.has(nodeOf(key))));
+  await forgetKeys((await dbKeysWithPrefix('keyValue', ROOT)).filter(recordOfAny(nodeIds)));
 }
 
 /** The account's last-known workspace tree (lib/offline-tree.ts), or null when none is kept. */

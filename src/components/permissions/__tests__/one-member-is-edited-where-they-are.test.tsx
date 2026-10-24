@@ -139,7 +139,7 @@ describe('one member’s permissions', () => {
 
   async function saveAfterClicking(id: string): Promise<string[]> {
     const asked: string[] = [];
-    const close: () => void = registerDocumentSync('standup', (): Promise<void> => { asked.push('standup'); return Promise.resolve(); });
+    const close: () => void = registerDocumentSync({ nodeId: 'standup', chatDoc: null }, (): Promise<void> => { asked.push('standup'); return Promise.resolve(); });
     open();
     answerEveryLevel();
     await waitFor(() => expect(box(id)).toBeEnabled());

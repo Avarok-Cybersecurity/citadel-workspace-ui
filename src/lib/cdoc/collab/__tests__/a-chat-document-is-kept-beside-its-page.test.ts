@@ -1,7 +1,8 @@
 /**
  * A document shared in a node's chat is kept on this device beside the node's page, never in its
  * place: its copy, edits and choices are its own, and removing the node (deleted, or no longer
- * readable) removes its chat documents' records with the page's.
+ * readable, on this account or on every account here) removes its chat documents' records with
+ * the page's; a chat document forgotten alone (its own read refused) takes only its own.
  */
 import { describe, expect, it, vi } from 'vitest';
 import type { CachedDocument, DocumentCache } from '../ports';
@@ -18,7 +19,7 @@ vi.mock('../instance-locks', async () => {
 vi.mock('@/lib/workspace-service', () => ({ default: { currentCid: 31n, sendProtocolRequest: (): Promise<void> => Promise.resolve() } }));
 
 const { workspaceCollabPorts } = await import('../workspace-ports');
-const { forgetNodeDocuments } = await import('@/lib/document-replica-cache');
+const { forgetDeletedNodes, forgetNodeDocuments } = await import('@/lib/document-replica-cache');
 
 const ACCOUNT: bigint = 31n;
 const DOC_A: string = 'cdoc-3f2a9c1e-7b4d-4e8a-9f01-2c3d4e5f6a7b';
@@ -47,5 +48,19 @@ describe('a chat document on this device', () => {
     await chat.save('n2', CHAT);
     await forgetNodeDocuments(ACCOUNT, ['n1']);
     expect([await chat.load('n1'), await chat.load('n2')]).toEqual([null, CHAT]);
+  });
+
+  it('goes for every account when its node is deleted on the server', async () => {
+    await chat.save('n1', CHAT);
+    await forgetDeletedNodes(['n1']);
+    expect(await chat.load('n1')).toBeNull();
+  });
+
+  it('forgotten alone, takes its own copy and edits and leaves the page\'s', async () => {
+    await account.save('n1', PAGE);
+    await chat.save('n1', CHAT);
+    await chat.saveEdits('n1', 'tab-1', [Uint8Array.from([5])]);
+    await chat.forget('n1');
+    expect([await account.load('n1'), await chat.load('n1'), await chat.loadEdits('n1')]).toEqual([PAGE, null, []]);
   });
 });
