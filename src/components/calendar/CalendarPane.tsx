@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { bookingTargetOf } from '@/lib/calendar/booking-link';
 import type { BookingChoice, BookOutcome } from '@/lib/calendar/booking-form';
-import { bookingOf, requestBooking } from '@/lib/calendar/booking';
+import { book as claim, bookingOf, bookingRole, cancelAsBooker, requestBooking, type BookingRole } from '@/lib/calendar/booking';
 import type { CalendarEngine } from '@/lib/calendar/engine/calendar-engine';
 import type { EventCheck } from '@/lib/calendar/event-draft';
 import type { CivilDate } from '@/lib/calendar/generated/CivilDate';
@@ -25,7 +25,9 @@ import { BookWith } from './BookWith';
 import { CalendarTab } from './CalendarTab';
 import { EventDetails } from './EventDetails';
 import { EventEditor } from './EventEditor';
+import { useBookings } from './use-bookings';
 import { useMinuteClock } from './use-minute-clock';
+import type { Capability } from '@/lib/citadel-apps/host/capabilities';
 
 /** Below this width the Calendar opens on Agenda, which reads as a list on a phone. */
 const NARROW_PX: number = 640;
@@ -37,6 +39,8 @@ export interface CalendarPaneProps {
   me: string;
   displayZone: string;
   deviceZone: string;
+  /** What the install holds for this member: which booking planes it may serve and call on. */
+  held: ReadonlySet<Capability>;
 }
 
 type Panel = { kind: 'none' } | { kind: 'new'; date: CivilDate } | { kind: 'setup' } | { kind: 'book' };
@@ -44,7 +48,7 @@ type Panel = { kind: 'none' } | { kind: 'new'; date: CivilDate } | { kind: 'setu
 const newId = (): string => crypto.randomUUID();
 const reasonOf = (e: unknown): string => (e instanceof PortRefused ? refusalCopy(e.refused) : 'something went wrong');
 
-export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZone }: CalendarPaneProps): JSX.Element {
+export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZone, held }: CalendarPaneProps): JSX.Element {
   const { state: ws } = useWorkspace();
   const now = useMinuteClock(engine, displayZone);
   const nowMs: bigint = useMemo(() => engine.instantOf(displayZone, now), [engine, displayZone, now]);
@@ -54,6 +58,7 @@ export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZon
   const [panel, setPanel] = useState<Panel>(linked === null ? { kind: 'none' } : { kind: 'book' });
   const [open, setOpen] = useState<Chip | null>(null);
   useCalendarSources(ports, engine, nodeId, dispatch);
+  const { client, host } = useBookings(ports, engine, nodeId, me, held);
   const nodeName = useCallback((id: string): string => ws.nodes[id]?.name ?? 'a page you cannot see', [ws.nodes]);
   const zone: string | null = useMemo(() => nodeZone(ws.nodes, nodeId, ws.workspace?.metadata), [ws.nodes, nodeId, ws.workspace?.metadata]);
   const node = { id: nodeId, name: ws.nodes[nodeId]?.name ?? 'This page' };
@@ -67,8 +72,28 @@ export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZon
       return reasonOf(e);
     }
   };
-  const book = (host: string, choice: BookingChoice): Promise<BookOutcome> =>
-    requestBooking(ports, engine, bookingOf(choice, { id: newId(), node: nodeId, host, me }), nodeId, me);
+  const book = (host: string, choice: BookingChoice): Promise<BookOutcome> => {
+    const booking = bookingOf(choice, { id: newId(), node: nodeId, host, me });
+    if (client === null) return requestBooking(ports, engine, booking, nodeId, me);
+    return claim({ ports, engine, client, node: nodeId, me, title: `${choice.type.name} with ${host}`, nowMs: BigInt(Date.now()) }, booking, null);
+  };
+
+  const openEntry = open === null ? undefined : state.entries.get(open.entryKey);
+  const openEvent = openEntry === undefined || openEntry.source === 'inherited' ? null : openEntry.event;
+  const role: BookingRole | null = openEvent === null ? null : bookingRole(openEvent, me);
+  const cancelOpen = async (reason: string | null): Promise<string | null> => {
+    if (role === null || openEvent === null) return 'this is not a booking you can cancel';
+    try {
+      if (role.kind === 'host') {
+        const answer = await host.cancelAsHost(role.id, reason);
+        return answer.status === 200 ? null : `it could not be cancelled (${answer.status})`;
+      }
+      if (client === null) return 'bookings cannot be changed from here right now';
+      return await cancelAsBooker({ ports, engine, client, me, nowMs: BigInt(Date.now()) }, openEvent, role.host, role.id, reason);
+    } catch (e: unknown) {
+      return reasonOf(e);
+    }
+  };
 
   return (
     <div className="flex min-w-0 flex-col gap-3 p-[16px]" data-testid="calendar-pane">
@@ -94,7 +119,7 @@ export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZon
       )}
       {(panel.kind === 'none' || panel.kind === 'new') && (
         <>
-          {open !== null && <EventDetails chip={open} displayZone={displayZone} nodeName={nodeName} onClose={(): void => setOpen(null)} />}
+          {open !== null && <EventDetails chip={open} displayZone={displayZone} nodeName={nodeName} onClose={(): void => setOpen(null)} onCancelBooking={role === null ? null : cancelOpen} />}
           <CalendarTab
             state={state} dispatch={dispatch} engine={engine} viewer={me} displayZone={displayZone}
             node={{ ...node, zone }} nodeName={nodeName} now={now} onOpenChip={setOpen}

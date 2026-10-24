@@ -9,6 +9,7 @@ import { WorkspaceContext, type WorkspaceState } from '@/contexts/WorkspaceConte
 import type { Capability } from '@/lib/citadel-apps/host/capabilities';
 import { glueInstance, type GlueInstance, type StorageChange } from '@/lib/citadel-apps/host/glue-instance';
 import { STANDARD_HOST_POLICY } from '@/lib/citadel-apps/host/limits';
+import type { IhttpPort } from '@/lib/citadel-apps/host/ports';
 import { ManualClock } from '@/lib/citadel-apps/host/__tests__/fakes';
 import { MemoryStore } from '@/lib/calendar/__tests__/memory-store';
 import { CalendarMount } from '../CalendarMount';
@@ -22,10 +23,18 @@ export interface MountRig {
   readonly change: (c: StorageChange) => void;
 }
 
-export function mountRig(me: string, store: MemoryStore = new MemoryStore(me)): MountRig {
+/** What a rig adds to storage: an ihttp port (a relay's) and the grants that use it. */
+export interface RigExtra {
+  readonly ihttp: IhttpPort;
+  readonly held: readonly Capability[];
+}
+
+export function mountRig(me: string, store: MemoryStore = new MemoryStore(me), extra: RigExtra | null = null): MountRig {
   const listeners: Set<(c: StorageChange) => void> = new Set();
   const glue: GlueInstance = glueInstance({
-    appId: 'net.avarok.calendar', ports: { storage: store.port() }, held: new Set<Capability>(HELD), policy: STANDARD_HOST_POLICY,
+    appId: 'net.avarok.calendar', policy: STANDARD_HOST_POLICY,
+    ports: extra === null ? { storage: store.port() } : { storage: store.port(), ihttp: extra.ihttp },
+    held: new Set<Capability>([...HELD, ...(extra?.held ?? [])]),
     limits: { topics: null, p2p: null }, clock: new ManualClock(), pageUrl: 'https://w.example/n1',
     storageChanges: (l) => { listeners.add(l); return () => listeners.delete(l); },
   });

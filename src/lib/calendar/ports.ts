@@ -74,6 +74,8 @@ export interface CalendarIhttp {
   serve: (routes: readonly Route[], on: ServeOn) => Promise<void>;
   call: (to: Address, frame: IhttpFrame, transport: Transport) => Promise<void>;
   respond: (peer: Caller, frame: IhttpFrame) => Promise<void>;
+  /** One inbound body chunk of `stream` was read: the host grants its sender one more credit. */
+  consumed: (peer: Caller, stream: bigint) => Promise<void>;
   onFrame: (listener: (inbound: InboundIhttpFrame) => void) => Unsubscribe;
 }
 
@@ -137,6 +139,7 @@ export function calendarPorts(glue: GlueInstance): CalendarPorts {
       serve: (routes, on) => done('IhttpServe', { routes: [...routes], on }),
       call: (to, frame, transport) => done('IhttpCall', { to, frame, transport }),
       respond: (peer, frame) => done('IhttpRespond', { peer, frame }),
+      consumed: (peer, stream) => done('IhttpConsumed', { peer, stream }),
       onFrame: glue.onIhttp,
     },
     members: async () => (await ok('MembersList', {})).members,

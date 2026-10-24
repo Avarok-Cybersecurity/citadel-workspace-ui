@@ -11,12 +11,15 @@ import type { StoragePort } from '@/lib/citadel-apps/host/ports';
 const PAGE: number = 2;
 
 export class MemoryStore {
-  readonly values: Map<string, Uint8Array> = new Map();
-
-  constructor(private readonly me: string) {}
+  /**
+   * `values` may be shared by several members' stores, as the kernel's KV is one store: each
+   * member's own `user` keys stay theirs (`user:<me>|key`), every node key is everyone's.
+   */
+  constructor(private readonly me: string, readonly values: Map<string, Uint8Array> = new Map()) {}
 
   /** Where a key lives; an authored write lands under the signed-in member, as the kernel stamps it. */
   where(backend: KvBackend, key: string, writing: boolean): string {
+    if (backend === 'user') return `user:${this.me}|${key}`;
     if (typeof backend === 'string') return `${backend}|${key}`;
     if ('node' in backend) return `node:${backend.node.node_id}|${key}`;
     const author: string | null = writing ? this.me : backend.node_authored.author;
@@ -30,6 +33,20 @@ export class MemoryStore {
   /** A write naming another author is refused, as the kernel refuses it (`authored_namespace`, policy `author`). */
   private foreign(backend: KvBackend): boolean {
     return typeof backend === 'object' && 'node_authored' in backend && backend.node_authored.author !== null && backend.node_authored.author !== this.me;
+  }
+
+  /**
+   * The same port answering on a later turn, as the kernel does over the network, so two callers'
+   * reads and writes can interleave (a race a synchronous fake can never show).
+   */
+  slowPort(): StoragePort {
+    const fast: StoragePort = this.port();
+    const later = <A, R>(op: (args: A) => R) => (args: A): Promise<R> =>
+      new Promise<R>((answer: (r: R) => void): void => { setTimeout((): void => answer(op(args)), 0); });
+    return {
+      KvGet: later(fast.KvGet), KvSet: later(fast.KvSet), KvSetMany: later(fast.KvSetMany), KvDelete: later(fast.KvDelete),
+      KvList: later(fast.KvList), KvListAuthored: later(fast.KvListAuthored),
+    } as StoragePort;
   }
 
   port(): StoragePort {

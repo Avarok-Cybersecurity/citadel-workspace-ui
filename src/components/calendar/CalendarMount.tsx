@@ -41,5 +41,5 @@ export function CalendarMount({ glue, nodeId, me }: GlueTabProps): JSX.Element {
   if (settings.kind === 'absent') {
     return <ZoneQuestion deviceZone={deviceZone} saving={settings.saving} error={settings.error} onChoose={(choice: DisplayZoneChoice): void => settings.choose(choice)} />;
   }
-  return <CalendarPane ports={ports} engine={loaded.engine} nodeId={nodeId} me={me} displayZone={displayZoneOf(settings.settings.displayZone, deviceZone)} deviceZone={deviceZone} />;
+  return <CalendarPane ports={ports} engine={loaded.engine} nodeId={nodeId} me={me} displayZone={displayZoneOf(settings.settings.displayZone, deviceZone)} deviceZone={deviceZone} held={glue.held} />;
 }

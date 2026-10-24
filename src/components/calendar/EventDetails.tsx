@@ -1,7 +1,7 @@
 /**
  * What one event is, opened from its chip: in the page's flow above the grid, never a card over
- * the event it describes, with every fact in words (chip-label.ts). Read-only here; editing comes
- * with the event editor.
+ * the event it describes, with every fact in words (chip-label.ts). A booking its reader hosts or
+ * booked can be cancelled from here.
  */
 import { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
@@ -9,15 +9,18 @@ import { Button } from '@/components/ui/button';
 import { chipWords, type ChipWords } from '@/lib/calendar/chip-label';
 import { formatTimeIn } from '@/lib/calendar/format';
 import type { Chip } from '@/lib/calendar/placement';
+import { CancelBooking } from './CancelBooking';
 
 interface EventDetailsProps {
   chip: Chip;
   displayZone: string;
   nodeName: (id: string) => string;
   onClose: () => void;
+  /** Null unless the reader hosts or booked this booking and it is not cancelled. */
+  onCancelBooking: ((reason: string | null) => Promise<string | null>) | null;
 }
 
-export function EventDetails({ chip, displayZone, nodeName, onClose }: EventDetailsProps): JSX.Element {
+export function EventDetails({ chip, displayZone, nodeName, onClose, onCancelBooking }: EventDetailsProps): JSX.Element {
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => { heading.current?.focus(); }, [chip.id]);
   const words: ChipWords = chipWords(chip, displayZone, nodeName);
@@ -30,6 +33,7 @@ export function EventDetails({ chip, displayZone, nodeName, onClose }: EventDeta
         <p className="text-sm text-muted-foreground">{when}{words.badge !== null ? ` (made in ${words.badge})` : ''}</p>
         {words.from !== null && <p className="text-sm text-muted-foreground">{words.from}</p>}
         {words.cancelled && <p className="text-sm font-medium text-foreground">Cancelled</p>}
+        {onCancelBooking !== null && <CancelBooking key={chip.id} onCancel={onCancelBooking} />}
       </div>
       <Button variant="ghost" size="icon" className="h-[44px] w-[44px] shrink-0" aria-label="Close event details" onClick={onClose}>
         <X className="h-4 w-4" aria-hidden="true" />
