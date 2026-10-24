@@ -42,7 +42,7 @@ async function startedWith(rec: Recorder, granted: readonly Capability[]): Promi
   rigs.push(rig);
   const l: Launch = launchAppInstance({
     appId: 'com.acme.test', module: verdict.module, granted: new Set<Capability>(granted), context: fixtureContext([...granted], FIXTURE_CLOSE_GRACE_MS),
-    closeGraceMs: FIXTURE_CLOSE_GRACE_MS, pageUrl: 'https://work.avarok.net/', memory: { initialPages: 1, maxPages: 16 }, policy: STANDARD_HOST_POLICY,
+    closeGraceMs: FIXTURE_CLOSE_GRACE_MS, pageUrl: 'https://work.avarok.net/', memory: { initialPages: 1, maxPages: 16 }, policy: STANDARD_HOST_POLICY, limits: { topics: null, p2p: null },
     ports: { nodes: fakeNodes(rec), storage: fakeStorage(rec) }, clock: realClock, slots: new InstanceSlots(8), spawn: rig.spawn,
   });
   if (!l.ok) throw new Error('no slot');

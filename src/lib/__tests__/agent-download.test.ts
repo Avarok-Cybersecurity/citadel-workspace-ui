@@ -18,6 +18,8 @@ const AGENT_MAIN: string = join(
   process.cwd(), '..', 'citadel-workspace-internal-service', 'src', 'main.rs',
 );
 
+/** What the packaged agents start with: the one source the launchers render from. */
+
 const nav: (platform: string, userAgent: string, maxTouchPoints?: number) => Navigator = (platform: string, userAgent: string, maxTouchPoints = 0): Navigator =>
   ({ platform, userAgent, maxTouchPoints }) as unknown as Navigator;
 

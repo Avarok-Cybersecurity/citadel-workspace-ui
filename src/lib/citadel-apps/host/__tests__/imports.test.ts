@@ -47,7 +47,7 @@ async function instantiate(granted: readonly Capability[], ports: (rec: Recorder
   const grant: ReadonlySet<Capability> = new Set<Capability>(granted);
   const dispatcher: Dispatcher = new Dispatcher({
     granted: new Set<Capability>(['canvas', 'ui', 'events', 'navigate', 'log', ...granted]), policy: STANDARD_HOST_POLICY,
-    clock: new ManualClock(), invoker: directInvoker(ports(rec)), router: new IhttpRouter('a.b', STANDARD_HOST_POLICY.ihttp), pageUrl: 'https://work.avarok.net/', routerActions: (): void => {},
+    clock: new ManualClock(), invoker: directInvoker(ports(rec)), router: new IhttpRouter('a.b', STANDARD_HOST_POLICY.ihttp, null), pageUrl: 'https://work.avarok.net/', routerActions: (): void => {}, topics: null,
   });
   const clock: ManualClock = new ManualClock();
   const sink: CallSink = { call: (g, o, r) => dispatcher.call(g, o, r), replies: new ReplyTable(8, STANDARD_HOST_POLICY.replyTtlMs, clock.now), replyReady: (h: number) => ready.push(h), gate: () => null };

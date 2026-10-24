@@ -16,7 +16,7 @@ const BUDGET: number = STANDARD_HOST_POLICY.computeBudgetMs;
 function launch(clock: ManualClock, s: Scripted, slots: InstanceSlots = new InstanceSlots(8)): AppInstance {
   const l: Launch = launchAppInstance({
     appId: 'a.b', module: {} as WebAssembly.Module, granted: new Set<Capability>(), memory: { initialPages: 1, maxPages: 1 },
-    context: fixtureContext([], FIXTURE_CLOSE_GRACE_MS), closeGraceMs: FIXTURE_CLOSE_GRACE_MS, pageUrl: 'https://work.avarok.net/', policy: STANDARD_HOST_POLICY, ports: {}, clock, slots, spawn: () => s.channel,
+    context: fixtureContext([], FIXTURE_CLOSE_GRACE_MS), closeGraceMs: FIXTURE_CLOSE_GRACE_MS, pageUrl: 'https://work.avarok.net/', policy: STANDARD_HOST_POLICY, limits: { topics: null, p2p: null }, ports: {}, clock, slots, spawn: () => s.channel,
   });
   if (!l.ok) throw new Error('no slot');
   return l.instance;

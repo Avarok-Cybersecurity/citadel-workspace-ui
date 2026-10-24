@@ -15,7 +15,7 @@ import type { IhttpFrame } from '../sdk/generated/IhttpFrame';
 import type { LifecycleStep } from '../sdk/generated/LifecycleStep';
 import type { LogLevel } from '../sdk/generated/LogLevel';
 import type { Transport } from '../sdk/generated/Transport';
-import type { HostPolicy } from './limits';
+import type { HostPolicy, InstanceLimits } from './limits';
 import type { PortAnswer } from './ports';
 
 export interface LoadMessage {
@@ -28,6 +28,7 @@ export interface LoadMessage {
   /** CBOR AppContext, handed to app_init. */
   readonly context: Uint8Array;
   readonly policy: HostPolicy;
+  readonly limits: InstanceLimits;
   /** The page's URL, which internal links are classified against. */
   readonly pageUrl: string;
   /** Whether the page injected a LogPort: log answers at once in the worker, so it must know. */

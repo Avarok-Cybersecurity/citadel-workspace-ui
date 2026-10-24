@@ -14,6 +14,7 @@ import { agentKvPort, splitStorage } from './agent-kv-port';
 import { agentFetchPort } from './agent-fetch-port';
 import { relayIhttpPort, type RelayIhttpPort } from './ihttp-relay-port';
 import { serverBlob, serverFiles, serverNet, serverStorage, type HostCaller } from './kernel-call-ports';
+import type { PlaneSeat } from './install-plane-registry';
 import { peerPorts, type PeerPorts, type PeerWorld } from './peer-ports';
 
 /** The peer world (transport, agent and its session, pushes, clock, policy, ...) and the rest the ports need. */
@@ -38,9 +39,9 @@ export interface ZonePorts {
   readonly ui: UiPort;
 }
 
-/** `instance`: this running instance's name, which its advertisement is held under. */
+/** `instance`: this running instance's name, which its advertisement is held under; `seat`: its place on the page. */
 /** `limits`: the release's manifest limits (its topics' sizes and rates). */
-export function hostPortsFor(install: AppInstall, limits: AppLimits, instance: string, scopeKey: string, zone: ZonePorts, w: PortWorld): BoundPorts {
+export function hostPortsFor(install: AppInstall, limits: AppLimits, instance: string, scopeKey: string, zone: ZonePorts, seat: PlaneSeat, w: PortWorld): BoundPorts {
   const call: HostCaller = (bytes: Uint8Array) => callHost(w.transport, install.id, bytes);
   const session: { readonly cid: bigint } | null = w.agentSession;
   const local: StoragePort | null = session === null ? null : agentKvPort(w.agent, { cid: session.cid, appId: install.app_id, scopeKey, timeoutMs: w.policy.portTimeoutMs });
@@ -49,12 +50,12 @@ export function hostPortsFor(install: AppInstall, limits: AppLimits, instance: s
     grant: { hosts: install.details.host_network_hosts, private: install.granted.includes('net.host.private') },
   });
   const ihttp: RelayIhttpPort = relayIhttpPort({
-    installId: install.id, pushes: w.pushes, sha256Hex: w.sha256Hex, nowMs: w.nowMs, every: w.every,
+    installId: install.id, seat, pushes: w.pushes, sha256Hex: w.sha256Hex, nowMs: w.nowMs, every: w.every,
     send: (to, frame) => ihttpSend(w.transport, install.id, to, frame),
     advertise: (digest, untilMs) => advertiseService(w.transport, install.id, instance, digest, untilMs),
     withdraw: () => withdrawService(w.transport, install.id, instance),
   });
-  const peer: PeerPorts = peerPorts(install, scopeKey, limits, ihttp, w);
+  const peer: PeerPorts = peerPorts(install, scopeKey, limits, ihttp, seat, w);
   const ports: HostPorts = {
     storage: splitStorage(serverStorage(call), local), blob: serverBlob(call), storeFiles: serverFiles(call),
     serverNet: serverNet(call), ihttp: peer.ihttp, events: zone.events, ui: zone.ui, log: w.log,
@@ -64,9 +65,10 @@ export function hostPortsFor(install: AppInstall, limits: AppLimits, instance: s
     ports,
     held: peer.held,
     withdraw: ihttp.withdraw,
-    stop: (): Promise<void> => {
+    stop: async (): Promise<void> => {
       hostNet?.closeAll();
-      return peer.stop();
+      await peer.stop();
+      seat.detach();
     },
   };
 }

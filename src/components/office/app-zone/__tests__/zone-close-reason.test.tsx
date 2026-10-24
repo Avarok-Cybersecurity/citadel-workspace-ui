@@ -9,7 +9,7 @@ import type { AppInstall } from 'citadel-workspace-client-ts';
 import { AppZone } from '../AppZone';
 import { AppZoneContext, zoneClaims, type AppZoneEnvironment, type AppZoneHandle, type AppZoneMount, type AppZoneRuntime, type ZoneHost } from '../app-zone-environment';
 import { closeReasonFor } from '../zone-close-reason';
-import type { ZoneView } from '../zone-state';
+import type { ZoneFacts, ZoneView } from '../zone-state';
 import { listedApps, type ListedApp } from '@/lib/citadel-apps/listing-model';
 import { recordDisabledForMe } from '@/lib/citadel-apps/disabled-for-me';
 import type { CloseReason } from '@/lib/citadel-apps/sdk/generated/CloseReason';
@@ -18,18 +18,39 @@ import { installOf, listingOf } from '@/test/app-manifests';
 const KANBAN: ListedApp = listedApps([listingOf({ id: 'com.acme.kanban', name: 'Kanban', version: '1.4.0' })])[0];
 const RUNNING: AppInstall = installOf('com.acme.kanban', 'Workspace', { id: 'i1' });
 
+/** What the zone decided from: `installs` as listed, everything else this page's. */
+const facts = (installs: ZoneFacts['installs'], disabled: readonly string[] = []): ZoneFacts => ({
+  listing: KANBAN, installs, me: 'alice', nodeId: 'n-2', ancestors: ['workspace-root'],
+  disabledForMe: new Set(disabled), peerForMe: new Map(), mayInstall: 'yes',
+});
+
 describe('the close reason for what a zone shows next', () => {
   it('names the install gone, the person no longer reached, another release, or just the zone going', () => {
     const cases: [ZoneView, CloseReason][] = [
       [{ kind: 'ready', app: KANBAN, install: RUNNING }, 'unmount'],
       [{ kind: 'ready', app: KANBAN, install: { ...RUNNING, manifest_sha256: '2'.repeat(64) } }, 'version_update'],
-      [{ kind: 'ready', app: KANBAN, install: { ...RUNNING, id: 'i2', manifest_sha256: '2'.repeat(64) } }, 'unmount'],
       [{ kind: 'loading' }, 'unmount'], [{ kind: 'not-available' }, 'unmount'],
       [{ kind: 'install', name: 'Kanban' }, 'uninstall'], [{ kind: 'ask-admin', name: 'Kanban' }, 'uninstall'],
       [{ kind: 'disabled', name: 'Kanban', install: RUNNING }, 'access_revoked'], [{ kind: 'suspended', name: 'Kanban' }, 'access_revoked'],
       [{ kind: 'needs-consent', name: 'Kanban', version: '2.0.0' }, 'version_update'], [{ kind: 'outdated', name: 'Kanban', installed: '1.0.0' }, 'version_update'],
     ];
-    for (const [next, want] of cases) expect([next.kind, closeReasonFor(RUNNING, next)]).toEqual([next.kind, want]);
+    // The list not yet known: the view is all there is.
+    for (const [view, want] of cases) expect([view.kind, closeReasonFor(RUNNING, { view, facts: facts('loading') })]).toEqual([view.kind, want]);
+  });
+
+  it('with another install of the app on the page, the install list decides, not the view it leaves behind', () => {
+    const OTHER: AppInstall = installOf('com.acme.kanban', { SelfOnly: 'alice' }, { id: 'i2' });
+    const ready = (install: AppInstall): ZoneView => ({ kind: 'ready', app: KANBAN, install });
+    const cases: [string, ZoneView, ZoneFacts, CloseReason][] = [
+      ['uninstalled, another install ready', ready(OTHER), facts([OTHER]), 'uninstall'],
+      ['uninstalled, the other disabled', { kind: 'disabled', name: 'Kanban', install: OTHER }, facts([OTHER], ['i2']), 'uninstall'],
+      ['disabled for me, another install ready', ready(OTHER), facts([RUNNING, OTHER], ['i1']), 'access_revoked'],
+      ['no longer covering me', ready(OTHER), facts([{ ...RUNNING, scope: { Users: ['bob'] } }, OTHER]), 'access_revoked'],
+      ['suspended', ready(OTHER), facts([{ ...RUNNING, state: { Suspended: { reason: 'admin' } } }, OTHER]), 'access_revoked'],
+      ['still here, another release', ready({ ...RUNNING, manifest_sha256: '2'.repeat(64) }), facts([RUNNING, OTHER]), 'version_update'],
+      ['still here, the zone just goes', { kind: 'loading' }, facts([RUNNING, OTHER]), 'unmount'],
+    ];
+    for (const [what, view, f, want] of cases) expect([what, closeReasonFor(RUNNING, { view, facts: f })]).toEqual([what, want]);
   });
 });
 

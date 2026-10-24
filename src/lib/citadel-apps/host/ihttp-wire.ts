@@ -5,8 +5,8 @@
  * them, held to the kernel's encodings by the shared runtime-wire fixture.
  *
  * Out: methods in the wire's spelling, header names lowercased (the wire takes no other; HTTP
- * names are case-blind), an empty query as none, and the host's cancel reasons narrowed to the
- * wire's closed set, so no free text crosses from one app to another. In: the reverse, with a
+ * names are case-blind), an empty query as none, and a cancel reason narrowed to the wire's closed
+ * set (ihttp-reasons.ts), so no free text crosses from one app to another. In: the reverse, with a
  * wire reason in snake case. A frame that is not a wire frame is null.
  */
 import type { FrameKind } from '../sdk/generated/FrameKind';
@@ -19,6 +19,7 @@ import type { IhttpFrame as WireFrame } from '../sdk/wire-generated/IhttpFrame';
 import type { IhttpFrameKind } from '../sdk/wire-generated/IhttpFrameKind';
 import type { IhttpHeader } from '../sdk/wire-generated/IhttpHeader';
 import type { IhttpMethod } from '../sdk/wire-generated/IhttpMethod';
+import { WIRE_WORDS, wireReason } from './ihttp-reasons';
 import { array, bytes, literal, nullable, str, struct, tagged, u16, u32, u64, u8, type Parsed, type Schema } from './schema';
 
 type WireRequestHead = Extract<IhttpFrameKind, { RequestHead: unknown }>['RequestHead'];
@@ -29,23 +30,6 @@ export const RELAY_STREAM_BIT: bigint = 1n << 63n;
 
 const METHODS: Readonly<Record<HttpMethod, IhttpMethod>> = { GET: 'Get', POST: 'Post', PUT: 'Put', DELETE: 'Delete', PATCH: 'Patch', HEAD: 'Head' };
 const SDK_METHOD: ReadonlyMap<IhttpMethod, HttpMethod> = new Map((Object.entries(METHODS) as [HttpMethod, IhttpMethod][]).map(([s, w]) => [w, s]));
-
-const REASONS: Readonly<Record<CancelReason, string>> = {
-  Caller: 'caller', Timeout: 'timeout', TooLarge: 'too_large', Busy: 'busy',
-  RateLimited: 'rate_limited', NoRoute: 'no_route', Refused: 'refused', Failed: 'failed', Closed: 'closed',
-};
-const TOO_LARGE: ReadonlySet<string> = new Set<string>([
-  'too_large', 'body_longer_than_declared', 'chunk_too_large', 'request_body_too_large', 'response_body_too_large',
-  'path_too_long', 'too_many_headers', 'header_too_large',
-]);
-const NARROWED: ReadonlyMap<string, CancelReason> = new Map<string, CancelReason>([
-  ...(Object.entries(REASONS) as [CancelReason, string][]).map(([w, s]): [string, CancelReason] => [s, w]),
-  ['rate', 'RateLimited'], ['unrouted', 'NoRoute'], ['caller_concurrency', 'Busy'], ['server_concurrency', 'Busy'],
-]);
-
-function reasonOut(reason: string): CancelReason {
-  return TOO_LARGE.has(reason) ? 'TooLarge' : NARROWED.get(reason) ?? 'Refused';
-}
 
 const headersOut = (h: readonly (readonly [string, string])[]): IhttpHeader[] => h.map(([name, value]) => ({ name: name.toLowerCase(), value }));
 const headersIn = (h: readonly IhttpHeader[]): [string, string][] => h.map((x: IhttpHeader): [string, string] => [x.name, x.value]);
@@ -64,7 +48,7 @@ function kindOut(kind: FrameKind): IhttpFrameKind {
     return { ResponseHead: { status: h.status, headers: headersOut(h.headers), body_len: h.body_len } };
   }
   if ('Body' in kind) return { Body: { bytes: kind.Body.bytes } };
-  if ('Cancel' in kind) return { Cancel: { reason: reasonOut(kind.Cancel.reason) } };
+  if ('Cancel' in kind) return { Cancel: { reason: wireReason(kind.Cancel.reason) } };
   return { Credit: { n: kind.Credit.n } };
 }
 
@@ -72,7 +56,7 @@ export const toWireFrame = (f: IhttpFrame): WireFrame => ({ v: f.v, stream: f.st
 
 const header: Schema<IhttpHeader> = struct<IhttpHeader>({ name: str, value: str });
 const method: Schema<IhttpMethod> = literal('Get', 'Post', 'Put', 'Delete', 'Patch', 'Head');
-const reason: Schema<CancelReason> = literal(...(Object.keys(REASONS) as CancelReason[]));
+const reason: Schema<CancelReason> = literal(...(Object.keys(WIRE_WORDS) as CancelReason[]));
 
 const wireKind: Schema<IhttpFrameKind> = tagged<IhttpFrameKind>(['End'], {
   RequestHead: struct({ method, path: str, query: nullable(str), headers: array(header), body_len: nullable(u64), app_id: str, scope_key: str }),
@@ -98,7 +82,7 @@ function kindIn(kind: IhttpFrameKind): FrameKind {
     return { ResponseHead: { status: h.status, headers: headersIn(h.headers), body_len: h.body_len } };
   }
   if ('Body' in kind) return { Body: { bytes: kind.Body.bytes } };
-  if ('Cancel' in kind) return { Cancel: { reason: REASONS[kind.Cancel.reason] } };
+  if ('Cancel' in kind) return { Cancel: { reason: WIRE_WORDS[kind.Cancel.reason] } };
   return { Credit: { n: kind.Credit.n } };
 }
 

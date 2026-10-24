@@ -7,19 +7,21 @@
  * are CBOR of the wire's `IhttpFrame` (citadel-ihttp-types) both ways, translated from and to
  * the app's shapes by host/ihttp-wire.ts, so there is no textual HTTP to smuggle through.
  *
- * The P2P path (the agent's `IhttpSend` to a peer CID) is preferred by the design and not used
- * here yet; every frame is `via: relay`.
+ * Every frame here is `via: relay`. Which instance of the install takes a frame, and under which
+ * id a call goes out and comes back, is the page's (install-plane-registry.ts).
  */
 import type { IhttpAddress } from 'citadel-workspace-client-ts';
 import type { AppsResult } from '@/lib/workspace-service/apps-operations';
 import { readAppsAnswer, type AppsAnswer } from '../wire/apps-answer';
 import { decodeCbor, encodeCbor, type Decoded } from '../host/cbor';
-import { fromWireFrame, toWireFrame } from '../host/ihttp-wire';
+import { fromWireFrame, RELAY_STREAM_BIT, toWireFrame } from '../host/ihttp-wire';
+import { addressApp } from '../host/ihttp-called';
 import type { IhttpPort, InboundIhttpFrame, PortAnswer } from '../host/ports';
 import type { Address } from '../sdk/generated/Address';
 import type { Caller } from '../sdk/generated/Caller';
 import type { IhttpFrame } from '../sdk/generated/IhttpFrame';
 import type { Route } from '../sdk/generated/Route';
+import type { PlaneSeat } from './install-plane-registry';
 import { refusedFor } from './kernel-call-ports';
 
 /** An advertisement lives this long; it is renewed every ADVERTISE_EVERY_MS while mounted. */
@@ -28,6 +30,8 @@ export const ADVERTISE_EVERY_MS: number = 60_000;
 
 export interface RelayDeps {
   readonly installId: string;
+  /** This instance's place among the install's instances on the page (install-plane-registry.ts). */
+  readonly seat: PlaneSeat;
   readonly send: (to: IhttpAddress, frame: Uint8Array) => Promise<AppsResult<null>>;
   /** AdvertiseService and WithdrawService for this instance of the install. */
   readonly advertise: (routesDigest: string, untilMs: bigint) => Promise<AppsResult<bigint>>;
@@ -83,9 +87,11 @@ export function relayIhttpPort(d: RelayDeps): RelayIhttpPort {
       serving = serve(routes);
       return serving;
     },
-    IhttpCall: async ({ to, frame }): Promise<PortAnswer<null>> => sent(await d.send(addressFor(to), wire(frame))),
-    respond: async (peer: Caller, frame: IhttpFrame): Promise<PortAnswer<null>> =>
-      sent(await d.send({ User: { app_id: peer.app_id, username: peer.username } }, wire(frame))),
+    IhttpCall: async ({ to, frame }): Promise<PortAnswer<null>> => sent(await d.send(addressFor(to), wire(d.seat.callOut(addressApp(to), frame)))),
+    respond: async (peer: Caller, frame: IhttpFrame): Promise<PortAnswer<null>> => {
+      if (frame.kind === 'End' || (typeof frame.kind === 'object' && 'Cancel' in frame.kind)) d.seat.servedEnded(peer, frame.stream);
+      return sent(await d.send({ User: { app_id: peer.app_id, username: peer.username } }, wire(frame)));
+    },
     onFrame: (listener: (inbound: InboundIhttpFrame) => void): (() => void) => d.pushes((payload: unknown): void => {
       const answer: AppsAnswer = readAppsAnswer(payload);
       if (answer.kind !== 'ihttp-frame' || answer.toInstallId !== d.installId) return;
@@ -93,7 +99,13 @@ export function relayIhttpPort(d: RelayDeps): RelayIhttpPort {
       const frame: IhttpFrame | null = decoded.ok ? fromWireFrame(decoded.value) : null;
       if (frame === null) return;
       const from: Caller = { username: answer.from.username, cid: answer.from.cid, app_id: answer.from.app_id, install_id: answer.from.install_id, via: 'relay' };
-      listener({ from, frame });
+      // The relay numbers the streams it delivers to a server from its bit; a caller's own ids never carry it.
+      if ((frame.stream & RELAY_STREAM_BIT) !== 0n || (typeof frame.kind === 'object' && 'RequestHead' in frame.kind)) {
+        if (d.seat.takesServed(from, frame)) listener({ from, frame });
+        return;
+      }
+      const mine: IhttpFrame | null = d.seat.callIn(from.app_id, frame);
+      if (mine !== null) listener({ from, frame: mine });
     }),
     withdraw: async (): Promise<AppsResult<number> | null> => {
       withdrawn = true;

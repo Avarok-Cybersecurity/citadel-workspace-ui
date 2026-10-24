@@ -14,6 +14,7 @@ import { encodeGroupMessage } from '../group-message-codec';
 import { toGroupEvents, type GroupEvent } from '../group-events';
 import { withoutAppTopics } from '../app-topic-filter';
 import { appTopicGroups, markTopicGroup, markTopicRequest } from '../app-topic-groups';
+import { InstallPlaneRegistry } from '@/lib/citadel-apps/runtime/install-plane-registry';
 
 const ME: bigint = 111n;
 const SUCCESS: Readonly<Record<string, string>> = { GroupRequestJoin: 'GroupRequestJoinSuccess', GroupLeave: 'GroupLeaveSuccess' };
@@ -31,7 +32,8 @@ function joinedTopic(groupId: string): OwnedTopicPort {
   };
   const never = async (): Promise<PeerAuthorization> => ({ ok: false, why: 'NoHost' });
   return topicPort({
-    cid: ME, agent, topics: ['pool'], limits: { max_msg_bytes: 64, max_msgs_per_s: 2 }, nowMs: (): number => 0, timeoutMs: 1000,
+    seat: new InstallPlaneRegistry().attach('inst-1', 'net.avarok.compute-pool'),
+    cid: ME, agent, topics: ['pool'], limits: { max_msg_bytes: 64, max_msgs_per_s: 2 }, timeoutMs: 1000,
     authority: new PeerAuthority(never, (): number => 0, 30), topicGroup: async (): Promise<string> => groupId,
     record: { group: markTopicGroup, request: markTopicRequest }, refused: (): void => undefined,
   });

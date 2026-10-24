@@ -25,6 +25,7 @@ import type { IhttpFrame } from '../../sdk/generated/IhttpFrame';
 import type { Route } from '../../sdk/generated/Route';
 import { ADVERTISE_EVERY_MS, ADVERTISE_TTL_MS, relayIhttpPort, routesDigest, type RelayDeps } from '../ihttp-relay-port';
 import { refusedFor, serverBlob, serverNet, serverStorage, type HostCaller } from '../kernel-call-ports';
+import { InstallPlaneRegistry } from '../install-plane-registry';
 
 type PortTable = Record<string, Record<string, (a: unknown) => Promise<PortAnswer>>>;
 type Sender = Omit<InboundIhttpFrame['from'], 'via'>;
@@ -96,7 +97,7 @@ function relay(): { deps: RelayDeps; sent: [IhttpAddress, string][]; push: (a: u
   const sent: [IhttpAddress, string][] = [];
   let listener: ((a: unknown) => void) | null = null;
   const deps: RelayDeps = {
-    installId: 'inst-b', sha256Hex: sha, nowMs: () => 0, every: () => () => {},
+    installId: 'inst-b', seat: new InstallPlaneRegistry().attach('inst-b', 'com.acme.kanban'), sha256Hex: sha, nowMs: () => 0, every: () => () => {},
     send: async (to, frame) => { sent.push([to, hexOf(frame)]); return { ok: true, value: null }; },
     advertise: async (_d, until) => ({ ok: true, value: until }),
     // Not exercised here: this file pins the frame bytes; withdrawal is server-and-relay-ports.test.ts's.
@@ -135,7 +136,7 @@ describe('(c) an internal-HTTP frame between the app’s shapes and the wire’s
 describe('(d, e) the relay’s rules', () => {
   it('a caller may not choose a stream id with the relay’s bit; the page refuses it as the kernel would', () => {
     expect(RELAY_STREAM_BIT.toString()).toBe(fixture.relay.stream_bit);
-    const called: CalledStreams = new CalledStreams(STANDARD_HOST_POLICY.ihttp);
+    const called: CalledStreams = new CalledStreams(STANDARD_HOST_POLICY.ihttp, null);
     const head = (stream: bigint): IhttpFrame => ({ v: 1, stream, kind: { RequestHead: { method: 'GET', path: '/a', query: '', headers: [], body_len: 0n, app_id: 'com.acme.kanban', scope_key: 'workspace' } } });
     const to: Address = { user: { app_id: 'com.acme.kanban', username: 'bob' } };
     expect(called.outbound(to, head(RELAY_STREAM_BIT | 1n), 'relay', 0, false)).toEqual({ ok: false, refused: { policy: 'stream_id' }, actions: [] });
