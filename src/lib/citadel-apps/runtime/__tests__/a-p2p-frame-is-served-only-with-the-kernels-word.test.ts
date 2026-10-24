@@ -33,11 +33,16 @@ interface World {
   sendFailure: { value: string | null };
   /** What the page logged about each refusal: side and why. */
   refusals: string[];
+  /** While true, the agent holds its answers to IhttpSend until `release` (one each). */
+  hold: { value: boolean };
+  release: () => void;
 }
 
 function world(): World {
   const handlers: Set<(m: unknown) => void> = new Set();
-  const w: Partial<World> = { delivered: [], sent: [], asked: [], allow: { value: true }, now: { ms: 0 }, sendFailure: { value: null }, refusals: [] };
+  const w: Partial<World> = { delivered: [], sent: [], asked: [], allow: { value: true }, now: { ms: 0 }, sendFailure: { value: null }, refusals: [], hold: { value: false } };
+  const held: (() => void)[] = [];
+  w.release = (): void => { held.shift()?.(); };
   let n: number = 0;
   const agent: AgentLink = {
     newRequestId: () => `req-${++n}`,
@@ -49,7 +54,8 @@ function world(): World {
       const answer: Record<string, unknown> = w.sendFailure!.value === null
         ? { IhttpSendAccepted: { cid: ME, peer_cid: s.peer_cid, request_id: s.request_id } }
         : { IhttpSendFailure: { cid: ME, peer_cid: s.peer_cid, request_id: s.request_id, refusal: w.sendFailure!.value } };
-      queueMicrotask(() => handlers.forEach((h) => h(answer)));
+      const answerIt = (): void => handlers.forEach((h) => h(answer));
+      if (w.hold!.value) held.push(answerIt); else queueMicrotask(answerIt);
     },
   };
   const ask = async (peerCid: bigint, direction: PeerDirection): Promise<PeerAuthorization> => {
@@ -129,6 +135,34 @@ describe('serving over P2P', () => {
     const w: World = await serving();
     await w.push(999n, ALICE, head(1n));
     expect([w.asked.length, w.delivered.length]).toEqual([0, 0]);
+  });
+});
+
+describe('the order frames leave in', () => {
+  it('a response’s frames go out one at a time, each after the agent took the last (control: answered, the next goes)', async () => {
+    // The agent runs each IhttpSend in its own task, so frames sent together can reach the peer out
+    // of order: an End ahead of its last Body cut the body short (Compute Pool, "unreadable answer").
+    const w: World = await serving();
+    await w.push(ME, ALICE, head(1n));
+    const from: InboundIhttpFrame['from'] = w.delivered[0].from;
+    w.hold.value = true;
+    const answers: Promise<unknown>[] = [
+      Promise.resolve(w.port.respond(from, { v: 1, stream: 1n, kind: { ResponseHead: { status: 200, headers: [], body_len: 1n } } })),
+      Promise.resolve(w.port.respond(from, body(1n))),
+      Promise.resolve(w.port.respond(from, { v: 1, stream: 1n, kind: 'End' })),
+    ];
+    const kinds = (): string[] => w.sent.map((s) => (typeof s.frame.kind === 'string' ? s.frame.kind : Object.keys(s.frame.kind)[0]));
+    const tick = async (): Promise<void> => { await new Promise<void>((r) => setTimeout(r, 0)); };
+    await tick();
+    expect(kinds()).toEqual(['ResponseHead']);
+    w.release();
+    await tick();
+    expect(kinds()).toEqual(['ResponseHead', 'Body']);
+    w.release();
+    await tick();
+    w.release();
+    await Promise.all(answers);
+    expect(kinds()).toEqual(['ResponseHead', 'Body', 'End']);
   });
 });
 

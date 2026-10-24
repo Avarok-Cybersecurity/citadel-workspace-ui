@@ -86,7 +86,21 @@ export function p2pIhttpPort(d: P2pDeps): IhttpPort {
   /** Inbound frames, one peer at a time and in order, though an authorisation is awaited in between. */
   const chains: Map<bigint, Promise<void>> = new Map<bigint, Promise<void>>();
 
-  const send = async (peerCid: bigint, f: IhttpFrame): Promise<PortAnswer<null>> => {
+  /**
+   * Outbound frames, one peer at a time and in order: each IhttpSend goes out only once the agent
+   * has answered the one before it. The agent handles every request in a task of its own, so two
+   * sent together reach the peer's ILM in whichever order the tasks ran; a response's End that
+   * overtook its last Body ended the stream with part of the body, and the caller could not read it.
+   */
+  const sending: Map<bigint, Promise<PortAnswer<null>>> = new Map<bigint, Promise<PortAnswer<null>>>();
+  const send = (peerCid: bigint, f: IhttpFrame): Promise<PortAnswer<null>> => {
+    const prior: Promise<unknown> = sending.get(peerCid) ?? Promise.resolve();
+    const sent: Promise<PortAnswer<null>> = prior.then(() => sendNow(peerCid, f));
+    sending.set(peerCid, sent);
+    void sent.then((): void => { if (sending.get(peerCid) === sent) sending.delete(peerCid); });
+    return sent;
+  };
+  const sendNow = async (peerCid: bigint, f: IhttpFrame): Promise<PortAnswer<null>> => {
     const bytes: number[] = Array.from(encodeCbor(toWireFrame(f)));
     const out: AgentOutcome<PortAnswer<null>> = await agentAsk<PortAnswer<null>>(d.agent,
       (request_id: string): Json => ({ IhttpSend: { request_id, cid: d.cid, peer_cid: peerCid, frame: bytes } }),
