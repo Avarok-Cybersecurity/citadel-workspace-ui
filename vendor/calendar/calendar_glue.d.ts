@@ -29,6 +29,10 @@ export class CalendarEngine {
     resolve(zone: any, local: any): any;
 }
 
+export function addDays(date: any, days: number): any;
+
+export function addMonths(date: any, months: number): any;
+
 export function collectiveSlots(per_host: any): any;
 
 export function decodeAvailability(bytes: Uint8Array): any;
@@ -65,6 +69,8 @@ export function exportIcs(events: any): any;
 
 export function fanOutPlan(event: any, subtree: any): any;
 
+export function monthGrid(year: number, month: number): any;
+
 /**
  * The free hosts, in the order a booking tries them.
  */
@@ -79,11 +85,17 @@ export function shownUpAt(event: any, reader_chain: any): any;
 
 export function upPullTargets(descendants: any): any;
 
+export function weekOf(date: any): any;
+
+export function weekdayOf(date: any): any;
+
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly __wbg_calendarengine_free: (a: number, b: number) => void;
+    readonly addDays: (a: number, b: number, c: number) => void;
+    readonly addMonths: (a: number, b: number, c: number) => void;
     readonly calendarengine_civilOf: (a: number, b: number, c: number, d: number) => void;
     readonly calendarengine_expand: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly calendarengine_freeSlots: (a: number, b: number, c: number) => void;
@@ -107,10 +119,13 @@ export interface InitOutput {
     readonly encodeProjection: (a: number, b: number) => void;
     readonly exportIcs: (a: number, b: number) => void;
     readonly fanOutPlan: (a: number, b: number, c: number) => void;
+    readonly monthGrid: (a: number, b: number, c: number) => void;
     readonly rankHosts: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly reconcile: (a: number, b: number, c: number) => void;
     readonly shownUpAt: (a: number, b: number, c: number) => void;
     readonly upPullTargets: (a: number, b: number) => void;
+    readonly weekOf: (a: number, b: number) => void;
+    readonly weekdayOf: (a: number, b: number) => void;
     readonly __wbindgen_export: (a: number, b: number) => number;
     readonly __wbindgen_export2: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_export3: (a: number) => void;

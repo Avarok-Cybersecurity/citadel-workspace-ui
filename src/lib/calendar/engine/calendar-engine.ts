@@ -7,6 +7,7 @@
 import type { Availability } from '../generated/Availability';
 import type { Booking } from '../generated/Booking';
 import type { CalChange } from '../generated/CalChange';
+import type { CivilDate } from '../generated/CivilDate';
 import type { CivilDateTime } from '../generated/CivilDateTime';
 import type { Event } from '../generated/Event';
 import type { EventType } from '../generated/EventType';
@@ -25,6 +26,7 @@ import type { Resolution } from '../generated/Resolution';
 import type { SlotRequest } from '../generated/SlotRequest';
 import type { Strategy } from '../generated/Strategy';
 import type { UpPull } from '../generated/UpPull';
+import type { Weekday } from '../generated/Weekday';
 import type { Write } from '../generated/Write';
 import type { CalendarGlue } from './load-calendar-wasm';
 import type { OffsetAt } from './intl-offsets';
@@ -87,6 +89,24 @@ export class CalendarEngine {
   }
   importIcs(text: string, floatingZone: string): Imported {
     return call((): unknown => this.zoned.importIcs(text, floatingZone));
+  }
+  addDays(date: CivilDate, days: number): CivilDate {
+    return call((): unknown => this.glue.addDays(date, days));
+  }
+  /** The day clamped to the target month's length. */
+  addMonths(date: CivilDate, months: number): CivilDate {
+    return call((): unknown => this.glue.addMonths(date, months));
+  }
+  /** Monday to Sunday. */
+  weekOf(date: CivilDate): CivilDate[] {
+    return call((): unknown => this.glue.weekOf(date));
+  }
+  /** Whole Monday-first weeks from the week of the 1st to the week of the last day. */
+  monthGrid(year: number, month: number): CivilDate[] {
+    return call((): unknown => this.glue.monthGrid(year, month));
+  }
+  weekdayOf(date: CivilDate): Weekday {
+    return call((): unknown => this.glue.weekdayOf(date));
   }
   rankHosts(strategy: Strategy, hosts: string[], free: string[], confirmed: HostCount[]): string[] {
     return call((): unknown => this.glue.rankHosts(strategy, hosts, free, confirmed));
