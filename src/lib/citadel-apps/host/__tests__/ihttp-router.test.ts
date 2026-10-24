@@ -9,6 +9,7 @@ import type { Caller } from '../../sdk/generated/Caller';
 import type { IhttpFrame } from '../../sdk/generated/IhttpFrame';
 import type { RequestHead } from '../../sdk/generated/RequestHead';
 import { STANDARD_IHTTP_LIMITS } from '../limits';
+import { RELAY_STREAM_BIT } from '../ihttp-wire';
 
 const APP: string = 'com.acme.kanban';
 const alice: Caller = { username: 'alice', cid: 11n, app_id: APP, install_id: 'i-1', via: 'p2p' };
@@ -70,6 +71,16 @@ describe('stream limits', () => {
     for (let i: number = 1; i <= 8; i++) expect(cancels(r.inbound(alice, req(BigInt(i), head(`/cards/${i}`)), i * 40))).toEqual([]);
     expect(cancels(r.inbound(alice, req(9n, head('/cards/9')), 400))).toEqual(['caller_concurrency']);
     expect(cancels(r.inbound(bob, req(1n, head('/cards/1')), 400))).toEqual([]);
+  });
+
+  it('a relayed call does not make the same caller’s later P2P ids a step back (control: on one plane they are)', () => {
+    // The relay numbers streams from RELAY_STREAM_BIT up; the caller numbers its own P2P ones from 1.
+    const r: IhttpRouter = router();
+    const viaRelay: Caller = { ...alice, via: 'relay' };
+    expect(cancels(r.inbound(viaRelay, req(RELAY_STREAM_BIT | 1n, head('/cards/1')), 0))).toEqual([]);
+    expect(cancels(r.inbound(alice, req(3n, head('/cards/2')), 0))).toEqual([]);
+    expect(cancels(r.inbound(viaRelay, req(RELAY_STREAM_BIT | 1n, head('/cards/3')), 0))).toEqual(['stream_id']);
+    expect(cancels(r.inbound(alice, req(2n, head('/cards/4')), 0))).toEqual(['stream_id']);
   });
 
   it('stream ids must increase per caller', () => {

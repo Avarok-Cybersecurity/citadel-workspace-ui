@@ -1,6 +1,7 @@
 /**
  * Streams this instance SERVES (a peer called it). Admits advertised routes under this app's id
- * only, monotonic stream ids per caller, 30 requests/s per caller, 8 live streams per caller and 64
+ * only, monotonic stream ids per caller and plane (the relay numbers its streams itself, from
+ * RELAY_STREAM_BIT up, so one relayed call made every later P2P id look like a step back), 30 requests/s per caller, 8 live streams per caller and 64
  * per server, head limits, the 4 MiB request and 16 MiB response bodies, 64 KiB chunks, credit
  * both ways (R4.4's initial credit is implicit on both sides) and deadlines.
  */
@@ -28,6 +29,8 @@ interface Served {
 }
 
 export const servedKey = (peer: Caller, id: bigint): string => `${peerKey(peer)}#${id.toString()}`;
+/** Each plane numbers a caller's streams on its own: the order to hold is per caller per plane. */
+const streamOrderKey = (peer: Caller): string => `${peerKey(peer)}/${peer.via}`;
 
 export class ServedStreams {
   routes: readonly RoutePattern[] = [];
@@ -54,9 +57,10 @@ export class ServedStreams {
 
   open(peer: Caller, id: bigint, head: RequestHead, now: number): RouterAction[] {
     const who: string = peerKey(peer);
-    const last: bigint | undefined = this.lastStream.get(who);
+    const order: string = streamOrderKey(peer);
+    const last: bigint | undefined = this.lastStream.get(order);
     if (last !== undefined && id <= last) return [cancel(peer, id, 'stream_id')];
-    this.lastStream.set(who, id);
+    this.lastStream.set(order, id);
     if (!this.bucket(who, now).take(now)) return [cancel(peer, id, 'rate')];
     if (head.app_id !== this.appId) return [cancel(peer, id, 'wrong_app')];
     const fromPeer: number = [...this.streams.values()].filter((s: Served) => peerKey(s.peer) === who).length;
