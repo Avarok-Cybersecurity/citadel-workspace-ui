@@ -10,7 +10,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { useConnectRequest, type ConnectRequest, type ConnectRequestDeps } from '../hooks/use-connect-request';
-import { P2PMessageInput } from '../P2PMessageInput';
+import { MessageInput } from '@/components/chat/pane/MessageInput';
+import { paneTestIds } from '@/components/chat/pane/pane-test-ids';
 import { BubbleFooter } from '../bubbles/BubbleFooter';
 import { AwaitingAcceptContext, awaitingAcceptPlaceholder } from '../bubbles/awaiting-accept';
 import type { P2PMessage } from '@/lib/p2p/p2p-types';
@@ -76,7 +77,9 @@ describe('the composer while they have not accepted', () => {
   it('still sends, and says the message will wait for them; files need the link', () => {
     const onSubmit: () => void = vi.fn();
     render(
-      <P2PMessageInput
+      <MessageInput
+        features={{ markdown: true, documents: true, files: true }}
+        testId={paneTestIds('peer').input['data-testid']}
         inputMessage="hello" messageType="text" showMarkdownPreview={false}
         paused={false} isSending={false} awaitingAcceptFrom="Bob"
         onInputChange={vi.fn()} onInputFocus={vi.fn()} onInputBlur={vi.fn()}

@@ -21,12 +21,15 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { P2PMessageInput } from '../P2PMessageInput';
+import { MessageInput } from '@/components/chat/pane/MessageInput';
+import { paneTestIds } from '@/components/chat/pane/pane-test-ids';
 
 describe('the direct-message composer', () => {
   it('carries the handle the specs type into', () => {
     render(
-      <P2PMessageInput
+      <MessageInput
+        features={{ markdown: true, documents: true, files: true }}
+        testId={paneTestIds('peer').input['data-testid']}
         inputMessage=""
         messageType="text"
         showMarkdownPreview={false}

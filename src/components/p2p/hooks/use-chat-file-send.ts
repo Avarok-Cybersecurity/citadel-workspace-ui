@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useP2PFileTransfer } from './useP2PFileTransfer';
 import { dropUnavailableReason } from '../drop-unavailable';
+import type { FilePort } from '@/lib/chat/transport/chat-transport';
 
 type FileTransfer = ReturnType<typeof useP2PFileTransfer>;
 
@@ -19,8 +20,8 @@ export interface ChatFileSend {
  * two doors to one send entry (`handleSendFile`). The hook has already toasted a failure, so the
  * drop only swallows the rejection, it does not hide it.
  */
-export function useChatFileSend(params: { peerCid: bigint; peerName: string; viewingDocument: boolean; paused: boolean }): ChatFileSend {
-  const fileTransfer: FileTransfer = useP2PFileTransfer({ peerCid: params.peerCid, peerName: params.peerName });
+export function useChatFileSend(params: { files: FilePort | null; recipient: string; viewingDocument: boolean; paused: boolean }): ChatFileSend {
+  const fileTransfer: FileTransfer = useP2PFileTransfer({ files: params.files, recipient: params.recipient });
   const [dialogOpen, setDialogOpen] = useState<boolean>(false);
   return {
     fileTransfer,

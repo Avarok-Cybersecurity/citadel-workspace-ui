@@ -21,6 +21,8 @@ import { eventEmitter } from '@/lib/event-emitter';
 import { SESSION_CLAIMED } from '@/lib/multi-instance/claim-relay';
 import { useP2PMessages } from '../useP2PMessages';
 import { installHostingAgent, settle, PEER, OWN, type HostingAgent } from './hosting-agent';
+import { peerTransportFor } from '@/components/p2p/__tests__/doubles/peer-transport';
+import type { ChatTransport } from '@/lib/chat/transport/chat-transport';
 
 // The OS delivery is a lazy chunk the service loads with the first notification
 // (os-delivery.ts). A cold first load can outlast `settle()`, so the one assertion
@@ -42,13 +44,22 @@ vi.mock('@/lib/notification-service/os-delivery', async (orig: () => Promise<typ
 const delivered = (): Promise<void[]> => Promise.all(deliveries);
 const OTHER: bigint = 88n;
 let agent: HostingAgent;
+/** One transport per peer for the whole test: a fresh one per render would resubscribe. */
+let transports: Map<bigint, ChatTransport>;
+const transportFor = (peer: bigint): ChatTransport => {
+  const known: ChatTransport | undefined = transports.get(peer);
+  if (known) return known;
+  const made: ChatTransport = peerTransportFor({ cid: peer, name: `peer ${peer.toString()}` }, OWN);
+  transports.set(peer, made);
+  return made;
+};
 const shown: string[] = [];
 
 function Chat({ peer }: { peer: bigint }): JSX.Element {
   const tab: MutableRefObject<string> = useRef<string>('messages');
   const pinnedRef: MutableRefObject<boolean> = useRef<boolean>(true);
   const viewport: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
-  useP2PMessages({ peerCid: peer, activeTabIdRef: tab, scrollRef: viewport, pinnedRef, onUnreadMessage: (): void => {} });
+  useP2PMessages({ transport: transportFor(peer), activeTabIdRef: tab, scrollRef: viewport, pinnedRef, onUnreadMessage: (): void => {} });
   return <div ref={viewport} />;
 }
 
@@ -78,6 +89,7 @@ async function arrives(from: bigint): Promise<string> {
 const notified = (id: string): boolean => notificationService.getNotifications().some((n) => n.sourceId === id);
 
 beforeEach(async () => {
+  transports = new Map<bigint, ChatTransport>();
   agent = await installHostingAgent();
   agent.setFocused(true);
   shown.length = 0;

@@ -22,9 +22,9 @@ import { join } from 'node:path';
 // behaviour tested there and in components/chat/__tests__/stick-to-bottom.test.tsx);
 // the chat is checked for calling it, so the wiring cannot be dropped.
 describe('the chat scroll', () => {
-  it('is the chat’s own: P2PChat runs the shared stick-to-bottom hook over its messages', () => {
-    const chat: string = readFileSync(join(process.cwd(), 'src/components/p2p/P2PChat.tsx'), 'utf8');
-    expect(chat).toMatch(/useStickToBottom\(scrollRef,\s*messages/);
+  it('is the chat’s own: the chat pane runs the shared stick-to-bottom hook over its messages', () => {
+    const chat: string = readFileSync(join(process.cwd(), 'src/components/chat/pane/use-chat-pane.ts'), 'utf8');
+    expect(chat).toMatch(/useStickToBottom\(scrollRef,\s*messages\.messages/);
   });
 
   it('still lands on the newest message when a conversation is first opened', () => {

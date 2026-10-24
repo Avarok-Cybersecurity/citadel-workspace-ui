@@ -18,9 +18,12 @@ import { useCatchUpRead } from '../use-catch-up-read';
 import { useStickToBottom, type StickToBottom } from '@/components/chat/use-stick-to-bottom';
 import { NewMessagesPill } from '@/components/chat/NewMessagesPill';
 import { installHostingAgent, settle, PEER, OWN, type HostingAgent } from './hosting-agent';
+import { peerTransportFor } from '@/components/p2p/__tests__/doubles/peer-transport';
+import type { ChatTransport } from '@/lib/chat/transport/chat-transport';
 
 const geometry: { scrollTop: number; scrollHeight: number; clientHeight: number } = { scrollTop: 600, scrollHeight: 1000, clientHeight: 400 };
 let agent: HostingAgent;
+let transport: ChatTransport;
 const onUnreadMessage: () => void = (): void => {};
 let deliver: ((m: P2PMessage) => void) | null;
 
@@ -28,8 +31,8 @@ function Chat({ hidden = false }: { hidden?: boolean }): JSX.Element {
   const viewport: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
   const tab: MutableRefObject<string> = useRef<string>('messages');
   const pinnedRef: MutableRefObject<boolean> = useRef<boolean>(true);
-  const { messages } = useP2PMessages({ peerCid: PEER, activeTabIdRef: tab, scrollRef: viewport, pinnedRef, onUnreadMessage });
-  const onCaughtUp: () => void = useCatchUpRead(PEER, tab, pinnedRef);
+  const { messages } = useP2PMessages({ transport, activeTabIdRef: tab, scrollRef: viewport, pinnedRef, onUnreadMessage });
+  const onCaughtUp: () => void = useCatchUpRead(transport.history, tab, pinnedRef);
   const stick: StickToBottom = useStickToBottom(viewport, messages, 'Messages with Alice', undefined, { pinnedRef, onCaughtUp });
   return (
     <div>
@@ -80,6 +83,7 @@ const scrollTo = async (top: number): Promise<void> => {
 
 beforeEach(async () => {
   agent = await installHostingAgent();
+  transport = peerTransportFor({ cid: PEER, name: 'Alice' }, OWN);
   agent.setFocused(true);
   geometry.scrollTop = 600; geometry.scrollHeight = 1000; geometry.clientHeight = 400;
   deliver = null;

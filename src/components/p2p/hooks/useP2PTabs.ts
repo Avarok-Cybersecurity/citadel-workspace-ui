@@ -7,17 +7,14 @@
  */
 
 import { useState, useEffect, useRef, useCallback, type MutableRefObject, type Dispatch, type SetStateAction } from 'react';
-import { eventEmitter } from '@/lib/event-emitter';
-import { P2PMessengerManager } from '@/lib/p2p';
 import { validateDocTitle, type TitleCheck } from '@/lib/live-document-store/doc-title';
 import { newChatDocumentId } from '@/lib/p2p/chat-document-id';
-import { CDOC_CHAT_COMMAND_EVENT, type CdocChatCommandEvent } from '@/types/cdoc-chat-sync';
 import { citadelApp, creatableIn } from '@/lib/citadel-apps/registry';
 import { ChatTab, MESSAGES_TAB, createLiveDocumentTab } from '../ChatTabBar';
 import type { NewChatDocumentInput } from '../LiveDocumentModal';
 import type { ChatDocumentOpening, ChatDocumentTarget, OpeningPorts } from '../chat-document/chat-document-opening';
-import type { ChatPeer } from '@/components/documents/chat-replica';
 import { useChatDocuments, type ChatDocuments } from '../chat-document/use-chat-documents';
+import type { DocumentPort } from '@/lib/chat/transport/chat-transport';
 
 /** A chat document made and open. `delivered` settles with its invitation's send; a failure there has a bubble. */
 export interface ChatDocumentMade {
@@ -45,13 +42,17 @@ function whenRecorded(send: (onRecorded: () => void) => Promise<unknown>): Invit
   return { recorded: Promise.race([recordedSignal, delivered]), delivered };
 }
 
-/** Kinds that change what the document shows: an awareness record or a hello does not light the tab. */
-const ACTIVITY_KINDS: ReadonlySet<string> = new Set<string>(['update', 'diff', 'rename']);
+/** Opens nothing: a conversation without a document port shows no document control to reach it. */
+const NO_OPENING: OpeningPorts = {
+  opener: (): never => { throw new Error('This conversation has no live documents'); },
+  migration: (): never => { throw new Error('This conversation has no live documents'); },
+  report: (): void => undefined,
+};
 
 interface UseP2PTabsOptions {
-  peer: ChatPeer;
+  /** Null where the conversation has no live documents. */
+  documents: DocumentPort | null;
   currentUserCid: bigint | undefined;
-  ports: OpeningPorts;
 }
 
 export interface P2PTabs {
@@ -70,25 +71,23 @@ export interface P2PTabs {
   retryDocument: (documentId: string) => void;
 }
 
-export function useP2PTabs({ peer, currentUserCid, ports }: UseP2PTabsOptions): P2PTabs {
+export function useP2PTabs({ documents: port, currentUserCid }: UseP2PTabsOptions): P2PTabs {
   const [tabs, setTabs] = useState<ChatTab[]>([MESSAGES_TAB]);
   const [activeTabId, setActiveTabId] = useState('messages');
   const [messagesHasUnread, setMessagesHasUnread] = useState(false);
   const [tabActivity, setTabActivity] = useState<Record<string, boolean>>({});
   const activeTabIdRef: MutableRefObject<string> = useRef(activeTabId);
   const tabsRef: MutableRefObject<ChatTab[]> = useRef(tabs);
-  const documents: ChatDocuments = useChatDocuments(ports);
-  const messenger: P2PMessengerManager = P2PMessengerManager.getInstance();
+  const documents: ChatDocuments = useChatDocuments(port?.opening ?? NO_OPENING);
 
   useEffect(() => { activeTabIdRef.current = activeTabId; }, [activeTabId]);
   useEffect(() => { tabsRef.current = tabs; }, [tabs]);
 
-  // A tab not in front lights up when the peer changes its document.
-  useEffect(() => eventEmitter.on<CdocChatCommandEvent>(CDOC_CHAT_COMMAND_EVENT, (event: CdocChatCommandEvent): void => {
-    if (event.peerCid !== peer.cid || !ACTIVITY_KINDS.has(event.payload.sync.kind)) return;
-    const tab: ChatTab | undefined = tabsRef.current.find(t => t.documentId === event.payload.doc_id);
+  // A tab not in front lights up when someone else changes its document.
+  useEffect(() => port?.onActivity((docId: string): void => {
+    const tab: ChatTab | undefined = tabsRef.current.find(t => t.documentId === docId);
     if (tab && activeTabIdRef.current !== tab.id) setTabActivity(prev => ({ ...prev, [tab.id]: true }));
-  }), [peer.cid]);
+  }), [port]);
 
   // The tab's title follows the document's, whoever renamed it.
   useEffect(() => {
@@ -131,14 +130,16 @@ export function useP2PTabs({ peer, currentUserCid, ports }: UseP2PTabsOptions): 
   }, [currentUserCid, openDocument]);
 
   const handleOpenDocument: (link: ChatDocumentLink) => void = useCallback(({ documentId, title, madeBy }: ChatDocumentLink): void => {
+    if (port === null) return;
     // Whoever sent the message that names the document made it: the creator's move is the document's.
-    showDocument({ docId: documentId, title, peer, creator: madeBy === currentUserCid ? 'self' : 'peer', seed: null });
-  }, [showDocument, peer, currentUserCid]);
+    showDocument({ docId: documentId, title, peer: port.replica, creator: madeBy === currentUserCid ? 'self' : 'peer', seed: null });
+  }, [showDocument, port, currentUserCid]);
 
   const handleCreateDocument: (input: NewChatDocumentInput) => Promise<ChatDocumentMade> = useCallback(async ({ app, title, initialContent }: NewChatDocumentInput): Promise<ChatDocumentMade> => {
     // Was `if (!currentUserCid) return;` — a success-shaped no-op that closed
     // the modal and cleared the compose box having created nothing.
     if (currentUserCid === undefined) throw new Error('Cannot create a document before the session has a CID');
+    if (port === null) throw new Error('This conversation has no live documents');
     // The picker offers only apps a chat can make; this refuses one a caller got around it with.
     if (!creatableIn(citadelApp(app), 'chat')) throw new Error(`${citadelApp(app).name} documents cannot be made in a chat yet.`);
     const checked: TitleCheck = validateDocTitle(title);
@@ -149,19 +150,14 @@ export function useP2PTabs({ peer, currentUserCid, ports }: UseP2PTabsOptions): 
     // document closed behind "Creating...", and closed for good on a delivery failure although
     // it existed. A text message stops waiting at the same point (useP2PCompose).
     const invitation: Invitation = whenRecorded((onRecorded: () => void): Promise<unknown> =>
-      messenger.sendMessage(peer.cid, `Created live document: ${checked.title}`, {
-        messageType: 'live_document',
-        documentId: docId,
-        documentTitle: checked.title,
-        onOptimisticAppend: onRecorded,
-      }));
+      port.invite({ docId, title: checked.title, onRecorded }));
     // No catch: a failure before the invitation exists is LiveDocumentModal's to render
     // ("Could not create the document…"); swallowing it here made that branch unreachable.
     await invitation.recorded;
     // The typed message becomes the document's first paragraphs, written by the canvas as it opens.
-    showDocument({ docId, title: checked.title, peer, creator: 'self', seed: initialContent.trim() === '' ? null : initialContent });
+    showDocument({ docId, title: checked.title, peer: port.replica, creator: 'self', seed: initialContent.trim() === '' ? null : initialContent });
     return { delivered: invitation.delivered };
-  }, [peer, currentUserCid, showDocument, messenger]);
+  }, [port, currentUserCid, showDocument]);
 
   const tabsWithUnread: (ChatTab & { hasUnread: boolean })[] = tabs.map(tab => ({
     ...tab,

@@ -1,51 +1,27 @@
 /**
- * P2PChat Component
+ * A direct chat: the shared chat pane over the peer transport, with the peer's own header.
  *
- * Main P2P chat interface supporting text, markdown, live documents, and file transfers.
- * Uses extracted hooks and components for message handling, input, and display.
+ * Everything a conversation does lives in the pane (components/chat/pane) and the transport
+ * (lib/chat/transport); this builds the peer's adapter and the parts of a 1:1 Citadel session
+ * that are not chat (connection route, supervisor, pause, the call, the screenshot notice).
  */
-
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { notificationService } from '@/lib/notification-service';
-import { ChatTabBar } from './ChatTabBar';
+import { useMemo } from 'react';
 import { NoConversation } from './NoConversation';
-import { ComposeContextBanner } from './ComposeContextBanner';
-import { ChatDocumentPane } from './chat-document/ChatDocumentPane';
 import { APP_OPENING_PORTS } from './chat-document/use-chat-documents';
-import type { ChatPeer } from '@/components/documents/chat-replica';
-import type { ChatDocumentOpening } from './chat-document/chat-document-opening';
-import { LiveDocumentModal } from './LiveDocumentModal';
-import { ChatFileDialogs } from './ChatFileDialogs';
-import { useChatFileSend, type ChatFileSend } from './hooks/use-chat-file-send';
-import { ChatDropTarget } from './ChatDropTarget';
-import { ChatSettingsPanel } from './ChatSettingsPanel';
-import { P2PChatHeader } from './P2PChatHeader';
-import { useShareLauncher, type ShareLauncher } from '@/components/share/use-share-launcher';
-import { usePeerFilesOpener } from './hooks/use-peer-files-opener';
-import { DockedCall } from './DockedCall';
-import { useDirectCall } from './hooks/use-direct-call';
-import { P2PMessageList } from './P2PMessageList';
-import { P2PMessageInput } from './P2PMessageInput';
-import { useP2PMessages, useP2PTabs } from './hooks';
-import { useP2PCompose } from './hooks/useP2PCompose';
+import { PeerChatTop } from './PeerChatTop';
+import { useDirectCall, type DirectCallBinding } from './hooks/use-direct-call';
 import { useConnectionRoute } from './hooks/use-connection-route';
 import { useSupervisorState } from './hooks/use-supervisor-state';
 import { useChatInterest } from './hooks/use-chat-interest';
+import { usePeerPause, type PeerPauseBinding } from './hooks/use-peer-pause';
+import { useScreenshotNotice, sendScreenshotNotice } from './hooks/useScreenshotNotice';
+import { useShareLauncher, type ShareLauncher } from '@/components/share/use-share-launcher';
+import { ChatPane, type ChatPaneStatus } from '@/components/chat/pane/ChatPane';
+import { createPeerTransport } from '@/lib/chat/transport/peer-transport';
+import type { ChatTransport } from '@/lib/chat/transport/chat-transport';
+import type { ChatPeer } from '@/lib/cdoc/chat/chat-app-ports';
 import type { SupervisorState } from '@/types/agent-supervisor';
 import type { PeerPathReport } from '@/types/ice-servers';
-import { useStickToBottom, type StickToBottom } from '@/components/chat/use-stick-to-bottom';
-import { useCatchUpRead } from './hooks/use-catch-up-read';
-import { NewMessagesPill } from '@/components/chat/NewMessagesPill';
-import { usePeerPause, type PeerPauseBinding } from './hooks/use-peer-pause';
-import { PausedBanner } from './PausedBanner';
-import { ConnectRequestBanner } from './ConnectRequestBanner';
-import { callCapabilityWhile } from '@/lib/p2p-pause/pause-copy';
-import { useScreenshotNotice, sendScreenshotNotice } from './hooks/useScreenshotNotice';
-import type { DirectCallBinding } from '@/components/p2p/hooks/use-direct-call';
-
-export type ChatMode = 'p2p' | 'group';
-
-const NO_ACCOUNT: ChatDocumentOpening = { kind: 'unmoved', reason: { kind: 'no-account' }, loadOriginal: null };
 
 interface P2PChatProps {
   peerCid: bigint;
@@ -54,195 +30,35 @@ interface P2PChatProps {
   peerUsername?: string;
   currentUserCid?: bigint;
   currentUserName?: string;
-  mode?: ChatMode;
-  groupId?: string;
-  showSenderName?: boolean;
-  showSenderAvatar?: boolean;
-  rules?: string;
-  onEditMessage?: (messageId: string, content: string) => void;
-  onDeleteMessage?: (messageId: string) => void;
-  onReplyMessage?: (messageId: string) => void;
 }
 
-export function P2PChat({
-  peerCid,
-  peerName = 'Peer',
-  peerUsername,
-  currentUserCid,
-  currentUserName = 'You',
-  mode = 'p2p',
-  groupId: _groupId,
-  showSenderName,
-  showSenderAvatar,
-  rules,
-  onEditMessage,
-  onDeleteMessage,
-  onReplyMessage,
-}: P2PChatProps): JSX.Element {
-  // Hooks first, before any early return in this component. Placing them lower
-  // put them after one, which breaks React's hook ordering and fails
+export function P2PChat({ peerCid, peerName = 'Peer', peerUsername, currentUserCid, currentUserName = 'You' }: P2PChatProps): JSX.Element {
+  // Hooks first, before the early return below: placed after one, React's hook order breaks
   // intermittently at runtime rather than reliably.
-  const callBinding: DirectCallBinding = useDirectCall(peerCid, peerName);
-
-  const isGroupMode: boolean = mode === 'group';
-  useScreenshotNotice(isGroupMode ? null : peerCid, sendScreenshotNotice); // best effort: see screenshot-detection.ts
-  const displaySenderName: boolean = showSenderName ?? isGroupMode;
-  const displaySenderAvatar: boolean = showSenderAvatar ?? isGroupMode;
-
-  const scrollRef: React.RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
-  const pinnedRef: React.MutableRefObject<boolean> = useRef<boolean>(true); // the reader is at the bottom
-
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
-  // Tabs hook
+  const call: DirectCallBinding = useDirectCall(peerCid, peerName);
+  useScreenshotNotice(peerCid, sendScreenshotNotice); // best effort: see screenshot-detection.ts
   const peer: ChatPeer = useMemo((): ChatPeer => ({ cid: peerCid, name: peerName, username: peerUsername ?? peerName }), [peerCid, peerName, peerUsername]);
-  const {
-    activeTabId, activeTabIdRef, tabsWithUnread, activeTab, documents,
-    setMessagesHasUnread, handleTabSelect, handleCloseTab,
-    handleOpenDocument, handleCreateDocument, handleRenameDocument, retryDocument,
-  } = useP2PTabs({ peer, currentUserCid, ports: APP_OPENING_PORTS });
-
-  // Messages hook
-  const {
-    messages, peerTyping, peerPresence, isConnected, isRegistered,
-    isLoadingMore, isLoadingHistory, hasMorePages, handleScroll, handleRetryMessage,
-    handleEditMessage, handleDeleteMessage, handleReactMessage,
-  } = useP2PMessages({
-    peerCid, activeTabIdRef, scrollRef, pinnedRef,
-    onUnreadMessage: useCallback(() => setMessagesHasUnread(true), [setMessagesHasUnread]),
-  });
-
-  const connectionRoute: PeerPathReport | null = useConnectionRoute(currentUserCid ?? null, peerCid);
+  const transport: ChatTransport = useMemo((): ChatTransport => createPeerTransport({
+    peer,
+    self: currentUserCid === undefined ? null : { cid: currentUserCid, username: currentUserName, displayName: currentUserName },
+    opening: APP_OPENING_PORTS,
+  }), [peer, currentUserCid, currentUserName]);
+  const route: PeerPathReport | null = useConnectionRoute(currentUserCid ?? null, peerCid);
   const supervisor: SupervisorState | null = useSupervisorState(currentUserCid ?? null, peerCid);
   useChatInterest(currentUserCid ?? null, peerCid);
-
-  // Composition hook (input, reply/edit context, send, live-doc flow)
-  const {
-    inputRef, inputMessage, setInputMessage, isSending,
-    messageType, showDocModal, closeDocModal,
-    showMarkdownPreview, setShowMarkdownPreview,
-    applyFormat,
-    replyingTo, editingMessage,
-    handleReplyMessage, handleStartEdit, cancelComposeContext,
-    handleSendMessage, handleDocCreate, handleMessageTypeChange,
-    handleInputFocus, handleInputBlur,
-  } = useP2PCompose({
-    peerCid, messages,
-    editMessage: handleEditMessage,
-    createDocument: handleCreateDocument,
-  });
-
-  const onCaughtUp: () => void = useCatchUpRead(peerCid, activeTabIdRef, pinnedRef);
-  const stick: StickToBottom = useStickToBottom(scrollRef, messages, `Messages with ${peerName}`, (m) => m.senderCid === currentUserCid, { pinnedRef, onCaughtUp });
-
-  // Paused: the link is down on purpose. Messages still send and queue; calls
-  // and files need the live link, so those say why they are unavailable.
+  // Paused: the link is down on purpose. Messages still send and queue; calls and files need the
+  // live link, so those say why they are unavailable.
   const pause: PeerPauseBinding = usePeerPause(peerCid);
-  const paused: boolean = pause.status === 'paused';
-  const fileSend: ChatFileSend = useChatFileSend({ peerCid, peerName, viewingDocument: activeTab?.type === 'live_document', paused });
-  const openFiles: (() => void) | null = usePeerFilesOpener(peerCid, isRegistered);
-
-  // Mark notifications as read when viewing conversation
-  useEffect(() => {
-    if (peerCid && activeTabId === 'messages') {
-      notificationService.markMessageNotificationsAsReadBySender(peerCid.toString());
-    }
-  }, [peerCid, activeTabId]);
-
   const share: ShareLauncher = useShareLauncher();
+
   if (!peerCid) return <NoConversation />;
-  const awaitingAcceptFrom: string | null = isRegistered || isGroupMode ? null : peerName; // held until then
-
-  const isViewingDocument: boolean = activeTab?.type === 'live_document';
-  const viewedDocument: string | null = isViewingDocument && activeTab?.documentId ? activeTab.documentId : null;
-
-
   return (
-    <ChatDropTarget className="h-full flex flex-col bg-background" testId="p2p-chat" recipient={peerName} hint="Only the first file is sent. You can cancel it from the conversation." {...fileSend.drop}>
-      <P2PChatHeader
-        peerName={peerName}
-        peerUsername={peerUsername ?? peerName}
-        peerPresence={peerPresence}
-        peerTyping={peerTyping}
-        isConnected={isConnected}
-        isRegistered={isRegistered}
-        paused={paused}
-        connectionRoute={connectionRoute}
-        supervisor={supervisor}
-        onSettingsClick={() => setShowSettingsModal(true)}
-        onOpenFiles={openFiles}
-        onShare={isGroupMode || !peerUsername ? undefined : (): void => share.open({ kind: 'peer-chat', peerUsername, peerName })}
-        call={{
-          canCall: isConnected,
-          inCall: callBinding.active,
-          capability: callCapabilityWhile(pause.status, callBinding.capability),
-          onStartCall: callBinding.startCall,
-          onLeave: callBinding.leave,
-        }}
-      />
-      {share.dialog}
-      {paused && <PausedBanner busy={pause.busy} onResume={pause.resume} />}
-      {!isGroupMode && <ConnectRequestBanner peerCid={peerCid} peerName={peerName} peerUsername={peerUsername} registered={isRegistered} />}
-
-      <DockedCall binding={callBinding} />
-      <ChatTabBar tabs={tabsWithUnread} activeTabId={activeTabId} onTabSelect={handleTabSelect} onTabClose={handleCloseTab} onTabRename={handleRenameDocument} />
-
-      {rules && (
-        <div className="px-4 py-2 bg-primary/20 border-b border-primary/40">
-          <p className="text-sm text-primary-accent">{rules}</p>
-        </div>
+    <ChatPane
+      transport={transport}
+      pause={pause.status}
+      header={(status: ChatPaneStatus) => (
+        <PeerChatTop peer={peer} knowsUsername={peerUsername !== undefined} status={status} pause={pause} call={call} share={share} route={route} supervisor={supervisor} />
       )}
-
-      <div className="flex-1 p-0 flex flex-col overflow-hidden">
-        {viewedDocument !== null && activeTab ? (
-          <ChatDocumentPane
-            key={viewedDocument} docId={viewedDocument} title={activeTab.title} peerName={peerName} selfName={currentUserName}
-            opening={currentUserCid === undefined ? NO_ACCOUNT : documents.get(viewedDocument) ?? null}
-            onRetry={(): void => retryDocument(viewedDocument)}
-            onRename={(title: string): Promise<void> => handleRenameDocument(viewedDocument, title)}
-          />
-        ) : (
-          <>
-            <div className="relative flex min-h-0 flex-1 flex-col">
-            <P2PMessageList
-              ref={scrollRef} messages={messages} currentUserCid={currentUserCid}
-              currentUserName={currentUserName} peerName={peerName} peerUsername={peerUsername ?? peerName} peerCid={peerCid} awaitingAcceptFrom={awaitingAcceptFrom}
-              isLoadingMore={isLoadingMore} isLoadingHistory={isLoadingHistory} hasMorePages={hasMorePages}
-              displaySenderName={displaySenderName} displaySenderAvatar={displaySenderAvatar}
-              onScroll={handleScroll} onRetryMessage={handleRetryMessage}
-              onOpenDocument={handleOpenDocument}
-              onAcceptTransfer={fileSend.fileTransfer.handleAcceptTransfer}
-              onDeclineTransfer={fileSend.fileTransfer.handleDeclineTransfer}
-              onCancelTransfer={fileSend.fileTransfer.handleCancelTransfer}
-              onOpenFile={fileSend.fileTransfer.handleOpenFile}
-              onEditMessage={onEditMessage ?? handleStartEdit}
-              onDeleteMessage={onDeleteMessage ?? handleDeleteMessage}
-              onReplyMessage={onReplyMessage ?? handleReplyMessage}
-              focusComposer={(): void => { inputRef.current?.focus(); }}
-              onReactMessage={handleReactMessage}
-            />
-            <NewMessagesPill count={stick.unseen} onView={stick.reveal} />
-            </div>
-            <ComposeContextBanner
-              replyingTo={replyingTo}
-              editingMessage={editingMessage}
-              onCancel={cancelComposeContext}
-            />
-            <P2PMessageInput
-              ref={inputRef} inputMessage={inputMessage} messageType={messageType}
-              showMarkdownPreview={showMarkdownPreview} paused={paused} isSending={isSending} awaitingAcceptFrom={awaitingAcceptFrom}
-              onInputChange={setInputMessage} onInputFocus={handleInputFocus}
-              onInputBlur={handleInputBlur} onSubmit={handleSendMessage}
-              onFileClick={fileSend.openDialog} onFormat={applyFormat}
-              onTogglePreview={() => setShowMarkdownPreview(prev => !prev)}
-              onMessageTypeChange={handleMessageTypeChange}
-            />
-          </>
-        )}
-      </div>
-
-      <LiveDocumentModal isOpen={showDocModal} onClose={closeDocModal} onCreateDocument={handleDocCreate} initialContent={inputMessage} />
-      <ChatFileDialogs send={fileSend} peerCid={peerCid} />
-      <ChatSettingsPanel isOpen={showSettingsModal} onClose={() => setShowSettingsModal(false)} peerCid={peerCid.toString()} peerName={peerName} />
-    </ChatDropTarget>
+    />
   );
 }

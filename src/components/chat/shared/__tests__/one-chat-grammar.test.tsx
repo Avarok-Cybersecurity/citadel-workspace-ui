@@ -32,7 +32,7 @@ describe('both chat surfaces', () => {
   it('use the same separator component', () => {
     // Not a copy each. The group view had its own inline markup, which is how
     // the P2P one came to have none at all.
-    for (const file of ['components/chat/GroupChatView.tsx', 'components/p2p/P2PMessageList.tsx']) {
+    for (const file of ['components/chat/GroupChatView.tsx', 'components/chat/pane/MessageList.tsx']) {
       const source: string = readFileSync(join(SRC, file), 'utf-8');
       expect(source, `${file} should render the shared DateSeparator`).toContain('<DateSeparator');
     }

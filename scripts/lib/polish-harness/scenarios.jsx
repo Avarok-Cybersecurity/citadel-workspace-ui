@@ -10,7 +10,8 @@ import { ConfirmDialogProvider } from '@/components/shared/confirm-dialog';
 import { ChatDropTarget } from '@/components/p2p/ChatDropTarget';
 import { dropUnavailableReason } from '@/components/p2p/drop-unavailable';
 import { P2PChat } from '@/components/p2p/P2PChat';
-import { P2PMessageList } from '@/components/p2p/P2PMessageList';
+import { MessageList } from '@/components/chat/pane/MessageList';
+import { authored } from '@/lib/chat/transport/peer-history';
 import { PEOPLE_SCENARIOS } from './scenarios-people.jsx';
 import { OVERLAY_SCENARIOS } from './scenarios-overlays.jsx';
 import { SPACING_SCENARIOS } from './scenarios-spacing.jsx';
@@ -75,17 +76,18 @@ function P2PConversation() {
     message(3, ME, { reactions: [{ emoji: '👍', reactorCid: PEER, at: 1, active: true }, { emoji: '🎉', reactorCid: PEER, at: 2, active: true }] }),
     message(4, PEER),
     message(5, ME),
-  ];
+  ].map((m) => authored(m, { cid: ME, username: 'me', displayName: 'Me' }, { cid: PEER, name: 'Ada', username: 'ada' }));
   const nothing = () => {};
   return (
     <TooltipProvider>
       <div style={{ height: 640, display: 'flex', flexDirection: 'column' }}>
-        <P2PMessageList
-          messages={messages} currentUserCid={ME} currentUserName="Me" peerName="Ada" peerCid={PEER}
+        <MessageList
+          messages={messages} greeting="Say hello to Ada." namesSenders={false} selfCid={ME}
+          reactorName={(cid) => (cid === ME ? 'You' : 'Ada')}
           isLoadingMore={false} isLoadingHistory={false} hasMorePages={false}
-          displaySenderName={false} displaySenderAvatar={false}
           onScroll={nothing} onRetryMessage={nothing} onOpenDocument={nothing}
           onAcceptTransfer={nothing} onDeclineTransfer={nothing} onCancelTransfer={nothing} onOpenFile={nothing}
+          onEditMessage={nothing} onDeleteMessage={nothing} onReplyMessage={nothing}
           focusComposer={nothing} onReactMessage={nothing} awaitingAcceptFrom={null}
         />
       </div>

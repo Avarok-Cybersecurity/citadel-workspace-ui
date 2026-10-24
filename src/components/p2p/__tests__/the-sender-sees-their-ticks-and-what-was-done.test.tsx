@@ -21,6 +21,10 @@ vi.mock('@/hooks/use-toast', () => ({ useToast: (): { toast: (t: { title: string
 const { BubbleFooter } = await import('../bubbles/BubbleFooter');
 const { useP2PFileTransfer } = await import('../hooks/useP2PFileTransfer');
 import type { P2PMessage } from '@/lib/p2p';
+import { peerTransportFor } from '@/components/p2p/__tests__/doubles/peer-transport';
+import type { ChatTransport } from '@/lib/chat/transport/chat-transport';
+
+const transport: ChatTransport = peerTransportFor({ cid: 42n, name: 'Bob' }, null);
 
 afterEach((): void => { cleanup(); world.toasts = []; });
 
@@ -38,7 +42,7 @@ describe('the toast after Send', () => {
     ['queued', 'Will send video.mov when Bob is online'],
   ])('for a send that is %s says so', async (state: string, title: string) => {
     world.state = state;
-    const { result } = renderHook(() => useP2PFileTransfer({ peerCid: 42n, peerName: 'Bob' } as Parameters<typeof useP2PFileTransfer>[0]));
+    const { result } = renderHook(() => useP2PFileTransfer({ files: transport.files, recipient: 'Bob' }));
     await act(async () => { await result.current.handleSendFile(new File(['x'], 'video.mov')); });
     expect(world.toasts).toEqual([title]);
   });

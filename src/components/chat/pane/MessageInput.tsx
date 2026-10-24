@@ -1,8 +1,8 @@
 /**
- * P2PMessageInput Component
+ * MessageInput Component
  *
- * Renders the message input area with markdown toolbar, preview,
- * file attachment button, and type selector.
+ * The chat pane's composer: markdown toolbar and preview, the attach button and the type
+ * selector, each shown only where the conversation's transport can carry it.
  */
 
 import React, { forwardRef } from 'react';
@@ -10,13 +10,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { shouldSendOnKey } from '@/components/chat/should-send-on-key';
 import { Button } from '@/components/ui/button';
 import { Send, Paperclip } from 'lucide-react';
-import { MarkdownToolbar } from './MarkdownToolbar';
-import { TypeSelectorBar } from './TypeSelectorBar';
+import { MarkdownToolbar } from '@/components/p2p/MarkdownToolbar';
+import { TypeSelectorBar } from '@/components/p2p/TypeSelectorBar';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import { documentAnchor } from '@/components/shared/DocumentLink';
 import type { MessageType } from '@/types/message-protocol';
 import { PAUSE_COPY } from '@/lib/p2p-pause/pause-copy';
-import { awaitingAcceptPlaceholder } from './bubbles/awaiting-accept';
+import { awaitingAcceptPlaceholder } from '@/components/p2p/bubbles/awaiting-accept';
+import type { ChatFeatures } from '@/lib/chat/transport/features';
 
 /**
  * The preview had NO component map, so its links fell through to
@@ -26,7 +27,20 @@ import { awaitingAcceptPlaceholder } from './bubbles/awaiting-accept';
  */
 const previewComponents: Components = { a: documentAnchor };
 
-interface P2PMessageInputProps {
+/** The kinds of message a composer offers, from what the conversation can carry. */
+export function offeredTypes(features: Pick<ChatFeatures, 'markdown' | 'documents'>): MessageType[] {
+  return [
+    'text',
+    ...(features.markdown ? ['markdown' as const] : []),
+    ...(features.documents ? ['live_document' as const] : []),
+  ];
+}
+
+interface MessageInputProps {
+  /** What the conversation can carry: the selector offers only these, and attach needs files. */
+  features: Pick<ChatFeatures, 'markdown' | 'documents' | 'files'>;
+  /** The composer's test address, which specs of each kind of chat already use. */
+  testId: string;
   inputMessage: string;
   messageType: MessageType;
   showMarkdownPreview: boolean;
@@ -46,9 +60,11 @@ interface P2PMessageInputProps {
   onMessageTypeChange: (type: MessageType) => void;
 }
 
-export const P2PMessageInput: React.ForwardRefExoticComponent<P2PMessageInputProps & React.RefAttributes<HTMLTextAreaElement>> = forwardRef<HTMLTextAreaElement, P2PMessageInputProps>(
-  function P2PMessageInput(
+export const MessageInput: React.ForwardRefExoticComponent<MessageInputProps & React.RefAttributes<HTMLTextAreaElement>> = forwardRef<HTMLTextAreaElement, MessageInputProps>(
+  function MessageInput(
     {
+      features,
+      testId,
       inputMessage,
       messageType,
       showMarkdownPreview,
@@ -63,7 +79,7 @@ export const P2PMessageInput: React.ForwardRefExoticComponent<P2PMessageInputPro
       onFormat,
       onTogglePreview,
       onMessageTypeChange,
-    }: P2PMessageInputProps,
+    }: MessageInputProps,
     ref: React.ForwardedRef<HTMLTextAreaElement>
   ) {
     const isMarkdownMode: boolean = messageType === 'markdown';
@@ -102,7 +118,7 @@ export const P2PMessageInput: React.ForwardRefExoticComponent<P2PMessageInputPro
 
         <div className="p-4">
           <form onSubmit={handleSubmit} className="flex gap-2">
-            <Button
+            {features.files && <Button
               type="button"
               size="icon"
               variant="ghost"
@@ -113,7 +129,7 @@ export const P2PMessageInput: React.ForwardRefExoticComponent<P2PMessageInputPro
               title={paused ? PAUSE_COPY.fileReason : 'Send file'}
             >
               <Paperclip className="h-4 w-4" />
-            </Button>
+            </Button>}
             {/* A textarea, matching the group composer.
                 This was an <input> inside a form: Enter submitted natively,
                 Shift+Enter could do nothing, and pasted newlines collapsed —
@@ -139,7 +155,7 @@ export const P2PMessageInput: React.ForwardRefExoticComponent<P2PMessageInputPro
               // textarea is not. The warmup messages that every call and
               // reconnection test sends first have been going nowhere since,
               // reported as "not delivered", which reads as a protocol fault.
-              data-testid="p2p-message-input"
+              data-testid={testId}
               rows={1}
               className="flex-1 resize-none bg-background text-foreground placeholder:text-muted-foreground focus:border-primary"
             />
@@ -162,10 +178,13 @@ export const P2PMessageInput: React.ForwardRefExoticComponent<P2PMessageInputPro
           </form>
         </div>
 
-        <TypeSelectorBar
-          selectedType={messageType}
-          onTypeChange={onMessageTypeChange}
-        />
+        {offeredTypes(features).length > 1 && (
+          <TypeSelectorBar
+            offered={offeredTypes(features)}
+            selectedType={messageType}
+            onTypeChange={onMessageTypeChange}
+          />
+        )}
       </div>
     );
   }

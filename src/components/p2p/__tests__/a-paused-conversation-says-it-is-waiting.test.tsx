@@ -14,14 +14,17 @@ import userEvent from '@testing-library/user-event';
 import { createRef } from 'react';
 import { PausedBanner } from '../PausedBanner';
 import { PauseConnectionCard } from '../PauseConnectionCard';
-import { P2PMessageInput } from '../P2PMessageInput';
+import { MessageInput } from '@/components/chat/pane/MessageInput';
+import { paneTestIds } from '@/components/chat/pane/pane-test-ids';
 import { P2PChatHeader } from '../P2PChatHeader';
 import { MessagingLayerType } from '@/types/messaging-layer';
 import { callCapabilityWhile, PAUSE_COPY } from '@/lib/p2p-pause/pause-copy';
 
 function composer(paused: boolean, text: string): void {
   render(
-    <P2PMessageInput
+    <MessageInput
+        features={{ markdown: true, documents: true, files: true }}
+        testId={paneTestIds('peer').input['data-testid']}
       ref={createRef<HTMLTextAreaElement>()}
       inputMessage={text} messageType="text" showMarkdownPreview={false}
       isSending={false} paused={paused} awaitingAcceptFrom={null}

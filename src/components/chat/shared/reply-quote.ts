@@ -33,12 +33,12 @@ function p2pQuotableText(message: P2PMessage): string {
   return message.content;
 }
 
-export function quoteP2PReply(
+export function quoteP2PReply<M extends P2PMessage>(
   replyTo: string,
-  byId: ReadonlyMap<string, P2PMessage>,
-  authorOf: (message: P2PMessage) => string,
+  byId: ReadonlyMap<string, M>,
+  authorOf: (message: M) => string,
 ): QuotedMessage | null {
-  const original: P2PMessage | undefined = byId.get(replyTo);
+  const original: M | undefined = byId.get(replyTo);
   if (!original) return null;
   return { id: original.id, authorName: authorOf(original), excerpt: replyExcerpt(p2pQuotableText(original)) };
 }

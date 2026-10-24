@@ -25,13 +25,17 @@ vi.mock('@/lib/websocket-service', () => ({
 
 import { Toaster } from '@/components/ui/sonner';
 import { useP2PFileTransfer } from '../useP2PFileTransfer';
+import { peerTransportFor } from '@/components/p2p/__tests__/doubles/peer-transport';
+import type { ChatTransport } from '@/lib/chat/transport/chat-transport';
+
+const transport: ChatTransport = peerTransportFor({ cid: 42n, name: 'alice' }, null);
 
 afterEach(cleanup);
 
 describe('accepting a file that cannot be accepted', () => {
   it('shows a failure toast carrying the reason', async () => {
     render(<Toaster />);
-    const { result } = renderHook(() => useP2PFileTransfer({ peerCid: 42n, peerName: 'alice' }));
+    const { result } = renderHook(() => useP2PFileTransfer({ files: transport.files, recipient: 'alice' }));
 
     await act(async (): Promise<void> => { await result.current.handleAcceptTransfer('no-such-transfer'); });
 
