@@ -15,7 +15,7 @@ import { recordDisabledForMe } from '@/lib/citadel-apps/disabled-for-me';
 import type { AppsResult } from '@/lib/workspace-service/apps-operations';
 import { AppZoneContext, type AppZoneEnvironment, type AppZoneHandle, type AppZoneRuntime } from './app-zone-environment';
 import { AppZoneRequired, type PlaceholderView } from './AppZoneRequired';
-import { closeReasonFor } from './zone-close-reason';
+import { closeReasonFor, type ZoneNext } from './zone-close-reason';
 import { readZoneProps, zoneView, type ZoneFacts, type ZoneProps, type ZoneView } from './zone-state';
 import { useZoneFacts } from './use-zone-facts';
 
@@ -33,7 +33,7 @@ function ZoneError({ message }: { message: string }): JSX.Element {
 interface RuntimeHostProps {
   runtime: AppZoneRuntime;
   view: Extract<ZoneView, { kind: 'ready' }>;
-  /** Why the app that ran `running` closes: read from what the zone shows next (zone-close-reason.ts). */
+  /** Why the app that ran `running` closes: read from the installs and what the zone shows next (zone-close-reason.ts). */
   reasonFor: (running: AppInstall) => CloseReason;
   props: ZoneProps;
   env: AppZoneEnvironment;
@@ -76,10 +76,10 @@ function RuntimeHost({ runtime, view, reasonFor, props, env, me }: RuntimeHostPr
 function PlacedZone({ props, env }: { props: ZoneProps; env: AppZoneEnvironment }): JSX.Element {
   const facts: ZoneFacts = useZoneFacts(env, props.app);
   const view: ZoneView = zoneView(props, facts);
-  // The view this commit shows, recorded in the layout phase: before any passive cleanup of the commit.
-  const next: React.MutableRefObject<ZoneView> = useRef<ZoneView>(view);
+  // The view this commit shows and its facts, recorded in the layout phase: before any passive cleanup of the commit.
+  const next: React.MutableRefObject<ZoneNext> = useRef<ZoneNext>({ view, facts });
   useLayoutEffect(() => {
-    next.current = view;
+    next.current = { view, facts };
   });
   const reasonFor: (running: AppInstall) => CloseReason = useCallback((running: AppInstall): CloseReason => closeReasonFor(running, next.current), []);
   // An app holds the answers it started with (runtime/peer-ports.ts), and each plane is its own

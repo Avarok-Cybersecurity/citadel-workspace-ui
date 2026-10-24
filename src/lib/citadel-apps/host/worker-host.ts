@@ -21,6 +21,7 @@ import { effectiveGrant, type Capability } from './capabilities';
 import { canvasPort, type CanvasSurface } from './canvas-port';
 import { Dispatcher, isPortAnswer, type DispatchClock, type PortInvoker } from './dispatch';
 import { IhttpRouter, type ClosingAction, type RouterAction } from './ihttp-router';
+import { TopicGate } from './topic-sender';
 import { buildImports } from './imports';
 import { splitInvoker } from './invoker';
 import { Lifecycle, lifecycleRefusal } from './lifecycle';
@@ -96,10 +97,17 @@ export function startWorkerHost(channel: WorkerChannel, clock: DispatchClock, su
     channel.post({ kind: 'settled' });
   };
 
-  const routerActions = (actions: readonly RouterAction[]): void => {
+  const closingActions = (actions: readonly ClosingAction[]): void => {
     for (const a of actions) {
       if (a.kind === 'reply') channel.post({ kind: 'ihttp_out', peer: a.peer, frame: a.frame });
-      else queue.push(encodeAppEvent({ ihttp: { from: a.peer, frame: a.frame } }));
+      else channel.post({ kind: 'ihttp_call_out', to: a.to, frame: a.frame, transport: a.transport });
+    }
+  };
+
+  const routerActions = (actions: readonly RouterAction[]): void => {
+    for (const a of actions) {
+      if (a.kind === 'deliver') queue.push(encodeAppEvent({ ihttp: { from: a.peer, frame: a.frame } }));
+      else closingActions([a]);
     }
   };
 
@@ -134,10 +142,11 @@ export function startWorkerHost(channel: WorkerChannel, clock: DispatchClock, su
     memoryPages = memory.buffer.byteLength / PAGE_BYTES;
     const table: ReplyTable = new ReplyTable(msg.policy.maxLiveReplies, msg.policy.replyTtlMs, clock.now);
     replies = table;
-    router = new IhttpRouter(msg.appId, msg.policy.ihttp);
+    router = new IhttpRouter(msg.appId, msg.policy.ihttp, msg.limits.p2p);
     const local: HostPorts = { canvas: canvasPort(() => surface), ...(msg.hasLogPort ? { log: logToPage } : {}) };
     const invoker: PortInvoker = splitInvoker(local, LOCAL_PORTS, remote);
-    const dispatcher: Dispatcher = new Dispatcher({ granted, policy: msg.policy, clock, invoker, router, pageUrl: msg.pageUrl, routerActions });
+    const topics: TopicGate | null = msg.limits.topics === null ? null : new TopicGate(msg.limits.topics);
+    const dispatcher: Dispatcher = new Dispatcher({ granted, policy: msg.policy, clock, invoker, router, pageUrl: msg.pageUrl, routerActions, topics });
     const imports: WebAssembly.Imports = buildImports(granted, memory, {
       call: (group, op, request) => dispatcher.call(group, op, request),
       replies: table,
@@ -160,13 +169,6 @@ export function startWorkerHost(channel: WorkerChannel, clock: DispatchClock, su
     if (status !== INIT_RESULT.OK || !life.step('initialised')) dead = true;
     channel.post({ kind: 'loaded', seq: msg.seq, status });
     clock.after(ROUTER_TICK_MS, tick);
-  };
-
-  const closingActions = (actions: readonly ClosingAction[]): void => {
-    for (const a of actions) {
-      if (a.kind === 'reply') channel.post({ kind: 'ihttp_out', peer: a.peer, frame: a.frame });
-      else channel.post({ kind: 'ihttp_call_out', to: a.to, frame: a.frame, transport: a.transport });
-    }
   };
 
   const close = (reason: CloseReason): void => {

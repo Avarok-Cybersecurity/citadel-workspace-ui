@@ -6,7 +6,10 @@
  * Two layers: HOST_CEILINGS are physics no policy may exceed (validateHostPolicy refuses one that
  * tries), STANDARD_HOST_POLICY is the policy the page runs with.
  */
+import type { P2pLimits } from 'citadel-workspace-client-ts';
 import { IHTTP_INITIAL_CREDIT, IHTTP_MAX_CHUNK_BYTES } from '../sdk/generated/AbiConstants';
+import type { Via } from '../sdk/generated/Via';
+import type { TopicRates } from './topic-sender';
 
 export interface IhttpLimits {
   readonly maxPathBytes: number;
@@ -55,6 +58,32 @@ export interface HostPolicy {
   readonly peerAuthorizationsPerSecond: number;
   readonly ihttp: IhttpLimits;
 }
+
+/** `limits.p2p`, as the router holds the instance's peer-to-peer streams to it. */
+export interface P2pCaps {
+  /** A response body on a P2P stream, served or called (`max_response_bytes`). */
+  readonly maxResponseBodyBytes: number;
+  /** Calls that may go peer to peer, live at once (`max_fanout_concurrency`): a fan-out is clamped to it. */
+  readonly maxConcurrentCalls: number;
+}
+
+/** What one instance's manifest holds it to, beyond the page's policy. */
+export interface InstanceLimits {
+  /** `limits.topics`, which the worker answers a publish against (topic-sender.ts); null without topics. */
+  readonly topics: TopicRates | null;
+  /** `limits.p2p`; null without a P2P capability (the manifest has it exactly then). */
+  readonly p2p: P2pCaps | null;
+}
+
+/** An instance's limits from its manifest's `limits`. */
+export const instanceLimits = (manifest: { readonly topics?: TopicRates; readonly p2p?: P2pLimits }): InstanceLimits => ({
+  topics: manifest.topics ?? null,
+  p2p: manifest.p2p === undefined ? null : { maxResponseBodyBytes: manifest.p2p.max_response_bytes, maxConcurrentCalls: manifest.p2p.max_fanout_concurrency },
+});
+
+/** The response body a stream on `via` may carry: the page's, and on P2P no more than the manifest's. */
+export const responseCap = (page: IhttpLimits, p2p: P2pCaps | null, via: Via): number =>
+  via === 'p2p' && p2p !== null ? Math.min(page.maxResponseBodyBytes, p2p.maxResponseBodyBytes) : page.maxResponseBodyBytes;
 
 export const HOST_CEILINGS = {
   /** 256 MiB. */

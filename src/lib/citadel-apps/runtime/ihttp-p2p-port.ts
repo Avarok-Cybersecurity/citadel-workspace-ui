@@ -11,8 +11,10 @@
  *
  * Every refusal at either check is the same `Cancel{refused}` to the peer and `{unavailable:
  * "refused"}` to the app: not installed, not consented, blocked and outside the audience cannot
- * be told apart. Frames for a stream this install neither opened nor admitted are left alone:
- * they may be another install's on this page.
+ * be told apart, and a head for an app nobody on this page runs gets that same answer, once
+ * (install-plane-registry.ts). Of the install's instances here, only the primary takes heads, and
+ * a call goes out under its page id. Frames for a stream this instance neither opened nor
+ * admitted are left alone: they are another instance's or another install's.
  */
 import type { IhttpPort, InboundIhttpFrame, PortAnswer, Refused } from '../host/ports';
 import { decodeCbor, encodeCbor, type Decoded } from '../host/cbor';
@@ -27,6 +29,7 @@ import type { PeerAuthorization } from '../member-consent-types';
 import { agentAsk, bytesOf, variantOf, type AgentLink, type AgentOutcome, type Json } from './agent-link';
 import { matchRoute, parseRoutes, type ParsedRoutes, type RoutePattern } from '../host/ihttp-routes';
 import { routesDigest } from './ihttp-relay-port';
+import type { PlaneSeat } from './install-plane-registry';
 import type { PeerAuthority } from './peer-authority';
 
 /** The p2p plane's refusals that happened before any frame reached the peer: PreferP2pThenRelay may fall back on these. */
@@ -40,6 +43,8 @@ const REFUSED: Refused = { unavailable: 'refused' };
 
 export interface P2pDeps {
   readonly installId: string;
+  /** This instance's place among the install's instances on the page. */
+  readonly seat: PlaneSeat;
   readonly appId: string;
   /** This tab's session: frames for any other session are not this port's. */
   readonly cid: bigint;
@@ -81,6 +86,7 @@ const ended = (f: IhttpFrame): boolean => f.kind === 'End' || (typeof f.kind ===
 
 export function p2pIhttpPort(d: P2pDeps): IhttpPort {
   const streams: Map<string, Stream> = new Map<string, Stream>();
+  d.seat.hasP2p();
   let digest: string | null = null;
   let table: readonly RoutePattern[] = [];
   /** Inbound frames, one peer at a time and in order, though an authorisation is awaited in between. */
@@ -124,7 +130,11 @@ export function p2pIhttpPort(d: P2pDeps): IhttpPort {
     const key: string = streamKey(peerCid, f.stream);
     const kind: IhttpFrame['kind'] = f.kind;
     if (typeof kind === 'object' && 'RequestHead' in kind) {
-      if (kind.RequestHead.app_id !== d.appId) return;
+      if (kind.RequestHead.app_id !== d.appId) {
+        if (d.seat.answersForeign(kind.RequestHead.app_id)) refuse(peerCid, f.stream, 'not_running_here');
+        return;
+      }
+      if (!d.seat.primary()) return;
       if (digest === null) { refuse(peerCid, f.stream, 'not_serving'); return; }
       // The router matches the whole served table; a P2P request may reach only the P2P one.
       if (matchRoute(table, kind.RequestHead.method, kind.RequestHead.path) === null) { refuse(peerCid, f.stream, 'route'); return; }
@@ -146,7 +156,8 @@ export function p2pIhttpPort(d: P2pDeps): IhttpPort {
       }
     }
     if (ended(f) && !(s.served && f.kind === 'End')) streams.delete(key);
-    deliver({ from: s.caller, frame: f });
+    const own: IhttpFrame | null = s.served ? f : d.seat.callIn(s.caller.app_id, f);
+    if (own !== null) deliver({ from: s.caller, frame: own });
   };
 
   return {
@@ -162,8 +173,9 @@ export function p2pIhttpPort(d: P2pDeps): IhttpPort {
       digest = await routesDigest(mine, d.sha256Hex);
       return { ok: null };
     },
-    IhttpCall: async ({ to, frame: f }: { to: Address; frame: IhttpFrame }): Promise<PortAnswer<null>> => {
+    IhttpCall: async ({ to, frame: asked }: { to: Address; frame: IhttpFrame }): Promise<PortAnswer<null>> => {
       if (!('user' in to)) return { refused: { unavailable: 'p2p_no_peer' } };
+      const f: IhttpFrame = d.seat.callOut(to.user.app_id, asked);
       const peerCid: bigint | null = d.peerCid(to.user.username);
       if (peerCid === null) return { refused: { unavailable: 'p2p_no_peer' } };
       const key: string = streamKey(peerCid, f.stream);

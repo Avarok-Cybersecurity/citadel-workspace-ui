@@ -16,6 +16,7 @@ import type { IhttpFrame } from '../../sdk/generated/IhttpFrame';
 import { serverNet, serverStorage, type HostCaller } from '../kernel-call-ports';
 import { ADVERTISE_EVERY_MS, ADVERTISE_TTL_MS, relayIhttpPort, type RelayDeps } from '../ihttp-relay-port';
 import { scopeKeyOf } from '../zone-context';
+import { InstallPlaneRegistry } from '../install-plane-registry';
 
 const sha = async (b: Uint8Array): Promise<string> => createHash('sha256').update(b).digest('hex');
 
@@ -53,7 +54,7 @@ function relay(over: Partial<RelayDeps> = {}): { deps: RelayDeps; sent: [IhttpAd
   const stopped: number[] = [];
   let listener: ((a: unknown) => void) | null = null;
   const deps: RelayDeps = {
-    installId: 'inst-1', sha256Hex: sha, nowMs: () => 1_000,
+    installId: 'inst-1', seat: new InstallPlaneRegistry().attach('inst-1', 'com.acme.kanban'), sha256Hex: sha, nowMs: () => 1_000,
     send: async (to, frame) => { const d: Decoded = decodeCbor(frame); sent.push([to, d.ok ? d.value : null]); return { ok: true, value: null }; },
     advertise: async (digest, until) => { ads.push([digest, until]); return { ok: true, value: until }; },
     withdraw: async () => { withdrawals++; return { ok: true, value: 1 }; },

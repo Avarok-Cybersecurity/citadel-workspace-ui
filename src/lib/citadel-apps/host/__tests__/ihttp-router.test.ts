@@ -16,7 +16,7 @@ const alice: Caller = { username: 'alice', cid: 11n, app_id: APP, install_id: 'i
 const bob: Caller = { username: 'bob', cid: 12n, app_id: APP, install_id: 'i-1', via: 'relay' };
 
 function router(): IhttpRouter {
-  const r: IhttpRouter = new IhttpRouter(APP, STANDARD_IHTTP_LIMITS);
+  const r: IhttpRouter = new IhttpRouter(APP, STANDARD_IHTTP_LIMITS, null);
   const parsed: ParsedRoutes = parseRoutes([{ method: 'GET', path: '/cards/:id' }, { method: 'POST', path: '/upload/*' }], 64, 2048);
   if (!parsed.ok) throw new Error(parsed.reason);
   r.setRoutes(parsed.routes, { relay: true, p2p: true });
@@ -42,7 +42,7 @@ describe('routes', () => {
   });
 
   it('nothing is routed before the app advertises', () => {
-    const r: IhttpRouter = new IhttpRouter(APP, STANDARD_IHTTP_LIMITS);
+    const r: IhttpRouter = new IhttpRouter(APP, STANDARD_IHTTP_LIMITS, null);
     expect(cancels(r.inbound(alice, req(1n, head('/cards/7')), 0))).toEqual(['unrouted']);
   });
 
@@ -79,14 +79,14 @@ describe('stream limits', () => {
     const viaRelay: Caller = { ...alice, via: 'relay' };
     expect(cancels(r.inbound(viaRelay, req(RELAY_STREAM_BIT | 1n, head('/cards/1')), 0))).toEqual([]);
     expect(cancels(r.inbound(alice, req(3n, head('/cards/2')), 0))).toEqual([]);
-    expect(cancels(r.inbound(viaRelay, req(RELAY_STREAM_BIT | 1n, head('/cards/3')), 0))).toEqual(['stream_id']);
+    expect(cancels(r.inbound(viaRelay, req(RELAY_STREAM_BIT, head('/cards/3')), 0))).toEqual(['stream_id']);
     expect(cancels(r.inbound(alice, req(2n, head('/cards/4')), 0))).toEqual(['stream_id']);
   });
 
-  it('stream ids must increase per caller', () => {
+  it('stream ids must increase per caller; the open stream’s own head again is dropped, not answered (E8)', () => {
     const r: IhttpRouter = router();
     r.inbound(alice, req(5n, head('/cards/1')), 0);
-    expect(cancels(r.inbound(alice, req(5n, head('/cards/2')), 0))).toEqual(['stream_id']);
+    expect(r.inbound(alice, req(5n, head('/cards/2')), 0)).toEqual([]);
     expect(cancels(r.inbound(alice, req(4n, head('/cards/2')), 0))).toEqual(['stream_id']);
     expect(cancels(r.inbound(alice, req(6n, head('/cards/2')), 0))).toEqual([]);
   });
@@ -95,7 +95,7 @@ describe('stream limits', () => {
     const r: IhttpRouter = router();
     for (let i: number = 1; i <= 30; i++) {
       r.inbound(alice, req(BigInt(i), head(`/cards/${i}`)), 0);
-      r.respond(alice, { v: 1, stream: BigInt(i), kind: { Cancel: { reason: 'done' } } });
+      r.respond(alice, { v: 1, stream: BigInt(i), kind: { Cancel: { reason: 'done' } } }, 0);
     }
     expect(cancels(r.inbound(alice, req(31n, head('/cards/31')), 0))).toEqual(['rate']);
     expect(cancels(r.inbound(alice, req(32n, head('/cards/32')), 1000))).toEqual([]);
@@ -126,7 +126,7 @@ describe('bodies and flow control', () => {
       let seen: string[] = [];
       for (let i: number = 0; i < chunks; i++) {
         seen = seen.concat(cancels(r.inbound(alice, body(1n, chunk), 0)));
-        seen = seen.concat(cancels(r.consumed(alice, 1n).actions));
+        seen = seen.concat(cancels(r.consumed(alice, 1n, 0).actions));
       }
       if (extra > 0) seen = seen.concat(cancels(r.inbound(alice, body(1n, extra), 0)));
       expect(seen).toEqual(extra > 0 ? ['request_body_too_large'] : []);
@@ -155,17 +155,17 @@ describe('bodies and flow control', () => {
   it('the app cannot send response bodies past the caller credit, nor past 16 MiB', () => {
     const r: IhttpRouter = router();
     r.inbound(alice, req(1n, head('/cards/1')), 0);
-    expect(r.respond(alice, { v: 1, stream: 1n, kind: { Body: { bytes: new Uint8Array(1) } } }).ok).toBe(false);
-    expect(r.respond(alice, { v: 1, stream: 1n, kind: { ResponseHead: { status: 200, headers: [], body_len: null } } }).ok).toBe(true);
+    expect(r.respond(alice, { v: 1, stream: 1n, kind: { Body: { bytes: new Uint8Array(1) } } }, 0).ok).toBe(false);
+    expect(r.respond(alice, { v: 1, stream: 1n, kind: { ResponseHead: { status: 200, headers: [], body_len: null } } }, 0).ok).toBe(true);
     for (let i: number = 0; i < STANDARD_IHTTP_LIMITS.initialCredit; i++) {
-      expect(r.respond(alice, { v: 1, stream: 1n, kind: { Body: { bytes: new Uint8Array(1) } } }).ok).toBe(true);
+      expect(r.respond(alice, { v: 1, stream: 1n, kind: { Body: { bytes: new Uint8Array(1) } } }, 0).ok).toBe(true);
     }
-    expect(r.respond(alice, { v: 1, stream: 1n, kind: { Body: { bytes: new Uint8Array(1) } } })).toMatchObject({ ok: false, refused: { limit: 'credit' } });
+    expect(r.respond(alice, { v: 1, stream: 1n, kind: { Body: { bytes: new Uint8Array(1) } } }, 0)).toMatchObject({ ok: false, refused: { limit: 'credit' } });
     r.inbound(alice, { v: 1, stream: 1n, kind: { Credit: { n: 1 } } }, 0);
-    expect(r.respond(alice, { v: 1, stream: 1n, kind: { Body: { bytes: new Uint8Array(1) } } }).ok).toBe(true);
+    expect(r.respond(alice, { v: 1, stream: 1n, kind: { Body: { bytes: new Uint8Array(1) } } }, 0).ok).toBe(true);
     const big: IhttpFrame = { v: 1, stream: 1n, kind: { ResponseHead: { status: 200, headers: [], body_len: BigInt(STANDARD_IHTTP_LIMITS.maxResponseBodyBytes + 1) } } };
     r.inbound(alice, req(2n, head('/cards/2')), 0);
-    expect(r.respond(alice, { ...big, stream: 2n })).toMatchObject({ ok: false, refused: { limit: 'response_body' } });
+    expect(r.respond(alice, { ...big, stream: 2n }, 0)).toMatchObject({ ok: false, refused: { limit: 'response_body' } });
   });
 
   it('too many or too large headers are refused at the head', () => {

@@ -15,11 +15,14 @@ export interface RoutePattern {
 export type ParsedRoutes = { readonly ok: true; readonly routes: readonly RoutePattern[] } | { readonly ok: false; readonly reason: string };
 
 const LITERAL: RegExp = /^[A-Za-z0-9._~-]+$/;
+/** Answered by the host itself, never an app: citadel-ihttp-types RESERVED_PATH_PREFIX, whose routes the manifest check refuses too. */
+export const RESERVED_SEGMENT: string = '_citadel';
 const PARAM: RegExp = /^:[a-z][a-z0-9_]*$/;
 
 function parsePattern(path: string, maxPathBytes: number): readonly string[] | null {
   if (!path.startsWith('/') || new TextEncoder().encode(path).byteLength > maxPathBytes) return null;
   const segments: string[] = path === '/' ? [] : path.slice(1).split('/');
+  if (segments[0] === RESERVED_SEGMENT) return null;
   const ok: boolean = segments.every((s: string, i: number) =>
     LITERAL.test(s) || PARAM.test(s) || (s === '*' && i === segments.length - 1));
   return ok ? segments : null;

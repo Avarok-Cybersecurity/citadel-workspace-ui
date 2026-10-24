@@ -58,7 +58,7 @@ describe('the router serves only the planes it was told', () => {
   const kindOf = (a: readonly RouterAction[]): unknown => a.map((x: RouterAction) => x.frame.kind);
 
   it('a P2P request to a relay-only server is unrouted (control: the same request over the relay is delivered)', () => {
-    const r: IhttpRouter = new IhttpRouter(APP, STANDARD_IHTTP_LIMITS);
+    const r: IhttpRouter = new IhttpRouter(APP, STANDARD_IHTTP_LIMITS, null);
     const parsed: ParsedRoutes = parseRoutes([{ method: 'GET', path: '/health' }], 64, 2048);
     if (!parsed.ok) throw new Error(parsed.reason);
     r.setRoutes(parsed.routes, { relay: true, p2p: false });
@@ -67,7 +67,7 @@ describe('the router serves only the planes it was told', () => {
   });
 
   it('a later frame of a call may not switch transport', () => {
-    const r: IhttpRouter = new IhttpRouter(APP, STANDARD_IHTTP_LIMITS);
+    const r: IhttpRouter = new IhttpRouter(APP, STANDARD_IHTTP_LIMITS, null);
     const to = { user: { app_id: APP, username: 'bob' } } as const;
     expect(r.call(to, head(1n), 'p2p', 0).ok).toBe(true);
     expect(r.call(to, { v: 1, stream: 1n, kind: 'End' }, 'relay', 0)).toMatchObject({ ok: false, refused: { policy: 'transport' } });
