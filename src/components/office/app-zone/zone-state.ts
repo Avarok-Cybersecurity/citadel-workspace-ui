@@ -6,7 +6,8 @@
  * A zone never runs anything here: `ready` is where the runtime's seam mounts a host-owned canvas
  * (app-zone-runtime.ts); until it does, `ready` draws a placeholder too.
  */
-import type { AppInstall, InstallScope, PeerForMe } from 'citadel-workspace-client-ts';
+import type { AppInstall, PeerForMe } from 'citadel-workspace-client-ts';
+import { covers } from '@/lib/citadel-apps/install-covers';
 import { compareVersions, isAppId, parseAppVersion, type AppVersion } from '@/lib/citadel-apps/app-identity';
 import type { ListedApp } from '@/lib/citadel-apps/listing-model';
 import { memberAsks, needsMemberPrompt } from '@/lib/citadel-apps/consent-model';
@@ -60,14 +61,6 @@ export type ZoneView =
   /** Granted P2P or topics this person has not answered: the app starts once they have, holding what they allowed. */
   | { kind: 'needs-answer'; name: string }
   | { kind: 'ready'; app: ListedApp; install: AppInstall };
-
-export function covers(scope: InstallScope, me: string, nodeId: string, ancestors: readonly string[]): boolean {
-  if (scope === 'Workspace') return true;
-  if ('SelfOnly' in scope) return scope.SelfOnly === me;
-  if ('Users' in scope) return scope.Users.includes(me);
-  if ('Node' in scope) return scope.Node === nodeId;
-  return scope.NodeTree === nodeId || ancestors.includes(scope.NodeTree);
-}
 
 export function zoneView(props: ZoneProps, f: ZoneFacts, placed: Placement['kind']): ZoneView {
   if (f.listing === 'unavailable' || f.installs === 'unavailable') return { kind: 'not-available' };

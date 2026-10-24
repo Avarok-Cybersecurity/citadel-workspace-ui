@@ -15,7 +15,7 @@ import { appLinkUrl, type AppLink } from '@/lib/citadel-apps/app-link';
 import { openAppsModal } from '@/lib/citadel-apps/apps-modal-store';
 import { sessionAppsTransport } from '@/lib/citadel-apps/apps-api';
 import type { Tri } from '@/lib/citadel-apps/scope-options';
-import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
+import { ancestorIdsOf } from '@/components/layout/sidebar/tree-node-utils';
 import { AppZoneContext, zoneClaims, type AppZoneEnvironment, type AppZoneRuntime } from './app-zone-environment';
 import { changesInstalls, zoneDataFrom } from './zone-data';
 
@@ -25,16 +25,6 @@ interface AppZonePageProps {
   children: React.ReactNode;
 }
 
-export function ancestorsOf(nodes: Readonly<Record<string, DomainNode>>, nodeId: string): string[] {
-  const out: string[] = [];
-  let at: string | null = nodes[nodeId]?.parent_id ?? null;
-  while (at !== null && !out.includes(at)) {
-    out.push(at);
-    at = nodes[at]?.parent_id ?? null;
-  }
-  return out;
-}
-
 export function AppZonePage({ nodeId, runtime, children }: AppZonePageProps): JSX.Element {
   const { state } = useWorkspace();
   const install: ReturnType<typeof usePermission> = usePermission(WORKSPACE_ROOT_ID, Permission.AppInstall);
@@ -42,7 +32,7 @@ export function AppZonePage({ nodeId, runtime, children }: AppZonePageProps): JS
   const mayInstall: Tri = confirms(install) ? 'yes' : permits(install) ? 'unknown' : 'no';
   const claims: ReturnType<typeof zoneClaims> = useMemo(zoneClaims, []);
   const me: string | null = state.currentUser?.username ?? null;
-  const ancestors: string[] = useMemo((): string[] => ancestorsOf(state.nodes, nodeId), [state.nodes, nodeId]);
+  const ancestors: string[] = useMemo((): string[] => ancestorIdsOf(state.nodes, nodeId), [state.nodes, nodeId]);
   // An install made, changed or removed anywhere in this tab (the marketplace, another zone) is read again.
   const [data, setData] = useState<AppZoneEnvironment['data']>(() => zoneDataFrom(sessionAppsTransport));
   useEffect(() => eventEmitter.on('workspace:apps', (event: { answer: unknown } | undefined): void => {

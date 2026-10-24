@@ -1,5 +1,6 @@
 /**
- * The marketplace on every signed-in route: opened by the account menu, by an app zone, or by an app link --
+ * The marketplace on every signed-in route: opened by the account menu, by an app zone, by a node's
+ * "+" (the apps that can be a tab there), or by an app link --
  * the one captured at boot before sign-in (taken once, now that a session is up) and one followed
  * inside the app from chat or a document. A link for another workspace server is not opened here.
  * Lazy in App.tsx; the modal itself loads on its first open.
@@ -92,8 +93,8 @@ export function AppsModalHost(): JSX.Element | null {
   const pageNodeId: string | null = new URLSearchParams(location.search).get('nodeId');
   const viewer: MarketplaceViewer | null = useMarketplaceViewer(pageNodeId, server, authority);
   if (shown === null || viewer === null) return null;
-  const linkNodeId: string | null = shown.kind === 'link' ? shown.link.nodeId : null;
-  const domains: string[] = [WORKSPACE_ROOT_ID, pageNodeId, linkNodeId].filter((d: string | null): d is string => d !== null);
+  const requestNodeId: string | null = shown.kind === 'link' ? shown.link.nodeId : shown.kind === 'tab' ? shown.target.nodeId : null;
+  const domains: string[] = [WORKSPACE_ROOT_ID, pageNodeId, requestNodeId].filter((d: string | null): d is string => d !== null);
   return (
     <>
       <PermissionProbes domains={domains} onAnswer={onAnswer} />

@@ -7,7 +7,7 @@ import { useMemo } from 'react';
 import type { InstallScope } from 'citadel-workspace-client-ts';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
-import { descendantCount } from '@/components/layout/sidebar/tree-node-utils';
+import { ancestorIdsOf, descendantCount } from '@/components/layout/sidebar/tree-node-utils';
 import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 import type { Authority } from '@/lib/citadel-apps/scope-options';
 import type { Reach } from '@/lib/citadel-apps/scope-sentence';
@@ -31,6 +31,7 @@ export function useMarketplaceViewer(nodeId: string | null, serverAddress: strin
     return {
       me, rootId: WORKSPACE_ROOT_ID, nodeId,
       nodeName: (id: string): string | null => state.nodes[id]?.name ?? null,
+      ancestors: (id: string): readonly string[] => ancestorIdsOf(state.nodes, id),
       authority, reach,
       members: Object.values(state.members).map((u: { id: string }) => u.id).sort(),
       serverAddress, origin: window.location.origin,
