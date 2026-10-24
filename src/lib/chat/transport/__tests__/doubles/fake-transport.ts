@@ -11,7 +11,7 @@ import type { GroupRestriction } from '@/components/chat/group-restriction';
 import { chatFeatures, type StatedFeatures } from '../../features';
 import type {
   ChatKind, ChatMessage, ChatSelf, ChatTransport, DocumentInvitation, DocumentPort, FilePort, FileSendReceipt,
-  HistoryCursor, HistoryEvent, HistoryPage, SettingsPort, StatusChange, StatusPort, StatusProbe, StatusSnapshot, TextSend,
+  HistoryCursor, HistoryEvent, HistoryPage, SendPort, SettingsPort, StatusChange, StatusPort, StatusProbe, StatusSnapshot, TextSend,
 } from '../../chat-transport';
 import { APP_OPENING_PORTS } from '@/components/p2p/chat-document/use-chat-documents';
 
@@ -30,7 +30,10 @@ export interface FakeOptions {
   readonly counterpart: string;
   readonly latest: HistoryPage;
   readonly stated: StatedFeatures;
-  readonly ports: { readonly status: boolean; readonly files: boolean; readonly documents: boolean; readonly settings: boolean };
+  readonly ports: {
+    readonly status: boolean; readonly files: boolean; readonly documents: boolean; readonly settings: boolean;
+    readonly revise: boolean; readonly reactions: boolean;
+  };
   readonly sendGate: GroupRestriction;
   /** Whether a text send records its bubble before resolving. */
   readonly recordsOnSend: boolean;
@@ -70,7 +73,16 @@ export function fakeTransport(options: FakeOptions): { transport: ChatTransport;
     onActivity: (listener: (docId: string) => void): (() => void) => { activities.add(listener); return (): void => { activities.delete(listener); }; },
   };
   const settings: SettingsPort | null = options.ports.settings ? { key: '2' } : null;
-  const ports: Pick<ChatTransport, 'status' | 'files' | 'documents' | 'settings'> = { status, files, documents, settings };
+  const send: SendPort = {
+    text: async (message: TextSend): Promise<void> => { texts.push(message); if (options.recordsOnSend) message.onRecorded(); },
+    revise: !options.ports.revise ? null : {
+      edit: async (id: string, content: string): Promise<void> => call(`send.edit:${id}:${content}`),
+      remove: async (id: string): Promise<void> => call(`send.remove:${id}`),
+    },
+    react: !options.ports.reactions ? null : async (id: string, emoji: string): Promise<void> => call(`send.react:${id}:${emoji}`),
+    retry: async (id: string): Promise<void> => call(`send.retry:${id}`),
+  };
+  const ports: Pick<ChatTransport, 'send' | 'status' | 'files' | 'documents' | 'settings'> = { send, status, files, documents, settings };
 
   const transport: ChatTransport = {
     kind: options.kind,
@@ -87,13 +99,6 @@ export function fakeTransport(options: FakeOptions): { transport: ChatTransport;
       markRead: async (ids: readonly string[] | null): Promise<void> => call(`history.markRead:${ids === null ? 'all' : ids.join(',')}`),
       focus: (): (() => void) => { call('history.focus'); return (): void => call('history.blur'); },
       clearNotices: (): void => call('history.clearNotices'),
-    },
-    send: {
-      text: async (message: TextSend): Promise<void> => { texts.push(message); if (options.recordsOnSend) message.onRecorded(); },
-      edit: async (id: string, content: string): Promise<void> => call(`send.edit:${id}:${content}`),
-      remove: async (id: string): Promise<void> => call(`send.remove:${id}`),
-      react: async (id: string, emoji: string): Promise<void> => call(`send.react:${id}:${emoji}`),
-      retry: async (id: string): Promise<void> => call(`send.retry:${id}`),
     },
     ...ports,
     reactorName: (cid: bigint): string => (cid === options.self?.cid ? 'You' : `member ${cid.toString()}`),
@@ -115,5 +120,6 @@ export function fakeMessage(id: string, content: string, timestamp: number, own:
     id, content, timestamp, index: 0, status: 'delivered', message_type: 'text',
     senderCid: own ? 1n : 2n, recipientCid: own ? 2n : 1n,
     author: own ? { own: true, name: 'You', username: null } : { own: false, name: 'Bob', username: 'bob' },
+    share: null,
   };
 }

@@ -9,7 +9,7 @@
  * it identically and with the same asymmetry: user one always sends, user two
  * never can.
  *
- * `GroupChatView`'s own prop comment says `currentUserId` is "Unused by the
+ * The old chat view's own prop comment said `currentUserId` was "Unused by the
  * view itself; kept only for callers that still pass it". The entire chat was
  * gated on a value its consumer ignores.
  *
@@ -76,9 +76,11 @@ vi.mock('@/components/call/GroupCallControls', () => ({
 }));
 vi.mock('@/components/call/GroupCallDock', () => ({ GroupCallDock: (): JSX.Element => <div /> }));
 vi.mock('@/components/chat/GroupSettingsPanel', () => ({ GroupSettingsPanel: (): JSX.Element => <div /> }));
-vi.mock('@/components/chat/GroupChatView', () => ({
-  GroupChatView: (props: { currentUserName: string }): JSX.Element => (
-    <div data-testid="group-message-input" data-name={props.currentUserName} />
+// The page decides whether the chat renders and whom it names; the chat itself is tested in
+// a-peer-group-chats-like-a-direct-chat.
+vi.mock('@/components/chat/PeerGroupChat', () => ({
+  PeerGroupChat: (props: { readerName: string }): JSX.Element => (
+    <div data-testid="group-message-input" data-name={props.readerName} />
   ),
 }));
 

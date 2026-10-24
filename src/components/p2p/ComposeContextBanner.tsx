@@ -1,9 +1,9 @@
 import { X, Reply, Pencil, type LucideIcon } from 'lucide-react';
-import type { P2PMessage } from '@/lib/p2p/p2p-types';
+import type { PaneMessage } from '@/lib/chat/transport/chat-transport';
 
 interface ComposeContextBannerProps {
-  replyingTo: P2PMessage | null;
-  editingMessage: P2PMessage | null;
+  replyingTo: PaneMessage | null;
+  editingMessage: PaneMessage | null;
   onCancel: () => void;
 }
 
@@ -14,7 +14,7 @@ interface ComposeContextBannerProps {
  * way to back out.
  */
 export function ComposeContextBanner({ replyingTo, editingMessage, onCancel }: ComposeContextBannerProps): JSX.Element | null {
-  const active: P2PMessage | null = editingMessage ?? replyingTo;
+  const active: PaneMessage | null = editingMessage ?? replyingTo;
   if (!active) return null;
 
   const isEditing: boolean = editingMessage !== null;

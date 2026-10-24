@@ -21,8 +21,8 @@ afterEach((): void => { cleanup(); clearAllDraftsForTests(); });
 const PEER: FakeOptions = {
   kind: 'peer', self: { cid: 1n, username: 'me', displayName: 'You' }, counterpart: 'Bob',
   latest: { messages: [fakeMessage('m1', 'hello there', 1_700_000_000_000, false)], older: null },
-  stated: { markdown: true, reactions: true, readReceipts: true, securityLevel: true, retention: true, optimistic: true, namesSenders: false },
-  ports: { status: true, files: true, documents: true, settings: true }, sendGate: 'allowed', recordsOnSend: true,
+  stated: { markdown: true, readReceipts: true, securityLevel: true, retention: true, optimistic: true, namesSenders: false },
+  ports: { status: true, files: true, documents: true, settings: true, revise: true, reactions: true }, sendGate: 'allowed', recordsOnSend: true,
 };
 
 function Header({ status }: { status: ChatPaneStatus }): JSX.Element {

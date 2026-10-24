@@ -74,7 +74,7 @@ const RECORDED_UNCONSUMED = new Map([
   ['group:message:edited', 'the edit path settles through awaitWriteResponse, not this event'],
   ['group:message:deleted', 'as group:message:edited'],
   ['group:message:single', 'no consumer; single-message fetch is unused by the UI'],
-  ['group:messages:loaded', 'useGroupChat reads the pagination result directly'],
+  ['group:messages:loaded', 'the node chat reads each page from the message manager the response handler fills (node-chat-io)'],
   ['instance:state-changed', 'diagnostic; the UI reads instanceManager directly'],
   ['member:loaded', 'the members list is driven by members:loaded (plural)'],
   // The note this replaces said "node types are read synchronously from the

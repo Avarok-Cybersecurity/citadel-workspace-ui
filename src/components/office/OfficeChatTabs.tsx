@@ -1,7 +1,9 @@
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { FileText, MessageSquare } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import GroupChatView from '@/components/chat/GroupChatView';
+import { NodeChat } from './NodeChat';
+import { chatSelf } from '@/lib/tab-identity';
+import type { ChatSelf } from '@/lib/chat/transport/chat-transport';
 import { GroupCallControls } from '@/components/call/GroupCallControls';
 import type { RoomCallRoster } from '@/lib/call/callable-members';
 import { usePermission } from '@/hooks/use-permission';
@@ -21,9 +23,13 @@ interface OfficeChatTabsProps {
   /** The workspace node whose member roster a call here would ring. */
   nodeId?: string;
   roomName: string;
+  /** The reader's workspace id: what the server writes as the sender of their messages. */
   currentUserId: string;
   currentUserName: string;
-  rules?: string;
+  /** The reader's CID; undefined until the tab knows it. */
+  currentUserCid: bigint | undefined;
+  /** The channel's rules; null when it has none. */
+  rules: string | null;
 }
 
 /**
@@ -39,8 +45,14 @@ export function OfficeChatTabs({
   roomName,
   currentUserId,
   currentUserName,
+  currentUserCid,
   rules,
 }: OfficeChatTabsProps): JSX.Element {
+  // Keyed by its parts: a new object every render would rebuild the chat's transport.
+  const self: ChatSelf | null = useMemo(
+    (): ChatSelf | null => chatSelf({ id: currentUserId, displayName: currentUserName }, currentUserCid),
+    [currentUserId, currentUserName, currentUserCid],
+  );
   const callRoster: RoomCallRoster = useDomainCallMembers(nodeId);
   const [tab, setTab] = useState<OfficeTab>((): OfficeTab => rememberedTab(chatChannelId));
   // Office chat is governed by the workspace permission system, not by group
@@ -115,15 +127,7 @@ export function OfficeChatTabs({
         </TabsContent>
 
         <TabsContent value="chat" className="mt-0 flex-1 overflow-hidden">
-          <GroupChatView
-            groupId={chatChannelId}
-            currentUserId={currentUserId}
-            currentUserName={currentUserName}
-            rules={rules}
-            // The channel's full roster is not known here (callRoster lists only who can be called).
-            totalMembers={null}
-            sendRestriction={sendRestriction}
-          />
+          <NodeChat channelId={chatChannelId} channelName={roomName} self={self} sendRestriction={sendRestriction} rules={rules} />
         </TabsContent>
       </Tabs>
     </div>

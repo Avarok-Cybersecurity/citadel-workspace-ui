@@ -18,6 +18,8 @@ export interface PaneTestIds {
   readonly log: TestIdAttribute;
   readonly input: TestIdAttribute;
   readonly restricted: TestIdAttribute;
+  /** The browser file picker of a conversation of many. */
+  readonly picker: TestIdAttribute;
 }
 
 const PEER: PaneTestIds = {
@@ -25,12 +27,14 @@ const PEER: PaneTestIds = {
   log: { 'data-testid': 'p2p-chat-view' },
   input: { 'data-testid': 'p2p-message-input' },
   restricted: { 'data-testid': 'p2p-send-restricted' },
+  picker: { 'data-testid': 'p2p-file-input' },
 };
 const GROUP: PaneTestIds = {
   root: { 'data-testid': 'group-chat' },
   log: { 'data-testid': 'group-chat-view' },
   input: { 'data-testid': 'group-message-input' },
   restricted: { 'data-testid': 'group-send-restricted' },
+  picker: { 'data-testid': 'group-file-input' },
 };
 
 export function paneTestIds(kind: ChatKind): PaneTestIds {

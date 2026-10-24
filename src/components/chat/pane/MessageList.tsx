@@ -38,8 +38,9 @@ interface MessageListProps {
   onDeclineTransfer: (transferId: string) => Promise<void>;
   onCancelTransfer: (transferId: string) => Promise<void>;
   onOpenFile: (transferId: string) => void;
-  onEditMessage: (messageId: string, content: string) => void;
-  onDeleteMessage: (messageId: string) => void;
+  /** Null where the conversation's messages cannot be changed once sent. */
+  onEditMessage: ((messageId: string, content: string) => void) | null;
+  onDeleteMessage: ((messageId: string) => void) | null;
   onReplyMessage: (messageId: string) => void;
   /** Focus the composer after a bubble's Edit or Reply; see chat/shared/menu-focus-handoff. */
   focusComposer: () => void;
@@ -129,8 +130,8 @@ export const MessageList: React.ForwardRefExoticComponent<MessageListProps & Rea
                 showSenderAvatar={namesSenders}
                 senderName={message.author.name}
                 senderUsername={message.author.username ?? undefined}
-                onEdit={(): void => onEditMessage(message.id, message.content)}
-                onDelete={(): void => onDeleteMessage(message.id)}
+                onEdit={onEditMessage === null ? undefined : (): void => onEditMessage(message.id, message.content)}
+                onDelete={onDeleteMessage === null ? undefined : (): void => onDeleteMessage(message.id)}
                 onReply={(): void => onReplyMessage(message.id)}
                 focusComposer={focusComposer}
                 reactions={reactionsFor(message)}

@@ -21,11 +21,11 @@ export interface ChatDocumentMade {
   delivered: Promise<void>;
 }
 
-/** A document a chat message names: its id, its title, and who sent the message (who made it). */
+/** A document a chat message names: its id, its title, and whether the reader sent the message (made it). */
 export interface ChatDocumentLink {
   readonly documentId: string;
   readonly title: string;
-  readonly madeBy: bigint;
+  readonly mine: boolean;
 }
 
 interface Invitation {
@@ -129,11 +129,11 @@ export function useP2PTabs({ documents: port, currentUserCid }: UseP2PTabsOption
     setActiveTabId(newTab.id);
   }, [currentUserCid, openDocument]);
 
-  const handleOpenDocument: (link: ChatDocumentLink) => void = useCallback(({ documentId, title, madeBy }: ChatDocumentLink): void => {
+  const handleOpenDocument: (link: ChatDocumentLink) => void = useCallback(({ documentId, title, mine }: ChatDocumentLink): void => {
     if (port === null) return;
     // Whoever sent the message that names the document made it: the creator's move is the document's.
-    showDocument({ docId: documentId, title, peer: port.replica, creator: madeBy === currentUserCid ? 'self' : 'peer', seed: null });
-  }, [showDocument, port, currentUserCid]);
+    showDocument({ docId: documentId, title, peer: port.replica, creator: mine ? 'self' : 'peer', seed: null });
+  }, [showDocument, port]);
 
   const handleCreateDocument: (input: NewChatDocumentInput) => Promise<ChatDocumentMade> = useCallback(async ({ app, title, initialContent }: NewChatDocumentInput): Promise<ChatDocumentMade> => {
     // Was `if (!currentUserCid) return;` — a success-shaped no-op that closed

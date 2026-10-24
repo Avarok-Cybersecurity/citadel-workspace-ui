@@ -24,7 +24,7 @@ import { fakeTransport, fakeMessage, type Recorded } from '@/lib/chat/transport/
 import type { ChatMessage, ChatTransport } from '@/lib/chat/transport/chat-transport';
 import type { StatedFeatures } from '@/lib/chat/transport/features';
 
-const STATED: StatedFeatures = { markdown: true, reactions: true, readReceipts: true, securityLevel: false, retention: false, optimistic: true, namesSenders: true };
+const STATED: StatedFeatures = { markdown: true, readReceipts: true, securityLevel: false, retention: false, optimistic: true, namesSenders: true };
 let transport: ChatTransport;
 let recorded: Recorded;
 // Stable, as the chat's own useCallback is: a fresh one per render re-runs the conversation's effect.
@@ -35,7 +35,7 @@ beforeEach(() => {
   ({ transport, recorded } = fakeTransport({
     kind: 'node', self: { cid: 1n, username: 'me', displayName: 'You' }, counterpart: 'General',
     latest: { messages: [fakeMessage('m1', 'hello', 10, false)], older: { kind: 'before', timestamp: 10n } },
-    stated: STATED, ports: { status: true, files: true, documents: true, settings: false }, sendGate: 'allowed', recordsOnSend: true,
+    stated: STATED, ports: { status: true, files: true, documents: true, settings: false, revise: true, reactions: true }, sendGate: 'allowed', recordsOnSend: true,
   }));
 });
 

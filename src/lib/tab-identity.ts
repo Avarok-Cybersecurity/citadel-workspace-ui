@@ -1,5 +1,6 @@
 import type { TabUserContext } from '@/lib/tab-context';
 import type { StoredSession } from '@/types/session-types';
+import type { ChatSelf } from '@/lib/chat/transport/chat-transport';
 
 /** Who this tab is, as far as anything on screen needs to know. */
 export interface TabIdentity {
@@ -75,13 +76,25 @@ export interface ReaderIdentity {
  * what stops that fall-through in the ordinary case where the workspace state
  * has not populated yet.
  */
+/** The id `readerIdentity` gives a reader it could not identify: nobody's messages are theirs. */
+export const UNKNOWN_READER_ID: string = 'unknown';
+
 export function readerIdentity(
   stateUser: { id?: string; username?: string; displayName?: string } | null | undefined,
   tab: TabIdentity | null,
 ): ReaderIdentity {
   return {
-    id: stateUser?.id || stateUser?.username || tab?.username || 'unknown',
+    id: stateUser?.id || stateUser?.username || tab?.username || UNKNOWN_READER_ID,
     displayName:
       stateUser?.displayName || stateUser?.username || tab?.fullName || tab?.username || 'Unknown User',
   };
+}
+
+/**
+ * The reader as a chat transport knows them: the workspace id the server writes as a channel
+ * message's sender, and the CID a reaction names. Null until both are known.
+ */
+export function chatSelf(reader: ReaderIdentity, cid: bigint | undefined): ChatSelf | null {
+  if (reader.id === UNKNOWN_READER_ID || cid === undefined) return null;
+  return { cid, username: reader.id, displayName: reader.displayName };
 }

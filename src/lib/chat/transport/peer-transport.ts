@@ -27,8 +27,10 @@ function peerSend(messenger: P2PMessengerManager, peer: ChatPeer): SendPort {
     text: async ({ content, messageType, replyTo, onRecorded }: TextSend): Promise<void> => {
       await messenger.sendMessage(peer.cid, content, { messageType, replyTo: replyTo ?? undefined, onOptimisticAppend: onRecorded });
     },
-    edit: (messageId: string, content: string): Promise<void> => messenger.editMessage(peer.cid, messageId, content),
-    remove: (messageId: string): Promise<void> => messenger.deleteMessage(peer.cid, messageId),
+    revise: {
+      edit: (messageId: string, content: string): Promise<void> => messenger.editMessage(peer.cid, messageId, content),
+      remove: (messageId: string): Promise<void> => messenger.deleteMessage(peer.cid, messageId),
+    },
     react: (messageId: string, emoji: string): Promise<void> => messenger.reactToMessage(peer.cid, messageId, emoji),
     retry: (messageId: string): Promise<void> => messenger.resendMessage(peer.cid, messageId),
   };
@@ -82,7 +84,8 @@ export interface PeerTransportParams {
 
 export function createPeerTransport({ peer, self, opening }: PeerTransportParams): ChatTransport {
   const messenger: P2PMessengerManager = P2PMessengerManager.getInstance();
-  const ports: Pick<ChatTransport, 'status' | 'files' | 'documents' | 'settings'> = {
+  const ports: Pick<ChatTransport, 'send' | 'status' | 'files' | 'documents' | 'settings'> = {
+    send: peerSend(messenger, peer),
     status: peerStatus(messenger, peer),
     files: peerFiles(peer),
     documents: peerDocuments(messenger, peer, opening),
@@ -94,12 +97,11 @@ export function createPeerTransport({ peer, self, opening }: PeerTransportParams
     self,
     counterpart: { name: peer.name, username: peer.username, greeting: `Say hello to ${peer.name}. Messages are end-to-end encrypted.` },
     features: chatFeatures(ports, {
-      markdown: true, reactions: true, readReceipts: true, securityLevel: true, retention: true, optimistic: true, namesSenders: false,
+      markdown: true, readReceipts: true, securityLevel: true, retention: true, optimistic: true, namesSenders: false,
     }),
     // A direct chat has no roles: whoever is in it may write.
     sendGate: createValueStore<GroupRestriction>(`chat-send-gate:${peer.cid.toString()}`, 'allowed'),
     history: peerHistory(messenger, peer, self),
-    send: peerSend(messenger, peer),
     ...ports,
     // Two parties, so a reactor is either the reader or the peer.
     reactorName: (cid: bigint): string => (self !== null && cid === self.cid ? 'You' : peer.name),

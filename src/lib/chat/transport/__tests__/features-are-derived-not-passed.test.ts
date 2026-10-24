@@ -15,23 +15,26 @@ import { APP_OPENING_PORTS } from '@/components/p2p/chat-document/use-chat-docum
 
 vi.mock('@/lib/p2p/p2p-messenger-manager', () => ({ P2PMessengerManager: { getInstance: (): object => ({}) } }));
 
-const STATED: StatedFeatures = { markdown: true, reactions: true, readReceipts: true, securityLevel: true, retention: true, optimistic: true, namesSenders: false };
-const NONE: Pick<ChatTransport, 'status' | 'files' | 'documents' | 'settings'> = { status: null, files: null, documents: null, settings: null };
+const STATED: StatedFeatures = { markdown: true, readReceipts: true, securityLevel: true, retention: true, optimistic: true, namesSenders: false };
+const BARE_SEND: ChatTransport['send'] = { text: async (): Promise<void> => undefined, revise: null, react: null, retry: async (): Promise<void> => undefined };
+const NONE: Pick<ChatTransport, 'send' | 'status' | 'files' | 'documents' | 'settings'> = { send: BARE_SEND, status: null, files: null, documents: null, settings: null };
 
 describe('chat features', () => {
   it('are false for every port a transport does not have', () => {
-    expect(chatFeatures(NONE, STATED)).toMatchObject({ typing: false, presence: false, files: false, documents: false, settings: false });
+    expect(chatFeatures(NONE, STATED)).toMatchObject({ typing: false, presence: false, files: false, documents: false, settings: false, reactions: false, revise: false });
   });
 
   it('follow each port on its own', () => {
     const peer: ChatTransport = createPeerTransport({ peer: { cid: 7n, name: 'Bob', username: 'bob' }, self: null, opening: APP_OPENING_PORTS });
     expect(chatFeatures({ ...NONE, files: peer.files }, STATED)).toMatchObject({ files: true, documents: false });
     expect(chatFeatures({ ...NONE, documents: peer.documents }, STATED)).toMatchObject({ files: false, documents: true });
+    expect(chatFeatures({ ...NONE, send: { ...BARE_SEND, react: peer.send.react } }, STATED)).toMatchObject({ reactions: true, revise: false });
+    expect(chatFeatures({ ...NONE, send: { ...BARE_SEND, revise: peer.send.revise } }, STATED)).toMatchObject({ reactions: false, revise: true });
   });
 
   it('of the direct chat are all present, as before the port existed', () => {
     const peer: ChatTransport = createPeerTransport({ peer: { cid: 7n, name: 'Bob', username: 'bob' }, self: null, opening: APP_OPENING_PORTS });
-    expect(peer.features).toEqual({ ...STATED, typing: true, presence: true, files: true, documents: true, settings: true });
+    expect(peer.features).toEqual({ ...STATED, reactions: true, revise: true, typing: true, presence: true, files: true, documents: true, settings: true });
     expect(peer.features).toEqual(chatFeatures(peer, STATED));
   });
 });

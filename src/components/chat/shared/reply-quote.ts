@@ -7,8 +7,7 @@
  * loaded -- there is no fetch for one message -- so `null` is an honest answer
  * ("not loaded"), not a failure.
  */
-import type { P2PMessage } from '@/lib/p2p';
-import type { GroupMessage } from '@/types/workspace-entities';
+import type { PaneMessage } from '@/lib/chat/transport/chat-transport';
 
 export interface QuotedMessage {
   readonly id: string;
@@ -27,13 +26,13 @@ export function replyExcerpt(text: string): string {
 }
 
 /** A file or document message has no text of its own; its name stands in. */
-function p2pQuotableText(message: P2PMessage): string {
+function p2pQuotableText(message: PaneMessage): string {
   if (message.message_type === 'file_transfer') return message.file_name ?? 'A file';
   if (message.message_type === 'live_document') return message.document_title ?? 'A document';
   return message.content;
 }
 
-export function quoteP2PReply<M extends P2PMessage>(
+export function quoteP2PReply<M extends PaneMessage>(
   replyTo: string,
   byId: ReadonlyMap<string, M>,
   authorOf: (message: M) => string,
@@ -41,13 +40,4 @@ export function quoteP2PReply<M extends P2PMessage>(
   const original: M | undefined = byId.get(replyTo);
   if (!original) return null;
   return { id: original.id, authorName: authorOf(original), excerpt: replyExcerpt(p2pQuotableText(original)) };
-}
-
-export function quoteGroupReply(
-  replyTo: string,
-  byId: ReadonlyMap<string, GroupMessage>,
-): QuotedMessage | null {
-  const original: GroupMessage | undefined = byId.get(replyTo);
-  if (!original) return null;
-  return { id: original.id, authorName: original.sender_name, excerpt: replyExcerpt(original.content) };
 }

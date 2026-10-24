@@ -85,8 +85,8 @@ export function ChatPane({ transport, header, pause }: ChatPaneProps): JSX.Eleme
               onDeclineTransfer={fileSend.fileTransfer.handleDeclineTransfer}
               onCancelTransfer={fileSend.fileTransfer.handleCancelTransfer}
               onOpenFile={fileSend.fileTransfer.handleOpenFile}
-              onEditMessage={compose.handleStartEdit}
-              onDeleteMessage={list.handleDeleteMessage}
+              onEditMessage={features.revise ? compose.handleStartEdit : null}
+              onDeleteMessage={features.revise ? list.handleDeleteMessage : null}
               onReplyMessage={compose.handleReplyMessage}
               focusComposer={(): void => { compose.inputRef.current?.focus(); }}
               onReactMessage={features.reactions ? list.handleReactMessage : null}
@@ -116,7 +116,7 @@ export function ChatPane({ transport, header, pause }: ChatPaneProps): JSX.Eleme
       </div>
 
       <LiveDocumentModal isOpen={compose.showDocModal} onClose={compose.closeDocModal} onCreateDocument={compose.handleDocCreate} initialContent={compose.inputMessage} />
-      {transport.files !== null && <ChatFileDialogs send={fileSend} files={transport.files} />}
+      {transport.files !== null && <ChatFileDialogs send={fileSend} files={transport.files} picker={ids.picker} />}
       {transport.settings !== null && (
         <ChatSettingsPanel isOpen={pane.settingsOpen} onClose={(): void => pane.setSettingsOpen(false)} peerCid={transport.settings.key} peerName={counterpart.name} />
       )}

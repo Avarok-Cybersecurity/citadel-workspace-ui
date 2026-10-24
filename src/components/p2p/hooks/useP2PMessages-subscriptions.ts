@@ -30,6 +30,15 @@ export interface ConversationSubscriptionParams {
 const appended = (prev: ChatMessage[], message: ChatMessage): ChatMessage[] =>
   prev.some((m: ChatMessage): boolean => m.id === message.id) ? prev : [...prev, message].sort((a, b) => a.timestamp - b.timestamp);
 
+/** The local copy becomes the transport's; if the transport's copy is already shown, the local one goes. */
+const replaced = (prev: ChatMessage[], localId: string, message: ChatMessage): ChatMessage[] => {
+  if (!prev.some((m: ChatMessage): boolean => m.id === localId)) return appended(prev, message);
+  const shown: boolean = prev.some((m: ChatMessage): boolean => m.id === message.id);
+  return shown
+    ? prev.filter((m: ChatMessage): boolean => m.id !== localId)
+    : prev.map((m: ChatMessage): ChatMessage => (m.id === localId ? message : m));
+};
+
 /** Wires every conversation-scoped listener; returns one combined unsubscribe. */
 export function subscribeToConversationEvents({
   transport,
@@ -70,6 +79,9 @@ export function subscribeToConversationEvents({
       // Deletion removes the message rather than tombstoning it, matching group chat.
       case 'removed':
         setMessages((prev: ChatMessage[]): ChatMessage[] => prev.filter((m: ChatMessage): boolean => m.id !== event.messageId));
+        return;
+      case 'replaced':
+        setMessages((prev: ChatMessage[]): ChatMessage[] => replaced(prev, event.localId, event.message));
         return;
       case 'cleared':
         setMessages([]);

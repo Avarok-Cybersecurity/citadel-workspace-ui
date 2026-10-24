@@ -326,8 +326,9 @@ export async function getMessageCount(page: Page, username: string): Promise<num
     // Look for message bubbles/items
     // `[class*="message"]` matched any element whose class merely CONTAINS
     // "message" -- wrappers, the composer, anything -- so this returned a
-    // number that was not the message count. The app now names each message.
-    const messages = page.locator('[data-testid="message-item"]');
+    // number that was not the message count. Each message row carries its id
+    // (the chat pane's jump anchor); scoped to the channel's transcript.
+    const messages = page.locator('[data-testid="group-chat-view"] [data-message-id]');
     const count = await messages.count();
     console.log(`  Found ${count} messages`);
     return count;
@@ -356,7 +357,9 @@ export async function checkMessageTimestamps(page: Page, username: string): Prom
 }
 
 /**
- * Load older messages (pagination)
+ * Load older messages (pagination): scroll the transcript to its top, which is
+ * how the chat pane asks for the page before the oldest message it holds (it
+ * has no button). True when more messages are on screen afterwards.
  */
 export async function loadOlderMessages(
   page: Page,
@@ -366,22 +369,19 @@ export async function loadOlderMessages(
   console.log(`\n=== ${username}: Loading older messages ===`);
 
   try {
-    // `has-text` is a substring match, so this covers the button's full copy,
-    // "Load older messages". The dead alternative that used to sit beside it
-    // searched for "Load more", which the app has never rendered -- it was
-    // carried along harmlessly because the working half of the selector
-    // matched first, which is exactly how a dead locator survives review.
-    const loadMoreBtn = page.locator('button:has-text("Load older")').first();
-
-    if (await isVisibleWithin(loadMoreBtn, 3000)) {
-      await loadMoreBtn.click();
-      await sleep(2000);
-      console.log(`  Clicked "Load older messages"`);
-      return true;
-    }
-
-    console.log(`  No "Load older" button found (may not have more messages)`);
-    return false;
+    const rows = page.locator('[data-testid="group-chat-view"] [data-message-id]');
+    const before: number = await rows.count();
+    const viewport = page.locator('[data-testid="group-chat-view"] [data-radix-scroll-area-viewport]').first();
+    await viewport.evaluate((el: Element): void => { el.scrollTop = 0; el.dispatchEvent(new Event('scroll')); });
+    const grew: boolean = await page
+      .waitForFunction(
+        (n: number): boolean => document.querySelectorAll('[data-testid="group-chat-view"] [data-message-id]').length > n,
+        before,
+        { timeout: 5000 },
+      )
+      .then((): boolean => true, (): boolean => false);
+    console.log(grew ? '  Older messages loaded' : '  No older messages arrived (may not have more)');
+    return grew;
   } catch (error) {
     console.log(`  ERROR loading older messages: ${error}`);
     return false;
@@ -395,7 +395,7 @@ export async function checkRulesBanner(page: Page, username: string): Promise<st
   console.log(`\n=== ${username}: Checking for rules banner ===`);
 
   try {
-    const rulesBanner = page.locator('[class*="rules"], [class*="banner"]:has-text("Rule")').first();
+    const rulesBanner = page.getByTestId('channel-rules').first();
 
     if (await isVisibleWithin(rulesBanner, 3000)) {
       const rulesText = await rulesBanner.textContent();

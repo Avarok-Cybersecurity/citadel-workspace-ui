@@ -9,10 +9,8 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ReactionChips } from '../ReactionChips';
 import { TextBubble } from '@/components/p2p/bubbles/TextBubble';
-import { GroupMessageItem } from '@/components/chat/GroupMessageItem';
 import type { ReactionBinding } from '../reaction-binding';
 import type { P2PMessage } from '@/lib/p2p';
-import type { GroupMessage } from '@/types/workspace-entities';
 
 const ME: bigint = 1n;
 const ALICE: bigint = 2n;
@@ -83,23 +81,17 @@ describe('the picker', () => {
     expect(wrapper?.className).not.toMatch(/opacity-0/);
   });
 
-  it('is offered in a peer-group message menu when the group carries reactions', async () => {
+  // A group message is the same bubble with its sender named.
+  it('is offered on a group message when the group carries reactions', async () => {
     const onReact: (emoji: string) => void = vi.fn();
-    render(<GroupMessageItem message={groupMessage()} currentUserName="bob" totalMembers={3} onEdit={(): void => {}} onDelete={(): void => {}} canRevise={false} onReply={(): void => {}} focusComposer={(): void => {}} quoted={null} reactions={binding(onReact)} />);
+    render(<TextBubble message={p2pMessage} isOwn={false} quoted={null} showSenderName senderName="ada" onReply={(): void => {}} reactions={binding(onReact)} />);
     await userEvent.click(within(await openMenu()).getByRole('menuitem', { name: 'React with 👍' }));
     expect(onReact).toHaveBeenCalledWith('👍');
     expect(screen.getAllByTestId('reaction-chip')).toHaveLength(2);
   });
 
   it('is not offered where the group cannot carry reactions', async () => {
-    render(<GroupMessageItem message={groupMessage()} currentUserName="bob" totalMembers={3} onEdit={(): void => {}} onDelete={(): void => {}} canRevise={true} onReply={(): void => {}} focusComposer={(): void => {}} quoted={null} />);
+    render(<TextBubble message={p2pMessage} isOwn={false} quoted={null} showSenderName senderName="ada" onReply={(): void => {}} />);
     expect(within(await openMenu()).queryAllByTestId('reaction-pick')).toEqual([]);
   });
 });
-
-function groupMessage(): GroupMessage {
-  return {
-    id: 'g1', group_id: '7:42', sender_id: '7', sender_name: 'ada', message_type: 'Text', content: 'hi',
-    timestamp: 1n, reply_to: null, reply_count: 0, mentions: [], edited_at: null,
-  };
-}

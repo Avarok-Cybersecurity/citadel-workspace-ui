@@ -1,10 +1,10 @@
-import type { P2PMessage } from '@/lib/p2p';
+import type { PaneMessage } from '@/lib/chat/transport/chat-transport';
 import type { QuotedMessage } from '@/components/chat/shared/reply-quote';
 import type { ReactionBinding } from '@/components/chat/shared/reactions/reaction-binding';
 import type { ChatDocumentLink } from '../hooks/useP2PTabs';
 
 export interface BaseBubbleProps {
-  message: P2PMessage;
+  message: PaneMessage;
   isOwn: boolean;
   onRetry?: () => void;
 

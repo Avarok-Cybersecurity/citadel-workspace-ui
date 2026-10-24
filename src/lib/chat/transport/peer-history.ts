@@ -21,7 +21,7 @@ export function peerAuthor(message: Pick<P2PMessage, 'senderCid'>, self: ChatSel
 }
 
 export function authored(message: P2PMessage, self: ChatSelf | null, peer: ChatPeer): ChatMessage {
-  return { ...message, author: peerAuthor(message, self, peer) };
+  return { ...message, author: peerAuthor(message, self, peer), share: null };
 }
 
 const withPeer = (message: Pick<P2PMessage, 'senderCid' | 'recipientCid'>, peerCid: bigint): boolean =>

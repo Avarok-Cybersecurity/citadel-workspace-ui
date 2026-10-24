@@ -60,6 +60,6 @@ async function aHelpHintLiesOnNothing({ page, url, viewport }) {
 
 export const OVERLAY_CHECKS = {
   theDeliveryDetailsOpenWithoutAMouse: detailsOpenWithoutAMouse('p2p-conversation', '[data-message-id]'),
-  theGroupDeliveryDetailsOpenWithoutAMouse: detailsOpenWithoutAMouse('group-chat', '[data-testid="message-item"]'),
+  theNodeChatDeliveryDetailsOpenWithoutAMouse: detailsOpenWithoutAMouse('node-chat', '[data-message-id]'),
   aHelpHintLiesOnNothing,
 };

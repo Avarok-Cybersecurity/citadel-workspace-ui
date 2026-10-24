@@ -16,7 +16,6 @@ import type { ChatTransport } from './chat-transport';
 /** Properties a transport states because no port carries them. */
 export interface StatedFeatures {
   readonly markdown: boolean;
-  readonly reactions: boolean;
   readonly readReceipts: boolean;
   /** The reader picks a security level per message. */
   readonly securityLevel: boolean;
@@ -29,6 +28,9 @@ export interface StatedFeatures {
 }
 
 export interface ChatFeatures extends StatedFeatures {
+  readonly reactions: boolean;
+  /** Own messages can be edited and deleted. */
+  readonly revise: boolean;
   readonly typing: boolean;
   readonly presence: boolean;
   readonly files: boolean;
@@ -36,11 +38,13 @@ export interface ChatFeatures extends StatedFeatures {
   readonly settings: boolean;
 }
 
-type Ports = Pick<ChatTransport, 'status' | 'files' | 'documents' | 'settings'>;
+type Ports = Pick<ChatTransport, 'send' | 'status' | 'files' | 'documents' | 'settings'>;
 
 export function chatFeatures(ports: Ports, stated: StatedFeatures): ChatFeatures {
   return {
     ...stated,
+    reactions: ports.send.react !== null,
+    revise: ports.send.revise !== null,
     typing: ports.status !== null,
     presence: ports.status !== null,
     files: ports.files !== null,

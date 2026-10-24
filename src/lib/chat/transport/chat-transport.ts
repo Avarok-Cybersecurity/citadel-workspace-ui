@@ -18,6 +18,7 @@ import type { FileDetails } from '@/components/layout/sidebar/file-details';
 import type { ChatFeatures } from './features';
 import type { GroupRestriction } from '@/components/chat/group-restriction';
 import type { ValueStore } from '@/lib/value-store';
+import type { GroupFileShare } from '@/types/group-file-share';
 
 export type ChatKind = 'peer' | 'node' | 'peer-group';
 
@@ -45,7 +46,17 @@ export interface ChatAuthor {
   readonly username: string | null;
 }
 
-export type ChatMessage = P2PMessage & { readonly author: ChatAuthor };
+/**
+ * A message as the pane renders it. The CIDs are a direct chat's: a channel names its senders by
+ * username and has no recipient, so there they are absent rather than invented.
+ */
+export type PaneMessage = Omit<P2PMessage, 'senderCid' | 'recipientCid'> & Partial<Pick<P2PMessage, 'senderCid' | 'recipientCid'>>;
+
+export type ChatMessage = PaneMessage & {
+  readonly author: ChatAuthor;
+  /** A file shared into a peer group, with who has it; null for every other message. */
+  readonly share: GroupFileShare | null;
+};
 
 /** Where older history continues from. Opaque to the pane: only its adapter reads it. */
 export type HistoryCursor =
@@ -65,6 +76,8 @@ export type HistoryEvent =
   | { readonly kind: 'status'; readonly messageId: string; readonly status: MessageStatus }
   | { readonly kind: 'updated'; readonly message: Partial<ChatMessage> & { readonly id: string } }
   | { readonly kind: 'removed'; readonly messageId: string }
+  /** The transport's own copy of a message the reader sent replaces the one shown while it was sent. */
+  | { readonly kind: 'replaced'; readonly localId: string; readonly message: ChatMessage }
   | { readonly kind: 'cleared' }
   /** Retention dropped everything older than `cutoff` (ms). */
   | { readonly kind: 'expired'; readonly cutoff: number };
@@ -92,12 +105,18 @@ export interface TextSend {
   readonly onRecorded: () => void;
 }
 
-export interface SendPort {
-  text(message: TextSend): Promise<void>;
+/** Changing a message after it was sent. */
+export interface RevisePort {
   edit(messageId: string, content: string): Promise<void>;
   remove(messageId: string): Promise<void>;
-  /** Toggles the reader's own `emoji` on a message. */
-  react(messageId: string, emoji: string): Promise<void>;
+}
+
+export interface SendPort {
+  text(message: TextSend): Promise<void>;
+  /** Null where the wire carries no edit or delete (a peer group). */
+  readonly revise: RevisePort | null;
+  /** Toggles the reader's own `emoji` on a message; null where the transport carries no reactions. */
+  readonly react: ((messageId: string, emoji: string) => Promise<void>) | null;
   retry(messageId: string): Promise<void>;
 }
 
@@ -138,8 +157,8 @@ export interface StatusPort {
   readonly acceptance: AcceptancePort | null;
 }
 
-/** How a file can leave: to the peer directly (and their storage), or into the server's file store. */
-export type FileMode = 'peer' | 'their-storage' | 'server';
+/** How a file can leave: to the peer directly (and their storage), to each member directly, or into the server's file store. */
+export type FileMode = 'peer' | 'their-storage' | 'members' | 'server';
 
 export interface FileSendReceipt {
   /** Held until the counterpart is online, rather than leaving now. */
@@ -156,8 +175,11 @@ export interface FilePort {
   cancel(transferId: string): Promise<void>;
   /** What is known about a received file, or null when this device has no record of it. */
   details(transferId: string): FileDetails | null;
-  /** The key the send dialog's own paths (native picker, their storage) address. */
-  readonly dialogKey: string;
+  /**
+   * The one peer the send dialog's own paths (native picker, their storage) address; null in a
+   * conversation of many, where the paperclip opens the browser's file picker straight away.
+   */
+  readonly dialogKey: string | null;
 }
 
 export interface DocumentInvitation {

@@ -43,8 +43,6 @@ export interface UseGroupConversationsResult {
   updateMemberRole: (groupId: string, memberCid: string, roleId: string) => Promise<void>;
   /** Get a specific group by ID */
   getGroup: (groupId: string) => GroupConversation | undefined;
-  /** Mark messages as read for a group */
-  markAsRead: (groupId: string) => void;
   /** Refresh groups from server */
   refresh: () => Promise<void>;
 }

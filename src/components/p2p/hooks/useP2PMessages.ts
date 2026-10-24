@@ -63,9 +63,13 @@ export function useP2PMessages({
     // Cleared whatever happens: a conversation that fails to load must stop claiming to be loading.
     runAsyncSetup(async (): Promise<void> => {
       try {
-        const page: HistoryPage = await history.loadLatest();
-        if (page.messages.length > 0) setMessages((prev: ChatMessage[]): ChatMessage[] => mergeMessages(prev, [...page.messages]));
-        setOlder(page.older);
+        const page: HistoryPage | null = await history.loadLatest().catch((error: unknown): null => {
+          // Said, not swallowed: the empty transcript below it is not a statement that there is none.
+          report('Could not load messages')(error);
+          return null;
+        });
+        if (page !== null && page.messages.length > 0) setMessages((prev: ChatMessage[]): ChatMessage[] => mergeMessages(prev, [...page.messages]));
+        if (page !== null) setOlder(page.older);
         if (status === null) return;
         const after: StatusSnapshot = status.snapshot();
         if (after.connected) setIsConnected(true);
@@ -141,19 +145,21 @@ export function useP2PMessages({
   }, [send]);
 
   const handleEditMessage: (messageId: string, content: string) => Promise<void> = useCallback(async (messageId: string, content: string): Promise<void> => {
-    await send.edit(messageId, content).catch(report('Could not edit message'));
+    if (send.revise === null) return;
+    await send.revise.edit(messageId, content).catch(report('Could not edit message'));
   }, [send]);
 
   const handleDeleteMessage: (messageId: string) => Promise<void> = useCallback(async (messageId: string): Promise<void> => {
     // Asked first; same reasoning as the group chat's delete.
     if (!(await confirm(DELETE_MESSAGE_PROMPT))) return;
-    await send.remove(messageId).catch(report('Could not delete message'));
+    if (send.revise === null) return;
+    await send.revise.remove(messageId).catch(report('Could not delete message'));
   }, [send, confirm]);
 
   // Not awaited by the chip or menu item that calls it, so the failure is reported here rather
   // than becoming an unhandled rejection.
   const handleReactMessage: (messageId: string, emoji: string) => void = useCallback((messageId: string, emoji: string): void => {
-    send.react(messageId, emoji).catch(report('Could not update reaction'));
+    send.react?.(messageId, emoji).catch(report('Could not update reaction'));
   }, [send]);
 
   // Covers what the global listener could not hear: registration that completed before this tab loaded.

@@ -41,19 +41,22 @@ const MIN_ROW_GAP = 8;
  * The row after a live-document bubble and the row after a message that carries reactions are the
  * two pinches users reported.
  */
-async function messageRowsAreSeparated({ page, url }) {
-  await page.goto(url('p2p-conversation'));
+const rowsAreSeparated = (scenario, expected) => async ({ page, url }) => {
+  await page.goto(url(scenario));
   const rows = page.locator('[data-message-id]');
   await rows.first().waitFor({ state: 'visible' });
   const count = await rows.count();
-  assert.equal(count, 6, 'the scenario renders six message rows');
+  assert.equal(count, expected, `the scenario renders ${expected} message rows`);
   const boxes = [];
   for (let i = 0; i < count; i += 1) boxes.push(await rows.nth(i).boundingBox());
   for (let i = 1; i < count; i += 1) {
     const gap = boxes[i].y - (boxes[i - 1].y + boxes[i - 1].height);
     assert.ok(gap >= MIN_ROW_GAP, `row ${i} sits ${gap}px under row ${i - 1} (needs ${MIN_ROW_GAP})`);
   }
-}
+};
+const messageRowsAreSeparated = rowsAreSeparated('p2p-conversation', 6);
+/** The same rows in a node channel, whose messages name their senders and carry a system line. */
+const nodeChatRowsAreSeparated = rowsAreSeparated('node-chat', 5);
 
 const within = (inner, outer) => inner.x >= outer.x - 0.5 && inner.y >= outer.y - 0.5 && inner.x + inner.width <= outer.x + outer.width + 0.5 && inner.y + inner.height <= outer.y + outer.height + 0.5;
 
@@ -130,7 +133,10 @@ async function chatTextIsReadable({ page, url }) {
   await page.goto(url('p2p-conversation'));
   await page.locator('[data-message-id]').first().waitFor({ state: 'visible' });
   await readable(page, 'conversation bubbles');
-
+  // A channel's bubbles too, which include the reader's own markdown: dark in both themes.
+  await page.goto(url('node-chat'));
+  await page.locator('[data-message-id]').first().waitFor({ state: 'visible' });
+  await readable(page, 'node channel bubbles');
 }
 
 /** Where a drop cannot land the overlay says so inside the chat, goes away when the drag leaves, and nothing opens. */
@@ -156,4 +162,4 @@ async function aDropThatCannotLandSaysWhy({ page, url }) {
   assert.equal(await page.getByRole('dialog').count(), 0, 'a drop that cannot land opened a dialog');
 }
 
-export const CHECKS = { aDropThatCannotLandSaysWhy, chatTextIsReadable, tooltipLeavesNeighboursReachable, messageRowsAreSeparated, aDroppedFileGoesToTheSendPath, theHeaderDrawsThePeersPicture };
+export const CHECKS = { aDropThatCannotLandSaysWhy, chatTextIsReadable, tooltipLeavesNeighboursReachable, messageRowsAreSeparated, nodeChatRowsAreSeparated, aDroppedFileGoesToTheSendPath, theHeaderDrawsThePeersPicture };

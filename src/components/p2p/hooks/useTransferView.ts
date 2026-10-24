@@ -8,9 +8,9 @@ import { eventEmitter } from '@/lib/event-emitter';
 import { fileTransferService, FILE_TRANSFER_EVENTS } from '@/lib/file-transfer';
 import { transferView, type OfferSide, type TransferView } from '@/lib/file-transfer/transfer-view';
 import type { FileTransfer } from '@/lib/file-transfer/types';
-import type { P2PMessage } from '@/lib/p2p';
+import type { PaneMessage } from '@/lib/chat/transport/chat-transport';
 
-export function useTransferView(message: P2PMessage, side: OfferSide): TransferView {
+export function useTransferView(message: PaneMessage, side: OfferSide): TransferView {
   const transferId: string | undefined = message.transfer_id;
   const [, rerender] = useReducer((n: number): number => n + 1, 0);
 

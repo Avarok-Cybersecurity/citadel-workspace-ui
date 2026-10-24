@@ -1,8 +1,9 @@
 /**
  * The sender's group bubble names every member and what happened to their copy,
  * and moves when the transfer service learns more; a member's bubble says where
- * the offer to accept is. Rendered through GroupMessageItem, so the card being
- * wired into the thread is part of what is tested.
+ * the offer to accept is. Rendered through MessageBubble from the message the
+ * group transport maps (groupChatMessage), so the card being wired into the
+ * thread is part of what is tested.
  *
  * `@/lib/file-transfer` is replaced by its record lookup and the real event
  * names: the service singleton initialises against IndexedDB and the socket on
@@ -21,7 +22,8 @@ vi.mock('@/lib/file-transfer', () => ({
   FILE_TRANSFER_EVENTS: { STATE_CHANGED: 'file-transfer:state-changed', COMPLETED: 'file-transfer:completed' },
 }));
 
-import { GroupMessageItem } from '../GroupMessageItem';
+import { MessageBubble } from '@/components/p2p/bubbles/MessageBubble';
+import { groupChatMessage } from '@/lib/chat/transport/group-chat-message';
 import { eventEmitter } from '@/lib/event-emitter';
 
 function record(id: string, state: FileTransfer['state'], errorMessage?: string): FileTransfer {
@@ -39,9 +41,9 @@ function message(share: GroupFileShare): GroupMessage {
   } as GroupMessage;
 }
 
-const props: { currentUserName: string; totalMembers: number; onEdit: () => void; onDelete: () => void; onReply: () => void; focusComposer: () => void; canRevise: boolean; quoted: null } = {
-  currentUserName: 'me', totalMembers: 4, onEdit: (): void => {}, onDelete: (): void => {}, onReply: (): void => {}, focusComposer: (): void => {}, canRevise: false, quoted: null,
-};
+function renderShare(share: GroupFileShare): void {
+  render(<MessageBubble message={groupChatMessage(message(share), null, 'sent')} isOwn={false} quoted={null} showSenderName senderName="ada" />);
+}
 
 const senderShare: GroupFileShare = {
   name: 'plan.pdf', size: 2048, mimeType: 'application/pdf', senderCid: 1n,
@@ -61,7 +63,7 @@ beforeEach((): void => { records.clear(); });
 describe('a file shared into a group', () => {
   it('shows the sender each member, the reason for each one not delivered, and the total', () => {
     records.set('t-bob', record('t-bob', 'pending'));
-    render(<GroupMessageItem message={message(senderShare)} {...props} />);
+    renderShare(senderShare);
     expect(screen.getByText('plan.pdf')).toBeTruthy();
     expect(screen.getByText(/2 KB · shared by ada/)).toBeTruthy();
     expect(rows()).toEqual([
@@ -74,7 +76,7 @@ describe('a file shared into a group', () => {
 
   it('moves when the member answers', () => {
     records.set('t-bob', record('t-bob', 'pending'));
-    render(<GroupMessageItem message={message(senderShare)} {...props} />);
+    renderShare(senderShare);
     const declined: FileTransfer = record('t-bob', 'declined', 'no room');
     records.set('t-bob', declined);
     act((): void => { eventEmitter.emit('file-transfer:state-changed', declined); });
@@ -83,7 +85,7 @@ describe('a file shared into a group', () => {
   });
 
   it('tells a member where to accept it, and shows no ledger', () => {
-    render(<GroupMessageItem message={message({ name: 'plan.pdf', size: 2048, mimeType: 'application/pdf', senderCid: 1n })} {...props} />);
+    renderShare({ name: 'plan.pdf', size: 2048, mimeType: 'application/pdf', senderCid: 1n });
     expect(screen.getByText(/Accept or decline it in your chat with ada/)).toBeTruthy();
     expect(screen.queryByTestId('group-file-deliveries')).toBeNull();
   });

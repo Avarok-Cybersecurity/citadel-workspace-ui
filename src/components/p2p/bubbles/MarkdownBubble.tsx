@@ -148,7 +148,7 @@ export function MarkdownBubble({
               of every `code`; in a chat bubble that is the markup showing, so
               it is switched off for both. */}
           <div
-            className={`prose prose-sm max-w-none prose-code:before:content-none prose-code:after:content-none ${isOwn ? 'prose-invert' : 'dark:prose-invert'}`}
+            className={`prose prose-sm max-w-none prose-code:before:content-none prose-code:after:content-none ${isOwn ? 'prose-invert own-bubble-prose' : 'dark:prose-invert'}`}
           >
             <RenderedMarkdown content={message.content} />
           </div>
