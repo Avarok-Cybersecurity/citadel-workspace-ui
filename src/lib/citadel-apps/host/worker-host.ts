@@ -96,10 +96,17 @@ export function startWorkerHost(channel: WorkerChannel, clock: DispatchClock, su
     channel.post({ kind: 'settled' });
   };
 
-  const routerActions = (actions: readonly RouterAction[]): void => {
+  const closingActions = (actions: readonly ClosingAction[]): void => {
     for (const a of actions) {
       if (a.kind === 'reply') channel.post({ kind: 'ihttp_out', peer: a.peer, frame: a.frame });
-      else queue.push(encodeAppEvent({ ihttp: { from: a.peer, frame: a.frame } }));
+      else channel.post({ kind: 'ihttp_call_out', to: a.to, frame: a.frame, transport: a.transport });
+    }
+  };
+
+  const routerActions = (actions: readonly RouterAction[]): void => {
+    for (const a of actions) {
+      if (a.kind === 'deliver') queue.push(encodeAppEvent({ ihttp: { from: a.peer, frame: a.frame } }));
+      else closingActions([a]);
     }
   };
 
@@ -160,13 +167,6 @@ export function startWorkerHost(channel: WorkerChannel, clock: DispatchClock, su
     if (status !== INIT_RESULT.OK || !life.step('initialised')) dead = true;
     channel.post({ kind: 'loaded', seq: msg.seq, status });
     clock.after(ROUTER_TICK_MS, tick);
-  };
-
-  const closingActions = (actions: readonly ClosingAction[]): void => {
-    for (const a of actions) {
-      if (a.kind === 'reply') channel.post({ kind: 'ihttp_out', peer: a.peer, frame: a.frame });
-      else channel.post({ kind: 'ihttp_call_out', to: a.to, frame: a.frame, transport: a.transport });
-    }
   };
 
   const close = (reason: CloseReason): void => {
