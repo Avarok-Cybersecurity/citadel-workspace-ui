@@ -15,6 +15,7 @@ import type { PeerAuthorization } from '../../member-consent-types';
 import type { AgentLink } from '../agent-link';
 import { p2pIhttpPort, p2pTable } from '../ihttp-p2p-port';
 import { PeerAuthority } from '../peer-authority';
+import { InstallPlaneRegistry } from '../install-plane-registry';
 
 const APP: string = 'net.avarok.compute-pool';
 const ME: bigint = 100n;
@@ -60,7 +61,7 @@ function world(): World {
   };
   const authority: PeerAuthority = new PeerAuthority(ask, () => w.now!.ms, 30);
   w.port = p2pIhttpPort({
-    installId: 'inst-1', appId: APP, cid: ME, agent, authority, timeoutMs: 1000,
+    installId: 'inst-1', seat: new InstallPlaneRegistry().attach('inst-1', APP), appId: APP, cid: ME, agent, authority, timeoutMs: 1000,
     peerCid: (u: string) => (u === 'alice' ? ALICE : null),
     sha256Hex: async () => 'digest-1', p2pRoutes: ['GET /health'], maxRoutes: 64, maxPathBytes: 2048,
     noteRefusal: (peer: bigint, side: 'serve' | 'call', why: string): void => { w.refusals!.push(`${side} ${peer.toString()}: ${why}`); },
@@ -177,7 +178,8 @@ describe('the held answer', () => {
   it('a flood of uncached asks is limited before the kernel sees it', async () => {
     let asks: number = 0;
     const a: PeerAuthority = new PeerAuthority(async () => { asks++; return { ok: false, why: 'NoHost' }; }, () => 0, 2);
-    const answers: unknown[] = [await a.authorize(1n, 'Call'), await a.authorize(1n, 'Call'), await a.authorize(1n, 'Call')];
+    // Three directions, so no held refusal answers in the limiter's place.
+    const answers: unknown[] = [await a.authorize(1n, 'Call'), await a.authorize(1n, { Topic: { topic: 'pool' } }), await a.authorize(1n, { Serve: { routes_digest: 'd' } })];
     expect([asks, answers[2]]).toEqual([2, 'limited']);
   });
 });

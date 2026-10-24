@@ -1,15 +1,14 @@
 /**
  * The rules of an app topic, apart from any transport (p2p-demo-design §7): which names an install
- * may open (its grant's `topics`, the manifest's shape), the sender-side limits (the manifest's
- * `limits.topics`, under the SDK's ceilings), the envelope a topic message travels in, and what an
+ * may open (its grant's `topics`, the manifest's shape), whether the manifest's `limits.topics`
+ * are under the SDK's ceilings, the envelope a topic message travels in, and what an
  * arriving group message means to the app. A body that is not a topic envelope for an open topic
  * is not the app's: chat traffic can never reach it. Pure.
  */
 import { decodeCbor, encodeCbor, isCborMap, type Decoded } from '../host/cbor';
-import type { Refused } from '../host/ports';
 import type { TopicLimits } from 'citadel-workspace-client-ts';
 import { isTopicName } from '../manifest/topic-names';
-import { LIMIT_TOPIC_BYTES, LIMIT_TOPIC_RATE, MAX_TOPICS, TOPIC_MAX_MSG_BYTES_CEILING, TOPIC_MAX_MSGS_PER_S_CEILING } from '../sdk/generated/AbiConstants';
+import { MAX_TOPICS, TOPIC_MAX_MSG_BYTES_CEILING, TOPIC_MAX_MSGS_PER_S_CEILING } from '../sdk/generated/AbiConstants';
 
 /** `limits.topics` of the manifest. */
 export type { TopicLimits };
@@ -27,34 +26,6 @@ export function topicLimitsProblem(l: TopicLimits): string | null {
 /** Whether `name` is one of the install's granted topics (at most MAX_TOPICS, each well-formed). */
 export function mayOpen(name: string, granted: readonly string[]): boolean {
   return granted.length <= MAX_TOPICS && isTopicName(name) && granted.includes(name);
-}
-
-/** How long a sender's rate window stays open after the message that opened it. */
-const RATE_WINDOW_MS: number = 1000;
-
-/**
- * The sender's side of the limits, one per open topic, by the server's own rule (citadel_proto
- * `peer/group_limits.rs`): a window opens with the first message and lasts one second, at most
- * `max_msgs_per_s` are sent in it, and a refused message does not count. A looser rule here (a
- * token bucket admits a third message 600 ms in) is a message the page sends and the server refuses.
- */
-export class TopicSender {
-  private opened: number | null = null;
-  private sent: number = 0;
-
-  constructor(private readonly limits: TopicLimits) {}
-
-  /** Null: send it. Otherwise the refusal the app reads, at once. */
-  admit(body: Uint8Array, now: number): Refused | null {
-    if (body.byteLength > this.limits.max_msg_bytes) return { limit: LIMIT_TOPIC_BYTES };
-    if (this.opened === null || now - this.opened >= RATE_WINDOW_MS) {
-      this.opened = now;
-      this.sent = 0;
-    }
-    if (this.sent >= this.limits.max_msgs_per_s) return { limit: LIMIT_TOPIC_RATE };
-    this.sent += 1;
-    return null;
-  }
 }
 
 export const encodeTopicMessage = (name: string, body: Uint8Array): Uint8Array => encodeCbor({ t: TOPIC_ENVELOPE, name, body });

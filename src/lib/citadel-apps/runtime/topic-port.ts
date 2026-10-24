@@ -7,16 +7,19 @@
  * agent can answer, so a topic never appears as a conversation. Message rules are topic-model.ts.
  *
  * A sender's identity is the session's (`peer_cid`) stamped by the kernel's answer for it, never
- * what the body says. Pure over the injected agent, kernel and clock.
+ * what the body says. Two instances of the install on this page hold one membership: the group is
+ * joined by the first and left by the last, and one of them answers join requests
+ * (install-plane-registry.ts). Pure over the injected agent and kernel.
  */
 import type { PortAnswer, TopicArrival, TopicPort } from '../host/ports';
 import type { PeerAuthorization } from '../member-consent-types';
 import type { TopicOpened } from '../sdk/generated/TopicOpened';
 import { groupIdToKey, groupKeyToId, parseGroupKey } from '@/lib/group-conversations/group-key';
 import { agentAsk, bytesOf, variantOf, type AgentLink, type AgentOutcome, type Json } from './agent-link';
+import type { PlaneSeat } from './install-plane-registry';
 import type { PeerAuthority } from './peer-authority';
 import { LIMIT_TOPIC_BYTES, LIMIT_TOPIC_RATE } from '../sdk/generated/AbiConstants';
-import { encodeTopicMessage, mayOpen, readTopicMessage, TopicSender, type TopicLimits } from './topic-model';
+import { encodeTopicMessage, mayOpen, readTopicMessage, type TopicLimits } from './topic-model';
 
 export interface TopicDeps {
   readonly cid: bigint;
@@ -27,9 +30,10 @@ export interface TopicDeps {
   /** AppsRequest::TopicGroup: the group id the kernel holds for this topic (null: none), after claiming `claim` if none was; `refused` when it would not say. */
   readonly topicGroup: (topic: string, claim: string | null) => Promise<string | null | 'refused'>;
   readonly authority: PeerAuthority;
+  /** This instance's place among the install's instances on the page. */
+  readonly seat: PlaneSeat;
   /** What the chat pipeline must skip (app-topic-groups.ts). */
   readonly record: { readonly group: (groupId: string) => void; readonly request: (requestId: string) => void };
-  readonly nowMs: () => number;
   readonly timeoutMs: number;
   /**
    * The server refused one of this session's messages to an open topic (its caps are the
@@ -41,7 +45,6 @@ export interface TopicDeps {
 
 interface Open {
   readonly groupId: string;
-  readonly sender: TopicSender;
 }
 
 const UNAVAILABLE: PortAnswer<never> = { refused: { unavailable: 'topic' } };
@@ -82,14 +85,20 @@ export function topicPort(d: TopicDeps): OwnedTopicPort {
   };
   /** Leaves still unanswered: a join or create waits for them (see OwnedTopicPort). */
   const leaving: Set<Promise<unknown>> = new Set<Promise<unknown>>();
-  const leave = (groupId: string): Promise<unknown> => {
+  const leave = (groupId: string, topic: string | null): Promise<unknown> => {
     const left: Promise<unknown> = ask((request_id: string): Json => ({ GroupLeave: { cid: d.cid, group_key: groupIdToKey(groupId), request_id } }), 'GroupLeaveSuccess', 'GroupLeaveFailure');
     leaving.add(left);
+    if (topic !== null) d.seat.leaving(topic, left);
     const drop = (): void => { leaving.delete(left); };
     void left.then(drop, drop);
     return left;
   };
   const settled = async (): Promise<void> => { await Promise.all([...leaving]); };
+  /** Lets go of the topic: the group is left only when no other instance here holds it. */
+  const release = (name: string): void => {
+    const last: string | null = d.seat.releaseTopic(name);
+    if (last !== null) void leave(last, name);
+  };
 
   /** The topic's group, created and claimed here when the kernel holds none. */
   const groupFor = async (name: string): Promise<string | null> => {
@@ -106,7 +115,7 @@ export function topicPort(d: TopicDeps): OwnedTopicPort {
     const kept: string | null | 'refused' = await d.topicGroup(name, mine);
     if (kept === mine) return mine;
     // Another member claimed first (or the claim was refused): theirs is the topic's, ours goes.
-    void leave(mine);
+    void leave(mine, null);
     if (kept === null || kept === 'refused') return null;
     d.record.group(kept);
     return (await join(kept)) ? kept : null;
@@ -131,6 +140,8 @@ export function topicPort(d: TopicDeps): OwnedTopicPort {
     const name: string | undefined = topicOf(groupId);
     if (name === undefined) return;
     const peerCid: bigint = n.peer_cid;
+    // One instance here answers a join; every instance hears the messages.
+    if (joinAsk !== undefined && !d.seat.answersJoins(name)) return;
     void sender(peerCid, name).then((a: PeerAuthorization | 'limited'): void => {
       const admitted: boolean = a !== 'limited' && a.ok;
       if (joinAsk !== undefined) {
@@ -149,17 +160,16 @@ export function topicPort(d: TopicDeps): OwnedTopicPort {
     TopicOpen: async ({ name }: { name: string }): Promise<PortAnswer<TopicOpened>> => {
       if (!mayOpen(name, d.topics)) return { refused: { policy: 'unknown_topic' } };
       if (!open.has(name)) {
-        const groupId: string | null = await groupFor(name);
+        const groupId: string | null = await d.seat.holdTopic(name, () => groupFor(name));
         if (groupId === null) return UNAVAILABLE;
-        open.set(name, { groupId, sender: new TopicSender(d.limits) });
+        open.set(name, { groupId });
       }
       return { ok: { name, members: [] } };
     },
     TopicPublish: async ({ name, body }: { name: string; body: Uint8Array }): Promise<PortAnswer<null>> => {
       const o: Open | undefined = open.get(name);
+      // Size and rate were decided by the worker as the app published (host/topic-sender.ts).
       if (o === undefined) return { refused: { policy: 'topic_not_open' } };
-      const limited: ReturnType<TopicSender['admit']> = o.sender.admit(body, d.nowMs());
-      if (limited !== null) return { refused: limited };
       const sent: AgentOutcome<Json | null> = await ask((request_id: string): Json =>
         ({ GroupMessage: { cid: d.cid, message: Array.from(encodeTopicMessage(name, body)), group_key: groupIdToKey(o.groupId), request_id } }), 'GroupMessageSuccess', 'GroupMessageFailure');
       return sent.ok && sent.value !== null ? { ok: null } : UNAVAILABLE;
@@ -168,12 +178,12 @@ export function topicPort(d: TopicDeps): OwnedTopicPort {
       const o: Open | undefined = open.get(name);
       if (o !== undefined) {
         open.delete(name);
-        void leave(o.groupId);
+        release(name);
       }
       return { ok: null };
     },
     closeAll: (): Promise<void> => {
-      for (const o of open.values()) void leave(o.groupId);
+      for (const name of [...open.keys()]) release(name);
       open.clear();
       listeners.clear();
       for (const stop of unlisten.splice(0)) stop();

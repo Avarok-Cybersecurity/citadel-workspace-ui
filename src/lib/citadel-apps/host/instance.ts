@@ -8,47 +8,24 @@
  * close grace runs out or the app traps, whichever is first, and the worker is terminated and the
  * slot released in every case. Close never rejects.
  */
-import type { AppContext } from '../sdk/generated/AppContext';
 import type { AppEvent } from '../sdk/generated/AppEvent';
 import type { CloseReason } from '../sdk/generated/CloseReason';
 import type { SuspendReason } from '../sdk/generated/SuspendReason';
 import { INIT_RESULT } from './abi';
 import { encodeAppContext, encodeAppEvent } from './app-event';
-import type { Capability } from './capabilities';
-import type { DispatchClock } from './dispatch';
 import { IhttpInbox } from './ihttp-inbox';
 import { PendingClose, type CloseEnding, type CloseOutcome } from './instance-close';
-import type { InstanceSlots } from './instance-slots';
+import type { LaunchOptions } from './instance-options';
 import { Watchdog } from './instance-watchdog';
 import { regrantedCall } from './invoker';
 import { Lifecycle, type LifecycleState, type LifecycleStep } from './lifecycle';
-import type { HostPolicy } from './limits';
-import type { HostPorts, InboundIhttpFrame, PortAnswer, PortReply } from './ports';
+import type { InboundIhttpFrame, PortAnswer, PortReply } from './ports';
 import { isFromWorker, type FromWorker, type HostChannel, type ToWorker } from './worker-protocol';
 
-export type { CloseEnding, CloseOutcome };
+export type { CloseEnding, CloseOutcome, LaunchOptions };
 
 export type InstanceState =
   | 'loading' | 'running' | 'init-failed' | 'stopped-unresponsive' | 'stopped-trapped' | 'terminated' | 'closed';
-
-export interface LaunchOptions {
-  readonly appId: string;
-  /** From an `ok` load verdict: the module has already passed inspect.ts. */
-  readonly module: WebAssembly.Module;
-  readonly granted: ReadonlySet<Capability>;
-  readonly memory: { readonly initialPages: number; readonly maxPages: number };
-  readonly context: AppContext;
-  /** The install's `limits.close_grace_ms` (the manifest's, validated against MAX_CLOSE_GRACE_MS). */
-  readonly closeGraceMs: number;
-  /** The page the app is mounted in: what its internal links resolve against. */
-  readonly pageUrl: string;
-  readonly policy: HostPolicy;
-  readonly ports: HostPorts;
-  readonly clock: DispatchClock;
-  readonly slots: InstanceSlots;
-  /** Starts the worker: spawnAppWorker() on a page, a test channel in tests. */
-  readonly spawn: () => HostChannel;
-}
 
 export type Launch = { readonly ok: true; readonly instance: AppInstance } | { readonly ok: false; readonly reason: 'instance_limit' };
 
@@ -88,7 +65,7 @@ export class AppInstance {
     });
     this.send({
       kind: 'load', seq: this.seq(), module: options.module, appId: options.appId, granted: [...options.granted],
-      memory: options.memory, context: encodeAppContext(options.context), policy: options.policy,
+      memory: options.memory, context: encodeAppContext(options.context), policy: options.policy, limits: options.limits,
       pageUrl: options.pageUrl, hasLogPort: options.ports.log !== undefined,
     }, []);
   }

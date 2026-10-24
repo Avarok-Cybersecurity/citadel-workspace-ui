@@ -15,6 +15,7 @@ import type { HostPolicy } from '../host/limits';
 import type { AgentLink } from './agent-link';
 import { p2pIhttpPort } from './ihttp-p2p-port';
 import { transportRouter } from './ihttp-transport-router';
+import type { PlaneSeat } from './install-plane-registry';
 import { PeerAuthority } from './peer-authority';
 import { topicPort, type OwnedTopicPort } from './topic-port';
 
@@ -54,22 +55,22 @@ const CHANGES: ReadonlySet<AppsAnswer['kind']> = new Set<AppsAnswer['kind']>([
   'installed', 'updated', 'uninstalled', 'consented', 'disabled-for-me', 'peer-consent', 'peer-blocked', 'installs-changed', 'peer-answers-changed',
 ]);
 
-/** `scopeKey`: the scope key the install is addressed by, which every call's head names. */
-export function peerPorts(install: AppInstall, scopeKey: string, limits: AppLimits, relay: IhttpPort, w: PeerWorld): PeerPorts {
+/** `scopeKey`: the scope key the install is addressed by, which every call's head names; `seat`: the instance's place on the page. */
+export function peerPorts(install: AppInstall, scopeKey: string, limits: AppLimits, relay: IhttpPort, seat: PlaneSeat, w: PeerWorld): PeerPorts {
   const held: ReadonlySet<Capability> = new Set(effectiveForMember(install.granted, w.peerForMe(install.id)?.consent ?? null, false));
   const session: { readonly cid: bigint } | null = w.agentSession;
   if (session === null) return { held, ihttp: transportRouter({ relay, p2p: null, held, scopeKey }), topic: null, stop: async (): Promise<void> => undefined };
   const authority: PeerAuthority = new PeerAuthority((peerCid, direction) => authorizePeer(w.transport, install.id, peerCid, direction), w.nowMs, w.policy.peerAuthorizationsPerSecond);
   const stopEvicting: () => void = w.pushes((answer: unknown): void => { if (CHANGES.has(readAppsAnswer(answer).kind)) authority.evictAll(); });
   const p2p: IhttpPort = p2pIhttpPort({
-    installId: install.id, appId: install.app_id, cid: session.cid, agent: w.agent, peerCid: w.peerCid, authority, sha256Hex: w.sha256Hex,
+    installId: install.id, seat, appId: install.app_id, cid: session.cid, agent: w.agent, peerCid: w.peerCid, authority, sha256Hex: w.sha256Hex,
     timeoutMs: w.policy.portTimeoutMs, p2pRoutes: install.details.ihttp_p2p_routes, maxRoutes: w.policy.ihttp.maxRoutes, maxPathBytes: w.policy.ihttp.maxPathBytes,
     noteRefusal: (peerCid: bigint, side: 'serve' | 'call', why: string): void =>
       w.report(`[apps] ${install.app_id} (install ${install.id}): refused to ${side === 'serve' ? 'serve peer' : 'call peer'} ${peerCid.toString()}`, why),
   });
   const topic: OwnedTopicPort | null = install.details.topics.length === 0 || limits.topics === undefined ? null : topicPort({
-    cid: session.cid, agent: w.agent, topics: install.details.topics, limits: limits.topics, authority, record: w.topicRecord,
-    topicGroup: (name: string, claim: string | null) => topicGroup(w.transport, install.id, name, claim), nowMs: w.nowMs, timeoutMs: w.policy.portTimeoutMs,
+    cid: session.cid, seat, agent: w.agent, topics: install.details.topics, limits: limits.topics, authority, record: w.topicRecord,
+    topicGroup: (name: string, claim: string | null) => topicGroup(w.transport, install.id, name, claim), timeoutMs: w.policy.portTimeoutMs,
     refused: (name: string, limit: string): void => w.report(`[apps] ${install.app_id} (install ${install.id}): the server refused a message to topic ${name}`, limit),
   });
   return {

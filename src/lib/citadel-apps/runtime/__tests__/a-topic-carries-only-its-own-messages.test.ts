@@ -5,7 +5,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import { encodeCbor } from '../../host/cbor';
-import { encodeTopicMessage, mayOpen, readTopicMessage, topicLimitsProblem, TopicSender, type TopicLimits } from '../topic-model';
+import { encodeTopicMessage, mayOpen, readTopicMessage, topicLimitsProblem, type TopicLimits } from '../topic-model';
+import { TopicSender } from '../../host/topic-sender';
 
 const LIMITS: TopicLimits = { max_msg_bytes: 8, max_msgs_per_s: 2 };
 

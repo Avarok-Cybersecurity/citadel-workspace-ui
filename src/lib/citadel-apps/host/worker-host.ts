@@ -21,6 +21,7 @@ import { effectiveGrant, type Capability } from './capabilities';
 import { canvasPort, type CanvasSurface } from './canvas-port';
 import { Dispatcher, isPortAnswer, type DispatchClock, type PortInvoker } from './dispatch';
 import { IhttpRouter, type ClosingAction, type RouterAction } from './ihttp-router';
+import { TopicGate } from './topic-sender';
 import { buildImports } from './imports';
 import { splitInvoker } from './invoker';
 import { Lifecycle, lifecycleRefusal } from './lifecycle';
@@ -144,7 +145,8 @@ export function startWorkerHost(channel: WorkerChannel, clock: DispatchClock, su
     router = new IhttpRouter(msg.appId, msg.policy.ihttp);
     const local: HostPorts = { canvas: canvasPort(() => surface), ...(msg.hasLogPort ? { log: logToPage } : {}) };
     const invoker: PortInvoker = splitInvoker(local, LOCAL_PORTS, remote);
-    const dispatcher: Dispatcher = new Dispatcher({ granted, policy: msg.policy, clock, invoker, router, pageUrl: msg.pageUrl, routerActions });
+    const topics: TopicGate | null = msg.limits.topics === null ? null : new TopicGate(msg.limits.topics);
+    const dispatcher: Dispatcher = new Dispatcher({ granted, policy: msg.policy, clock, invoker, router, pageUrl: msg.pageUrl, routerActions, topics });
     const imports: WebAssembly.Imports = buildImports(granted, memory, {
       call: (group, op, request) => dispatcher.call(group, op, request),
       replies: table,

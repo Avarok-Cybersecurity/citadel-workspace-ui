@@ -13,6 +13,7 @@ import type { AgentLink } from '../agent-link';
 import { PeerAuthority } from '../peer-authority';
 import { encodeTopicMessage } from '../topic-model';
 import { topicPort, type OwnedTopicPort } from '../topic-port';
+import { InstallPlaneRegistry } from '../install-plane-registry';
 
 const ME: bigint = 100n;
 const SUCCESS: Readonly<Record<string, string>> = {
@@ -63,7 +64,8 @@ function world(claimed: string | null, admit: boolean = true, raced: string | nu
   const arrivals: TopicArrival[] = [];
   const refusedSeen: string[] = [];
   const port: OwnedTopicPort = topicPort({
-    cid: ME, agent, topics: ['pool'], limits: { max_msg_bytes: 64, max_msgs_per_s: 2 }, nowMs: () => 0, timeoutMs: 1000,
+    seat: new InstallPlaneRegistry().attach('inst-1', 'net.avarok.compute-pool'),
+    cid: ME, agent, topics: ['pool'], limits: { max_msg_bytes: 64, max_msgs_per_s: 2 }, timeoutMs: 1000,
     authority: new PeerAuthority(ask, () => 0, 30),
     topicGroup: async (_t: string, claim: string | null) => { if (claim !== null && raced !== null) kernel = raced; if (kernel === null && claim !== null) kernel = claim; return kernel; },
     record: { group: (id: string) => recorded.push(`group ${id}`), request: (id: string) => recorded.push(`request ${id}`) },
@@ -130,11 +132,10 @@ describe('a topic is the install’s own group', () => {
     expect(w.sent).toEqual([]);
   });
 
-  it('publishes in its envelope, under the limits, only once open', async () => {
+  it('publishes in its envelope only once open (size and rate are the worker’s: host/topic-sender.ts)', async () => {
     const w: World = world('5:9');
     expect(await w.port.TopicPublish({ name: 'pool', body: new Uint8Array(1) })).toEqual({ refused: { policy: 'topic_not_open' } });
     await w.port.TopicOpen({ name: 'pool' });
-    expect(await w.port.TopicPublish({ name: 'pool', body: new Uint8Array(65) })).toEqual({ refused: { limit: 'topic_bytes' } });
     expect(await w.port.TopicPublish({ name: 'pool', body: new Uint8Array([1]) })).toEqual({ ok: null });
     expect(w.variants()).toEqual(['GroupRequestJoin', 'GroupMessage']);
   });

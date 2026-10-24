@@ -12,13 +12,14 @@ import type { AppsTransport } from '@/lib/workspace-service/apps-operations';
 import type { DispatchClock } from '../host/dispatch';
 import { launchAppInstance, type AppInstance, type InstanceState, type Launch } from '../host/instance';
 import type { InstanceSlots } from '../host/instance-slots';
-import type { HostPolicy } from '../host/limits';
+import { instanceLimits, type HostPolicy } from '../host/limits';
 import type { TopicArrival } from '../host/ports';
 import type { HostChannel } from '../host/worker-protocol';
 import type { ArtifactVerifierPort } from '../host/verify-artifact';
 import type { CloseReason } from '../sdk/generated/CloseReason';
 import type { SuspendReason } from '../sdk/generated/SuspendReason';
 import { hostPortsFor, type BoundPorts, type PortWorld } from './host-ports';
+import { InstallPlaneRegistry } from './install-plane-registry';
 import { loadRelease, type LoadedRelease } from './release-loader';
 import { closeZone, type ZoneCloseDeps } from './zone-close';
 import { stoppedCopy, failureCopy } from './zone-copy';
@@ -51,7 +52,7 @@ export interface ZoneRuntimeDeps extends ZoneCloseDeps {
   readonly theme: () => Readonly<Record<string, string>>;
 }
 
-function mountZone(slots: ZoneHost, zone: AppZoneMount, deps: ZoneRuntimeDeps): AppZoneHandle {
+function mountZone(slots: ZoneHost, zone: AppZoneMount, deps: ZoneRuntimeDeps, planes: InstallPlaneRegistry): AppZoneHandle {
   const host: HTMLElement = slots.canvas;
   const name: string = zone.manifest.name;
   const dpr: number = deps.dpr();
@@ -135,12 +136,12 @@ function mountZone(slots: ZoneHost, zone: AppZoneMount, deps: ZoneRuntimeDeps): 
     const world: PortWorld = { ...(await deps.portWorld()), policy: deps.policy };
     const scopeKey: string = await scopeKeyOf(zone.install.scope, world.sha256Hex);
     if (closing !== null) return;
-    bound = hostPortsFor(zone.install, loaded.manifest.limits, deps.newInstanceId(), scopeKey, { events: input.port, ui: zoneUiPort(toolbar) }, world);
+    bound = hostPortsFor(zone.install, loaded.manifest.limits, deps.newInstanceId(), scopeKey, { events: input.port, ui: zoneUiPort(toolbar) }, planes.attach(zone.install.id, zone.install.app_id), world);
     const closeGraceMs: number = loaded.manifest.limits.close_grace_ms;
     const launch: Launch = launchAppInstance({
       appId: zone.install.app_id, module: loaded.module, granted: bound.held, memory: loaded.memory, closeGraceMs,
       context: zoneContext({ install: zone.install, zoneId: zone.zoneId, nodeId: zone.nodeId, actingUsername: zone.me, width, height: zone.height, dpr, closeGraceMs, locale: deps.locale(), theme: deps.theme() }),
-      pageUrl: deps.pageUrl(), policy: deps.policy, ports: bound.ports, clock: deps.clock, slots: deps.slots, spawn: deps.spawn,
+      pageUrl: deps.pageUrl(), policy: deps.policy, limits: instanceLimits(loaded.manifest.limits), ports: bound.ports, clock: deps.clock, slots: deps.slots, spawn: deps.spawn,
     });
     if (!launch.ok) {
       surface.show({ kind: 'stopped', why: `This page is already running as many apps as it can, so ${name} was not started.` });
@@ -175,6 +176,8 @@ function mountZone(slots: ZoneHost, zone: AppZoneMount, deps: ZoneRuntimeDeps): 
   return { close };
 }
 
+/** One runtime per page, so one plane registry: every instance of an install here shares it. */
 export function createAppZoneRuntime(deps: ZoneRuntimeDeps): AppZoneRuntime {
-  return { mount: (host: ZoneHost, zone: AppZoneMount): AppZoneHandle => mountZone(host, zone, deps) };
+  const planes: InstallPlaneRegistry = new InstallPlaneRegistry();
+  return { mount: (host: ZoneHost, zone: AppZoneMount): AppZoneHandle => mountZone(host, zone, deps, planes) };
 }

@@ -11,6 +11,7 @@ import type { AbiGroup } from './abi';
 import { decodeCbor, encodeCbor, f32, isCborMap, type CborMap, type Decoded } from './cbor';
 import type { Capability } from './capabilities';
 import type { IhttpRouter, RouterAction, Verdict } from './ihttp-router';
+import type { TopicGate } from './topic-sender';
 import { servePlan, type ServePlan } from './ihttp-planes';
 import { parseRoutes, type ParsedRoutes } from './ihttp-routes';
 import type { HostPolicy } from './limits';
@@ -44,6 +45,8 @@ export interface DispatcherDeps {
   readonly pageUrl: string;
   /** Frames the router decided on while gating a call (sent to peers, told to the app). */
   readonly routerActions: (actions: readonly RouterAction[]) => void;
+  /** The manifest's topic limits, answered as the app publishes; null when it has no topics. */
+  readonly topics: TopicGate | null;
 }
 
 const refused = (why: Refused): Uint8Array => encodeCbor({ refused: why });
@@ -133,6 +136,11 @@ export class Dispatcher {
       case 'IhttpCall': {
         const a: OpArgs['IhttpCall'] = args as unknown as OpArgs['IhttpCall'];
         return verdict(router.call(a.to, a.frame, a.transport, clock.now()));
+      }
+      case 'TopicPublish': {
+        // Answered now, so a refused publish is the SDK's `Err`; the port, asynchronous, could only log it.
+        const a: OpArgs['TopicPublish'] = args as unknown as OpArgs['TopicPublish'];
+        return this.deps.topics === null ? null : this.deps.topics.admit(a.name, a.body, clock.now());
       }
       case 'IhttpConsumed': {
         const a: OpArgs['IhttpConsumed'] = args as unknown as OpArgs['IhttpConsumed'];

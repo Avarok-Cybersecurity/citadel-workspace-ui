@@ -56,7 +56,7 @@ async function serving(module: Uint8Array): Promise<Serving> {
   rig = inProcess();
   const launched: Launch = launchAppInstance({
     appId: APP, module: verdict.module, granted, memory: { initialPages: 1, maxPages: 16 }, context: fixtureContext([...granted], FIXTURE_CLOSE_GRACE_MS), closeGraceMs: FIXTURE_CLOSE_GRACE_MS, pageUrl: 'https://work.avarok.net/',
-    policy: STANDARD_HOST_POLICY, ports, clock: realClock, slots: new InstanceSlots(8), spawn: rig.spawn,
+    policy: STANDARD_HOST_POLICY, limits: { topics: null }, ports, clock: realClock, slots: new InstanceSlots(8), spawn: rig.spawn,
   });
   if (!launched.ok) throw new Error('no slot');
   const i: AppInstance = launched.instance;

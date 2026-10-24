@@ -25,6 +25,7 @@ import type { IhttpFrame } from '../../sdk/generated/IhttpFrame';
 import type { Route } from '../../sdk/generated/Route';
 import { ADVERTISE_EVERY_MS, ADVERTISE_TTL_MS, relayIhttpPort, routesDigest, type RelayDeps } from '../ihttp-relay-port';
 import { refusedFor, serverBlob, serverNet, serverStorage, type HostCaller } from '../kernel-call-ports';
+import { InstallPlaneRegistry } from '../install-plane-registry';
 
 type PortTable = Record<string, Record<string, (a: unknown) => Promise<PortAnswer>>>;
 type Sender = Omit<InboundIhttpFrame['from'], 'via'>;
@@ -96,7 +97,7 @@ function relay(): { deps: RelayDeps; sent: [IhttpAddress, string][]; push: (a: u
   const sent: [IhttpAddress, string][] = [];
   let listener: ((a: unknown) => void) | null = null;
   const deps: RelayDeps = {
-    installId: 'inst-b', sha256Hex: sha, nowMs: () => 0, every: () => () => {},
+    installId: 'inst-b', seat: new InstallPlaneRegistry().attach('inst-b', 'com.acme.kanban'), sha256Hex: sha, nowMs: () => 0, every: () => () => {},
     send: async (to, frame) => { sent.push([to, hexOf(frame)]); return { ok: true, value: null }; },
     advertise: async (_d, until) => ({ ok: true, value: until }),
     // Not exercised here: this file pins the frame bytes; withdrawal is server-and-relay-ports.test.ts's.

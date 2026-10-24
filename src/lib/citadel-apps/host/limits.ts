@@ -7,6 +7,7 @@
  * tries), STANDARD_HOST_POLICY is the policy the page runs with.
  */
 import { IHTTP_INITIAL_CREDIT, IHTTP_MAX_CHUNK_BYTES } from '../sdk/generated/AbiConstants';
+import type { TopicRates } from './topic-sender';
 
 export interface IhttpLimits {
   readonly maxPathBytes: number;
@@ -55,6 +56,15 @@ export interface HostPolicy {
   readonly peerAuthorizationsPerSecond: number;
   readonly ihttp: IhttpLimits;
 }
+
+/** What one instance's manifest holds it to, beyond the page's policy. */
+export interface InstanceLimits {
+  /** `limits.topics`, which the worker answers a publish against (topic-sender.ts); null without topics. */
+  readonly topics: TopicRates | null;
+}
+
+/** An instance's limits from its manifest's `limits`. */
+export const instanceLimits = (manifest: { readonly topics?: TopicRates }): InstanceLimits => ({ topics: manifest.topics ?? null });
 
 export const HOST_CEILINGS = {
   /** 256 MiB. */

@@ -35,7 +35,7 @@ async function launch(bytes: Uint8Array, opts: Opts = {}): Promise<{ launch: Lau
   rigs.push(rig);
   const options: LaunchOptions = {
     appId: 'com.acme.test', module: verdict.module, granted, context: fixtureContext([...granted], FIXTURE_CLOSE_GRACE_MS), closeGraceMs: FIXTURE_CLOSE_GRACE_MS, pageUrl: 'https://work.avarok.net/workspace',
-    memory: { initialPages: verdict.memory.minPages, maxPages: opts.maxPages ?? 16 }, policy: STANDARD_HOST_POLICY,
+    memory: { initialPages: verdict.memory.minPages, maxPages: opts.maxPages ?? 16 }, policy: STANDARD_HOST_POLICY, limits: { topics: null },
     ports: opts.ports ?? {}, clock: realClock, slots: opts.slots ?? new InstanceSlots(8), spawn: rig.spawn,
   };
   return { launch: launchAppInstance(options), rig };

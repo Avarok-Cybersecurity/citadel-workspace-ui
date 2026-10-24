@@ -31,7 +31,7 @@ function rig(): Rig {
   const slots: InstanceSlots = new InstanceSlots(1);
   const l: Launch = launchAppInstance({
     appId: 'a.b', module: {} as WebAssembly.Module, granted: new Set<Capability>(), memory: { initialPages: 1, maxPages: 1 },
-    context: fixtureContext([], GRACE), closeGraceMs: GRACE, pageUrl: 'https://work.avarok.net/', policy: STANDARD_HOST_POLICY, ports: {}, clock, slots, spawn: () => channel,
+    context: fixtureContext([], GRACE), closeGraceMs: GRACE, pageUrl: 'https://work.avarok.net/', policy: STANDARD_HOST_POLICY, limits: { topics: null }, ports: {}, clock, slots, spawn: () => channel,
   });
   if (!l.ok) throw new Error('no slot');
   return { i: l.instance, clock, sent, reply: (m: FromWorker): void => listener({ data: m } as MessageEvent<unknown>), terminated: () => terminated, slots };

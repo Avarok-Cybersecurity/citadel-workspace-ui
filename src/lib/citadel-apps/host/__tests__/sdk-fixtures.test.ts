@@ -139,7 +139,7 @@ async function start(name: string, f: Fixture, run: Run, held: Promise<void>): P
   const bundled: BundledEntry = entry as BundledEntry;
   const launched: Launch = launchAppInstance({
     appId: 'net.avarok.fixture', module: v.module, granted: caps(run.granted), context: fixtureContext(run.granted, run.host.close_grace_ms), closeGraceMs: run.host.close_grace_ms,
-    pageUrl: 'https://work.avarok.net/workspace', memory: instanceMemoryFor(v.memory, run.host.max_memory_pages, policy), policy,
+    pageUrl: 'https://work.avarok.net/workspace', memory: instanceMemoryFor(v.memory, run.host.max_memory_pages, policy), policy, limits: { topics: null },
     ports: referencePorts(log, maxReplyBytes, run.host.ihttp_remote, held), clock: realClock, slots: new InstanceSlots(1), spawn: () => threadChannel(bundled),
   });
   if (!launched.ok) throw new Error('no slot');
