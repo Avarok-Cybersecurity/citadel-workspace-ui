@@ -24,6 +24,8 @@ export interface MarketplaceViewer {
   /** The page it was opened on (or a link named); null for none. */
   nodeId: string | null;
   nodeName: (nodeId: string) => string | null;
+  /** A page's ancestors, nearest first. */
+  ancestors: (nodeId: string) => readonly string[];
   authority: Authority;
   /** How far a scope reaches: people and pages below, each null when not known. */
   reach: (scope: InstallScope) => Reach;

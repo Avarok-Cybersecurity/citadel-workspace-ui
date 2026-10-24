@@ -14,7 +14,8 @@
  */
 import type { AppInstall } from 'citadel-workspace-client-ts';
 import type { CloseReason } from '@/lib/citadel-apps/sdk/generated/CloseReason';
-import { covers, type ZoneFacts, type ZoneView } from './zone-state';
+import { covers } from '@/lib/citadel-apps/install-covers';
+import type { ZoneFacts, ZoneView } from './zone-state';
 
 /** What the zone shows next, and what it was decided from. */
 export interface ZoneNext {

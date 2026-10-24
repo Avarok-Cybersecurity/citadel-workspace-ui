@@ -48,4 +48,28 @@ const theNodeTabRowFits = async ({ page, url, viewport }) => {
   }
 };
 
-export const NODE_TAB_CHECKS = { theNodeTabRowFits };
+/**
+ * The marketplace's tab view at 375px and on a desktop: the heading naming a long page wraps
+ * inside the viewport, nothing scrolls sideways, and every card's action is a 44px target inside
+ * the viewport, installed-here first ("Add as a tab"), the others "Install and add".
+ */
+const theTabViewFits = async ({ page, url, viewport }) => {
+  const width = viewport.width < 600 ? 375 : viewport.width;
+  await page.setViewportSize({ width, height: viewport.height });
+  try {
+    await page.goto(url('apps-for-tab'));
+    const heading = page.getByTestId('apps-browse-for-tab');
+    await heading.waitFor({ state: 'visible' });
+    const h = await heading.boundingBox();
+    assert.ok(h.x >= 0 && h.x + h.width <= width + 0.5, `the heading ${JSON.stringify(h)} leaves the ${width}px viewport`);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    assert.ok(overflow <= 0, `the tab view scrolls sideways by ${overflow}px`);
+    const actions = await page.getByTestId('apps-listing-tab-action').evaluateAll((nodes) => nodes.map((n) => ({ label: n.textContent, ...n.getBoundingClientRect().toJSON() })));
+    assert.deepEqual(actions.map((a) => a.label), ['Add as a tab', 'Install and add', 'Install and add'], 'installed here first');
+    for (const a of actions) assert.ok(a.height >= 44 && a.x >= 0 && a.right <= width + 0.5, `"${a.label}" is ${JSON.stringify(a)} at ${width}px`);
+  } finally {
+    await page.setViewportSize(viewport);
+  }
+};
+
+export const NODE_TAB_CHECKS = { theNodeTabRowFits, theTabViewFits };

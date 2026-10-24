@@ -8,12 +8,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Permission } from '@/lib/permissions-service/types';
-import type { AppsModalRequest } from '@/lib/citadel-apps/apps-modal-store';
+import type { AppsModalRequest, TabTarget } from '@/lib/citadel-apps/apps-modal-store';
 import type { ListedApp } from '@/lib/citadel-apps/listing-model';
 import { NOT_AVAILABLE_COPY } from '@/lib/citadel-apps/refusal-copy';
 import { useMarketplaceData, type MarketplaceData } from './use-marketplace-data';
 import { useLinkedApp, type LinkedApp } from './use-linked-app';
-import { AppsBrowse } from './AppsBrowse';
+import { AppsBrowse, type TabBrowse } from './AppsBrowse';
 import { AppFlow } from './AppFlow';
 import { InstalledApps } from './InstalledApps';
 import type { MarketplaceDeps, MarketplaceViewer, MarketTab } from './marketplace-types';
@@ -38,14 +38,32 @@ export function AppsModal({ open, onOpenChange, request, deps, viewer }: AppsMod
   const manages: boolean = viewer.authority.holds(Permission.AppManage, viewer.rootId) === 'yes';
   const showing: ListedApp | null = opened ?? (linked.kind === 'found' ? linked.app : null);
   const back = (): void => { setOpened(null); setLinkDismissed(true); };
-  const flowViewer: MarketplaceViewer = request.kind === 'link' && request.link.nodeId !== null ? { ...viewer, nodeId: request.link.nodeId } : viewer;
+  const target: TabTarget | null = request.kind === 'tab' ? request.target : null;
+  const linkNode: string | null = request.kind === 'link' ? request.link.nodeId : null;
+  const flowViewer: MarketplaceViewer = target !== null ? { ...viewer, nodeId: target.nodeId } : linkNode !== null ? { ...viewer, nodeId: linkNode } : viewer;
+  const [adding, setAdding] = useState<string | null>(null);
+  const addTab = async (app: ListedApp): Promise<void> => {
+    if (target === null) return;
+    setAdding(app.manifest.id);
+    // A refused add is shown by the node pane's own write (use-node-tabs.ts); the list stays open.
+    const added: boolean = await target.add(app.manifest.id);
+    setAdding(null);
+    if (added) onOpenChange(false);
+  };
+  const tabBrowse: TabBrowse | null = target === null ? null : {
+    reach: { me: viewer.me, nodeId: target.nodeId, ancestors: viewer.ancestors(target.nodeId), installs: data.installs, tabs: target.tabs },
+    nodeName: viewer.nodeName(target.nodeId), adding, add: (app: ListedApp): void => { void addTab(app); }, installAndAdd: setOpened,
+  };
 
   let body: JSX.Element;
   if (showing !== null) {
     body = (
       <div className="flex flex-col gap-[12px]">
         <Button variant="ghost" className="min-h-[44px] self-start" onClick={back} data-testid="apps-back-to-list">← All apps</Button>
-        <AppFlow key={showing.manifest.id} app={showing} installs={data.installs} deps={deps} viewer={flowViewer} onInstalled={data.recordInstall} onDone={back} />
+        <AppFlow
+          key={showing.manifest.id} app={showing} installs={data.installs} deps={deps} viewer={flowViewer} onInstalled={data.recordInstall}
+          onDone={target === null ? back : (): void => onOpenChange(false)} forTab={target === null ? null : { add: target.add }}
+        />
       </div>
     );
   } else if (linked.kind === 'unavailable' || linked.kind === 'looking') {
@@ -64,8 +82,8 @@ export function AppsModal({ open, onOpenChange, request, deps, viewer }: AppsMod
           <TabsTrigger value="installed" className={TRIGGER} data-testid="apps-tab-installed">Installed</TabsTrigger>
           {manages && <TabsTrigger value="requests" className={TRIGGER} data-testid="apps-tab-requests">Requests</TabsTrigger>}
         </TabsList>
-        <TabsContent value="global"><AppsBrowse data={data} origin="global" onOpen={setOpened} /></TabsContent>
-        <TabsContent value="workspace"><AppsBrowse data={data} origin="workspace" onOpen={setOpened} /></TabsContent>
+        <TabsContent value="global"><AppsBrowse data={data} origin="global" onOpen={setOpened} tab={tabBrowse} /></TabsContent>
+        <TabsContent value="workspace"><AppsBrowse data={data} origin="workspace" onOpen={setOpened} tab={tabBrowse} /></TabsContent>
         <TabsContent value="installed">
           <InstalledApps installs={data.installs} apps={data.apps} deps={deps} viewer={viewer} onChanged={data.recordInstall} onRemoved={data.forgetInstall} />
         </TabsContent>

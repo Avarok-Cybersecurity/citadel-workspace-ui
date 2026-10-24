@@ -6,7 +6,8 @@
 import type { ReactNode } from 'react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import WorkspaceService from '@/lib/workspace-service';
-import { openAppsModal } from '@/lib/citadel-apps/apps-modal-store';
+import { openAppsModal, type AppsModalRequest } from '@/lib/citadel-apps/apps-modal-store';
+import { appIdsOf } from '@/lib/node-tabs/tab-list';
 import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 import { AppZonePage } from '../app-zone/AppZonePage';
 import { pageZoneRuntime } from '../app-zone/lazy-runtime';
@@ -27,6 +28,11 @@ interface NodePaneProps {
   contentView: ReactNode;
   roomName: string;
   reader: { id: string; displayName: string };
+}
+
+/** What "+" opens: the apps that can be a tab here, each added through this pane's own write. */
+export function addTabRequest(nodeId: string, model: NodeTabsModel): AppsModalRequest {
+  return { kind: 'tab', target: { nodeId, tabs: appIdsOf(model.list), add: (appId: string): Promise<boolean> => model.change({ kind: 'add', appId }) } };
 }
 
 /** Whether the pane needs its tab row at all: more than the page, or something to do about it. */
@@ -60,7 +66,7 @@ export function NodePane({ nodeId, node, chat, contentView, roomName, reader }: 
           currentUserName={reader.displayName}
           rules={node?.rules ?? undefined}
           appPanel={(appId: string): ReactNode => <AppTabPane appId={appId} tabId={appId} />}
-          onAdd={model.canConfigure ? (): void => openAppsModal({ kind: 'browse' }) : null}
+          onAdd={model.canConfigure ? (): void => openAppsModal(addTabRequest(nodeId, model)) : null}
         />
       ) : contentView}
     </AppZonePage>
