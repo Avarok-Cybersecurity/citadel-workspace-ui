@@ -106,7 +106,6 @@ describe('Advanced', () => {
     expect(cmd.textContent).toContain('--bind 127.0.0.1:12345 --backend filesystem');
     expect(cmd.textContent).toContain(`--allowed-origins ${window.location.origin}`);
     expect(cmd.textContent).toContain(`--stun-servers ${AGENT_STUN_SERVERS}`);
-    expect(cmd.textContent).toContain('--apps-private-network false');
     expect(within(panel).getByRole('region', { name: AGENT_SETUP_COPY.advanced.verifyRegion }).textContent)
       .toBe(VERIFY_COMMAND);
     expect(VERIFY_COMMAND).toBe('gh attestation verify <file> --repo Avarok-Cybersecurity/citadel-workspace');

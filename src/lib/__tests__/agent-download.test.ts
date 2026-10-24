@@ -3,7 +3,6 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   AGENT_ASSETS,
-  AGENT_APPS_PRIVATE_NETWORK,
   INSTALLER_ASSETS,
   MAC_APP_ASSET,
   agentDownloadUrl,
@@ -20,7 +19,6 @@ const AGENT_MAIN: string = join(
 );
 
 /** What the packaged agents start with: the one source the launchers render from. */
-const AGENT_PLIST: string = join(process.cwd(), '..', 'apps', 'macos-agent', 'Info.plist');
 
 const nav: (platform: string, userAgent: string, maxTouchPoints?: number) => Navigator = (platform: string, userAgent: string, maxTouchPoints = 0): Navigator =>
   ({ platform, userAgent, maxTouchPoints }) as unknown as Navigator;
@@ -199,17 +197,7 @@ describe('the run command the hint shows', () => {
     expect(cmd).toContain('--bind 127.0.0.1:12345');
     expect(cmd).toContain('--backend filesystem');
     expect(cmd).toContain(`--allowed-origins ${page}`);
-    expect(cmd).toContain('--apps-private-network false');
     expect(cmd).not.toContain('--loopback');
-  });
-
-  it('starts the agent with the private network setting the packaged agents ship', () => {
-    // A value of its own here would make the pasted agent differ from the installed one.
-    const plist: string = readFileSync(AGENT_PLIST, 'utf8');
-    const shipped: string | undefined =
-      /<key>CitadelAgentAppsPrivateNetwork<\/key>\s*<string>(true|false)<\/string>/.exec(plist)?.[1];
-    expect(shipped, 'Info.plist no longer carries CitadelAgentAppsPrivateNetwork').toBeDefined();
-    expect(AGENT_APPS_PRIVATE_NETWORK).toBe(shipped);
   });
 
   it('adds the loopback name and the certificate URL when the page published a loopback origin', () => {

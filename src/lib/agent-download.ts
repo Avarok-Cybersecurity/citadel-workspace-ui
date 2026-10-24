@@ -116,14 +116,6 @@ export function installerFamily(candidates: readonly AgentPlatform[]): Installer
 export const AGENT_STUN_SERVERS: string =
   'stun.cloudflare.com:3478,stun1.l.google.com:19302,stun4.l.google.com:19302';
 
-/**
- * `apps.private_network` (--apps-private-network; required, the agent will not start without
- * it): whether apps approved for net.host.private may reach the visitor's LAN through the
- * agent. Off, as the packaged agents ship it (apps/macos-agent/Info.plist); turning it on is
- * the member's own decision, never the page's.
- */
-export const AGENT_APPS_PRIVATE_NETWORK: 'false' = 'false';
-
 /** What the hosted page knows that the command needs. */
 export interface RunCommandInputs {
   platform: AgentPlatform;
@@ -155,7 +147,6 @@ export function agentRunCommand({ platform, pageOrigin, loopbackOrigin }: RunCom
     '--backend filesystem',
     `--allowed-origins ${pageOrigin}`,
     `--stun-servers ${AGENT_STUN_SERVERS}`,
-    `--apps-private-network ${AGENT_APPS_PRIVATE_NETWORK}`,
   ];
   // NO loopback flags. This used to append `--loopback-host` and
   // `--loopback-cert-url`, and the agent has never had either:

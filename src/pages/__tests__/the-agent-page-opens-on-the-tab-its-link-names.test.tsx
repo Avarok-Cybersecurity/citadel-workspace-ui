@@ -18,6 +18,7 @@ describe('the agent page', () => {
   it('reads the tab from the hash, About by default', () => {
     expect(tabFromHash('#updates')).toBe('updates');
     expect(tabFromHash('#about')).toBe('about');
+    expect(tabFromHash('#apps')).toBe('apps');
     expect(tabFromHash('')).toBe('about');
     expect(tabFromHash('#nonsense')).toBe('about');
   });
