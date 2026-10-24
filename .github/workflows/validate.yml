@@ -181,6 +181,9 @@ jobs:
           # SDK's hello-canvas): the canvas is the zone at 1x and 2x and the app's card covers it;
           # a release that fails its check shows the host's words over the zone instead.
           - { name: App zone geometry, run: 'npm run check:app-zone' }
+          # The Calendar's grids and views on the shipped engine: every day reached by keyboard through
+          # one roving tab stop, 44px targets and no sideways scroll at 375px, axe clean at rest.
+          - { name: Calendar grid and views, run: 'npm run check:calendar-grid' }
           # Frame times scrolling the 500-page bench document at 1x on a GitHub runner (never the
           # shared Mac), ONLYOFFICE's own condition: at most its 5% of frames past 16.7 ms and its
           # p95 of 16.8 ms. A traced second pass is uploaded per frame (the step after the gate).

@@ -22,7 +22,8 @@ export type EventEntry = { key: string; source: Exclude<EntrySource, 'inherited'
 export type InheritedEntry = { key: string; source: 'inherited'; projection: Projection; linked: boolean };
 export type CalendarEntry = EventEntry | InheritedEntry;
 
-export type LoadState = { kind: 'loading' } | { kind: 'ready' } | { kind: 'failed'; reason: string };
+/** `unreadable`: values under the source the core could not decode, left out and counted (read-sources.ts). */
+export type LoadState = { kind: 'loading' } | { kind: 'ready'; unreadable: number } | { kind: 'failed'; reason: string };
 
 export interface CalendarState {
   view: CalendarView;
@@ -38,7 +39,7 @@ export type CalendarAction =
   | { type: 'focus'; date: CivilDate }
   | { type: 'loading'; source: EntrySource }
   /** Everything `source` holds now: its earlier entries are replaced, not merged. */
-  | { type: 'read'; source: EntrySource; entries: CalendarEntry[] }
+  | { type: 'read'; source: EntrySource; entries: CalendarEntry[]; unreadable: number }
   | { type: 'failed'; source: EntrySource; reason: string }
   | { type: 'removed'; key: string };
 
@@ -72,7 +73,7 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
     case 'loading':
       return { ...state, loads: withLoad(state, action.source, { kind: 'loading' }) };
     case 'read':
-      return { ...state, entries: replaceSource(state, action.source, action.entries), loads: withLoad(state, action.source, { kind: 'ready' }) };
+      return { ...state, entries: replaceSource(state, action.source, action.entries), loads: withLoad(state, action.source, { kind: 'ready', unreadable: action.unreadable }) };
     case 'failed':
       return { ...state, loads: withLoad(state, action.source, { kind: 'failed', reason: action.reason }) };
     case 'removed': {

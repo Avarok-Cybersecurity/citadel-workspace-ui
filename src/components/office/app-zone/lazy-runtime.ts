@@ -5,7 +5,7 @@
  * mounts nothing.
  */
 import type { CloseReason } from '@/lib/citadel-apps/sdk/generated/CloseReason';
-import type { AppTabMount, AppZoneHandle, AppZoneMount, AppZoneRuntime, ZoneHost } from './app-zone-environment';
+import type { AppTabMount, AppZoneHandle, AppZoneMount, AppZoneRuntime, GlueBound, GlueHandle, GlueTabMount, ZoneHost } from './app-zone-environment';
 
 type Loader = () => Promise<AppZoneRuntime>;
 
@@ -30,7 +30,30 @@ export function lazyRuntime(load: Loader): AppZoneRuntime {
       },
     };
   };
+  const bindLater = (tab: GlueTabMount): GlueHandle => {
+    let bound: GlueHandle | null = null;
+    let live: boolean = true;
+    loading ??= load();
+    const ready: Promise<GlueBound> = loading.then((runtime: AppZoneRuntime): Promise<GlueBound> | GlueBound => {
+      if (!live) return { kind: 'stopped', why: `${tab.manifest.name} was closed before it started.` };
+      bound = runtime.bindGlue(tab);
+      return bound.ready;
+    }, (error: unknown): GlueBound => {
+      loading = null;
+      console.error('[apps] the app runtime did not load', error);
+      return { kind: 'stopped', why: 'This app could not be loaded. Reload the page to try again.' };
+    });
+    return {
+      ready,
+      close: async (): Promise<void> => {
+        live = false;
+        await ready;
+        await bound?.close();
+      },
+    };
+  };
   return {
+    bindGlue: bindLater,
     mount: (host: ZoneHost, zone: AppZoneMount): AppZoneHandle => later(host, (runtime: AppZoneRuntime): AppZoneHandle => runtime.mount(host, zone)),
     mountPane: (host: ZoneHost, tab: AppTabMount): AppZoneHandle => later(host, (runtime: AppZoneRuntime): AppZoneHandle => runtime.mountPane(host, tab)),
   };

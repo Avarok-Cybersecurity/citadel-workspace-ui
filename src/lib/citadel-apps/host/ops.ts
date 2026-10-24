@@ -100,9 +100,17 @@ const entries: OpEntry[] = OPS.map((o): OpEntry => {
 });
 
 const BY_KEY: ReadonlyMap<string, OpEntry> = new Map(entries.map((e: OpEntry) => [`${e.group}/${e.op}`, e]));
+const BY_NAME: ReadonlyMap<OpName, OpEntry> = new Map(entries.map((e: OpEntry) => [e.name, e]));
 
 export function findOp(group: AbiGroup, op: number): OpEntry | undefined {
   return BY_KEY.get(`${group}/${op}`);
+}
+
+/** The entry of a generated op name; every generated name has one (op-table.test.ts). */
+export function findOpByName(name: OpName): OpEntry {
+  const entry: OpEntry | undefined = BY_NAME.get(name);
+  if (entry === undefined) throw new Error(`${name} is not an op of this ABI`);
+  return entry;
 }
 
 /** Internal links only: anything classifyDocumentLink does not call internal is refused. */

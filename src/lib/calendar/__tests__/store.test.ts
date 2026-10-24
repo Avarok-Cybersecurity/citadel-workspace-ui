@@ -12,26 +12,26 @@ describe('the Calendar store', () => {
 
   it('replaces what one source held without touching another', () => {
     let s: CalendarState = initialCalendar('month', today);
-    s = calendarReducer(s, { type: 'read', source: 'node', entries: [standup] });
-    s = calendarReducer(s, { type: 'read', source: 'inherited', entries: [inherited] });
-    s = calendarReducer(s, { type: 'read', source: 'node', entries: [] });
+    s = calendarReducer(s, { type: 'read', source: 'node', entries: [standup], unreadable: 0 });
+    s = calendarReducer(s, { type: 'read', source: 'inherited', entries: [inherited], unreadable: 0 });
+    s = calendarReducer(s, { type: 'read', source: 'node', entries: [], unreadable: 0 });
     expect([...s.entries.keys()]).toEqual([inherited.key]);
-    expect(s.loads.get('node')).toEqual({ kind: 'ready' });
+    expect(s.loads.get('node')).toEqual({ kind: 'ready', unreadable: 0 });
   });
 
   it('keeps what a source read when a later read of it fails, and says it failed', () => {
-    let s: CalendarState = calendarReducer(initialCalendar('month', today), { type: 'read', source: 'authored', entries: [bobsBusy] });
+    let s: CalendarState = calendarReducer(initialCalendar('month', today), { type: 'read', source: 'authored', entries: [bobsBusy], unreadable: 0 });
     s = calendarReducer(s, { type: 'failed', source: 'authored', reason: 'offline' });
     expect(s.entries.has(bobsBusy.key)).toBe(true);
     expect(s.loads.get('authored')).toEqual({ kind: 'failed', reason: 'offline' });
   });
 
   it('refuses an entry filed under a source it did not come from', () => {
-    expect(() => calendarReducer(initialCalendar('month', today), { type: 'read', source: 'node', entries: [inherited] })).toThrow(/came from inherited/);
+    expect(() => calendarReducer(initialCalendar('month', today), { type: 'read', source: 'node', entries: [inherited], unreadable: 0 })).toThrow(/came from inherited/);
   });
 
   it('removes one entry, and is unchanged by removing one it does not hold', () => {
-    const s: CalendarState = calendarReducer(initialCalendar('week', today), { type: 'read', source: 'node', entries: [standup] });
+    const s: CalendarState = calendarReducer(initialCalendar('week', today), { type: 'read', source: 'node', entries: [standup], unreadable: 0 });
     expect(calendarReducer(s, { type: 'removed', key: standup.key }).entries.size).toBe(0);
     expect(calendarReducer(s, { type: 'removed', key: 'nope' })).toBe(s);
   });
