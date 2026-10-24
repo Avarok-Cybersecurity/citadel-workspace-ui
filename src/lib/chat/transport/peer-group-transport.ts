@@ -53,7 +53,7 @@ function peerGroupFiles(io: PeerGroupChatIO, groupName: string): FilePort {
 
 export function createPeerGroupTransport({ groupId, groupName, self, sendGate, io }: PeerGroupTransportParams): ChatTransport {
   const history: GroupHistory = groupHistory({
-    self, log: io.log, pages: { latest: io.restore, older: null }, pending: null,
+    self, log: io.log, pages: { latest: io.restore, older: null }, pending: null, receipts: null,
     markRead: io.markRead, focus: io.focus,
     // The group's unread count is its notice; reading the messages clears it.
     clearNotices: io.markRead,

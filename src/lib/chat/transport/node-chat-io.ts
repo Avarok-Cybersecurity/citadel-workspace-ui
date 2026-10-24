@@ -7,6 +7,9 @@ import { groupMessagingManager, type GroupMessageEvent } from '@/lib/group-messa
 import { GroupMessageTypeTS } from '@/types/workspace-protocol';
 import { armLoadingDeadline, cancelLoadingDeadline } from '@/lib/loading-flag-timeout';
 import { markChannelOpen } from '@/lib/group-conversations/open-channel';
+import { channelSignals, type ChannelSignal } from '@/lib/group-conversations/channel-signals';
+import NotificationService from '@/lib/notification-service';
+import { getPrivacySettings, type PrivacySettings } from '@/lib/privacy-settings';
 import { groupLog } from './group-log';
 import type { GroupLog } from './group-history';
 
@@ -20,6 +23,18 @@ export interface NodeChatIO {
   edit(messageId: string, content: string): Promise<void>;
   remove(messageId: string): Promise<void>;
   focus(): () => void;
+  react(messageId: string, emoji: string, on: boolean): Promise<void>;
+  /** Resolves once the server holds `member`'s cursor at `uptoMessageId`. */
+  markRead(uptoMessageId: string, member: string): Promise<void>;
+  typing(): Promise<void>;
+  /** The members' read cursors and typing notices, as the response handler records them. */
+  readonly signals: {
+    cursors(): ReadonlyMap<string, string>;
+    subscribe(listener: (signal: ChannelSignal) => void): () => void;
+  };
+  /** Marks the bell's notifications for this channel read. */
+  clearNotices(): void;
+  privacy(): Pick<PrivacySettings, 'sendReadReceipts' | 'showTypingIndicators'>;
 }
 
 /**
@@ -55,5 +70,14 @@ export function nodeChatIO(groupId: string): NodeChatIO {
     edit: (messageId: string, content: string): Promise<void> => WorkspaceService.editGroupMessage(groupId, messageId, content),
     remove: (messageId: string): Promise<void> => WorkspaceService.deleteGroupMessage(groupId, messageId),
     focus: (): (() => void) => markChannelOpen(groupId),
+    react: (messageId: string, emoji: string, on: boolean): Promise<void> => WorkspaceService.reactGroupMessage(groupId, messageId, emoji, on),
+    markRead: (uptoMessageId: string, member: string): Promise<void> => WorkspaceService.markGroupRead(groupId, uptoMessageId, member),
+    typing: (): Promise<void> => WorkspaceService.groupTyping(groupId),
+    signals: {
+      cursors: (): ReadonlyMap<string, string> => channelSignals.cursors(groupId),
+      subscribe: (listener: (signal: ChannelSignal) => void): (() => void) => channelSignals.subscribe(groupId, listener),
+    },
+    clearNotices: (): void => NotificationService.getInstance().markGroupNotificationsAsRead(groupId),
+    privacy: (): Pick<PrivacySettings, 'sendReadReceipts' | 'showTypingIndicators'> => getPrivacySettings(),
   };
 }

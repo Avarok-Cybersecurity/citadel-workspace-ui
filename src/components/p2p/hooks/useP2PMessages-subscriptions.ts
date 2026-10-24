@@ -21,7 +21,7 @@ export interface ConversationSubscriptionParams {
   pinnedRef: { readonly current: boolean };
   onUnreadMessage: () => void;
   setMessages: Dispatch<SetStateAction<ChatMessage[]>>;
-  setPeerTyping: Dispatch<SetStateAction<boolean>>;
+  setTyping: Dispatch<SetStateAction<readonly string[]>>;
   setIsConnected: Dispatch<SetStateAction<boolean>>;
   setPeerPresence: Dispatch<SetStateAction<PeerPresence | null>>;
   setIsRegistered: Dispatch<SetStateAction<boolean>>;
@@ -46,7 +46,7 @@ export function subscribeToConversationEvents({
   pinnedRef,
   onUnreadMessage,
   setMessages,
-  setPeerTyping,
+  setTyping,
   setIsConnected,
   setPeerPresence,
   setIsRegistered,
@@ -98,7 +98,7 @@ export function subscribeToConversationEvents({
 
   const onStatus = (change: StatusChange): void => {
     switch (change.kind) {
-      case 'typing': setPeerTyping(change.typing.length > 0); return;
+      case 'typing': setTyping(change.typing); return;
       case 'connected': setIsConnected(change.connected); return;
       case 'presence': setPeerPresence(change.presence); return;
     }

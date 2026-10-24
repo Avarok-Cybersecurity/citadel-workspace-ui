@@ -17,7 +17,8 @@ export interface UseP2PMessagesProps {
 
 export interface UseP2PMessagesReturn {
   messages: ChatMessage[];
-  peerTyping: boolean;
+  /** Who is typing now, by name; empty when nobody is. */
+  typing: readonly string[];
   peerPresence: PeerPresence | null;
   isConnected: boolean;
   isRegistered: boolean;

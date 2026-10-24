@@ -57,7 +57,7 @@ export function BubbleFooter({ message, isOwn, onRetry }: BubbleFooterProps): JS
           </span>
         )}
         {isOwn && statusIcon && (
-          <StatusTick label={messageStatusLabel(message.status)} open={detailsOpen} onToggle={() => setDetailsOpen(!detailsOpen)} panelId={panelId}>
+          <StatusTick label={messageStatusLabel(message)} open={detailsOpen} onToggle={() => setDetailsOpen(!detailsOpen)} panelId={panelId}>
             {statusIcon}
           </StatusTick>
         )}

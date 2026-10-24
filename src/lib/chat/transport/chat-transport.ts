@@ -19,6 +19,7 @@ import type { ChatFeatures } from './features';
 import type { GroupRestriction } from '@/components/chat/group-restriction';
 import type { ValueStore } from '@/lib/value-store';
 import type { GroupFileShare } from '@/types/group-file-share';
+import type { ReadReceipt } from './read-receipts';
 
 export type ChatKind = 'peer' | 'node' | 'peer-group';
 
@@ -50,7 +51,10 @@ export interface ChatAuthor {
  * A message as the pane renders it. The CIDs are a direct chat's: a channel names its senders by
  * username and has no recipient, so there they are absent rather than invented.
  */
-export type PaneMessage = Omit<P2PMessage, 'senderCid' | 'recipientCid'> & Partial<Pick<P2PMessage, 'senderCid' | 'recipientCid'>>;
+export type PaneMessage = Omit<P2PMessage, 'senderCid' | 'recipientCid'> & Partial<Pick<P2PMessage, 'senderCid' | 'recipientCid'>> & {
+  /** Who of a channel's members has seen the reader's own message; absent in a two-party chat. */
+  readonly receipt?: ReadReceipt;
+};
 
 export type ChatMessage = PaneMessage & {
   readonly author: ChatAuthor;

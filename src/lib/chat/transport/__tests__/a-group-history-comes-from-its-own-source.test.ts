@@ -17,6 +17,8 @@ import { createValueStore } from '@/lib/value-store';
 import type { GroupRestriction } from '@/components/chat/group-restriction';
 import { channelServer, channelMessage } from './doubles/channel-server';
 import { createNodeTransport } from '../node-transport';
+import { browserClock } from '@/lib/browser-clock';
+import type { RosterEntry } from '../read-receipts';
 import { nodeChatIO } from '../node-chat-io';
 import { createPeerGroupTransport } from '../peer-group-transport';
 import { groupLog } from '../group-log';
@@ -33,7 +35,9 @@ const SELF: ChatSelf = { cid: 7n, username: 'ada', displayName: 'Ada' };
 const gate = (): ReturnType<typeof createValueStore<GroupRestriction>> => createValueStore<GroupRestriction>('test-gate', 'allowed');
 
 function node(): ChatTransport {
-  return createNodeTransport({ channelId: CHANNEL, channelName: 'Design', self: SELF, sendGate: gate(), io: nodeChatIO(CHANNEL), mintLocalId: (): string => 'local-1', now: (): number => 1 });
+  return createNodeTransport({ channelId: CHANNEL, channelName: 'Design', self: SELF, sendGate: gate(), io: nodeChatIO(CHANNEL), mintLocalId: (): string => 'local-1', now: (): number => 1,
+    // Nobody's roster: these cases are about where pages come from, not who has read them.
+    roster: createValueStore<readonly RosterEntry[] | null>('test-roster', null), clock: browserClock });
 }
 
 function peerGroup(restored: string[]): ChatTransport {

@@ -2,6 +2,7 @@ import type { PaneMessage } from '@/lib/chat/transport/chat-transport';
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
 import { interactive } from '@/lib/a11y';
 import { formatPreciseDateTime } from '@/lib/format-time';
+import { receiptSummary } from '@/lib/chat/transport/read-receipts';
 
 interface MessageStatusDetailsProps {
   message: PaneMessage;
@@ -15,8 +16,10 @@ const statusLabels: Record<PaneMessage['status'], string> = {
   failed: 'Failed to send'
 };
 
-export function messageStatusLabel(status: PaneMessage['status']): string {
-  return statusLabels[status];
+/** A channel's "read" is every member's, and its receipt says so; a direct chat's is the peer's. */
+export function messageStatusLabel(message: PaneMessage): string {
+  if (message.receipt !== undefined && message.status === 'read') return 'Seen by everyone';
+  return statusLabels[message.status];
 }
 
 const statusColors: Record<PaneMessage['status'], string> = {
@@ -79,7 +82,7 @@ export function MessageStatusDetails({ message }: MessageStatusDetailsProps): JS
       </div>
       <Row
         label="Status"
-        value={statusLabels[message.status]}
+        value={messageStatusLabel(message)}
         valueClassName={statusColors[message.status]}
       />
       <Row
@@ -98,6 +101,16 @@ export function MessageStatusDetails({ message }: MessageStatusDetailsProps): JS
       )}
       {message.recipientCid !== undefined && (
         <Row label="To" value={truncateCid(message.recipientCid.toString())} fullValue={message.recipientCid.toString()} copyable />
+      )}
+      {message.receipt !== undefined && (
+        <>
+          <p className="pt-1 text-muted-foreground" data-testid="message-receipt-summary">{receiptSummary(message.receipt)}</p>
+          {message.receipt.seenBy.length > 0 && (
+            <ul className="text-foreground" aria-label="Seen by" data-testid="message-seen-by">
+              {message.receipt.seenBy.map((name: string, i: number): JSX.Element => <li key={`${i}:${name}`} className="truncate">{name}</li>)}
+            </ul>
+          )}
+        </>
       )}
       {message.error && (
         <Row

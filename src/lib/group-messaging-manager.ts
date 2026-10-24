@@ -9,7 +9,7 @@ import type { GroupMessage } from '@/types/workspace-entities';
 import { TypedEventEmitter } from './event-emitter';
 import { debugLog } from '@/lib/debug-config';
 import { sortByTime, mergeOlder, applyEdit, removeMessage, reactToGroupMessage } from './group-message-list';
-import type { ReactionChange } from './reactions/reaction-state';
+import type { MessageReaction, ReactionChange } from './reactions/reaction-state';
 
 export interface GroupMessageEvent {
   type: 'new_message' | 'message_edited' | 'message_deleted' | 'message_reacted' | 'messages_loaded';
@@ -188,6 +188,15 @@ class GroupMessagingManagerClass {
     const current: GroupMessagesState = this.getMessages(groupId);
     const messages: GroupMessage[] | null = reactToGroupMessage(current.messages, messageId, change);
     if (!messages) return;
+    this.groupMessages.set(groupId, { ...current, messages });
+    this.eventEmitter.emit({ type: 'message_reacted', groupId, messageId, message: messages.find((m) => m.id === messageId) });
+  }
+
+  /** A node channel's notice: `reactions` is the message's whole list after the change. */
+  public handleReactionsReplaced(groupId: string, messageId: string, reactions: MessageReaction[]): void {
+    const current: GroupMessagesState = this.getMessages(groupId);
+    if (!current.messages.some((m) => m.id === messageId)) return;
+    const messages: GroupMessage[] = current.messages.map((m) => (m.id === messageId ? { ...m, reactions } : m));
     this.groupMessages.set(groupId, { ...current, messages });
     this.eventEmitter.emit({ type: 'message_reacted', groupId, messageId, message: messages.find((m) => m.id === messageId) });
   }

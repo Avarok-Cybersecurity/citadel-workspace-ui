@@ -12,6 +12,7 @@ import { notifyEach } from '@/lib/notify-listeners';
 import type { GroupMessageEvent } from '@/lib/group-messaging-manager';
 import { groupChatMessage, STORED } from './group-chat-message';
 import type { PendingSends } from './pending-group-sends';
+import type { ReceiptStamp } from './read-receipts';
 import type { ChatMessage, ChatSelf, HistoryCursor, HistoryEvent, HistoryPage, HistoryPort } from './chat-transport';
 
 /** One group's messages as this tab holds them. */
@@ -29,12 +30,21 @@ export interface GroupPages {
   readonly older: ((before: bigint) => Promise<void>) | null;
 }
 
+/** Who has seen the reader's own messages; absent where the transport carries no receipts. */
+export interface GroupReceipts {
+  /** A stamp for each of the reader's own messages among `held` (oldest first). */
+  stamp(held: readonly GroupMessage[]): ReadonlyMap<string, ReceiptStamp>;
+  /** Fires when what the stamps are made from changes: a cursor moved, the roster arrived. */
+  subscribe(listener: () => void): () => void;
+}
+
 export interface GroupHistoryParams {
   readonly self: ChatSelf | null;
   readonly log: GroupLog;
   readonly pages: GroupPages;
   /** Null where every send is confirmed before it is shown. */
   readonly pending: PendingSends | null;
+  readonly receipts: GroupReceipts | null;
   readonly markRead: () => void;
   readonly focus: () => () => void;
   readonly clearNotices: () => void;
@@ -46,7 +56,7 @@ export interface GroupHistory {
   emit(event: HistoryEvent): void;
 }
 
-export function groupHistory({ self, log, pages, pending, markRead, focus, clearNotices }: GroupHistoryParams): GroupHistory {
+export function groupHistory({ self, log, pages, pending, receipts, markRead, focus, clearNotices }: GroupHistoryParams): GroupHistory {
   const listeners: Set<(event: HistoryEvent) => void> = new Set();
   let stopLog: () => void = (): void => undefined;
   // Pages this port asked for: they come back through `loadLatest`/`loadOlder`, not as arrivals.
@@ -57,7 +67,27 @@ export function groupHistory({ self, log, pages, pending, markRead, focus, clear
   };
   // One subscriber that throws must not keep the others from hearing it.
   const emit = (event: HistoryEvent): void => notifyEach(listeners, 'group history', event);
-  const stamp = (messages: readonly GroupMessage[]): ChatMessage[] => messages.map((m: GroupMessage): ChatMessage => groupChatMessage(m, self, STORED));
+  const stampsOf = (): ReadonlyMap<string, ReceiptStamp> => receipts?.stamp(log.messages()) ?? new Map<string, ReceiptStamp>();
+  const stampOne = (m: GroupMessage, stamps: ReadonlyMap<string, ReceiptStamp>): ChatMessage => {
+    const held: ReceiptStamp | undefined = stamps.get(m.id);
+    const message: ChatMessage = groupChatMessage(m, self, held?.status ?? STORED);
+    return held === undefined ? message : { ...message, receipt: held.receipt };
+  };
+  const stamp = (messages: readonly GroupMessage[]): ChatMessage[] => {
+    const stamps: ReadonlyMap<string, ReceiptStamp> = stampsOf();
+    return messages.map((m: GroupMessage): ChatMessage => stampOne(m, stamps));
+  };
+  // What the pane was last told about each receipt, so a cursor move updates only what it changed.
+  const told: Map<string, string> = new Map();
+  const onReceipts = (): void => {
+    for (const [id, { status, receipt }] of stampsOf()) {
+      const said: string = `${status}\u0000${receipt.of ?? ''}\u0000${receipt.seenBy.join('\u0000')}`;
+      if (told.get(id) === said) continue;
+      told.set(id, said);
+      emit({ kind: 'updated', message: { id, status, receipt } });
+    }
+  };
+  let stopReceipts: () => void = (): void => undefined;
   const olderThan = (held: readonly GroupMessage[]): HistoryCursor | null =>
     pages.older !== null && log.hasMore() && held.length > 0 ? { kind: 'before', timestamp: held[0].timestamp } : null;
 
@@ -65,14 +95,14 @@ export function groupHistory({ self, log, pages, pending, markRead, focus, clear
     switch (event.type) {
       case 'new_message': {
         if (event.message === undefined) return;
-        const message: ChatMessage = groupChatMessage(event.message, self, STORED);
+        const message: ChatMessage = stampOne(event.message, stampsOf());
         const localId: string | null = message.author.own && pending !== null ? pending.settle(event.message) : null;
         emit(localId !== null ? { kind: 'replaced', localId, message } : { kind: 'arrived', message, incoming: !message.author.own });
         return;
       }
       case 'message_edited':
         if (event.messageId === undefined || event.message === undefined) return;
-        emit({ kind: 'updated', message: groupChatMessage(event.message, self, STORED) });
+        emit({ kind: 'updated', message: stampOne(event.message, stampsOf()) });
         return;
       case 'message_reacted':
         if (event.messageId === undefined || event.message === undefined) return;
@@ -104,11 +134,11 @@ export function groupHistory({ self, log, pages, pending, markRead, focus, clear
     },
     cached: (): readonly ChatMessage[] => [...stamp(log.messages()), ...(pending?.all() ?? [])],
     subscribe: (listener: (event: HistoryEvent) => void): (() => void) => {
-      if (listeners.size === 0) stopLog = log.subscribe(onLog);
+      if (listeners.size === 0) { stopLog = log.subscribe(onLog); stopReceipts = receipts?.subscribe(onReceipts) ?? stopReceipts; }
       listeners.add(listener);
       return (): void => {
         listeners.delete(listener);
-        if (listeners.size === 0) { stopLog(); stopLog = (): void => undefined; }
+        if (listeners.size === 0) { stopLog(); stopReceipts(); stopLog = stopReceipts = (): void => undefined; told.clear(); }
       };
     },
     markRead: async (): Promise<void> => markRead(),

@@ -38,7 +38,7 @@ export function PeerChatTop({ peer, knowsUsername, status, pause, call, share, r
         peerName={peer.name}
         peerUsername={peer.username}
         peerPresence={status.presence}
-        peerTyping={status.typing}
+        peerTyping={status.typing.length > 0}
         isConnected={status.connected}
         isRegistered={status.accepted}
         paused={paused}

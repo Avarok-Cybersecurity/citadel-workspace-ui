@@ -4,18 +4,24 @@
  * The server stores every message and mints its id, so history pages come from it and the
  * reader's own message is shown at once and confirmed by the server's copy (pending-group-sends).
  * Markdown rides the wire's `Markdown` type. Who may send is the workspace permission system's
- * answer, passed in live. Reactions, read cursors, typing, live documents and attachments are
- * ports of their own, added as each wave lands; until then they are null and the pane offers
- * none of them, rather than controls that answer "not available here".
+ * answer, passed in live. Reactions are the server's: it attributes the reactor and holds the
+ * list on the message. Receipts are derived from the members' read cursors and the roster
+ * (read-receipts), and the reader's own cursor and typing go out paced below the server's limits
+ * (node-read-cursor, node-status). Live documents and attachments are ports of their own, added
+ * as each wave lands; until then they are null and the pane offers none of them.
  */
 import type { ValueStore } from '@/lib/value-store';
 import type { GroupRestriction } from '@/components/chat/group-restriction';
+import type { Clock } from '@/lib/cdoc/collab/ports';
+import { debugLog } from '@/lib/debug-config';
 import { describeFailure } from '@/lib/failure-message';
 import { peerDisplayName } from '@/lib/peer-display';
 import { chatFeatures, type StatedFeatures } from './features';
 import { groupHistory, type GroupHistory } from './group-history';
 import { pendingGroupSends, type PendingSends } from './pending-group-sends';
 import type { NodeChatIO } from './node-chat-io';
+import { nodeReact, nodeReadCursor, nodeReceipts, nodeTyping, type Roster } from './node-signals';
+import type { ReadCursor } from './node-read-cursor';
 import type { ChatMessage, ChatSelf, ChatTransport, SendPort, TextSend } from './chat-transport';
 
 export interface NodeTransportParams {
@@ -25,6 +31,9 @@ export interface NodeTransportParams {
   readonly self: ChatSelf | null;
   readonly sendGate: ValueStore<GroupRestriction>;
   readonly io: NodeChatIO;
+  /** The channel's members, live; null until they are known. */
+  readonly roster: Roster;
+  readonly clock: Clock;
   /** A local id for a message being sent; the server's copy replaces it. */
   readonly mintLocalId: () => string;
   readonly now: () => number;
@@ -35,7 +44,7 @@ export interface NodeTransportParams {
  * security level and a retention window are not properties it has.
  */
 export const NODE_FEATURES: StatedFeatures = {
-  markdown: true, readReceipts: false, securityLevel: false, retention: false, optimistic: true, namesSenders: true,
+  markdown: true, readReceipts: true, securityLevel: false, retention: false, optimistic: true, namesSenders: true,
 };
 
 /** `pending` holds the reader's unconfirmed copies; null sends and lets the server's copy appear. */
@@ -67,7 +76,7 @@ function nodeSend(params: NodeTransportParams, history: GroupHistory, pending: P
       deliver(message, messageType, replyTo);
     },
     revise: { edit: io.edit, remove: io.remove },
-    react: null,
+    react: nodeReact(io, self),
     retry: async (messageId: string): Promise<void> => {
       const failed: ChatMessage | null = pending?.get(messageId) ?? null;
       if (failed === null || failed.status !== 'failed') return;
@@ -79,19 +88,21 @@ function nodeSend(params: NodeTransportParams, history: GroupHistory, pending: P
 }
 
 export function createNodeTransport(params: NodeTransportParams): ChatTransport {
-  const { channelId, channelName, self, io } = params;
+  const { channelId, channelName, self, io, roster, clock } = params;
+  // Receipts and typing are background traffic: a refusal is logged, and the next read or keystroke retries.
+  const report = (error: unknown): void => debugLog('NodeTransport', `channel ${channelId}: ${describeFailure(error, 'refused')}`);
+  const cursor: ReadCursor = nodeReadCursor(io, self, clock, report);
   // What the transport does follows what it states: optimistic means the reader's copy shows first.
   const pending: PendingSends | null = NODE_FEATURES.optimistic ? pendingGroupSends() : null;
   const history: GroupHistory = groupHistory({
     self, log: io.log, pages: { latest: io.latest, older: io.older }, pending,
-    // Read cursors arrive with their wave; until then reading a channel leaves nothing to record.
-    markRead: (): void => undefined,
+    receipts: self === null ? null : nodeReceipts(io, self, roster),
+    markRead: cursor.read,
     focus: io.focus,
-    // The bell is already silent for an open channel (open-channel), so there is nothing to clear.
-    clearNotices: (): void => undefined,
+    clearNotices: io.clearNotices,
   });
   const ports: Pick<ChatTransport, 'send' | 'status' | 'files' | 'documents' | 'settings'> = {
-    send: nodeSend(params, history, pending), status: null, files: null, documents: null, settings: null,
+    send: nodeSend(params, history, pending), status: nodeTyping(io, self, roster, clock, report), files: null, documents: null, settings: null,
   };
   return {
     kind: 'node',

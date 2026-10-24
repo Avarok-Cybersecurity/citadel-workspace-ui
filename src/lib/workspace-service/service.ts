@@ -23,6 +23,7 @@ import type { ProtocolSender } from './workspace-operations';
 import * as ws from './workspace-operations';
 import * as members from './member-operations';
 import * as messaging from './messaging-operations';
+import * as signals from './group-chat-signals';
 import * as nodes from './node-operations';
 import { createDocument, type NewDocument } from './document-operations';
 import * as signIn from './sign-in-settings';
@@ -138,6 +139,9 @@ export class WorkspaceService implements ProtocolSender {
   public deleteGroupMessage(gId: string, mId: string): Promise<void> { return messaging.deleteGroupMessage(this, gId, mId); }
   public getGroupMessages(gId: string, before?: number | bigint, limit?: number): Promise<void> { return messaging.getGroupMessages(this, gId, before, limit); }
   public getThreadMessages(gId: string, parentId: string): Promise<void> { return messaging.getThreadMessages(this, gId, parentId); }
+  public reactGroupMessage(gId: string, mId: string, emoji: string, on: boolean): Promise<void> { return signals.reactGroupMessage(this, gId, mId, emoji, on); }
+  public markGroupRead(gId: string, uptoId: string, member: string): Promise<void> { return signals.markGroupRead(this, gId, uptoId, member); }
+  public groupTyping(gId: string): Promise<void> { return signals.groupTyping(this, gId); }
   public updateUserProfile(update: messaging.ProfileUpdate): Promise<void> { return messaging.updateUserProfile(this, update); }
 
   // Node operations

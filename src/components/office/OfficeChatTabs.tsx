@@ -14,6 +14,8 @@ import type { GroupRestriction } from '@/components/chat/group-restriction';
 import { Permission } from '@/lib/permissions-service/types';
 import { GroupCallDock } from '@/components/call/GroupCallDock';
 import { useDomainCallMembers } from '@/hooks/use-domain-call-members';
+import { useNodeRoster } from '@/hooks/use-node-roster';
+import type { User } from '@/types/workspace-entities';
 import { rememberedTab, rememberTab, type OfficeTab } from './office-tab-memory';
 
 interface OfficeChatTabsProps {
@@ -53,7 +55,9 @@ export function OfficeChatTabs({
     (): ChatSelf | null => chatSelf({ id: currentUserId, displayName: currentUserName }, currentUserCid),
     [currentUserId, currentUserName, currentUserCid],
   );
-  const callRoster: RoomCallRoster = useDomainCallMembers(nodeId);
+  // One roster for the node: the call rings it, and the chat counts receipts and members against it.
+  const members: readonly User[] | null = useNodeRoster(nodeId);
+  const callRoster: RoomCallRoster = useDomainCallMembers(members);
   const [tab, setTab] = useState<OfficeTab>((): OfficeTab => rememberedTab(chatChannelId));
   // Office chat is governed by the workspace permission system, not by group
   // roles, so its only two answers are the permission's.
@@ -127,7 +131,7 @@ export function OfficeChatTabs({
         </TabsContent>
 
         <TabsContent value="chat" className="mt-0 flex-1 overflow-hidden">
-          <NodeChat channelId={chatChannelId} channelName={roomName} self={self} sendRestriction={sendRestriction} rules={rules} />
+          <NodeChat channelId={chatChannelId} channelName={roomName} self={self} sendRestriction={sendRestriction} rules={rules} members={members} />
         </TabsContent>
       </Tabs>
     </div>

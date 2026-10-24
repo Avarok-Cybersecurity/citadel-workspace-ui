@@ -96,6 +96,9 @@ export const SUCCESS_RESPONSES: Record<string, readonly string[]> = {
   SendGroupMessage: ['GroupMessageNotification'],
   EditGroupMessage: ['GroupMessageEdited'],
   DeleteGroupMessage: ['GroupMessageDeleted'],
+  // A node channel's reaction and read cursor; both answered with the notice they broadcast.
+  ReactGroupMessage: ['GroupMessageReacted'],
+  MarkGroupRead: ['GroupReadCursorMoved'],
 };
 
 function describeFailure(response: Record<string, unknown>): string {

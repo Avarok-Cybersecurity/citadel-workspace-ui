@@ -35,7 +35,7 @@ export function useP2PMessages({
   const { history, send, status } = transport;
   const initial: StatusSnapshot | null = status?.snapshot() ?? null;
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [peerTyping, setPeerTyping] = useState(false);
+  const [typing, setTyping] = useState<readonly string[]>([]);
   const [peerPresence, setPeerPresence] = useState<PeerPresence | null>(initial?.presence ?? null);
   const [isConnected, setIsConnected] = useState<boolean>(initial?.connected ?? false);
   // Read now, not after the first effect: a contact's chat otherwise opens as unregistered and
@@ -59,6 +59,9 @@ export function useP2PMessages({
   useEffect((): (() => void) => history.focus(), [history]);
 
   useEffect(() => {
+    const markRead = (): void => {
+      history.markRead(null).catch((err: unknown) => debugLog('UseP2PMessages', 'Error:', err));
+    };
     setIsLoadingHistory(true);
     // Cleared whatever happens: a conversation that fails to load must stop claiming to be loading.
     runAsyncSetup(async (): Promise<void> => {
@@ -70,6 +73,9 @@ export function useP2PMessages({
         });
         if (page !== null && page.messages.length > 0) setMessages((prev: ChatMessage[]): ChatMessage[] => mergeMessages(prev, [...page.messages]));
         if (page !== null) setOlder(page.older);
+        // A transport whose history comes over the wire (a node channel) has nothing to mark read
+        // until the page is in; reading at mount alone left an opened channel unread.
+        if (page !== null && readableNow(activeTabIdRef, pinnedRef)) markRead();
         if (status === null) return;
         const after: StatusSnapshot = status.snapshot();
         if (after.connected) setIsConnected(true);
@@ -84,15 +90,12 @@ export function useP2PMessages({
 
     const unsubscribe: () => void = subscribeToConversationEvents({
       transport, activeTabIdRef, pinnedRef, onUnreadMessage,
-      setMessages, setPeerTyping, setIsConnected, setPeerPresence, setIsRegistered,
+      setMessages, setTyping, setIsConnected, setPeerPresence, setIsRegistered,
     });
 
     if (status !== null) runAsyncSetup(async (): Promise<void> => { setIsConnected((await status.probe()).connected); });
     setIsRegistered(status?.acceptance?.accepted() ?? true);
 
-    const markRead = (): void => {
-      history.markRead(null).catch((err: unknown) => debugLog('UseP2PMessages', 'Error:', err));
-    };
     if (readableNow(activeTabIdRef, pinnedRef)) markRead();
 
     // Arrivals the load raced: whatever the transport already holds in memory.
@@ -166,7 +169,7 @@ export function useP2PMessages({
   useEffect((): void => { if (isRegistered) status?.acceptance?.flushHeld(); }, [isRegistered, status]);
 
   return {
-    messages, peerTyping, peerPresence, isConnected, isRegistered, isLoadingMore, isLoadingHistory, hasMorePages,
+    messages, typing, peerPresence, isConnected, isRegistered, isLoadingMore, isLoadingHistory, hasMorePages,
     handleScroll, handleRetryMessage, handleEditMessage, handleDeleteMessage, handleReactMessage,
   };
 }

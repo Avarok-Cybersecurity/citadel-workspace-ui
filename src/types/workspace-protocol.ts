@@ -5,7 +5,10 @@
  * These types are used for structured communication between the TypeScript frontend and Rust backend.
  */
 
-import type { AppsRequest, DocumentsRequest, MemberRole, MessagingTrustRequest, RolesRequest, SecureLinksRequest, SignInSettings, TelemetryRequest, WorkspaceLogoChange } from 'citadel-workspace-client-ts';
+import type { AppsRequest, DocumentsRequest, MemberRole, MessagingTrustRequest, RolesRequest, SecureLinksRequest, SignInSettings, TelemetryRequest, WorkspaceLogoChange, WorkspaceProtocolRequest } from 'citadel-workspace-client-ts';
+
+/** A request variant's body, read from the generated binding rather than restated. */
+type RequestBody<K extends string> = Extract<WorkspaceProtocolRequest, Record<K, unknown>>[K];
 
 /**
  * The main protocol payload that wraps either a request or response
@@ -96,27 +99,19 @@ export interface WorkspaceProtocolRequestTS {
     mentions?: string[];
   };
 
-  EditGroupMessage?: {
-    group_id: string;
-    message_id: string;
-    new_content: string;
-  };
-
-  DeleteGroupMessage?: {
-    group_id: string;
-    message_id: string;
-  };
-
+  EditGroupMessage?: RequestBody<'EditGroupMessage'>;
+  DeleteGroupMessage?: RequestBody<'DeleteGroupMessage'>;
   GetGroupMessages?: {
     group_id: string;
     before_timestamp?: number;
     limit?: number;
   };
 
-  GetThreadMessages?: {
-    group_id: string;
-    parent_message_id: string;
-  };
+  GetThreadMessages?: RequestBody<'GetThreadMessages'>;
+  // A node channel's reactions, read cursors and typing (lib/workspace-service/group-chat-signals)
+  ReactGroupMessage?: RequestBody<'ReactGroupMessage'>;
+  MarkGroupRead?: RequestBody<'MarkGroupRead'>;
+  GroupTyping?: RequestBody<'GroupTyping'>;
 
   // User profile operations
   UpdateUserProfile?: import('./user-profile-request').UpdateUserProfileRequest;

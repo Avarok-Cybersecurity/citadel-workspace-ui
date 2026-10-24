@@ -10,6 +10,8 @@ import { debugLog } from '@/lib/debug-config';
 import { groupMessagingManager } from '@/lib/group-messaging-manager';
 import { isVariant , type WorkspaceProtocolResponse } from 'citadel-workspace-client-ts';
 import type { ConnectionInfo } from './workspace-handlers';
+import { handleGroupSignals } from './group-signal-handlers';
+import { channelSignals } from '@/lib/group-conversations/channel-signals';
 
 /**
  * Try to handle group-messaging response variants.
@@ -52,8 +54,10 @@ export function handleGroupVariants(
   }
 
   if (isVariant(response, 'GroupMessages')) {
-    const { group_id, messages, has_more } = response.GroupMessages;
+    const { group_id, messages, has_more, read_cursors } = response.GroupMessages;
     debugLog('WorkspaceResponseHandler', 'GroupMessages received', { group_id, count: messages.length, has_more });
+    // Cursors first: the page's arrival re-reads them, and they must already be this page's.
+    channelSignals.replaceCursors(group_id, read_cursors);
     groupMessagingManager.handleMessagesLoaded(group_id, messages, has_more);
     eventEmitter.emit('group:messages:loaded', {
       groupId: group_id,
@@ -116,5 +120,5 @@ export function handleGroupVariants(
     return true;
   }
 
-  return false;
+  return handleGroupSignals(response);
 }

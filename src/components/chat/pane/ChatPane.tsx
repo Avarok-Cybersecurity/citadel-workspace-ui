@@ -30,7 +30,8 @@ const NO_ACCOUNT: ChatDocumentOpening = { kind: 'unmoved', reason: { kind: 'no-a
 
 /** What the pane knows that the part above its tabs shows. */
 export interface ChatPaneStatus {
-  readonly typing: boolean;
+  /** Who is typing now, by name. */
+  readonly typing: readonly string[];
   readonly presence: PeerPresence | null;
   readonly connected: boolean;
   /** The counterpart has accepted (always, where no one has to). */
@@ -59,7 +60,7 @@ export function ChatPane({ transport, header, pause }: ChatPaneProps): JSX.Eleme
   return (
     <ChatDropTarget className="h-full flex flex-col bg-background" testId={ids.root['data-testid']} recipient={counterpart.name} hint="Only the first file is sent. You can cancel it from the conversation." {...fileSend.drop}>
       {header({
-        typing: list.peerTyping, presence: list.peerPresence, connected: list.isConnected, accepted: list.isRegistered,
+        typing: list.typing, presence: list.peerPresence, connected: list.isConnected, accepted: list.isRegistered,
         openSettings: transport.settings === null ? null : (): void => pane.setSettingsOpen(true),
       })}
       <ChatTabBar tabs={tabs.tabsWithUnread} activeTabId={tabs.activeTabId} onTabSelect={tabs.handleTabSelect} onTabClose={tabs.handleCloseTab} onTabRename={tabs.handleRenameDocument} />

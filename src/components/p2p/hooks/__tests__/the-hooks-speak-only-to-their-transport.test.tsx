@@ -61,7 +61,7 @@ describe('useP2PMessages over a transport', () => {
     expect(recorded.calls).toEqual(expect.arrayContaining(['send.edit:m1:changed', 'send.react:m1:👍', 'send.retry:m2']));
 
     act(() => recorded.status({ kind: 'typing', typing: ['Alice'] }));
-    expect(result.current.peerTyping).toBe(true);
+    expect(result.current.typing).toEqual(['Alice']);
   });
 
   it('marks read through the transport when the reader catches up', () => {

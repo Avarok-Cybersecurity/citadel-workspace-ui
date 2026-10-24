@@ -8,12 +8,14 @@
  * with `channelServer.service` and resets it with `channelServer.reset` before each case.
  */
 import * as messaging from '@/lib/workspace-service/messaging-operations';
+import * as signals from '@/lib/workspace-service/group-chat-signals';
+import { REACTION_EMOJIS } from '@/lib/reactions/reaction-state';
 import type { ProtocolSender } from '@/lib/workspace-service/workspace-operations';
 import { handleGroupVariants } from '@/lib/workspace-response-handler/group-handlers';
 import { eventEmitter } from '@/lib/event-emitter';
 import type { GroupMessage } from '@/types/workspace-entities';
 import type { GroupMessageTypeTS, WorkspaceProtocolRequestTS } from '@/types/workspace-protocol';
-import type { WorkspaceProtocolResponse } from 'citadel-workspace-client-ts';
+import type { GroupReaction, GroupReadCursor, WorkspaceProtocolResponse } from 'citadel-workspace-client-ts';
 
 /** How the next SendGroupMessage is answered: stored and echoed, refused, or held until `release`. */
 export type SendAnswer = { kind: 'store' } | { kind: 'refuse'; reason: string } | { kind: 'hold' };
@@ -29,9 +31,15 @@ interface ServerState {
   answersHistory: boolean;
   held: (() => void)[];
   clock: number;
+  /** Member username to the message they have read up to, as the kernel keeps them. */
+  cursors: Map<string, string>;
+  /** Null: a MarkGroupRead is recorded; a reason: it is refused with it. */
+  refuseCursor: string | null;
+  /** The CID the kernel attributes this session's reactions to. */
+  sessionCid: bigint;
 }
 
-const state: ServerState = { channelId: '', sessionUser: '', stored: [], requests: [], nextSend: { kind: 'store' }, answersHistory: true, held: [], clock: 0 };
+const state: ServerState = { channelId: '', sessionUser: '', stored: [], requests: [], nextSend: { kind: 'store' }, answersHistory: true, held: [], clock: 0, cursors: new Map(), refuseCursor: null, sessionCid: 0n };
 const CONNECTION: { cid: number; request_id: string } = { cid: 1, request_id: 'test' };
 
 const answer = (response: WorkspaceProtocolResponse): void => {
@@ -39,10 +47,23 @@ const answer = (response: WorkspaceProtocolResponse): void => {
   queueMicrotask((): void => { handleGroupVariants(response, CONNECTION); });
 };
 
+const cursorList = (): GroupReadCursor[] => [...state.cursors].map(([member, upto]: [string, string]): GroupReadCursor => ({ member, upto_message_id: upto }));
+const refuse = (reason: string): void => queueMicrotask((): void => { eventEmitter.emit('workspace:raw-response', { Error: reason }); });
+
+/** The kernel's ReactGroupMessage: one entry per (reactor, emoji), attributed to the session. */
+function react({ group_id, message_id, emoji, on }: NonNullable<WorkspaceProtocolRequestTS['ReactGroupMessage']>): void {
+  const message: GroupMessage | undefined = state.stored.find((m: GroupMessage): boolean => m.id === message_id);
+  if (message === undefined || !REACTION_EMOJIS.includes(emoji)) { refuse('Message not found'); return; }
+  state.clock += 1;
+  const others: GroupReaction[] = (message.reactions ?? []).filter((r) => !(r.reactorCid === state.sessionCid && r.emoji === emoji));
+  message.reactions = [...others, { emoji, reactorCid: state.sessionCid, at: state.clock, active: on }];
+  answer({ GroupMessageReacted: { group_id, message_id, reactions: message.reactions } });
+}
+
 function page(before: number | undefined, limit: number): WorkspaceProtocolResponse {
   const older: GroupMessage[] = state.stored.filter((m: GroupMessage): boolean => before === undefined || Number(m.timestamp) < before);
   const messages: GroupMessage[] = older.slice(-limit);
-  return { GroupMessages: { group_id: state.channelId, messages, has_more: older.length > messages.length, read_cursors: [] } };
+  return { GroupMessages: { group_id: state.channelId, messages, has_more: older.length > messages.length, read_cursors: cursorList() } };
 }
 
 type SendRequest = NonNullable<WorkspaceProtocolRequestTS['SendGroupMessage']>;
@@ -75,6 +96,16 @@ const sender: ProtocolSender = {
       else store(send);
       return;
     }
+    if (request.ReactGroupMessage !== undefined) { react(request.ReactGroupMessage); return; }
+    if (request.MarkGroupRead !== undefined) {
+      const { group_id, upto_message_id } = request.MarkGroupRead;
+      if (state.refuseCursor !== null) { refuse(state.refuseCursor); return; }
+      state.cursors.set(state.sessionUser, upto_message_id);
+      answer({ GroupReadCursorMoved: { group_id, cursor: { member: state.sessionUser, upto_message_id } } });
+      return;
+    }
+    // Relayed to the others and never stored; the sender's own copy changes nothing.
+    if (request.GroupTyping !== undefined) return;
     if (request.EditGroupMessage !== undefined) {
       const { group_id, message_id, new_content } = request.EditGroupMessage;
       answer({ GroupMessageEdited: { group_id, message_id, new_content, edited_at: 20_000n } });
@@ -95,6 +126,9 @@ export interface ChannelServer {
     sendGroupMessage(groupId: string, content: string, type?: GroupMessageTypeTS, replyTo?: string): Promise<void>;
     editGroupMessage(groupId: string, messageId: string, content: string): Promise<void>;
     deleteGroupMessage(groupId: string, messageId: string): Promise<void>;
+    reactGroupMessage(groupId: string, messageId: string, emoji: string, on: boolean): Promise<void>;
+    markGroupRead(groupId: string, uptoId: string, member: string): Promise<void>;
+    groupTyping(groupId: string): Promise<void>;
   };
   reset(channelId: string, sessionUser: string, stored: GroupMessage[]): void;
   nextSend: SendAnswer;
@@ -102,6 +136,13 @@ export interface ChannelServer {
   readonly requests: readonly WorkspaceProtocolRequestTS[];
   release(): void;
   broadcast(message: GroupMessage): void;
+  /** Another member's cursor move, or their typing, broadcast as the kernel does. */
+  moveCursor(member: string, upto: string): void;
+  typing(member: string): void;
+  /** Cursors the kernel already holds when the channel opens. */
+  readonly cursors: Map<string, string>;
+  refuseCursor: string | null;
+  sessionCid: bigint;
 }
 
 export const channelServer: ChannelServer = {
@@ -110,9 +151,12 @@ export const channelServer: ChannelServer = {
     sendGroupMessage: (groupId: string, content: string, type?: GroupMessageTypeTS, replyTo?: string): Promise<void> => messaging.sendGroupMessage(sender, groupId, content, type, replyTo),
     editGroupMessage: (groupId: string, messageId: string, content: string): Promise<void> => messaging.editGroupMessage(sender, groupId, messageId, content),
     deleteGroupMessage: (groupId: string, messageId: string): Promise<void> => messaging.deleteGroupMessage(sender, groupId, messageId),
+    reactGroupMessage: (groupId: string, messageId: string, emoji: string, on: boolean): Promise<void> => signals.reactGroupMessage(sender, groupId, messageId, emoji, on),
+    markGroupRead: (groupId: string, uptoId: string, member: string): Promise<void> => signals.markGroupRead(sender, groupId, uptoId, member),
+    groupTyping: (groupId: string): Promise<void> => signals.groupTyping(sender, groupId),
   },
   reset(channelId: string, sessionUser: string, stored: GroupMessage[]): void {
-    Object.assign(state, { channelId, sessionUser, stored: [...stored], requests: [], nextSend: { kind: 'store' }, answersHistory: true, held: [], clock: 0 });
+    Object.assign(state, { channelId, sessionUser, stored: [...stored], requests: [], nextSend: { kind: 'store' }, answersHistory: true, held: [], clock: 0, cursors: new Map(), refuseCursor: null, sessionCid: 0n });
   },
   get nextSend(): SendAnswer { return state.nextSend; },
   set nextSend(how: SendAnswer) { state.nextSend = how; },
@@ -123,6 +167,16 @@ export const channelServer: ChannelServer = {
   release(): void { const held: (() => void)[] = state.held.splice(0); held.forEach((run: () => void): void => run()); },
   /** Another member's message, broadcast as the kernel does. */
   broadcast(message: GroupMessage): void { state.stored.push(message); answer({ GroupMessageNotification: { group_id: message.group_id, message } }); },
+  moveCursor(member: string, upto: string): void {
+    state.cursors.set(member, upto);
+    answer({ GroupReadCursorMoved: { group_id: state.channelId, cursor: { member, upto_message_id: upto } } });
+  },
+  typing(member: string): void { answer({ GroupTypingNotice: { group_id: state.channelId, member } }); },
+  get cursors(): Map<string, string> { return state.cursors; },
+  get refuseCursor(): string | null { return state.refuseCursor; },
+  set refuseCursor(reason: string | null) { state.refuseCursor = reason; },
+  get sessionCid(): bigint { return state.sessionCid; },
+  set sessionCid(cid: bigint) { state.sessionCid = cid; },
 };
 
 /** A stored channel message; only `id`, sender, text and time vary between the tests' fixtures. */

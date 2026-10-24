@@ -56,7 +56,7 @@ function captureStatusHandler(): { statusHandler: (id: string, status: string) =
     setMessages: ((updater: (prev: P2PMessage[]) => P2PMessage[]) => {
       updates.push(updater);
     }) as never,
-    setPeerTyping: (() => {}) as never,
+    setTyping: (() => {}) as never,
     setIsConnected: (() => {}) as never,
     setPeerPresence: (() => {}) as never,
     setIsRegistered: (() => {}) as never,
