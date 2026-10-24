@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { TelemetryFilter, TelemetryPageResult, TelemetryRecord } from 'citadel-workspace-client-ts';
+import type { TelemetryFilter, TelemetryLevel, TelemetryPageResult, TelemetryRecord } from 'citadel-workspace-client-ts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,6 +8,13 @@ import { describeFailure } from '@/lib/failure-message';
 import { formatDateTime } from '@/lib/format-time';
 import { EMPTY_FILTER_FORM, filterFromForm, type FilterForm, type FilterResult } from './telemetry-rules';
 import { SELECT_CLASS } from './select-class';
+
+/** How each level reads: a metric (a measurement such as a path report) is not a problem. */
+const LEVEL_CLASS: Record<TelemetryLevel, string> = {
+  Metric: 'text-muted-foreground',
+  Warn: 'text-warning-emphasis',
+  Error: 'text-destructive-emphasis',
+};
 
 /** Records per page: the server's page cap is larger. */
 const PAGE_SIZE: number = 50;
@@ -48,7 +55,8 @@ export function TelemetryLogViewer({ onRead }: { onRead: () => void }): JSX.Elem
           <Input id="tl-peer" inputMode="numeric" value={form.peerCidText} onChange={(e) => set('peerCidText', e.target.value)} /></div>
         <div className="space-y-1"><Label htmlFor="tl-level">Level</Label>
           <select id="tl-level" className={SELECT_CLASS} value={form.minLevel} onChange={(e) => set('minLevel', e.target.value as FilterForm['minLevel'])}>
-            <option value="">Warnings and errors</option>
+            <option value="">Everything</option>
+            <option value="Warn">Warnings and errors</option>
             <option value="Error">Errors only</option>
           </select></div>
         <div className="space-y-1"><Label htmlFor="tl-since">From</Label>
@@ -66,7 +74,7 @@ export function TelemetryLogViewer({ onRead }: { onRead: () => void }): JSX.Elem
             <ul className="space-y-1 text-xs font-mono max-h-72 overflow-y-auto" aria-label="Diagnostic logs">
               {shown.result.records.map((r: TelemetryRecord, i: number): JSX.Element => (
                 <li key={`${shown.offset + i}`} className="break-words rounded bg-background/50 p-2">
-                  <span className={r.entry.level === 'Error' ? 'text-destructive-emphasis' : 'text-warning-emphasis'}>{r.entry.level}</span>{' '}
+                  <span className={LEVEL_CLASS[r.entry.level]}>{r.entry.level}</span>{' '}
                   {formatDateTime(r.entry.time_ms)} · {r.user_id}{r.entry.peer_cid !== null ? ` · peer ${r.entry.peer_cid.toString()}` : ''} · {r.os} · agent {r.agent_version}
                   <div>{r.entry.target}: {r.entry.message}</div>
                 </li>

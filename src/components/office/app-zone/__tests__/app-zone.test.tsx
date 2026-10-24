@@ -4,13 +4,14 @@
  * one, only an active install's zone is handed to it.
  */
 import { describe, expect, it, vi, type Mock } from 'vitest';
-import { render, screen, waitFor, fireEvent, type RenderResult } from '@testing-library/react';
+import { act, render, screen, waitFor, fireEvent, type RenderResult } from '@testing-library/react';
 import type { AppInstall } from 'citadel-workspace-client-ts';
 import { AppZone } from '../AppZone';
-import { AppZoneContext, zoneClaims, type AppZoneEnvironment, type AppZoneHandle, type AppZoneRuntime } from '../app-zone-environment';
+import { AppZoneContext, zoneClaims, type AppZoneEnvironment, type AppZoneHandle, type AppZoneRuntime, type ZoneHost } from '../app-zone-environment';
 import { listedApps, type ListedApp } from '@/lib/citadel-apps/listing-model';
 import type { Tri } from '@/lib/citadel-apps/scope-options';
 import { recordDisabledForMe } from '@/lib/citadel-apps/disabled-for-me';
+import { recordPeerConsent } from '@/lib/citadel-apps/peer-for-me';
 import { installOf, listingOf } from '@/test/app-manifests';
 import type { AppLink } from '@/lib/citadel-apps/app-link';
 import { FakeAppsKernel } from '@/test/apps-kernel-fake';
@@ -106,12 +107,14 @@ describe('an app zone', () => {
     expect(screen.queryByTestId('app-zone-host')).toBeNull();
   });
 
-  it('with a runtime, an active install is mounted in a host-owned element of the zone’s height', async () => {
+  it('with a runtime, an active install is mounted in a host-owned element of the zone’s height, its toolbar slot above it', async () => {
     const mount: Mock<AppZoneRuntime['mount']> = vi.fn((): AppZoneHandle => ({ close: async (): Promise<void> => undefined }));
     zone(env({ installs: [installOf('com.acme.kanban', { SelfOnly: 'alice' }, { id: 'a' })], runtime: { mount } }));
     await waitFor(() => expect(mount).toHaveBeenCalledTimes(1));
-    const [host, mounted] = mount.mock.calls[0] as unknown as [HTMLElement, { zoneId: string; height: number; install: AppInstall }];
-    expect(host.style.height).toBe('300px');
+    const [host, mounted] = mount.mock.calls[0] as unknown as [ZoneHost, { zoneId: string; height: number; install: AppInstall }];
+    expect(host.canvas.style.height).toBe('300px');
+    expect(host.toolbar.nextElementSibling).toBe(host.canvas);
+    expect(host.toolbar.style.height).toBe('');
     expect(mounted).toMatchObject({ zoneId: 'board', height: 300, install: { id: 'a' } });
   });
 
@@ -155,6 +158,40 @@ describe('an app zone', () => {
     kernel.world.disabled.clear();
     zone({ ...env(), data: zoneDataFrom(kernel) });
     await state('ready-unmounted');
+  });
+
+  it('an app installed from a signed listing (in no registry) is mounted from its release, as the compute-pool spec waits for', async () => {
+    const signed: AppInstall = installOf('com.acme.kanban', 'Workspace', { id: 'signed' });
+    const kernel: FakeAppsKernel = new FakeAppsKernel({ me: 'alice', visible: [], hidden: [], installs: [signed], permissions: new Set(), disabled: new Set() });
+    kernel.releases.set('signed', listingOf({ id: 'com.acme.kanban', name: 'Kanban', version: '1.4.0' }));
+    const mount: Mock<AppZoneRuntime['mount']> = vi.fn((): AppZoneHandle => ({ close: async (): Promise<void> => undefined }));
+    zone({ ...env({ runtime: { mount } }), data: zoneDataFrom(kernel) });
+    const host: HTMLElement = await screen.findByTestId('app-zone-host');
+    await waitFor(() => expect(mount).toHaveBeenCalledTimes(1));
+    const [seam, mounted] = mount.mock.calls[0] as unknown as [ZoneHost, { install: AppInstall }];
+    expect(seam.canvas).toBe(host);
+    expect(mounted.install.id).toBe('signed');
+  });
+
+  it('control: an app in no registry with no release reaching this person reads "not available", and nothing is mounted', async () => {
+    const signed: AppInstall = installOf('com.acme.kanban', 'Workspace', { id: 'signed' });
+    const kernel: FakeAppsKernel = new FakeAppsKernel({ me: 'alice', visible: [], hidden: [], installs: [signed], permissions: new Set(), disabled: new Set() });
+    const mount: Mock<AppZoneRuntime['mount']> = vi.fn((): AppZoneHandle => ({ close: async (): Promise<void> => undefined }));
+    zone({ ...env({ runtime: { mount } }), data: zoneDataFrom(kernel) });
+    await state('not-available');
+    expect(screen.queryByTestId('app-zone-host')).toBeNull();
+    expect(mount).not.toHaveBeenCalled();
+  });
+
+  it('an app granted P2P or topics waits for this member’s own answer, then runs with it (control: answered, it mounts)', async () => {
+    // peer-ports.ts reads the member's answer once, as the instance starts: one started before it would never hold what they allow.
+    const pool: AppInstall = installOf('com.acme.kanban', 'Workspace', { id: 'asks-first', granted: ['canvas', 'ihttp.p2p.serve', 'group.topic.publish'] });
+    const mount: Mock<AppZoneRuntime['mount']> = vi.fn((): AppZoneHandle => ({ close: async (): Promise<void> => undefined }));
+    zone(env({ installs: [pool], runtime: { mount } }));
+    expect((await state('needs-answer')).textContent).toContain('Kanban asks you first');
+    expect(mount).not.toHaveBeenCalled();
+    act(() => recordPeerConsent('asks-first', { serve: true, call: false, topics: true, at_ms: 1n }));
+    await waitFor(() => expect(mount).toHaveBeenCalledTimes(1));
   });
 
   it('outside a workspace page it says so', () => {

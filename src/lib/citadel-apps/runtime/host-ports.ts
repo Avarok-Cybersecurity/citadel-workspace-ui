@@ -2,43 +2,45 @@
  * The ports one running instance gets, bound to its install: server-side storage, blobs, files and
  * egress over `AppsRequest::Call`; `storage.local` and host egress through the local agent, only
  * when this tab's agent says it serves apps (`apps` in its greeting) and a session is signed in;
- * internal HTTP over the server relay; the events port; the page log. A port left out answers
+ * internal HTTP over the server relay and, with an agent session, over P2P (peer-ports.ts), with
+ * the app's topics; the zone's own events and ui ports (zone-runtime.ts); the page log. A port left out answers
  * `{refused: {unavailable: <port>}}` (host/ports.ts), which is what "not here" means to an app.
  */
-import type { AppInstall } from 'citadel-workspace-client-ts';
-import type { AppsResult, AppsTransport } from '@/lib/workspace-service/apps-operations';
+import type { AppInstall, AppLimits, Capability } from 'citadel-workspace-client-ts';
+import type { AppsResult } from '@/lib/workspace-service/apps-operations';
 import { advertiseService, callHost, ihttpSend, withdrawService } from '@/lib/workspace-service/apps-runtime-operations';
-import type { EventsPort, HostNetPort, HostPorts, LogPort, StoragePort } from '../host/ports';
-import type { HostPolicy } from '../host/limits';
-import type { AgentLink } from './agent-link';
+import type { EventsPort, HostNetPort, HostPorts, LogPort, StoragePort, UiPort } from '../host/ports';
 import { agentKvPort, splitStorage } from './agent-kv-port';
 import { agentFetchPort } from './agent-fetch-port';
 import { relayIhttpPort, type RelayIhttpPort } from './ihttp-relay-port';
 import { serverBlob, serverFiles, serverNet, serverStorage, type HostCaller } from './kernel-call-ports';
+import { peerPorts, type PeerPorts, type PeerWorld } from './peer-ports';
 
-export interface PortWorld {
-  readonly transport: AppsTransport;
-  readonly agent: AgentLink;
-  /** This tab's session CID and whether its agent serves apps; null when either is not so. */
-  readonly agentSession: { readonly cid: bigint } | null;
-  readonly pushes: (listener: (answer: unknown) => void) => () => void;
-  readonly sha256Hex: (bytes: Uint8Array) => Promise<string>;
-  readonly nowMs: () => number;
+/** The peer world (transport, agent and its session, pushes, clock, policy, ...) and the rest the ports need. */
+export interface PortWorld extends PeerWorld {
   readonly every: (ms: number, fire: () => void) => () => void;
   readonly log: LogPort;
-  readonly policy: HostPolicy;
 }
 
 export interface BoundPorts {
   readonly ports: HostPorts;
+  /** What the instance may do for this member: the install's grant less what they did not consent to. */
+  readonly held: ReadonlySet<Capability>;
   /** Ends the instance's advertisement (ihttp-relay-port.ts); null when it never served. */
   readonly withdraw: () => Promise<AppsResult<number> | null>;
-  /** Drops what the ports hold open (host egress streams). */
-  readonly stop: () => void;
+  /** Drops what the ports hold open (host egress streams, topics), settling once the agent let go. */
+  readonly stop: () => Promise<void>;
+}
+
+/** The ports a zone owns: its input (zone-input.ts) and its toolbar (ui-port.ts). */
+export interface ZonePorts {
+  readonly events: EventsPort;
+  readonly ui: UiPort;
 }
 
 /** `instance`: this running instance's name, which its advertisement is held under. */
-export function hostPortsFor(install: AppInstall, instance: string, scopeKey: string, events: EventsPort, w: PortWorld): BoundPorts {
+/** `limits`: the release's manifest limits (its topics' sizes and rates). */
+export function hostPortsFor(install: AppInstall, limits: AppLimits, instance: string, scopeKey: string, zone: ZonePorts, w: PortWorld): BoundPorts {
   const call: HostCaller = (bytes: Uint8Array) => callHost(w.transport, install.id, bytes);
   const session: { readonly cid: bigint } | null = w.agentSession;
   const local: StoragePort | null = session === null ? null : agentKvPort(w.agent, { cid: session.cid, appId: install.app_id, scopeKey, timeoutMs: w.policy.portTimeoutMs });
@@ -52,13 +54,19 @@ export function hostPortsFor(install: AppInstall, instance: string, scopeKey: st
     advertise: (digest, untilMs) => advertiseService(w.transport, install.id, instance, digest, untilMs),
     withdraw: () => withdrawService(w.transport, install.id, instance),
   });
+  const peer: PeerPorts = peerPorts(install, scopeKey, limits, ihttp, w);
   const ports: HostPorts = {
     storage: splitStorage(serverStorage(call), local), blob: serverBlob(call), storeFiles: serverFiles(call),
-    serverNet: serverNet(call), ihttp, events, log: w.log, ...(hostNet === null ? {} : { hostNet }),
+    serverNet: serverNet(call), ihttp: peer.ihttp, events: zone.events, ui: zone.ui, log: w.log,
+    ...(hostNet === null ? {} : { hostNet }), ...(peer.topic === null ? {} : { topic: peer.topic }),
   };
   return {
     ports,
+    held: peer.held,
     withdraw: ihttp.withdraw,
-    stop: (): void => hostNet?.closeAll(),
+    stop: (): Promise<void> => {
+      hostNet?.closeAll();
+      return peer.stop();
+    },
   };
 }

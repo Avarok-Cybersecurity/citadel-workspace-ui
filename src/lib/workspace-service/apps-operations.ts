@@ -7,7 +7,7 @@
  * app or an install, names ours (the secure-links-operations pattern). Answers are read strictly
  * (citadel-apps/wire/apps-answer.ts): one that is not exactly a known shape is a refusal.
  */
-import type { AppInstall, AppListing, AppsRefusal, AppsRequest, Capability, InstallScope, ListingOffer } from 'citadel-workspace-client-ts';
+import type { AppInstall, AppListing, AppsRefusal, AppsRequest, Capability, InstallScope, ListingOffer, PeerForMe } from 'citadel-workspace-client-ts';
 import { readAppsAnswer, type AppsAnswer } from '@/lib/citadel-apps/wire/apps-answer';
 import { readManifestBytes, type ManifestReading } from '@/lib/citadel-apps/manifest/manifest-rules';
 import { debugLog } from '@/lib/debug-config';
@@ -94,14 +94,15 @@ export const listCatalogue = (t: AppsTransport): Promise<AppsResult<AppListing[]
 export const getListing = (t: AppsTransport, appId: string): Promise<AppsResult<AppListing>> =>
   ask(t, { GetListing: { app_id: appId } }, 'listing', (a: Of<'listing'>) => listingIsFor(a.listing, appId), (a: Of<'listing'>) => a.listing);
 
-/** The installs that reach the caller, and which of them the caller turned off for themselves. */
+/** The installs that reach the caller, which of them the caller turned off for themselves, and the caller's P2P answers. */
 export interface InstallsView {
   installs: AppInstall[];
   disabledForMe: string[];
+  peerForMe: PeerForMe[];
 }
 
 export const listInstalls = (t: AppsTransport): Promise<AppsResult<InstallsView>> =>
-  ask(t, 'ListInstalls', 'installs', always, (a: Of<'installs'>) => ({ installs: a.installs, disabledForMe: a.disabledForMe }));
+  ask(t, 'ListInstalls', 'installs', always, (a: Of<'installs'>) => ({ installs: a.installs, disabledForMe: a.disabledForMe, peerForMe: a.peerForMe }));
 
 export interface InstallChoice {
   appId: string;

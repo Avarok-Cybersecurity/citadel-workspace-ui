@@ -35,6 +35,7 @@ export function CapabilityRows({ rows, onToggle }: CapabilityRowsProps): JSX.Ele
                 ))}
               </ul>
             )}
+            {row.memberNote !== null && <span className="break-words text-xs text-muted-foreground" data-testid="apps-consent-member-note">{row.memberNote}</span>}
             <span className={`text-xs ${RISK_CLASS[row.risk]}`}>{RISK_LABEL[row.risk]}{row.optional ? '' : ' · Required'}</span>
             {row.blocked !== null && <span className="break-words text-xs text-destructive-emphasis" data-testid="apps-consent-blocked">{row.blocked}</span>}
           </div>

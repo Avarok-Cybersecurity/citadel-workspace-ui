@@ -6,6 +6,7 @@ import type { Address } from '../sdk/generated/Address';
 import type { Caller } from '../sdk/generated/Caller';
 import type { IhttpFrame } from '../sdk/generated/IhttpFrame';
 import type { RequestHead } from '../sdk/generated/RequestHead';
+import type { Transport } from '../sdk/generated/Transport';
 import type { IhttpLimits } from './limits';
 import type { Refused } from './ports';
 
@@ -19,7 +20,7 @@ export type RouterAction =
 export type ClosingAction =
   | Extract<RouterAction, { kind: 'reply' }>
   /** Send this frame on a call the app made (IhttpPort.IhttpCall), addressed as the app addressed it. */
-  | { readonly kind: 'call'; readonly to: Address; readonly frame: IhttpFrame };
+  | { readonly kind: 'call'; readonly to: Address; readonly frame: IhttpFrame; readonly transport: Transport };
 
 /** The Cancel reason closing sends (citadel-ihttp-types CancelReason::Closed). */
 export const CLOSED_REASON: string = 'closed';

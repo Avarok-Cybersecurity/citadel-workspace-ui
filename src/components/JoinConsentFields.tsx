@@ -11,7 +11,7 @@ interface JoinConsentFieldsProps {
 }
 
 /** What is sent when diagnostics are on, in one plain line. Also the Privacy tab's description. */
-export const DIAGNOSTICS_SENT: string = "Warnings and errors only, from the agent and this app's browser console, with names, files and addresses removed.";
+export const DIAGNOSTICS_SENT: string = "Warnings and errors from the agent and this app's browser console, plus how your direct connections to other members went, with names, files and addresses removed.";
 
 /**
  * The Profile step's agreements. Diagnostics are a choice of their own and stay off unless

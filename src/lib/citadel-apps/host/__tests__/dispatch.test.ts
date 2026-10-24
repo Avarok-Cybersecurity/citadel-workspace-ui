@@ -184,12 +184,20 @@ describe('ihttp gate', () => {
 
   it('serve refuses a malformed route table; respond and consumed refuse a stream nobody opened', async () => {
     const { d } = rig(['ihttp.serve'], (rec) => ({ ihttp: fakeIhttp(rec) }));
-    expect(await answer(d.call('ihttp', 1, req({ routes: [{ method: 'GET', path: 'nope' }] })))).toEqual({ refused: { policy: 'bad_routes' } });
-    expect(await answer(d.call('ihttp', 1, req({ routes: [{ method: 'GET', path: '/cards/:id' }] })))).toEqual({ ok: null });
+    expect(await answer(d.call('ihttp', 1, req({ routes: [{ method: 'GET', path: 'nope' }], on: { relay: true, p2p: false } })))).toEqual({ refused: { policy: 'bad_routes' } });
+    expect(await answer(d.call('ihttp', 1, req({ routes: [{ method: 'GET', path: '/cards/:id' }], on: { relay: true, p2p: false } })))).toEqual({ ok: null });
     const frame: IhttpFrame = { v: 1, stream: 1n, kind: { ResponseHead: { status: 200, headers: [], body_len: null } } };
     expect(await answer(d.call('ihttp', 2, req({ peer, frame })))).toEqual({ refused: { policy: 'unknown_stream' } });
     expect(await answer(d.call('ihttp', 4, req({ peer, stream: 1n })))).toEqual({ refused: { policy: 'unknown_stream' } });
-    expect(await answer(d.call('ihttp', 3, req({ to: { user: { app_id: 'com.acme.app', username: 'bob' } }, frame })))).toEqual({ refused: 'ungranted' });
+    expect(await answer(d.call('ihttp', 3, req({ to: { user: { app_id: 'com.acme.app', username: 'bob' } }, frame, transport: 'relay' })))).toEqual({ refused: 'ungranted' });
+  });
+
+  it('an advertisement asking for a plane not held reaches the port with the held one, and answers ungranted (control: asking only for it)', async () => {
+    const { d, rec } = rig(['ihttp.serve'], (r) => ({ ihttp: fakeIhttp(r) }));
+    const routes: unknown[] = [{ method: 'GET', path: '/a' }];
+    expect(await answer(d.call('ihttp', 1, req({ routes, on: { relay: true, p2p: true } })))).toEqual({ refused: 'ungranted' });
+    expect(await answer(d.call('ihttp', 1, req({ routes, on: { relay: true, p2p: false } })))).toEqual({ ok: null });
+    expect(rec.calls.map((c) => c.args)).toEqual([{ routes, on: { relay: true, p2p: false } }, { routes, on: { relay: true, p2p: false } }]);
   });
 
   it('IhttpConsumed is admitted by either ihttp capability and by nothing else', async () => {

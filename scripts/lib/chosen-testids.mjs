@@ -11,3 +11,12 @@ export function chosenTestIds(source) {
   }
   return ids;
 }
+
+/**
+ * Testids set on an element the host builds without React (`zone-surface.ts`, `zone-toolbar.ts`
+ * build plain DOM around an app's canvas): `el.dataset.testid = 'app-zone-toolbar'` renders
+ * `data-testid="app-zone-toolbar"` exactly as the attribute would.
+ */
+export function domSetTestIds(source) {
+  return [...source.matchAll(/\.dataset\.testid\s*=\s*["']([A-Za-z0-9_-]+)["']/g)].map((m) => m[1]);
+}

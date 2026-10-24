@@ -5,14 +5,14 @@
  * mounts nothing.
  */
 import type { CloseReason } from '@/lib/citadel-apps/sdk/generated/CloseReason';
-import type { AppZoneHandle, AppZoneMount, AppZoneRuntime } from './app-zone-environment';
+import type { AppZoneHandle, AppZoneMount, AppZoneRuntime, ZoneHost } from './app-zone-environment';
 
 type Loader = () => Promise<AppZoneRuntime>;
 
 export function lazyRuntime(load: Loader): AppZoneRuntime {
   let loading: Promise<AppZoneRuntime> | null = null;
   return {
-    mount: (host: HTMLElement, zone: AppZoneMount): AppZoneHandle => {
+    mount: (host: ZoneHost, zone: AppZoneMount): AppZoneHandle => {
       let mounted: AppZoneHandle | null = null;
       let live: boolean = true;
       loading ??= load();
@@ -21,7 +21,7 @@ export function lazyRuntime(load: Loader): AppZoneRuntime {
       }, (error: unknown): void => {
         // A chunk that failed to load is retried by the next zone that mounts.
         loading = null;
-        if (live) host.textContent = 'This app could not be loaded. Reload the page to try again.';
+        if (live) host.canvas.textContent = 'This app could not be loaded. Reload the page to try again.';
         console.error('[apps] the app runtime did not load', error);
       });
       return {

@@ -66,6 +66,14 @@ describe('declaring agent hosting', () => {
     expect(await agentHostsConversations()).toBe(true);
   });
 
+  it('declares that this window takes P2P internal-HTTP frames when the agent serves apps (control: not otherwise)', async () => {
+    const g: Greeting = watchGreeting();
+    g.observe({ ServiceConnectionAccepted: { cid: 0n, request_id: null, agent_ilm: true, apps: true } });
+    const s: DeclaringClient & { sent: InternalServiceRequest[] } = socket(true);
+    expect(await declareOnLeaderSocket(s, g)).toBe(true);
+    expect(s.sent).toEqual([{ ConnectionManagement: expect.objectContaining({ management_command: { DeclareCapabilities: { capabilities: { agent_ilm: true, ihttp: true } } } }) }]);
+  });
+
   it('does not declare at all to an agent whose greeting offers nothing', async () => {
     for (const offers of ['older', false] as const) {
       forgetCapabilities();

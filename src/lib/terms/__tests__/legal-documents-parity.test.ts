@@ -30,9 +30,9 @@ function crateVersion(constant: string): number {
 
 /** Each document's effective date: the terms and the notice changed for browser console logs. */
 const EFFECTIVE: Readonly<Record<LegalDocumentId, string>> = {
-  terms: 'October 21, 2026',
+  terms: 'October 23, 2026',
   'customer-terms': 'October 14, 2026',
-  privacy: 'October 21, 2026',
+  privacy: 'October 23, 2026',
   dpa: 'October 14, 2026',
   subprocessors: 'October 14, 2026',
 };

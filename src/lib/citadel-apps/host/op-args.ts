@@ -8,6 +8,7 @@ import type { OpArgs } from '../sdk/generated/AbiConstants';
 import type { DialogAction } from '../sdk/generated/DialogAction';
 import type { KvEntry } from '../sdk/generated/KvEntry';
 import type { MenuItem } from '../sdk/generated/MenuItem';
+import type { ServeOn } from '../sdk/generated/ServeOn';
 import type { ToolbarItem } from '../sdk/generated/ToolbarItem';
 import type { CborMap } from './cbor';
 import { array, bool, bytes, empty, float, literal, nullable, str, struct, u32, u64, type Parsed, type Schema } from './schema';
@@ -20,6 +21,8 @@ const toolbarItem: Schema<ToolbarItem> = s<ToolbarItem>({ id: str, label: str, i
 const menuItem: Schema<MenuItem> = s<MenuItem>({ id: str, label: str });
 const dialogAction: Schema<DialogAction> = s<DialogAction>({ id: str, label: str });
 const kvEntry: Schema<KvEntry> = s<KvEntry>({ key: str, value: bytes });
+const serveOn: Schema<ServeOn> = s<ServeOn>({ relay: bool, p2p: bool });
+const transport: Schema<OpArgs['IhttpCall']['transport']> = literal('p2p', 'relay', 'prefer_p2p_then_relay');
 const node = { node_id: str } as const;
 const path = { path: str } as const;
 
@@ -67,9 +70,9 @@ export const OP_ARGS: { readonly [N in OpName]: Schema<OpArgs[N]> } = {
   HostFetchOpen: s<OpArgs['HostFetchOpen']>({ request: httpRequest }),
   NetStreamRead: s<OpArgs['NetStreamRead']>({ stream: u32, max: u32 }),
   NetStreamClose: s<OpArgs['NetStreamClose']>({ stream: u32 }),
-  IhttpServe: s<OpArgs['IhttpServe']>({ routes: array(route) }),
+  IhttpServe: s<OpArgs['IhttpServe']>({ routes: array(route), on: serveOn }),
   IhttpRespond: s<OpArgs['IhttpRespond']>({ peer: caller, frame: ihttpFrame }),
-  IhttpCall: s<OpArgs['IhttpCall']>({ to: address, frame: ihttpFrame }),
+  IhttpCall: s<OpArgs['IhttpCall']>({ to: address, frame: ihttpFrame, transport }),
   IhttpConsumed: s<OpArgs['IhttpConsumed']>({ peer: caller, stream: u64 }),
   ClipboardReadText: empty,
   ClipboardWriteText: s<OpArgs['ClipboardWriteText']>({ text: str }),
@@ -77,6 +80,9 @@ export const OP_ARGS: { readonly [N in OpName]: Schema<OpArgs[N]> } = {
   DocOpen: s<OpArgs['DocOpen']>(node),
   DocApply: s<OpArgs['DocApply']>({ node_id: str, update: bytes }),
   DocPull: s<OpArgs['DocPull']>({ node_id: str, since: bytes }),
+  TopicOpen: s<OpArgs['TopicOpen']>({ name: str }),
+  TopicPublish: s<OpArgs['TopicPublish']>({ name: str, body: bytes }),
+  TopicClose: s<OpArgs['TopicClose']>({ name: str }),
   LogWrite: s<OpArgs['LogWrite']>({ level: literal('debug', 'info', 'warn', 'error'), message: str }),
 };
 

@@ -10,7 +10,7 @@ import { encodeCbor } from '../../host/cbor';
 import { until } from '../../host/__tests__/in-process';
 import { appModule, callGroup, type AppModuleOptions } from '../../host/__tests__/app-fixtures';
 import type { FrameLoop } from '../zone-input';
-import { FakeRuntimeKernel, hostOf, release, rig, zoneOf, type Rig } from './runtime-rig';
+import { FakeRuntimeKernel, hostOf, slotsOf, release, rig, zoneOf, type Rig } from './runtime-rig';
 
 const ON: Uint8Array = encodeCbor({ on: true });
 const ON_AT: number = 1024;
@@ -41,7 +41,7 @@ async function started(): Promise<Started> {
   const r: Rig = rig(kernel, { frames });
   rigs.push(r);
   const host: HTMLDivElement = hostOf(320);
-  const zone: AppZoneHandle = r.runtime.mount(host, zoneOf(kernel.rel));
+  const zone: AppZoneHandle = r.runtime.mount(slotsOf(host), zoneOf(kernel.rel));
   await until(() => host.dataset.appState === 'running' && loops === 1, 4000);
   return { r, host, zone, loops: () => loops };
 }
@@ -96,7 +96,7 @@ describe('a zone closes once, and completely', () => {
     kernel.pause();
     const r: Rig = rig(kernel);
     rigs.push(r);
-    const closing: Promise<void> = r.runtime.mount(hostOf(320), zoneOf(kernel.rel)).close('unmount');
+    const closing: Promise<void> = r.runtime.mount(slotsOf(hostOf(320)), zoneOf(kernel.rel)).close('unmount');
     kernel.resume();
     await closing;
     await new Promise<void>((done) => setTimeout(done, 100));

@@ -46,6 +46,7 @@ export function AppZoneRequired({ appId, floor, height, view, icon, onInstall, o
     case 'needs-consent': title = `${view.name} ${view.version} needs a new permission; waiting for an admin.`; break;
     case 'suspended': title = `${view.name} has been turned off by an admin.`; break;
     case 'outdated': title = needs(view.name, floor); detail = `You have ${view.installed}.`; action = button('Open in Apps', onOpenApps, 'app-zone-open-apps'); break;
+    case 'needs-answer': title = `${view.name} asks you first.`; detail = 'Answer what it asks in Apps → Installed, and it starts here.'; action = button('Open in Apps', onOpenApps, 'app-zone-answer'); break;
     case 'ready-unmounted': title = `${view.name} is installed.`; detail = 'It will run here once apps can run on pages.'; break;
   }
   return (

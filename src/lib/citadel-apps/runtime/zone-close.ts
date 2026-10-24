@@ -62,7 +62,9 @@ export async function closeZone(p: ZoneParts, reason: CloseReason, deps: ZoneClo
     deps.report(`[apps] ${p.ids.appId} could not withdraw its service when it closed; its callers learn when the advertisement expires`, withdrawal.refused);
   }
   p.disposeSurface();
-  p.bound?.stop();
+  // Awaited: a zone's close settles only once its topics are left, so an instance started after it
+  // (AppZone.tsx waits for this) never has its joins undone by this one's leaves.
+  await p.bound?.stop();
   deps.audit({
     ...p.ids, reason, withdrawal,
     ending: outcome?.ending ?? 'not-started', closeResult: outcome?.closeResult ?? null, ms: outcome?.ms ?? 0,

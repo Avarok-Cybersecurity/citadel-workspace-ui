@@ -16,9 +16,9 @@ import {
 import { removeSession, removeAllSessions, clearStoredSessions } from './session-list';
 import { handleSuccessfulConnection, disconnectSession, switchAccount } from './lifecycle';
 import { attemptLeaderConnection, autoReconnect } from './reconnect';
-import { getActiveSessions, getActiveSessionsResult, type ActiveSessionsResult, getTabActiveSessionIndex, handleConnectFailure } from './queries';
+import { getActiveSessions, getActiveSessionsResult, type ActiveSessionsResult, handleConnectFailure } from './queries';
+import { tabSelectedSession } from './tab-session';
 import type { WebSocketMessage } from '@/types/ws-message-types';
-import type { TabSelectionContext } from '@/lib/connection/types';
 
 export class ConnectionManager {
   private static instance: ConnectionManager;
@@ -202,12 +202,7 @@ export class ConnectionManager {
   }
 
   public async getTabSelectedSession(): Promise<StoredSession | null> {
-    const tab: TabSelectionContext | null = await this.io.getSelectedUser();
-    if (!tab?.selectedUsername || !tab?.selectedServerAddress) {
-      const idx: number = await getTabActiveSessionIndex(this.state, this.io);
-      return this.state.storedSessions.sessions[idx] || null;
-    }
-    return this.state.findSession(tab.selectedUsername, tab.selectedServerAddress) || null;
+    return tabSelectedSession(this.state.storedSessions, await this.io.getSelectedUser());
   }
 
   public getStoredSessionsArray(): StoredSession[] { return this.state.getSessionsArray(); }

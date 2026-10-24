@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { act, render, waitFor, type RenderResult } from '@testing-library/react';
 import type { AppInstall } from 'citadel-workspace-client-ts';
 import { AppZone } from '../AppZone';
-import { AppZoneContext, zoneClaims, type AppZoneEnvironment, type AppZoneHandle, type AppZoneMount, type AppZoneRuntime } from '../app-zone-environment';
+import { AppZoneContext, zoneClaims, type AppZoneEnvironment, type AppZoneHandle, type AppZoneMount, type AppZoneRuntime, type ZoneHost } from '../app-zone-environment';
 import { closeReasonFor } from '../zone-close-reason';
 import type { ZoneView } from '../zone-state';
 import { listedApps, type ListedApp } from '@/lib/citadel-apps/listing-model';
@@ -40,7 +40,7 @@ function recordingRuntime(): AppZoneRuntime & Recorded {
   const closes: CloseReason[] = [];
   return {
     mounts, closes,
-    mount: (_host: HTMLElement, zone: AppZoneMount): AppZoneHandle => {
+    mount: (_host: ZoneHost, zone: AppZoneMount): AppZoneHandle => {
       mounts.push(zone.install);
       return { close: async (reason: CloseReason): Promise<void> => { closes.push(reason); } };
     },

@@ -12,6 +12,8 @@
 import type { Address } from '../sdk/generated/Address';
 import type { Caller } from '../sdk/generated/Caller';
 import type { IhttpFrame } from '../sdk/generated/IhttpFrame';
+import type { ServeOn } from '../sdk/generated/ServeOn';
+import type { Transport } from '../sdk/generated/Transport';
 import { addressApp, CalledStreams } from './ihttp-called';
 import { cancel, deny, allow, type ClosingAction, type RouterAction, type Verdict } from './ihttp-common';
 import type { RoutePattern } from './ihttp-routes';
@@ -29,9 +31,10 @@ export class IhttpRouter {
     this.called = new CalledStreams(limits);
   }
 
-  /** The advertised table; an empty one makes every request unrouted. */
-  setRoutes(routes: readonly RoutePattern[]): void {
+  /** The advertised table and the planes it is served on; an empty one makes every request unrouted. */
+  setRoutes(routes: readonly RoutePattern[], on: ServeOn): void {
     this.served.routes = routes;
+    this.served.planes = on;
   }
 
   get liveStreams(): number {
@@ -56,8 +59,8 @@ export class IhttpRouter {
   }
 
   /** IhttpCall: the app's frame on a call it makes. */
-  call(to: Address, f: IhttpFrame, now: number): Verdict {
-    return this.called.outbound(to, f, now, this.served.usesId(addressApp(to), f.stream));
+  call(to: Address, f: IhttpFrame, transport: Transport, now: number): Verdict {
+    return this.called.outbound(to, f, transport, now, this.served.usesId(addressApp(to), f.stream));
   }
 
   /** IhttpConsumed: the app read one body chunk of `stream`; grant its sender one more credit. */

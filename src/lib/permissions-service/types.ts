@@ -74,6 +74,9 @@ export enum Permission {
   AppInstallAllowServerNetwork = 'AppInstallAllowServerNetwork',
   AppInstallAllowInternalServe = 'AppInstallAllowInternalServe',
   AppInstallAllowInternalCall = 'AppInstallAllowInternalCall',
+  AppInstallAllowPeerServe = 'AppInstallAllowPeerServe',
+  AppInstallAllowPeerCall = 'AppInstallAllowPeerCall',
+  AppInstallAllowGroupTopics = 'AppInstallAllowGroupTopics',
 }
 
 /** The legacy role enum, as generated. Only `Banned` still means anything; a role is a table id. */
@@ -150,6 +153,9 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   [Permission.AppInstallAllowServerNetwork]: 'Let an app reach websites from the server',
   [Permission.AppInstallAllowInternalServe]: 'Let an app offer a service to members',
   [Permission.AppInstallAllowInternalCall]: 'Let an app use other members’ services',
+  [Permission.AppInstallAllowPeerServe]: 'Let an app serve members directly, device to device',
+  [Permission.AppInstallAllowPeerCall]: 'Let an app call members’ devices directly',
+  [Permission.AppInstallAllowGroupTopics]: 'Let an app use its own member channels',
 };
 
 /** Every permission, in declaration order. Mirrors `Permission::ALL_VARIANTS`. */
@@ -225,6 +231,9 @@ export const PERMISSION_CATEGORIES = {
       Permission.AppInstallAllowServerNetwork,
       Permission.AppInstallAllowInternalServe,
       Permission.AppInstallAllowInternalCall,
+      Permission.AppInstallAllowPeerServe,
+      Permission.AppInstallAllowPeerCall,
+      Permission.AppInstallAllowGroupTopics,
     ],
   },
 } as const;

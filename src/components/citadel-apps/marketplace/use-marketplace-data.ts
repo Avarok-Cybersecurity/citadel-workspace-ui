@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { AppInstall, AppListing } from 'citadel-workspace-client-ts';
 import { listCatalogue, listInstalls, type AppsFailure, type AppsResult, type InstallsView } from '@/lib/workspace-service/apps-operations';
 import { adoptDisabledForMe } from '@/lib/citadel-apps/disabled-for-me';
+import { adoptPeerForMe } from '@/lib/citadel-apps/peer-for-me';
 import { listedApps, loadGlobalCatalogue, type ListedApp } from '@/lib/citadel-apps/listing-model';
 import type { MarketplaceDeps } from './marketplace-types';
 
@@ -51,7 +52,10 @@ export function useMarketplaceData(deps: MarketplaceDeps): MarketplaceData {
       if (!live) return;
       setListings([...(global.ok ? global.listings : []), ...(server.ok ? server.value : [])]);
       setInstalls(mine.ok ? mine.value.installs : []);
-      if (mine.ok) adoptDisabledForMe(mine.value.disabledForMe);
+      if (mine.ok) {
+        adoptDisabledForMe(mine.value.disabledForMe);
+        adoptPeerForMe(mine.value.peerForMe);
+      }
       setGlobalProblem(global.ok ? null : global.why);
       setServerProblem(failed(server) ?? failed(mine));
       setLoading(false);

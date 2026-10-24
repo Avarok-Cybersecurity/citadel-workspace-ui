@@ -10,6 +10,9 @@ import type { CborMap } from './cbor';
 import type { Capability } from './capabilities';
 import { KV_BACKEND_CAPABILITY, OPS } from '../sdk/generated/AbiConstants';
 import type { KvBackend } from '../sdk/generated/KvBackend';
+import type { ServeOn } from '../sdk/generated/ServeOn';
+import type { Transport } from '../sdk/generated/Transport';
+import { callPlan, servePlan } from './ihttp-planes';
 import type { OpName } from './op-args';
 import type { HostPorts, PortKey, PortReply } from './ports';
 import { classifyDocumentLink, type DocumentLinkTarget } from '@/lib/document-links';
@@ -54,6 +57,7 @@ const BINDINGS: { readonly [N in OpName]: Binding } = {
   ClipboardReadText: local('clipboard'), ClipboardWriteText: local('clipboard'),
   Notify: local('notify'),
   DocOpen: server('documents'), DocApply: server('documents'), DocPull: server('documents'),
+  TopicOpen: server('topic'), TopicPublish: server('topic'), TopicClose: server('topic'),
   LogWrite: local('log'),
 };
 
@@ -68,6 +72,16 @@ export interface OpEntry {
   readonly server: (args: CborMap) => boolean;
 }
 
+/**
+ * Beyond `granted_by`: the plane an ihttp call or advertisement names needs its own capability
+ * (ihttp-planes.ts). Every other op is decided by `granted_by` alone.
+ */
+function planeAdmits(name: OpName, args: CborMap, held: ReadonlySet<Capability>): boolean {
+  if (name === 'IhttpCall') return callPlan(args.transport as Transport, held) !== null;
+  if (name === 'IhttpServe') return servePlan(args.on as ServeOn, held).kind !== 'ungranted';
+  return true;
+}
+
 /** The capability a Kv* op's backend names, from KV_BACKEND_CAPABILITY. */
 export function kvCapability(backend: KvBackend): Capability {
   return KV_BACKEND_CAPABILITY[typeof backend === 'string' ? backend : 'node'];
@@ -79,7 +93,7 @@ const entries: OpEntry[] = OPS.map((o): OpEntry => {
   return {
     group: o.group, op: o.op, name: o.name, port: b.port, clock: b.clock,
     admits: (args: CborMap, held: ReadonlySet<Capability>): boolean =>
-      (grantedBy ?? [kvCapability(args.backend as KvBackend)]).some((c: Capability) => held.has(c)),
+      (grantedBy ?? [kvCapability(args.backend as KvBackend)]).some((c: Capability) => held.has(c)) && planeAdmits(o.name, args, held),
     server: (args: CborMap): boolean => (b.server === 'kv' ? args.backend !== 'local' : b.server),
   };
 });

@@ -81,6 +81,9 @@ const PERMISSION_DESCRIPTIONS: Record<Permission, string> = {
   [Permission.AppInstallAllowServerNetwork]: 'Can let an app they install reach the websites it names, from the workspace server',
   [Permission.AppInstallAllowInternalServe]: 'Can let an app they install answer requests from the same app used by other members',
   [Permission.AppInstallAllowInternalCall]: 'Can let an app they install send requests to apps other members are running',
+  [Permission.AppInstallAllowPeerServe]: 'Can let an app they install answer requests sent straight to a member’s device by the same app, without the workspace server in between',
+  [Permission.AppInstallAllowPeerCall]: 'Can let an app they install send requests straight to other members’ devices running the same app',
+  [Permission.AppInstallAllowGroupTopics]: 'Can let an app they install join its own channels with the other members who use it',
 };
 
 /**

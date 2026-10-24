@@ -95,7 +95,7 @@ async function start(): Promise<void> {
   const install: AppInstall = {
     id: 'inst-h', app_id: APP_ID, version: VERSION, manifest_sha256: mHash, artifact_sha256: wHash, pinned_publisher_key: key,
     scope: 'Workspace', granted: ['canvas', 'events', 'log'],
-    details: { host_network_hosts: [], server_network_hosts: [], ihttp_routes: [], ihttp_call_targets: [] },
+    details: { host_network_hosts: [], server_network_hosts: [], ihttp_routes: [], ihttp_call_targets: [], ihttp_p2p_routes: [], topics: [] },
     installed_by: 'alice', installed_at_ms: 1n, state: 'Active', previous: null, injected_header_into: [], source: { Global: { catalogue_version: 1n } },
   };
   const CHUNK: number = 64 * 1024;
@@ -120,6 +120,8 @@ async function start(): Promise<void> {
     portWorld: async () => ({
       transport: server, agent: { send: async () => undefined, listen: () => () => undefined, newRequestId: () => crypto.randomUUID() }, agentSession: null,
       log: { LogWrite: () => ({ ok: null }) }, pushes: () => () => undefined, sha256Hex: verifier.sha256Hex, nowMs: () => Date.now(), every: () => () => undefined,
+      // No agent session here, so no peer plane: nobody to reach and no answer of one's own.
+      peerCid: () => null, peerForMe: () => null, topicRecord: { group: () => undefined, request: () => undefined }, report: (what: string, detail: unknown): void => console.warn(what, detail),
     }),
     pageUrl: () => window.location.href, locale: () => 'en', dpr: () => window.devicePixelRatio, theme: () => ({}),
   });

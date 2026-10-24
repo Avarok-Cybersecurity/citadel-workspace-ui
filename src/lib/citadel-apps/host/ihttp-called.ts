@@ -8,6 +8,7 @@ import type { Address } from '../sdk/generated/Address';
 import type { Caller } from '../sdk/generated/Caller';
 import type { IhttpFrame } from '../sdk/generated/IhttpFrame';
 import type { ResponseHead } from '../sdk/generated/ResponseHead';
+import type { Transport } from '../sdk/generated/Transport';
 import { abortBoth, allow, cancel, CLOSED_REASON, deny, frame, headersProblem, MAX_CREDIT, peerKey, requestHeadProblem, type ClosingAction, type RouterAction, type Verdict } from './ihttp-common';
 import { RELAY_STREAM_BIT } from './ihttp-wire';
 import type { IhttpLimits } from './limits';
@@ -15,6 +16,8 @@ import type { IhttpLimits } from './limits';
 interface Called {
   /** The address the app called, which every frame it sends on the call carries. */
   readonly to: Address;
+  /** The transport the RequestHead named; every later frame of the call names it too. */
+  readonly transport: Transport;
   readonly appId: string;
   readonly id: bigint;
   readonly deadline: number;
@@ -47,7 +50,7 @@ export class CalledStreams {
   }
 
   /** A frame the app sends on a call: `idInUse` says whether a served stream already holds the id. */
-  outbound(to: Address, f: IhttpFrame, now: number, idInUse: boolean): Verdict {
+  outbound(to: Address, f: IhttpFrame, transport: Transport, now: number, idInUse: boolean): Verdict {
     const appId: string = addressApp(to);
     const kind: IhttpFrame['kind'] = f.kind;
     if (typeof kind === 'object' && 'RequestHead' in kind) {
@@ -59,7 +62,7 @@ export class CalledStreams {
       if (bad !== null) return deny({ limit: bad }, []);
       this.last = f.stream;
       this.streams.set(calledKey(appId, f.stream), {
-        to, appId, id: f.stream, server: null, requestBytes: 0, responseStarted: false, responseBytes: 0,
+        to, transport, appId, id: f.stream, server: null, requestBytes: 0, responseStarted: false, responseBytes: 0,
         creditOut: this.limits.initialCredit, creditIn: this.limits.initialCredit,
         deadline: now + (kind.RequestHead.body_len === null ? this.limits.streamingTimeoutMs : this.limits.streamTimeoutMs),
       });
@@ -67,6 +70,7 @@ export class CalledStreams {
     }
     const c: Called | undefined = this.streams.get(calledKey(appId, f.stream));
     if (c === undefined) return deny({ policy: 'unknown_stream' }, []);
+    if (c.transport !== transport) return deny({ policy: 'transport' }, []);
     if (kind === 'End') return allow([]);
     if ('Cancel' in kind) {
       this.streams.delete(calledKey(appId, f.stream));
@@ -138,7 +142,7 @@ export class CalledStreams {
   /** The instance is closing: a Cancel on every call it made, and none is open any more. */
   closeAll(): ClosingAction[] {
     const out: ClosingAction[] = [...this.streams.values()].map((c: Called): ClosingAction =>
-      ({ kind: 'call', to: c.to, frame: frame(c.id, { Cancel: { reason: CLOSED_REASON } }) }));
+      ({ kind: 'call', to: c.to, transport: c.transport, frame: frame(c.id, { Cancel: { reason: CLOSED_REASON } }) }));
     this.streams.clear();
     return out;
   }
