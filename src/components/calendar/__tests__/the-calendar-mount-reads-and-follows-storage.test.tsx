@@ -7,18 +7,12 @@
  * One module is replaced: jsdom cannot fetch the core's binary from its URL, so the loader hands
  * back the same vendored glue initialised from the committed file (engine-rig.ts does the same).
  */
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
-import type { AppInstall, AppManifest } from 'citadel-workspace-client-ts';
-import { WorkspaceContext, type WorkspaceState } from '@/contexts/WorkspaceContext';
-import type { Capability } from '@/lib/citadel-apps/host/capabilities';
-import { glueInstance, type GlueInstance, type StorageChange } from '@/lib/citadel-apps/host/glue-instance';
-import { STANDARD_HOST_POLICY } from '@/lib/citadel-apps/host/limits';
-import { ManualClock } from '@/lib/citadel-apps/host/__tests__/fakes';
+import type { GlueInstance } from '@/lib/citadel-apps/host/glue-instance';
 import { event, realEngine } from '@/lib/calendar/__tests__/engine-rig';
-import { MemoryStore } from '@/lib/calendar/__tests__/memory-store';
 import { decodeSettings, encodeSettings, SETTINGS_KEY } from '@/lib/calendar/zones';
-import { CalendarMount } from '../CalendarMount';
+import { mountCalendar, mountRig, type MountRig } from './mount-rig';
 
 vi.mock('@/lib/calendar/engine/load-calendar-wasm', async () => {
   const { readFileSync } = await import('node:fs');
@@ -33,28 +27,8 @@ vi.mock('@/lib/calendar/engine/load-calendar-wasm', async () => {
 });
 
 const engine = realEngine();
-const HELD: Capability[] = ['storage.user', 'storage.node', 'storage.node.authored'];
-const NODE = { id: 'n1', name: 'Platform', parent_id: null, children: [], metadata: [...new TextEncoder().encode(JSON.stringify({ time_zone: 'America/New_York' }))] };
-
-function rig(): { store: MemoryStore; glue: GlueInstance; change: (c: StorageChange) => void } {
-  const store: MemoryStore = new MemoryStore('amy');
-  const listeners: Set<(c: StorageChange) => void> = new Set();
-  const glue: GlueInstance = glueInstance({
-    appId: 'net.avarok.calendar', ports: { storage: store.port() }, held: new Set<Capability>(HELD), policy: STANDARD_HOST_POLICY,
-    limits: { topics: null, p2p: null }, clock: new ManualClock(), pageUrl: 'https://w.example/n1',
-    storageChanges: (l) => { listeners.add(l); return () => listeners.delete(l); },
-  });
-  return { store, glue, change: (c: StorageChange): void => { for (const l of listeners) l(c); } };
-}
-
-function mount(glue: GlueInstance): void {
-  const state = { nodes: { n1: NODE }, members: {}, workspace: { metadata: [] } } as unknown as WorkspaceState;
-  render(
-    <WorkspaceContext.Provider value={{ state }}>
-      <CalendarMount glue={glue} install={{} as AppInstall} manifest={{ name: 'Calendar' } as AppManifest} nodeId="n1" me="amy" tabId="calendar" />
-    </WorkspaceContext.Provider>,
-  );
-}
+const rig = (): MountRig => mountRig('amy');
+const mount = (glue: GlueInstance): void => mountCalendar(glue, 'amy');
 
 const chipTitles = (): string[] => screen.queryAllByTestId('calendar-event-chip').map((c) => (c.getAttribute('aria-label') ?? '').split(',')[0] as string);
 

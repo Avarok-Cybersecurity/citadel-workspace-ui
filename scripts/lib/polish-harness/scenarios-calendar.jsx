@@ -11,6 +11,13 @@ import { CalendarEngine } from '@/lib/calendar/engine/calendar-engine';
 import { intlOffsetAt } from '@/lib/calendar/engine/intl-offsets';
 import { calendarReducer, initialCalendar } from '@/lib/calendar/store';
 import { JULY_WEEK, VIEWER } from '@/lib/calendar/__tests__/placement-fixture';
+import { CalendarMount } from '@/components/calendar/CalendarMount';
+import { WorkspaceContext } from '@/contexts/WorkspaceContext';
+import { glueInstance } from '@/lib/citadel-apps/host/glue-instance';
+import { STANDARD_HOST_POLICY } from '@/lib/citadel-apps/host/limits';
+import { INTRO, WORKING_HOURS } from '@/lib/calendar/__tests__/booking-fixture';
+import { MemoryStore } from '@/lib/calendar/__tests__/memory-store';
+import { encodeSettings, SETTINGS_KEY } from '@/lib/calendar/zones';
 
 const NOW = { date: { y: 2024, m: 7, d: 16 }, minute: 600 };
 const NAMES = { company: 'Company', 'team-d': 'Team D — Developer experience and tooling', n1: 'Platform' };
@@ -39,7 +46,48 @@ function Calendar({ view, zone }) {
   );
 }
 
+/** The page's own clock, as the glue instance of a mounted tab is given it (glue-steps.ts). */
+const PAGE_CLOCK = { now: () => Date.now(), after: (ms, fire) => { const id = setTimeout(fire, ms); return () => clearTimeout(id); } };
+const NODE = { id: 'n1', name: 'Platform', parent_id: null, children: [], metadata: [...new TextEncoder().encode(JSON.stringify({ time_zone: 'America/New_York' }))] };
+
+/**
+ * The whole tab as the registry mounts it, over the real ports and gate and an in-memory store
+ * seeded through the shipped core: the member's settings, the node's events, and another member
+ * (ana) who offers a type here.
+ */
+function MountedCalendar({ engine }) {
+  const [glue] = useState(() => {
+    const store = new MemoryStore(VIEWER);
+    store.put('user', SETTINGS_KEY, encodeSettings({ displayZone: { kind: 'fixed', zone: 'America/Chicago' } }));
+    for (const e of JULY_WEEK) if (e.source === 'node') store.put({ node: { node_id: 'n1' } }, `cal/event/${e.event.id}`, engine.encodeEvent(e.event));
+    const ana = { node_authored: { node_id: 'n1', author: 'ana' } };
+    store.values.set(store.where(ana, 'cal/type/t1', false), engine.encodeEventType(INTRO));
+    store.values.set(store.where(ana, 'cal/availability', false), engine.encodeAvailability(WORKING_HOURS));
+    return glueInstance({
+      appId: 'net.avarok.calendar', ports: { storage: store.port() }, held: new Set(['storage.user', 'storage.node', 'storage.node.authored']),
+      policy: STANDARD_HOST_POLICY, limits: { topics: null, p2p: null }, clock: PAGE_CLOCK, pageUrl: window.location.href, storageChanges: () => () => {},
+    });
+  });
+  const state = { nodes: { n1: NODE }, members: {}, workspace: { metadata: [] } };
+  return (
+    <WorkspaceContext.Provider value={{ state }}>
+      <main className="mx-auto max-w-6xl">
+        <CalendarMount glue={glue} install={{}} manifest={{ name: 'Calendar' }} nodeId="n1" me={VIEWER} tabId="calendar" />
+      </main>
+    </WorkspaceContext.Provider>
+  );
+}
+
+function Mounted() {
+  const [engine, setEngine] = useState(null);
+  useEffect(() => {
+    glue.default({ module_or_path: wasmUrl }).then(() => setEngine(new CalendarEngine(glue, intlOffsetAt())));
+  }, []);
+  return engine === null ? <p>Loading the calendar</p> : <MountedCalendar engine={engine} />;
+}
+
 export const CALENDAR_SCENARIOS = {
+  'calendar-mounted': () => <Mounted />,
   'calendar-month': () => <Calendar view="month" zone="America/New_York" />,
   'calendar-week': () => <Calendar view="week" zone="America/Chicago" />,
   'calendar-day': () => <Calendar view="day" zone="America/New_York" />,

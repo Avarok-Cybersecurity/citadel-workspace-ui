@@ -27,6 +27,11 @@ export class MemoryStore {
     this.values.set(this.where(backend, key, true), value);
   }
 
+  /** A write naming another author is refused, as the kernel refuses it (`authored_namespace`, policy `author`). */
+  private foreign(backend: KvBackend): boolean {
+    return typeof backend === 'object' && 'node_authored' in backend && backend.node_authored.author !== null && backend.node_authored.author !== this.me;
+  }
+
   port(): StoragePort {
     const page = <T>(all: T[], cursor: string | null): { items: T[]; next: string | null } => {
       const from: number = cursor === null ? 0 : Number(cursor);
@@ -34,9 +39,21 @@ export class MemoryStore {
     };
     return {
       KvGet: ({ backend, key }) => ({ ok: { value: this.values.get(this.where(backend, key, false)) ?? null } }),
-      KvSet: ({ backend, key, value }) => { this.put(backend, key, value); return { ok: null }; },
-      KvSetMany: ({ backend, entries }) => { for (const e of entries) this.put(backend, e.key, e.value); return { ok: null }; },
-      KvDelete: ({ backend, key }) => { this.values.delete(this.where(backend, key, true)); return { ok: null }; },
+      KvSet: ({ backend, key, value }) => {
+        if (this.foreign(backend)) return { refused: { policy: 'author' } };
+        this.put(backend, key, value);
+        return { ok: null };
+      },
+      KvSetMany: ({ backend, entries }) => {
+        if (this.foreign(backend)) return { refused: { policy: 'author' } };
+        for (const e of entries) this.put(backend, e.key, e.value);
+        return { ok: null };
+      },
+      KvDelete: ({ backend, key }) => {
+        if (this.foreign(backend)) return { refused: { policy: 'author' } };
+        this.values.delete(this.where(backend, key, true));
+        return { ok: null };
+      },
       KvList: ({ backend, prefix, cursor }) => {
         const base: string = this.where(backend, '', false);
         const keys: string[] = [...this.values.keys()].filter((k) => k.startsWith(base + prefix)).map((k) => k.slice(base.length)).sort();

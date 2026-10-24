@@ -5,19 +5,15 @@
  */
 import { useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { knownZones } from '@/lib/calendar/known-zones';
 import type { DisplayZoneChoice } from '@/lib/calendar/zones';
+import { NativeSelect } from './NativeSelect';
 
 interface ZoneQuestionProps {
   deviceZone: string;
   saving: boolean;
   error: string | null;
   onChoose: (choice: DisplayZoneChoice) => void;
-}
-
-/** The zones this browser knows, for a member who wants one fixed zone. */
-function knownZones(deviceZone: string): string[] {
-  const listed: string[] = typeof Intl.supportedValuesOf === 'function' ? Intl.supportedValuesOf('timeZone') : [];
-  return listed.includes(deviceZone) ? listed : [deviceZone, ...listed];
 }
 
 const OPTION: string = 'flex min-h-[44px] items-center gap-3 rounded-md border border-border px-3 py-2 text-sm text-foreground has-[:checked]:border-primary has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring';
@@ -49,9 +45,9 @@ export function ZoneQuestion({ deviceZone, saving, error, onChoose }: ZoneQuesti
       {kind === 'fixed' && (
         <div className="flex flex-col gap-1">
           <label htmlFor={selectId} className="text-sm font-medium text-foreground">Zone</label>
-          <select id={selectId} value={fixed} onChange={(e): void => setFixed(e.target.value)} className="min-h-[44px] w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
+          <NativeSelect id={selectId} className="w-full" value={fixed} onChange={(e): void => setFixed(e.target.value)}>
             {knownZones(deviceZone).map((z: string) => <option key={z} value={z}>{z}</option>)}
-          </select>
+          </NativeSelect>
         </div>
       )}
       {error !== null && <p role="alert" className="text-sm text-destructive-emphasis">{error}</p>}
