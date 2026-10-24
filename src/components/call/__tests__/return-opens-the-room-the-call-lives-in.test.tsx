@@ -21,7 +21,7 @@ import { OngoingCallBar } from '../OngoingCallBar';
 import { CallContext, type CallContextValue } from '@/lib/call/call-context';
 import { CallManager, MEDIA_WIRE_VERSION } from '@/lib/call/call-manager';
 import { publishChannelNames } from '@/lib/call/room-names';
-import { forgetAllTabs, rememberedTab } from '@/components/office/office-tab-memory';
+import { forgetAllTabs, rememberedTab } from '@/lib/node-tabs/tab-memory';
 import type { CallTransport } from '@/lib/call/call-transport';
 import type { CallHome, CallState } from '@/lib/call/call-state';
 import type { CallMediaKinds } from '@/types/p2p-commands';
@@ -111,7 +111,7 @@ describe('Return on the ongoing-call bar', () => {
     expect(call.home).toEqual({ kind: 'node', roomId: CHANNEL, nodeId: NODE });
 
     expect(await pressReturn(call)).toBe(`/workspace?nodeId=${NODE}`);
-    expect(rememberedTab(CHANNEL)).toBe('chat');
+    expect(rememberedTab(NODE)).toBe('chat');
   });
 
   it('opens the node of an office call this user placed', async () => {

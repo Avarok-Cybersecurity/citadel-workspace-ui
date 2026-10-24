@@ -105,6 +105,7 @@ function PlacedZone({ props, env }: { props: ZoneProps; env: AppZoneEnvironment 
   };
   return (
     <AppZoneRequired
+      placement="zone"
       appId={props.app}
       floor={props.floor}
       height={props.height}

@@ -12,6 +12,8 @@ import type { ZoneView } from './zone-state';
 export type PlaceholderView = Exclude<ZoneView, { kind: 'ready' }> | { kind: 'ready-unmounted'; name: string };
 
 interface AppZoneRequiredProps {
+  /** Where the app would run: a zone in a page, or a tab of the node's pane. */
+  placement: 'zone' | 'tab';
   appId: string;
   floor: AppVersion | null;
   height: number;
@@ -23,9 +25,9 @@ interface AppZoneRequiredProps {
   onOpenApps: () => void;
 }
 
-const needs = (name: string, floor: AppVersion | null): string => `This zone requires ${name}${floor === null ? '' : ` ${versionFloorLabel(floor)}`}`;
+const needs = (placement: string, name: string, floor: AppVersion | null): string => `This ${placement} requires ${name}${floor === null ? '' : ` ${versionFloorLabel(floor)}`}`;
 
-export function AppZoneRequired({ appId, floor, height, view, icon, onInstall, onEnable, onCopyLink, onOpenApps }: AppZoneRequiredProps): JSX.Element {
+export function AppZoneRequired({ placement, appId, floor, height, view, icon, onInstall, onEnable, onCopyLink, onOpenApps }: AppZoneRequiredProps): JSX.Element {
   const [copied, setCopied] = useState<'no' | 'yes' | 'failed'>('no');
   const button = (label: string, onClick: () => void, testId: string): JSX.Element => (
     <Button variant="outline" className="min-h-[44px] self-start" onClick={onClick} data-testid={testId}>{label}</Button>
@@ -34,25 +36,25 @@ export function AppZoneRequired({ appId, floor, height, view, icon, onInstall, o
   let detail: string | null = null;
   let action: JSX.Element | null = null;
   switch (view.kind) {
-    case 'loading': title = 'Loading this zone’s app…'; break;
-    case 'not-available': title = `This zone needs “${appId}”, which is not available to you.`; break;
-    case 'install': title = needs(view.name, floor); action = button(`Install ${view.name}`, onInstall, 'app-zone-install'); break;
+    case 'loading': title = `Loading this ${placement}’s app…`; break;
+    case 'not-available': title = `This ${placement} needs “${appId}”, which is not available to you.`; break;
+    case 'install': title = needs(placement, view.name, floor); action = button(`Install ${view.name}`, onInstall, 'app-zone-install'); break;
     case 'ask-admin':
-      title = needs(view.name, floor);
+      title = needs(placement, view.name, floor);
       detail = copied === 'yes' ? 'Link copied. Send it to a workspace admin.' : copied === 'failed' ? 'The link could not be copied.' : 'Ask a workspace admin to install it.';
       action = button('Copy link for an admin', () => { void onCopyLink().then(() => setCopied('yes'), () => setCopied('failed')); }, 'app-zone-ask-admin');
       break;
     case 'disabled': title = `${view.name} is installed for you but turned off.`; action = button('Turn on', onEnable, 'app-zone-enable'); break;
     case 'needs-consent': title = `${view.name} ${view.version} needs a new permission; waiting for an admin.`; break;
     case 'suspended': title = `${view.name} has been turned off by an admin.`; break;
-    case 'outdated': title = needs(view.name, floor); detail = `You have ${view.installed}.`; action = button('Open in Apps', onOpenApps, 'app-zone-open-apps'); break;
+    case 'outdated': title = needs(placement, view.name, floor); detail = `You have ${view.installed}.`; action = button('Open in Apps', onOpenApps, 'app-zone-open-apps'); break;
     case 'needs-answer': title = `${view.name} asks you first.`; detail = 'Answer what it asks in Apps → Installed, and it starts here.'; action = button('Open in Apps', onOpenApps, 'app-zone-answer'); break;
-    case 'ready-unmounted': title = `${view.name} is installed.`; detail = 'It will run here once apps can run on pages.'; break;
+    case 'ready-unmounted': title = `${view.name} is installed.`; detail = `It will run here once apps can run ${placement === 'zone' ? 'on pages' : 'in tabs'}.`; break;
   }
   return (
     <div
       role="group"
-      aria-label="App zone"
+      aria-label={placement === 'zone' ? 'App zone' : 'App tab'}
       data-testid="app-zone-required"
       data-zone-state={view.kind}
       className="not-prose my-4 flex flex-col justify-center gap-[8px] rounded-lg border border-dashed border-border bg-muted/50 p-[16px]"
