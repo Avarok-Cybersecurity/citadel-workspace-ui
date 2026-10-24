@@ -9,7 +9,7 @@
 import { describe, expect, it } from 'vitest';
 import { decodeCbor, encodeCbor, type Decoded } from '../../host/cbor';
 import { fromWireFrame, toWireFrame } from '../../host/ihttp-wire';
-import type { InboundIhttpFrame, TopicArrival } from '../../host/ports';
+import type { IhttpPort, InboundIhttpFrame, TopicArrival } from '../../host/ports';
 import type { IhttpFrame } from '../../sdk/generated/IhttpFrame';
 import type { PeerAuthorization } from '../../member-consent-types';
 import type { AgentLink } from '../agent-link';
@@ -22,13 +22,15 @@ import { topicPort, type OwnedTopicPort } from '../topic-port';
 const APP: string = 'net.avarok.compute-pool';
 const ME: bigint = 100n;
 const PEER: bigint = 8n;
-const GROUP = { cid: 5n, mgid: 9n };
+const GROUP: Readonly<{ cid: bigint; mgid: bigint }> = { cid: 5n, mgid: 9n };
 const SUCCESS: Readonly<Record<string, string>> = {
   GroupRequestJoin: 'GroupRequestJoinSuccess', GroupLeave: 'GroupLeaveSuccess', GroupRespondRequest: 'GroupRespondRequestSuccess', IhttpSend: 'IhttpSendAccepted',
 };
 
+interface TestAgent { link: AgentLink; sent: Record<string, Record<string, unknown>>[]; push: (m: unknown) => Promise<void> }
+
 /** One session's agent, every request answered with its Success. */
-function agent(): { link: AgentLink; sent: Record<string, Record<string, unknown>>[]; push: (m: unknown) => Promise<void> } {
+function agent(): TestAgent {
   const handlers: Set<(m: unknown) => void> = new Set();
   const sent: Record<string, Record<string, unknown>>[] = [];
   let n: number = 0;
@@ -41,7 +43,7 @@ function agent(): { link: AgentLink; sent: Record<string, Record<string, unknown
       queueMicrotask(() => handlers.forEach((h) => h({ [SUCCESS[variant]]: { cid: ME, request_id: body.request_id, group_key: body.group_key, peer_cid: body.peer_cid } })));
     },
   };
-  return { link, sent, push: async (m: unknown) => { handlers.forEach((h) => h(m)); await new Promise<void>((r) => setTimeout(r, 0)); } };
+  return { link, sent, push: async (m: unknown): Promise<void> => { handlers.forEach((h) => h(m)); await new Promise<void>((r) => setTimeout(r, 0)); } };
 }
 
 const admit = async (peerCid: bigint): Promise<PeerAuthorization> => ({ ok: true, peer: { username: 'alice', cid: peerCid, app_id: APP, install_id: 'inst-a' }, untilMs: 60_000n });
@@ -57,11 +59,11 @@ function topics(seat: PlaneSeat, link: AgentLink, arrivals: TopicArrival[]): Own
   return port;
 }
 
-const message = { GroupMessageNotification: { cid: ME, peer_cid: PEER, group_key: GROUP, message: Array.from(encodeTopicMessage('pool', new Uint8Array([4]))), request_id: null } };
+const message: Readonly<Record<string, unknown>> = { GroupMessageNotification: { cid: ME, peer_cid: PEER, group_key: GROUP, message: Array.from(encodeTopicMessage('pool', new Uint8Array([4]))), request_id: null } };
 
 describe('a topic held by two instances of one install', () => {
   it('is joined once, still reaches the second after the first closes, and is left only when both have', async () => {
-    const a = agent();
+    const a: TestAgent = agent();
     const registry: InstallPlaneRegistry = new InstallPlaneRegistry();
     const heard: TopicArrival[][] = [[], []];
     const ports: OwnedTopicPort[] = [0, 1].map((i: number) => topics(registry.attach('inst-1', APP), a.link, heard[i]));
@@ -77,7 +79,7 @@ describe('a topic held by two instances of one install', () => {
   });
 
   it('one of them answers a join request', async () => {
-    const a = agent();
+    const a: TestAgent = agent();
     const registry: InstallPlaneRegistry = new InstallPlaneRegistry();
     const ports: OwnedTopicPort[] = [0, 1].map(() => topics(registry.attach('inst-1', APP), a.link, []));
     await ports[0].TopicOpen({ name: 'pool' });
@@ -89,13 +91,15 @@ describe('a topic held by two instances of one install', () => {
 
 const head = (appId: string, stream: bigint): IhttpFrame => ({ v: 1, stream, kind: { RequestHead: { method: 'GET', path: '/health', query: '', headers: [], body_len: 0n, app_id: appId, scope_key: 'ws' } } });
 
-async function p2pPage(instances: number, allow: boolean): Promise<{ push: (f: IhttpFrame) => Promise<void>; delivered: number[]; cancels: () => string[] }> {
-  const a = agent();
+interface P2pPage { push: (f: IhttpFrame) => Promise<void>; delivered: number[]; cancels: () => string[] }
+
+async function p2pPage(instances: number, allow: boolean): Promise<P2pPage> {
+  const a: TestAgent = agent();
   const registry: InstallPlaneRegistry = new InstallPlaneRegistry();
   const delivered: number[] = Array.from({ length: instances }, () => 0);
   const ask = async (peerCid: bigint): Promise<PeerAuthorization> => (allow ? admit(peerCid) : { ok: false, why: 'NoHost' });
   for (let i: number = 0; i < instances; i++) {
-    const port = p2pIhttpPort({
+    const port: IhttpPort = p2pIhttpPort({
       installId: 'inst-1', seat: registry.attach('inst-1', APP), appId: APP, cid: ME, agent: a.link, authority: new PeerAuthority(ask, () => 0, 30),
       timeoutMs: 1000, peerCid: () => PEER, sha256Hex: async () => 'digest', p2pRoutes: ['GET /health'], maxRoutes: 64, maxPathBytes: 2048, noteRefusal: () => undefined,
     });
@@ -103,10 +107,10 @@ async function p2pPage(instances: number, allow: boolean): Promise<{ push: (f: I
     port.onFrame((_i: InboundIhttpFrame) => { delivered[i] += 1; });
   }
   const cancels = (): string[] => a.sent.flatMap((s) => {
-    const send = (s as { IhttpSend?: { frame: number[] } }).IhttpSend;
+    const send: { frame: number[] } | undefined = (s as { IhttpSend?: { frame: number[] } }).IhttpSend;
     if (send === undefined) return [];
     const d: Decoded = decodeCbor(Uint8Array.from(send.frame));
-    const kind = (fromWireFrame(d.ok ? d.value : null) as IhttpFrame).kind;
+    const kind: IhttpFrame['kind'] = (fromWireFrame(d.ok ? d.value : null) as IhttpFrame).kind;
     return typeof kind === 'object' && 'Cancel' in kind ? [kind.Cancel.reason] : [];
   });
   const push = (f: IhttpFrame): Promise<void> => a.push({ IhttpFrameNotification: { cid: ME, peer_cid: PEER, frame: Array.from(encodeCbor(toWireFrame(f))), request_id: null } });
@@ -115,15 +119,15 @@ async function p2pPage(instances: number, allow: boolean): Promise<{ push: (f: I
 
 describe('P2P with two instances of one install', () => {
   it('a request is served by one instance and the other sends nothing', async () => {
-    const page = await p2pPage(2, true);
+    const page: P2pPage = await p2pPage(2, true);
     await page.push(head(APP, 1n));
     expect([page.delivered, page.cancels()]).toEqual([[1, 0], []]);
   });
 
   it('a request for an app nobody here runs is refused once, as an unauthorised one is', async () => {
-    const foreign = await p2pPage(2, true);
+    const foreign: P2pPage = await p2pPage(2, true);
     await foreign.push(head('com.other.app', 1n));
-    const unauthorised = await p2pPage(1, false);
+    const unauthorised: P2pPage = await p2pPage(1, false);
     await unauthorised.push(head(APP, 1n));
     expect(foreign.cancels()).toEqual(['refused']);
     expect(foreign.cancels()).toEqual(unauthorised.cancels());

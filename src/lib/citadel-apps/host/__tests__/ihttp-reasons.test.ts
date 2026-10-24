@@ -4,6 +4,7 @@
  * own `Caller`, and what an app is handed is the wire reason's word.
  */
 import { describe, expect, it } from 'vitest';
+import type { IhttpFrame } from '../../sdk/generated/IhttpFrame';
 import type { CancelReason } from '../../sdk/wire-generated/CancelReason';
 import { appReason, reasonOut, WIRE_WORDS, wireReason, type HostCancelReason } from '../ihttp-reasons';
 import { parseRoutes } from '../ihttp-routes';
@@ -21,7 +22,7 @@ describe('cancel reasons', () => {
 
   it('each wire reason is read back as its own word, and that word maps to it again', () => {
     for (const [reason, word] of Object.entries(WIRE_WORDS) as [CancelReason, HostCancelReason][]) {
-      const back = fromWireFrame({ v: 1, stream: 3n, kind: { Cancel: { reason } } });
+      const back: IhttpFrame | null = fromWireFrame({ v: 1, stream: 3n, kind: { Cancel: { reason } } });
       expect(back?.kind).toEqual({ Cancel: { reason: word } });
       expect(wireReason(word)).toBe(reason);
     }

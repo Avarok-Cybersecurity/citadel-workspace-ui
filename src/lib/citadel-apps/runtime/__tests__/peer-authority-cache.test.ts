@@ -10,10 +10,12 @@ import { PeerAuthority, REFUSAL_CACHE_MS } from '../peer-authority';
 const ALLOWED: PeerAuthorization = { ok: true, peer: { username: 'a', cid: 1n, app_id: 'net.avarok.x', install_id: 'i' }, untilMs: 60_000n };
 const REFUSED: PeerAuthorization = { ok: false, why: 'NoHost' };
 
+interface HeldKernel { asks: number; release: () => void; ask: () => Promise<PeerAuthorization> }
+
 /** A kernel whose every answer waits until the test releases it. */
-function kernel(answer: PeerAuthorization): { asks: number; release: () => void; ask: () => Promise<PeerAuthorization> } {
+function kernel(answer: PeerAuthorization): HeldKernel {
   const waiting: (() => void)[] = [];
-  const k = {
+  const k: HeldKernel = {
     asks: 0,
     release: (): void => { for (const go of waiting.splice(0)) go(); },
     ask: (): Promise<PeerAuthorization> => {
@@ -27,7 +29,7 @@ function kernel(answer: PeerAuthorization): { asks: number; release: () => void;
 describe('the held answer and an eviction', () => {
   it('an answer in flight when every answer was evicted is not held (control: without the eviction it is)', async () => {
     for (const evict of [true, false]) {
-      const k = kernel(ALLOWED);
+      const k: HeldKernel = kernel(ALLOWED);
       const a: PeerAuthority = new PeerAuthority(k.ask, () => 0, 30);
       const first: Promise<unknown> = a.authorize(1n, 'Call');
       if (evict) a.evictAll();
@@ -44,7 +46,7 @@ describe('the held answer and an eviction', () => {
 describe('a refusal', () => {
   it('is held for REFUSAL_CACHE_MS, then asked again', async () => {
     const now: { ms: number } = { ms: 0 };
-    const k = kernel(REFUSED);
+    const k: HeldKernel = kernel(REFUSED);
     const a: PeerAuthority = new PeerAuthority(k.ask, () => now.ms, 30);
     const first: Promise<unknown> = a.authorize(1n, 'Call');
     k.release();

@@ -58,7 +58,7 @@ function inboundVerdict(actions: readonly RouterAction[]): string {
 }
 
 function opened(bodyLen: bigint | null): IhttpRouter {
-  const r: IhttpRouter = new IhttpRouter(APP, STANDARD_IHTTP_LIMITS);
+  const r: IhttpRouter = new IhttpRouter(APP, STANDARD_IHTTP_LIMITS, null);
   const parsed: ParsedRoutes = parseRoutes([{ method: 'GET', path: '/cards' }], 64, 2048);
   if (!parsed.ok) throw new Error(parsed.reason);
   r.setRoutes(parsed.routes, { relay: true, p2p: true });

@@ -101,11 +101,11 @@ export class InstallPlaneRegistry {
     return {
       primary,
       takesServed: (from, f) => this.takesServed(inst, me, primary(), from, f),
-      hasP2p: () => { if (!this.p2p.includes(me)) this.p2p.push(me); },
+      hasP2p: (): void => { if (!this.p2p.includes(me)) this.p2p.push(me); },
       answersForeign: (other) => this.p2p[0] === me && ![...this.installs.values()].some((i: Install) => i.appId === other),
       callOut: (target, f) => this.callOut(inst, me, target, f),
       callIn: (target, f) => this.callIn(inst, me, primary(), target, f),
-      servedEnded: (peer, stream) => { if (inst.served.get(servedKey(peer, stream)) === me) inst.served.delete(servedKey(peer, stream)); },
+      servedEnded: (peer, stream): void => { if (inst.served.get(servedKey(peer, stream)) === me) inst.served.delete(servedKey(peer, stream)); },
       holdTopic: (name, open) => this.holdTopic(inst, me, name, open),
       releaseTopic: (name) => this.releaseTopic(inst, me, name),
       leaving: (name, left) => this.noteLeave(inst, name, left),

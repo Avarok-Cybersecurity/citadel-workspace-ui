@@ -15,6 +15,7 @@ import { describe, expect, it } from 'vitest';
 import { decodeCbor, type Decoded } from '../cbor';
 import { fromWireFrame, toWireFrame } from '../ihttp-wire';
 import type { IhttpFrame } from '../../sdk/generated/IhttpFrame';
+import type { IhttpFrame as WireFrame } from '../../sdk/wire-generated/IhttpFrame';
 
 interface CorpusCase { readonly name: string; readonly hex: string; readonly expect: string; readonly layer: 'shape' | 'rules' }
 
@@ -28,7 +29,7 @@ function verdict(hex: string): string {
   const decoded: Decoded = decodeCbor(bytesOf(hex));
   const frame: IhttpFrame | null = decoded.ok ? fromWireFrame(decoded.value) : null;
   if (frame === null) return 'refused';
-  const kind = toWireFrame(frame).kind;
+  const kind: WireFrame['kind'] = toWireFrame(frame).kind;
   if (kind === 'End') return 'End';
   if ('Cancel' in kind) return `Cancel(${kind.Cancel.reason})`;
   return Object.keys(kind)[0];

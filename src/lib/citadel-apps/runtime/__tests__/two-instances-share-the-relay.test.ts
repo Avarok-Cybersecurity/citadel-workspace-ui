@@ -9,12 +9,14 @@ import { describe, expect, it } from 'vitest';
 import { decodeCbor, encodeCbor, type Decoded } from '../../host/cbor';
 import { fromWireFrame, RELAY_STREAM_BIT, toWireFrame } from '../../host/ihttp-wire';
 import type { InboundIhttpFrame } from '../../host/ports';
+import type { Address } from '../../sdk/generated/Address';
 import type { IhttpFrame } from '../../sdk/generated/IhttpFrame';
-import { InstallPlaneRegistry } from '../install-plane-registry';
+import type { IhttpFrom } from 'citadel-workspace-client-ts';
+import { InstallPlaneRegistry, type PlaneSeat } from '../install-plane-registry';
 import { relayIhttpPort, type RelayIhttpPort } from '../ihttp-relay-port';
 
 const APP: string = 'com.acme.kanban';
-const FROM = { username: 'bob', cid: 7n, app_id: APP, install_id: 'inst-9' };
+const FROM: IhttpFrom = { username: 'bob', cid: 7n, app_id: APP, install_id: 'inst-9' };
 const head = (stream: bigint): IhttpFrame => ({ v: 1, stream, kind: { RequestHead: { method: 'GET', path: '/a', query: '', headers: [], body_len: 0n, app_id: APP, scope_key: 'ws' } } });
 const end = (stream: bigint): IhttpFrame => ({ v: 1, stream, kind: 'End' });
 
@@ -30,7 +32,7 @@ function page(instances: number): Page {
   const registry: InstallPlaneRegistry = new InstallPlaneRegistry();
   const listeners: Set<(a: unknown) => void> = new Set();
   const sent: bigint[] = [];
-  const seats = Array.from({ length: instances }, () => registry.attach('inst-1', APP));
+  const seats: PlaneSeat[] = Array.from({ length: instances }, () => registry.attach('inst-1', APP));
   const ports: RelayIhttpPort[] = seats.map((seat) => relayIhttpPort({
     installId: 'inst-1', seat, sha256Hex: async () => 'd', nowMs: () => 0, every: () => () => undefined,
     send: async (_to, bytes) => { const d: Decoded = decodeCbor(bytes); sent.push((fromWireFrame(d.ok ? d.value : null) as IhttpFrame).stream); return { ok: true, value: null }; },
@@ -40,7 +42,7 @@ function page(instances: number): Page {
   const heard: InboundIhttpFrame[][] = ports.map(() => []);
   ports.forEach((p, i) => p.onFrame((f: InboundIhttpFrame) => heard[i].push(f)));
   const push = (f: IhttpFrame): void => {
-    const answer = { IhttpFrame: { from: FROM, to_install_id: 'inst-1', frame: Array.from(encodeCbor(toWireFrame(f))) } };
+    const answer: Readonly<Record<string, unknown>> = { IhttpFrame: { from: FROM, to_install_id: 'inst-1', frame: Array.from(encodeCbor(toWireFrame(f))) } };
     for (const l of [...listeners]) l(answer);
   };
   return { ports, heard, sent, push, detach: (i: number) => seats[i].detach() };
@@ -68,7 +70,7 @@ describe('two instances of one install share the relay', () => {
 
   it('their calls go out under distinct ids and come back to the instance that made each, under its own id', async () => {
     const two: Page = page(2);
-    const to = { user: { app_id: APP, username: 'bob' } };
+    const to: Address = { user: { app_id: APP, username: 'bob' } };
     await two.ports[0].IhttpCall({ to, frame: head(1n), transport: 'relay' });
     await two.ports[1].IhttpCall({ to, frame: head(1n), transport: 'relay' });
     expect(two.sent).toEqual([1n, 2n]);

@@ -9,6 +9,8 @@ import type { Caller } from '../../sdk/generated/Caller';
 import type { IhttpFrame } from '../../sdk/generated/IhttpFrame';
 import type { RequestHead } from '../../sdk/generated/RequestHead';
 import type { CancelReason } from '../../sdk/wire-generated/CancelReason';
+import type { IhttpFrame as WireFrame } from '../../sdk/wire-generated/IhttpFrame';
+import type { Verdict } from '../ihttp-common';
 import { IhttpRouter, type RouterAction } from '../ihttp-router';
 import { parseRoutes, type ParsedRoutes } from '../ihttp-routes';
 import { toWireFrame, RELAY_STREAM_BIT } from '../ihttp-wire';
@@ -34,7 +36,7 @@ const responseHead = (stream: bigint, bodyLen: bigint | null): IhttpFrame => f(s
 /** What the peer receives for each Cancel the host sent it. */
 const toPeer = (actions: readonly RouterAction[]): CancelReason[] => actions.flatMap((a: RouterAction): CancelReason[] => {
   if (a.kind === 'deliver') return [];
-  const k = toWireFrame(a.frame).kind;
+  const k: WireFrame['kind'] = toWireFrame(a.frame).kind;
   return typeof k === 'object' && 'Cancel' in k ? [k.Cancel.reason] : [];
 });
 /** What the app is handed for each Cancel delivered to it. */
@@ -92,11 +94,11 @@ describe('the response body_len holds in both roles', () => {
       r.inbound(alice, f(id, { RequestHead: head(0n) }), 0);
       r.respond(alice, responseHead(id, 2n), 0);
     }
-    const over = r.respond(alice, body(1n, 3), 0);
+    const over: Verdict = r.respond(alice, body(1n, 3), 0);
     expect(over).toMatchObject({ ok: false, refused: { limit: 'response_body' } });
     expect(toPeer(over.actions)).toEqual(['TooLarge']);
     r.respond(alice, body(2n, 1), 0);
-    const short = r.respond(alice, f(2n, 'End'), 0);
+    const short: Verdict = r.respond(alice, f(2n, 'End'), 0);
     expect(short).toMatchObject({ ok: false, refused: { policy: 'protocol' } });
     expect(toPeer(short.actions)).toEqual(['Protocol']);
     r.respond(alice, body(3n, 2), 0);
