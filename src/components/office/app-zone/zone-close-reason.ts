@@ -37,7 +37,8 @@ function fromView(running: AppInstall, next: ZoneView): CloseReason {
     case 'loading': case 'not-available': return 'unmount';
     case 'install': case 'ask-admin': return 'uninstall';
     case 'disabled': case 'suspended': case 'needs-answer': return 'access_revoked';
-    case 'needs-consent': case 'outdated': return 'version_update';
+    // A release that no longer runs here replaced the one that did.
+    case 'needs-consent': case 'outdated': case 'wrong-surface': return 'version_update';
   }
 }
 

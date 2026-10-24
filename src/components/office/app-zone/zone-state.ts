@@ -11,6 +11,7 @@ import { compareVersions, isAppId, parseAppVersion, type AppVersion } from '@/li
 import type { ListedApp } from '@/lib/citadel-apps/listing-model';
 import { memberAsks, needsMemberPrompt } from '@/lib/citadel-apps/consent-model';
 import type { Tri } from '@/lib/citadel-apps/scope-options';
+import { runsOn, type Placement } from '@/lib/citadel-apps/runtime/placement';
 
 export const MAX_ZONE_HEIGHT: number = 2000;
 const ZONE_ID: RegExp = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
@@ -48,6 +49,8 @@ export interface ZoneFacts {
 export type ZoneView =
   | { kind: 'loading' }
   | { kind: 'not-available' }
+  /** The app's manifest does not list the surface it is placed on (`md_zone` for a zone, `node_tab` for a tab). */
+  | { kind: 'wrong-surface'; name: string }
   | { kind: 'install'; name: string }
   | { kind: 'ask-admin'; name: string }
   | { kind: 'disabled'; name: string; install: AppInstall }
@@ -66,10 +69,11 @@ export function covers(scope: InstallScope, me: string, nodeId: string, ancestor
   return scope.NodeTree === nodeId || ancestors.includes(scope.NodeTree);
 }
 
-export function zoneView(props: ZoneProps, f: ZoneFacts): ZoneView {
+export function zoneView(props: ZoneProps, f: ZoneFacts, placed: Placement['kind']): ZoneView {
   if (f.listing === 'unavailable' || f.installs === 'unavailable') return { kind: 'not-available' };
   if (f.listing === 'loading' || f.installs === 'loading' || f.me === null) return { kind: 'loading' };
   const name: string = f.listing.manifest.name;
+  if (!runsOn(f.listing.manifest, placed)) return { kind: 'wrong-surface', name };
   const me: string = f.me;
   const covering: AppInstall[] = f.installs.filter((i: AppInstall) => i.app_id === props.app && covers(i.scope, me, f.nodeId, f.ancestors));
   if (covering.length === 0) return f.mayInstall === 'yes' ? { kind: 'install', name } : f.mayInstall === 'no' ? { kind: 'ask-admin', name } : { kind: 'loading' };

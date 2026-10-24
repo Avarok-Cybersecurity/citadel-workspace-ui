@@ -14,8 +14,8 @@ import { isHttpsUrl } from './net-rules';
 import { artifactProblem, capabilitiesProblem, distinct, limitsProblem, lowerHex, plainText } from './manifest-rules-parts';
 
 export const MAX_MANIFEST_BYTES: number = 192 * 1024;
-const ABI_V1: string = 'citadel-app-abi-1';
-const ABI_FIRST_PARTY_GLUE: string = 'wasm-bindgen-glue-firstparty';
+export const ABI_V1: string = 'citadel-app-abi-1';
+export const ABI_FIRST_PARTY_GLUE: string = 'wasm-bindgen-glue-firstparty';
 
 /** The Rust `ManifestRefusal` variant each refusal corresponds to. */
 export type ManifestField =

@@ -38,6 +38,7 @@ export function AppZoneRequired({ placement, appId, floor, height, view, icon, o
   switch (view.kind) {
     case 'loading': title = `Loading this ${placement}’s app…`; break;
     case 'not-available': title = `This ${placement} needs “${appId}”, which is not available to you.`; break;
+    case 'wrong-surface': title = `${view.name} cannot be shown in a ${placement === 'zone' ? 'page zone' : 'tab'}.`; detail = 'Its developer did not make it for this place.'; break;
     case 'install': title = needs(placement, view.name, floor); action = button(`Install ${view.name}`, onInstall, 'app-zone-install'); break;
     case 'ask-admin':
       title = needs(placement, view.name, floor);
