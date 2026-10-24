@@ -1,5 +1,5 @@
 /**
- * The host-owned element an app paints in: one canvas filling the zone (its bitmap at the device
+ * The host-owned element an app paints in: one canvas filling its host (its bitmap at the device
  * pixel ratio, handed to the app's worker as an OffscreenCanvas), and a status line over it while
  * the app is starting or after it stopped. The app never gets page DOM; the status is the host's
  * words, never the app's.
@@ -20,13 +20,14 @@ export interface SurfaceSize {
   readonly dpr: number;
 }
 
-export function zoneSurface(host: HTMLElement, appName: string, size: SurfaceSize): ZoneSurface {
+/** `fill`: the canvas is as tall as its host (a tab), not the zone's fixed height. */
+export function zoneSurface(host: HTMLElement, appName: string, size: SurfaceSize, fill: boolean): ZoneSurface {
   const doc: Document = host.ownerDocument;
   const canvas: HTMLCanvasElement = doc.createElement('canvas');
   canvas.width = Math.max(1, Math.round(size.width * size.dpr));
   canvas.height = Math.max(1, Math.round(size.height * size.dpr));
   canvas.style.width = '100%';
-  canvas.style.height = `${size.height}px`;
+  canvas.style.height = fill ? '100%' : `${size.height}px`;
   canvas.style.display = 'block';
   canvas.tabIndex = 0;
   canvas.setAttribute('role', 'application');

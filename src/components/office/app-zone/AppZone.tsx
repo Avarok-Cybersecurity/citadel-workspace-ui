@@ -4,20 +4,16 @@
  * page draws an inline error instead of a second instance. Without a runtime this draws only the
  * placeholder (AppZoneRequired.tsx) and never executes anything; with one (a page passes
  * lazy-runtime.ts), an active install's zone is handed to `runtime.mount` with a host-owned element,
- * and closed with the reason the zone stopped showing it (zone-close-reason.ts).
+ * and closed with the reason the zone stopped showing it (zone-close-reason.ts). What it shows and
+ * how it mounts are shared with app tabs (use-placed-app.ts).
  */
-import { useCallback, useContext, useEffect, useId, useLayoutEffect, useRef } from 'react';
-import { usePeerAnswering } from '@/lib/citadel-apps/peer-answering';
+import { useCallback, useContext, useEffect, useId } from 'react';
 import type { AppInstall } from 'citadel-workspace-client-ts';
-import type { AppLink } from '@/lib/citadel-apps/app-link';
 import type { CloseReason } from '@/lib/citadel-apps/sdk/generated/CloseReason';
-import { recordDisabledForMe } from '@/lib/citadel-apps/disabled-for-me';
-import type { AppsResult } from '@/lib/workspace-service/apps-operations';
-import { AppZoneContext, type AppZoneEnvironment, type AppZoneHandle, type AppZoneRuntime } from './app-zone-environment';
+import { AppZoneContext, type AppZoneEnvironment, type AppZoneHandle, type AppZoneRuntime, type ZoneHost } from './app-zone-environment';
 import { AppZoneRequired, type PlaceholderView } from './AppZoneRequired';
-import { closeReasonFor, type ZoneNext } from './zone-close-reason';
-import { readZoneProps, zoneView, type ZoneFacts, type ZoneProps, type ZoneView } from './zone-state';
-import { useZoneFacts } from './use-zone-facts';
+import { readZoneProps, type ZoneProps, type ZoneView } from './zone-state';
+import { usePlacedApp, useRuntimeMount, type PlacedApp } from './use-placed-app';
 
 interface AppZoneMdxProps {
   app?: unknown;
@@ -33,38 +29,18 @@ function ZoneError({ message }: { message: string }): JSX.Element {
 interface RuntimeHostProps {
   runtime: AppZoneRuntime;
   view: Extract<ZoneView, { kind: 'ready' }>;
-  /** Why the app that ran `running` closes: read from the installs and what the zone shows next (zone-close-reason.ts). */
   reasonFor: (running: AppInstall) => CloseReason;
   props: ZoneProps;
-  env: AppZoneEnvironment;
+  nodeId: string;
   me: string;
 }
 
-function RuntimeHost({ runtime, view, reasonFor, props, env, me }: RuntimeHostProps): JSX.Element {
-  const host: React.RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
-  const toolbar: React.RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
-  // The previous instance's close, settled once it let go of what it held with the agent
-  // (zone-close.ts): the next one (another release) starts only after it, so it never joins a
-  // topic the last one is still leaving.
-  const closed: React.MutableRefObject<Promise<void>> = useRef<Promise<void>>(Promise.resolve());
-  useEffect(() => {
-    const canvas: HTMLDivElement | null = host.current;
-    const bar: HTMLDivElement | null = toolbar.current;
-    if (canvas === null || bar === null) return undefined;
-    const running: AppInstall = view.install;
-    let live: boolean = true;
-    let zone: AppZoneHandle | null = null;
-    void closed.current.then((): void => {
-      if (live) zone = runtime.mount({ canvas, toolbar: bar }, { install: running, manifest: view.app.manifest, zoneId: props.zone, nodeId: env.nodeId, me, height: props.height });
-    });
-    // A passive cleanup: it runs after the commit's layout effects, so the reason is this commit's.
-    // close() never rejects (zone-runtime.ts reports a failure on a live page). One never mounted
-    // (still waiting on the last close) has nothing to close, and the last close is still the wait.
-    return (): void => {
-      live = false;
-      if (zone !== null) closed.current = zone.close(reasonFor(running));
-    };
-  }, [runtime, view.install, view.app.manifest, reasonFor, props.zone, props.height, env.nodeId, me]);
+function RuntimeHost({ runtime, view, reasonFor, props, nodeId, me }: RuntimeHostProps): JSX.Element {
+  const { install, app } = view;
+  const mount: (slots: ZoneHost) => AppZoneHandle = useCallback((slots: ZoneHost): AppZoneHandle =>
+    runtime.mount(slots, { install, manifest: app.manifest, zoneId: props.zone, nodeId, me, height: props.height }),
+  [runtime, install, app.manifest, props.zone, props.height, nodeId, me]);
+  const { host, toolbar } = useRuntimeMount(install, mount, reasonFor);
   return (
     <div className="not-prose my-4 w-full">
       <div ref={toolbar} data-testid="app-zone-toolbar-slot" />
@@ -74,47 +50,22 @@ function RuntimeHost({ runtime, view, reasonFor, props, env, me }: RuntimeHostPr
 }
 
 function PlacedZone({ props, env }: { props: ZoneProps; env: AppZoneEnvironment }): JSX.Element {
-  const facts: ZoneFacts = useZoneFacts(env, props.app);
-  const view: ZoneView = zoneView(props, facts);
-  // The view this commit shows and its facts, recorded in the layout phase: before any passive cleanup of the commit.
-  const next: React.MutableRefObject<ZoneNext> = useRef<ZoneNext>({ view, facts });
-  useLayoutEffect(() => {
-    next.current = { view, facts };
-  });
-  const reasonFor: (running: AppInstall) => CloseReason = useCallback((running: AppInstall): CloseReason => closeReasonFor(running, next.current), []);
-  // An app holds the answers it started with (runtime/peer-ports.ts), and each plane is its own
-  // write: one started while its member still has the answers open would hold only the first. So
-  // it waits for the panel to close -- but only to start: a running app is never stopped for it.
-  // Restarting one would leave and rejoin its topics, and the SDK keeps a left group's state, so the
-  // rejoin never reopens the channel and every publish after it is refused.
-  const answering: ReadonlySet<string> = usePeerAnswering();
-  const started: React.MutableRefObject<string | null> = useRef<string | null>(null);
-  const waiting: boolean = view.kind === 'ready' && answering.has(view.install.id) && started.current !== view.install.id;
-  useLayoutEffect(() => {
-    if (view.kind !== 'ready') started.current = null;
-    else if (!waiting) started.current = view.install.id;
-  });
+  const { facts, view, waiting, reasonFor, actions }: PlacedApp = usePlacedApp(props, env, 'zone');
   // `ready` is only decided once `me` is known (zone-state.ts).
-  if (view.kind === 'ready' && !waiting && env.runtime !== null && env.me !== null) return <RuntimeHost runtime={env.runtime} view={view} reasonFor={reasonFor} props={props} env={env} me={env.me} />;
+  if (view.kind === 'ready' && !waiting && env.runtime !== null && env.me !== null) {
+    return <RuntimeHost runtime={env.runtime} view={view} reasonFor={reasonFor} props={props} nodeId={env.nodeId} me={env.me} />;
+  }
   const shown: PlaceholderView = view.kind !== 'ready' ? view : { kind: waiting ? 'needs-answer' : 'ready-unmounted', name: view.app.manifest.name };
-  const link: AppLink = { appId: props.app, nodeId: env.nodeId, version: null, server: null };
-  const enable = async (): Promise<void> => {
-    if (view.kind !== 'disabled') return;
-    const r: AppsResult<boolean> = await env.data.setDisabledForMe(view.install.id, false);
-    if (r.ok) recordDisabledForMe(view.install.id, r.value);
-  };
   return (
     <AppZoneRequired
+      placement="zone"
       appId={props.app}
       floor={props.floor}
       height={props.height}
       view={shown}
       // The listing's icon only when the listing is visible to this person; the generic one otherwise.
       icon={typeof facts.listing === 'object' ? facts.listing.manifest.icon : null}
-      onInstall={() => env.openLink(link)}
-      onEnable={() => { void enable(); }}
-      onCopyLink={() => env.copyText(env.linkUrl(link))}
-      onOpenApps={() => env.openLink(link)}
+      {...actions}
     />
   );
 }

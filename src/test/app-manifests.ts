@@ -23,6 +23,7 @@ export interface ManifestChanges {
   key?: string;
   audience?: Record<string, unknown>;
   scopes?: string[];
+  surfaces?: string[];
   capabilities?: CapabilityRequest[];
   icon?: { png_base64: string; max_bytes: number };
 }
@@ -31,7 +32,7 @@ export function manifestJson(c: ManifestChanges = {}): Record<string, unknown> {
   const m: Record<string, unknown> = structuredClone(BASE);
   const publisher: Record<string, unknown> = m.publisher as Record<string, unknown>;
   if (c.key !== undefined) publisher.mldsa65_public_key = c.key;
-  for (const k of ['id', 'version', 'name', 'summary', 'description', 'categories', 'audience', 'scopes', 'capabilities', 'icon'] as const) {
+  for (const k of ['id', 'version', 'name', 'summary', 'description', 'categories', 'audience', 'scopes', 'surfaces', 'capabilities', 'icon'] as const) {
     if (c[k] !== undefined) m[k] = c[k];
   }
   if (c.version !== undefined) delete m.previous_versions;

@@ -7,6 +7,7 @@
 import type { AppInstall, InstallScope } from 'citadel-workspace-client-ts';
 import type { AppContext } from '../sdk/generated/AppContext';
 import type { AppScope } from '../sdk/generated/AppScope';
+import type { Surface } from '../sdk/generated/Surface';
 import type { Capability } from '../host/capabilities';
 
 export function appScopeOf(scope: InstallScope): AppScope {
@@ -29,7 +30,8 @@ export async function scopeKeyOf(scope: InstallScope, sha256Hex: (bytes: Uint8Ar
 
 export interface ZonePlacement {
   readonly install: AppInstall;
-  readonly zoneId: string;
+  /** Where it runs: a zone in a page, or a node tab (runtime/placement.ts). */
+  readonly surface: Surface;
   readonly nodeId: string;
   readonly actingUsername: string;
   readonly width: number;
@@ -46,7 +48,7 @@ export function zoneContext(p: ZonePlacement): AppContext {
   return {
     app_id: p.install.app_id, install_id: p.install.id, scope: appScopeOf(p.install.scope),
     granted: [...p.install.granted].sort() as Capability[],
-    surface: { md_zone: { zone_id: p.zoneId } }, size: { width: p.width, height: p.height }, dpr: p.dpr,
+    surface: p.surface, size: { width: p.width, height: p.height }, dpr: p.dpr,
     theme: { ...p.theme }, locale: p.locale, acting_username: p.actingUsername, node_id: p.nodeId, close_grace_ms: p.closeGraceMs,
   };
 }

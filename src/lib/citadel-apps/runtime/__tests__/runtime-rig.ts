@@ -8,21 +8,22 @@
 import type { AppInstall, AppListing, AppsRequest } from 'citadel-workspace-client-ts';
 import type { AppsTransport } from '@/lib/workspace-service/apps-operations';
 import { readAppsAnswer, type AppsAnswer } from '@/lib/citadel-apps/wire/apps-answer';
-import { installOf, manifestJson } from '@/test/app-manifests';
+import { installOf, manifestJson, type ManifestChanges } from '@/test/app-manifests';
 import { readManifestBytes, type ManifestReading } from '@/lib/citadel-apps/manifest/manifest-rules';
 import { decodeCbor, encodeCbor } from '../../host/cbor';
 import { STANDARD_HOST_POLICY } from '../../host/limits';
 import { InstanceSlots } from '../../host/instance-slots';
-import type { HostChannel } from '../../host/worker-protocol';
+import type { HostChannel, ToWorker } from '../../host/worker-protocol';
 import type { ArtifactVerifierPort } from '../../host/verify-artifact';
 import { appModule, callGroup, type AppModuleOptions } from '../../host/__tests__/app-fixtures';
 import { fakeSign, fakeVerifier, sha256Hex } from '../../host/__tests__/fake-verifier';
 import { inProcess, realClock, type InProcess } from '../../host/__tests__/in-process';
 import type { AgentLink } from '../agent-link';
 import type { ZoneAudit } from '../zone-close';
-import { createAppZoneRuntime, type ZoneRuntimeDeps } from '../zone-runtime';
+import { createAppZoneRuntime } from '../zone-runtime';
+import type { ZoneRuntimeDeps } from '../mount-steps';
 import { fakeWatchers, type FakeWatchers } from './fake-watchers';
-import type { AppZoneMount, AppZoneRuntime, ZoneHost } from '@/components/office/app-zone/app-zone-environment';
+import type { AppTabMount, AppZoneMount, AppZoneRuntime, ZoneHost } from '@/components/office/app-zone/app-zone-environment';
 
 export const APP_ID: string = 'com.acme.kanban';
 const KV_ARGS: Uint8Array = encodeCbor({ backend: 'user', key: 'k' });
@@ -40,9 +41,13 @@ export interface Release {
   wasm: Uint8Array;
 }
 
-/** A signed release of `wasm` and the install that pinned it (granted: `granted`). */
-export function release(wasm: Uint8Array, granted: AppInstall['granted']): Release {
-  const m: Record<string, unknown> = manifestJson({ id: APP_ID, name: 'Kanban', version: '1.4.0' });
+/**
+ * A signed release of `wasm` and the install that pinned it (granted: `granted`). `changes` are
+ * made to the shared base manifest, whose surfaces are `canvas_pane` and `md_zone`: none, for a
+ * test about zones.
+ */
+export function release(wasm: Uint8Array, granted: AppInstall['granted'], changes: ManifestChanges = {}): Release {
+  const m: Record<string, unknown> = manifestJson({ ...changes, id: APP_ID, name: 'Kanban', version: '1.4.0' });
   m.artifact = { ...(m.artifact as Record<string, unknown>), sha256: sha256Hex(wasm), bytes: wasm.byteLength };
   const manifestBytes: Uint8Array = new TextEncoder().encode(JSON.stringify(m));
   const key: string = (m.publisher as { mldsa65_public_key: string }).mldsa65_public_key;
@@ -104,6 +109,8 @@ export interface Rig {
   close: () => void;
   watch: FakeWatchers;
   terminated: () => number;
+  /** Every message the page posted to an instance's worker, in order. */
+  sent: ToWorker[];
   audits: ZoneAudit[];
   reports: string[];
   /** A server push, as the page's transport delivers one, to every port listening. */
@@ -116,6 +123,7 @@ export function rig(kernel: FakeRuntimeKernel, over: Partial<ZoneRuntimeDeps> = 
   let instances: number = 0;
   const watch: FakeWatchers = fakeWatchers();
   const audits: ZoneAudit[] = [];
+  const sent: ToWorker[] = [];
   const reports: string[] = [];
   const listeners: Set<(answer: unknown) => void> = new Set<(answer: unknown) => void>();
   const runtime: AppZoneRuntime = createAppZoneRuntime({
@@ -123,7 +131,15 @@ export function rig(kernel: FakeRuntimeKernel, over: Partial<ZoneRuntimeDeps> = 
     audit: (line: ZoneAudit): void => { audits.push(line); },
     report: (what: string): void => { reports.push(what); },
     transport: kernel, verifier, policy: STANDARD_HOST_POLICY, slots: new InstanceSlots(8), clock: realClock,
-    spawn: (): HostChannel => { spawned++; return worker.spawn(); },
+    spawn: (): HostChannel => {
+      spawned++;
+      const channel: HostChannel = worker.spawn();
+      return {
+        postMessage: (m: ToWorker, transfer: Transferable[]): void => { sent.push(m); channel.postMessage(m, transfer); },
+        addEventListener: (type: 'message', listener: (event: MessageEvent<unknown>) => void): void => channel.addEventListener(type, listener),
+        terminate: (): void => channel.terminate(),
+      };
+    },
     frames: () => (): void => undefined,
     // The in-process worker draws nothing (its surfaceOf answers null), so any clonable stands in for the bitmap.
     offscreen: (): OffscreenCanvas => ({}) as OffscreenCanvas,
@@ -138,7 +154,7 @@ export function rig(kernel: FakeRuntimeKernel, over: Partial<ZoneRuntimeDeps> = 
     ...over,
   });
   const push = (answer: unknown): void => [...listeners].forEach((l: (answer: unknown) => void) => l(answer));
-  return { runtime, spawned: () => spawned, close: () => worker.close(), watch, terminated: () => worker.terminated(), audits, reports, push };
+  return { runtime, spawned: () => spawned, close: () => worker.close(), watch, terminated: () => worker.terminated(), sent, audits, reports, push };
 }
 
 export function zoneOf(r: Release): AppZoneMount {
@@ -147,10 +163,19 @@ export function zoneOf(r: Release): AppZoneMount {
   return { install: r.install, manifest: reading.manifest, zoneId: 'board', nodeId: 'n-1', me: 'alice', height: 240 };
 }
 
-/** A host element `width` CSS px wide (jsdom lays nothing out). */
-export function hostOf(width: number): HTMLDivElement {
+/** The release as an app tab: the tab its node names it by, on node n-1, for alice. */
+export function tabOf(r: Release): AppTabMount {
+  const { install, manifest, nodeId, me } = zoneOf(r);
+  return { install, manifest, tabId: 'calendar', nodeId, me };
+}
+
+/**
+ * A host element `width` by `height` CSS px (jsdom lays nothing out). A zone's tests give only the
+ * width: its height is the author's 240, which is what the zone's host is laid out at.
+ */
+export function hostOf(width: number, height: number = 240): HTMLDivElement {
   const host: HTMLDivElement = document.createElement('div');
-  host.getBoundingClientRect = (): DOMRect => ({ x: 0, y: 0, left: 0, top: 0, right: width, bottom: 240, width, height: 240, toJSON: () => ({}) });
+  host.getBoundingClientRect = (): DOMRect => ({ x: 0, y: 0, left: 0, top: 0, right: width, bottom: height, width, height, toJSON: () => ({}) });
   document.body.append(host);
   return host;
 }
