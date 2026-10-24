@@ -43,10 +43,10 @@ describe('calls', () => {
     expect(r.call(toBob, request(1n, '/cards/1'), 'p2p', 0)).toEqual({ ok: true, actions: [] });
     expect(kinds(r.inbound(bob, response(1n), 0))).toEqual(['deliver:ResponseHead']);
     expect(kinds(r.inbound(bob, body(1n), 0))).toEqual(['deliver:Body']);
-    expect(kinds(r.consumed(bob, 1n).actions)).toEqual(['reply:Credit']);
+    expect(kinds(r.consumed(bob, 1n, 0).actions)).toEqual(['reply:Credit']);
     expect(kinds(r.inbound(bob, f(1n, 'End'), 0))).toEqual(['deliver:End']);
     expect(r.liveStreams).toBe(0);
-    expect(r.consumed(bob, 1n)).toMatchObject({ ok: false, refused: { policy: 'unknown_stream' } });
+    expect(r.consumed(bob, 1n, 0)).toMatchObject({ ok: false, refused: { policy: 'unknown_stream' } });
   });
 
   it('a server sending past the credit the app granted is cut (control: after consumed it passes)', () => {
@@ -54,7 +54,7 @@ describe('calls', () => {
     r.call(toBob, request(1n, '/cards/1'), 'p2p', 0);
     r.inbound(bob, response(1n), 0);
     for (let i: number = 0; i < STANDARD_IHTTP_LIMITS.initialCredit; i++) expect(kinds(r.inbound(bob, body(1n), 0))).toEqual(['deliver:Body']);
-    r.consumed(bob, 1n);
+    r.consumed(bob, 1n, 0);
     expect(kinds(r.inbound(bob, body(1n), 0))).toEqual(['deliver:Body']);
     expect(kinds(r.inbound(bob, body(1n), 0))).toEqual(['reply:Cancel', 'deliver:Cancel']);
   });
@@ -84,8 +84,8 @@ describe('stream ids are scoped per (peer, direction)', () => {
     r.call(toBob, request(2n, '/cards/1'), 'p2p', 0);
     expect(kinds(r.inbound(bob, response(2n), 0))).toEqual(['deliver:ResponseHead']);
     expect(kinds(r.inbound(bob, body(1n), 0))).toEqual(['deliver:Body']);
-    expect(r.respond(bob, response(1n)).ok).toBe(true);
-    expect(r.respond(bob, response(2n))).toMatchObject({ ok: false });
+    expect(r.respond(bob, response(1n), 0).ok).toBe(true);
+    expect(r.respond(bob, response(2n), 0)).toMatchObject({ ok: false });
     expect(kinds(r.inbound(bob, f(2n, 'End'), 0))).toEqual(['deliver:End']);
     expect(r.liveStreams).toBe(1);
   });
@@ -100,9 +100,9 @@ describe('one credit path: the host mints every Credit, from IhttpConsumed only'
     r.inbound(bob, response(1n), 0);
     expect(r.call(toBob, credit(1n), 'p2p', 0)).toMatchObject({ ok: false, refused: { policy: 'credit_is_granted_by_the_host' } });
     r.inbound(bob, request(2n, '/upload/a', 'POST'), 0);
-    expect(r.respond(bob, credit(2n))).toMatchObject({ ok: false, refused: { policy: 'credit_is_granted_by_the_host' } });
-    expect(kinds(r.consumed(bob, 1n).actions)).toEqual(['reply:Credit']);
-    expect(kinds(r.consumed(bob, 2n).actions)).toEqual(['reply:Credit']);
+    expect(r.respond(bob, credit(2n), 0)).toMatchObject({ ok: false, refused: { policy: 'credit_is_granted_by_the_host' } });
+    expect(kinds(r.consumed(bob, 1n, 0).actions)).toEqual(['reply:Credit']);
+    expect(kinds(r.consumed(bob, 2n, 0).actions)).toEqual(['reply:Credit']);
   });
 });
 

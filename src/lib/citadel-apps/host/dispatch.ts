@@ -128,7 +128,7 @@ export class Dispatcher {
       }
       case 'IhttpRespond': {
         const a: OpArgs['IhttpRespond'] = args as unknown as OpArgs['IhttpRespond'];
-        return verdict(router.respond(a.peer, a.frame));
+        return verdict(router.respond(a.peer, a.frame, clock.now()));
       }
       case 'IhttpCall': {
         const a: OpArgs['IhttpCall'] = args as unknown as OpArgs['IhttpCall'];
@@ -136,7 +136,7 @@ export class Dispatcher {
       }
       case 'IhttpConsumed': {
         const a: OpArgs['IhttpConsumed'] = args as unknown as OpArgs['IhttpConsumed'];
-        return verdict(router.consumed(a.peer, a.stream));
+        return verdict(router.consumed(a.peer, a.stream, clock.now()));
       }
       default:
         return null;
