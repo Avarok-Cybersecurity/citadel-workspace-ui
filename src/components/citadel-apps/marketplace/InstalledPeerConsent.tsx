@@ -3,11 +3,12 @@
  * only when the install was granted a P2P or topic capability. Each choice goes to the server
  * (SetPeerConsentForMe, SetPeerBlockedForMe) and the tab's copy changes only on its answer.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { AppInstall, PeerForMe } from 'citadel-workspace-client-ts';
 import { Button } from '@/components/ui/button';
 import { consentWith, memberAsks, type MemberAsk } from '@/lib/citadel-apps/consent-model';
 import type { ConsentPlane } from '@/lib/citadel-apps/member-consent-types';
+import { markPeerAnswering } from '@/lib/citadel-apps/peer-answering';
 import { recordPeerBlocked, recordPeerConsent, usePeerForMe } from '@/lib/citadel-apps/peer-for-me';
 import { refusalCopy } from '@/lib/citadel-apps/refusal-copy';
 import type { AppsResult, AppsTransport } from '@/lib/workspace-service/apps-operations';
@@ -26,6 +27,12 @@ export function InstalledPeerConsent({ install, appName, transport, onNote }: In
   const [open, setOpen] = useState<boolean>(false);
   const [busy, setBusy] = useState<boolean>(false);
   const asks: MemberAsk[] = memberAsks(install.granted, mine?.consent ?? null);
+  // While the answers are open they are still arriving, one plane at a time (peer-answering.ts).
+  useEffect(() => {
+    if (!open) return undefined;
+    markPeerAnswering(install.id, true);
+    return (): void => markPeerAnswering(install.id, false);
+  }, [open, install.id]);
   if (asks.length === 0) return null;
 
   const run = async <T,>(work: () => Promise<AppsResult<T>>, then: (value: T) => void): Promise<void> => {

@@ -5,11 +5,12 @@
  * (src/test/apps-kernel-fake.ts), the modal and the store the production ones.
  */
 import { describe, expect, it } from 'vitest';
-import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, renderHook, screen, waitFor, type RenderHookResult } from '@testing-library/react';
 import type { AppInstall, AppListing, AppsRequest } from 'citadel-workspace-client-ts';
 import { catalogueText, harness, openModal, viewerHolding, type Harness } from './marketplace-harness';
 import { installOf, listingOf } from '@/test/app-manifests';
 import { adoptPeerForMe } from '@/lib/citadel-apps/peer-for-me';
+import { usePeerAnswering } from '@/lib/citadel-apps/peer-answering';
 
 const POOL: AppListing = listingOf({ id: 'com.acme.kanban', name: 'Kanban' });
 const P2P: AppInstall = installOf('com.acme.kanban', { SelfOnly: 'alice' }, { id: 'i-p2p', granted: ['ihttp.p2p.serve', 'ihttp.p2p.call', 'group.topic.publish'] });
@@ -45,6 +46,21 @@ describe('a member’s direct connections', () => {
     expect(ask('call').dataset.allowed).toBe('false');
     fireEvent.click(screen.getByTestId('apps-peer-allow-serve'));
     await waitFor(() => expect(ask('serve').dataset.allowed).toBe('false'));
+  });
+
+  it('say they are being answered while open, and stop saying so when hidden or gone', async () => {
+    // A zone that has not started its app waits while they are open (AppZone.tsx).
+    await installed(P2P);
+    const answering: RenderHookResult<ReadonlySet<string>, unknown> = renderHook(() => usePeerAnswering());
+    expect(answering.result.current.has('i-p2p')).toBe(false);
+    fireEvent.click(screen.getByTestId('apps-installed-peer-toggle'));
+    expect(answering.result.current.has('i-p2p')).toBe(true);
+    fireEvent.click(screen.getByTestId('apps-installed-peer-toggle'));
+    expect(answering.result.current.has('i-p2p')).toBe(false);
+    fireEvent.click(screen.getByTestId('apps-installed-peer-toggle'));
+    expect(answering.result.current.has('i-p2p')).toBe(true);
+    cleanup();
+    expect(renderHook(() => usePeerAnswering()).result.current.has('i-p2p')).toBe(false);
   });
 
   it('blocks one person and unblocks them', async () => {
