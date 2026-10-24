@@ -41,7 +41,7 @@ export function serverStorage(call: HostCaller): StoragePort {
   const s = <T>(op: string, args: object): Answer<T> => viaServer(call, 'Storage', op, args) as Answer<T>;
   return {
     KvGet: (a) => s('KvGet', a), KvSet: (a) => s('KvSet', a), KvSetMany: (a) => s('KvSetMany', a),
-    KvDelete: (a) => s('KvDelete', a), KvList: (a) => s('KvList', a),
+    KvDelete: (a) => s('KvDelete', a), KvList: (a) => s('KvList', a), KvListAuthored: (a) => s('KvListAuthored', a),
   };
 }
 

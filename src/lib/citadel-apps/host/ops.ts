@@ -44,7 +44,7 @@ const BINDINGS: { readonly [N in OpName]: Binding } = {
   FilesList: server('files'), FilesRead: server('files'), FilesWrite: server('files'), FilesDelete: server('files'),
   ChatRecent: server('chat'), ChatSend: server('chat'),
   MembersList: server('members'),
-  KvGet: kv, KvSet: kv, KvSetMany: kv, KvDelete: kv, KvList: kv,
+  KvGet: kv, KvSet: kv, KvSetMany: kv, KvDelete: kv, KvList: kv, KvListAuthored: server('storage'),
   BlobPut: server('blob'), BlobGet: server('blob'), BlobDelete: server('blob'),
   StoreFileWrite: server('storeFiles'), StoreFileRead: server('storeFiles'), StoreFileList: server('storeFiles'),
   HostFetch: { port: 'hostNet', server: false, clock: 'host_net' },
@@ -82,9 +82,10 @@ function planeAdmits(name: OpName, args: CborMap, held: ReadonlySet<Capability>)
   return true;
 }
 
-/** The capability a Kv* op's backend names, from KV_BACKEND_CAPABILITY. */
+/** The capability a Kv* op's backend names, from KV_BACKEND_CAPABILITY, by the backend's tag. */
 export function kvCapability(backend: KvBackend): Capability {
-  return KV_BACKEND_CAPABILITY[typeof backend === 'string' ? backend : 'node'];
+  if (typeof backend === 'string') return KV_BACKEND_CAPABILITY[backend];
+  return 'node' in backend ? KV_BACKEND_CAPABILITY.node : KV_BACKEND_CAPABILITY.node_authored;
 }
 
 const entries: OpEntry[] = OPS.map((o): OpEntry => {

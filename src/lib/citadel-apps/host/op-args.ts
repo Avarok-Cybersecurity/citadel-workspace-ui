@@ -59,6 +59,7 @@ export const OP_ARGS: { readonly [N in OpName]: Schema<OpArgs[N]> } = {
   KvSetMany: s<OpArgs['KvSetMany']>({ backend: kvBackend, entries: array(kvEntry) }),
   KvDelete: s<OpArgs['KvDelete']>({ backend: kvBackend, key: str }),
   KvList: s<OpArgs['KvList']>({ backend: kvBackend, prefix: str, cursor: nullable(str) }),
+  KvListAuthored: s<OpArgs['KvListAuthored']>({ node_id: str, prefix: str, cursor: nullable(str) }),
   BlobPut: s<OpArgs['BlobPut']>({ bytes }),
   BlobGet: s<OpArgs['BlobGet']>({ sha256: str }),
   BlobDelete: s<OpArgs['BlobDelete']>({ sha256: str }),

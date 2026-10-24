@@ -42,6 +42,7 @@ export function fakeStorage(rec: Recorder): StoragePort {
     KvSetMany: recordingCall(rec, 'KvSetMany', okLater(null)),
     KvDelete: recordingCall(rec, 'KvDelete', okLater(null)),
     KvList: recordingCall(rec, 'KvList', okLater({ keys: [], next: null })),
+    KvListAuthored: recordingCall(rec, 'KvListAuthored', okLater({ entries: [], next: null })),
   };
 }
 

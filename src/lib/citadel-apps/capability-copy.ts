@@ -39,6 +39,7 @@ export const CAPABILITY_COPY: Record<Capability, CapabilityCopy> = {
   'storage.blob': storage('Keep files of its own'),
   'storage.files': { label: 'Keep its own folder in this workspace’s files', risk: 'medium', installerNeeds: Permission.AppInstallAllowFiles },
   'storage.local': storage('Keep data on this device'),
+  'storage.node.authored': storage('Let each person post on a page under their own name'),
   'clipboard.read': { label: 'Read your clipboard when you allow it', risk: 'medium', installerNeeds: Permission.AppInstallAllowClipboard },
   'clipboard.write': { label: 'Copy to your clipboard', risk: 'medium', installerNeeds: Permission.AppInstallAllowClipboard },
   notifications: { label: 'Show notifications', risk: 'low', installerNeeds: Permission.AppInstallAllowNotifications },

@@ -62,6 +62,7 @@ export function agentKvPort(link: AgentLink, target: LocalKvTarget): StoragePort
         ? { keys: keys as string[], next: next as string | null } : undefined;
     }),
     KvSetMany: (): PortAnswer<null> => ({ refused: { unavailable: 'local_set_many' } }),
+    KvListAuthored: (): PortAnswer<never> => ({ refused: { unavailable: 'local_authored' } }),
   };
 }
 
@@ -75,5 +76,7 @@ export function splitStorage(server: StoragePort, local: StoragePort | null): St
     KvSetMany: (a) => pick(a.backend)?.KvSetMany(a) ?? none,
     KvDelete: (a) => pick(a.backend)?.KvDelete(a) ?? none,
     KvList: (a) => pick(a.backend)?.KvList(a) ?? none,
+    // Every author's keys on a node are the server's: the agent holds only this member's own.
+    KvListAuthored: (a) => server.KvListAuthored(a),
   };
 }
