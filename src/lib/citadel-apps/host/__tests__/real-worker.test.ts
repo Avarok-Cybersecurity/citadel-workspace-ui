@@ -30,7 +30,7 @@ async function start(bytes: Uint8Array): Promise<{ instance: AppInstance; channe
   let channel: ThreadChannel | null = null;
   const launched: Launch = launchAppInstance({
     appId: 'com.acme.test', module: verdict.module, granted: new Set<Capability>(), context: fixtureContext([], FIXTURE_CLOSE_GRACE_MS), closeGraceMs: FIXTURE_CLOSE_GRACE_MS, pageUrl: 'https://work.avarok.net/',
-    memory: { initialPages: 1, maxPages: 16 }, policy, limits: { topics: null }, ports: {}, clock: realClock, slots: new InstanceSlots(8),
+    memory: { initialPages: 1, maxPages: 16 }, policy, limits: { topics: null, p2p: null }, ports: {}, clock: realClock, slots: new InstanceSlots(8),
     spawn: () => {
       channel = threadChannel(entry);
       return channel;

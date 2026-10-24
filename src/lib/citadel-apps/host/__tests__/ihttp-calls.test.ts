@@ -17,7 +17,7 @@ const bob: Caller = { username: 'bob', cid: 12n, app_id: APP, install_id: 'i-2',
 const toBob: Address = { user: { app_id: APP, username: 'bob' } };
 
 function router(): IhttpRouter {
-  const r: IhttpRouter = new IhttpRouter(APP, STANDARD_IHTTP_LIMITS);
+  const r: IhttpRouter = new IhttpRouter(APP, STANDARD_IHTTP_LIMITS, null);
   const parsed: ParsedRoutes = parseRoutes([{ method: 'GET', path: '/cards/:id' }, { method: 'POST', path: '/upload/*' }], 64, 2048);
   if (!parsed.ok) throw new Error(parsed.reason);
   r.setRoutes(parsed.routes, { relay: true, p2p: true });

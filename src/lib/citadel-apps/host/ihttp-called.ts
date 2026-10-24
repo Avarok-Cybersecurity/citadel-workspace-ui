@@ -2,10 +2,11 @@
  * Streams this instance OPENED as a client (IhttpCall). Keyed by (target app id, stream id), as
  * the guest SDK keys them. Outbound: monotonic ids without the relay's bit, head limits, the
  * 4 MiB request body under the server's credit and within its declared length, 64 KiB chunks,
- * 8 live calls, nothing after the app's own End. Inbound: one response head, the 16 MiB
- * response body within its declared length and under the credit the app grants back
- * (IhttpConsumed), from the one server that answered. Deadlines as E2, and a call past its
- * deadline always ends for the app, whether or not a server ever answered.
+ * 8 live calls (of which at most `limits.p2p.max_fanout_concurrency` may go P2P), nothing after
+ * the app's own End. Inbound: one response head, the 16 MiB response body (on P2P, the
+ * manifest's `max_response_bytes`) within its declared length and under the credit the app
+ * grants back (IhttpConsumed), from the one server that answered. Deadlines as E2, and a call
+ * past its deadline always ends for the app, whether or not a server ever answered.
  */
 import type { Address } from '../sdk/generated/Address';
 import type { Caller } from '../sdk/generated/Caller';
@@ -15,7 +16,7 @@ import type { Transport } from '../sdk/generated/Transport';
 import { abortBoth, allow, cancel, cancelToApp, CLOSED_REASON, deny, frame, headersProblem, MAX_CREDIT, nextDeadline, peerKey, requestHeadProblem, type ClosingAction, type RouterAction, type Verdict } from './ihttp-common';
 import type { HostCancelReason } from './ihttp-reasons';
 import { RELAY_STREAM_BIT } from './ihttp-wire';
-import type { IhttpLimits } from './limits';
+import { responseCap, type IhttpLimits, type P2pCaps } from './limits';
 
 interface Called {
   /** The address the app called, which every frame it sends on the call carries. */
@@ -57,7 +58,7 @@ export class CalledStreams {
   private readonly streams: Map<string, Called> = new Map<string, Called>();
   private last: bigint = -1n;
 
-  constructor(private readonly limits: IhttpLimits) {}
+  constructor(private readonly limits: IhttpLimits, private readonly p2p: P2pCaps | null) {}
 
   get size(): number {
     return this.streams.size;
@@ -75,7 +76,7 @@ export class CalledStreams {
       if (f.stream <= this.last || (f.stream & RELAY_STREAM_BIT) !== 0n) return deny({ policy: 'stream_id' }, []);
       if (idInUse) return deny({ policy: 'stream_id_in_use' }, []);
       if (kind.RequestHead.app_id !== appId) return deny({ policy: 'wrong_app' }, []);
-      if (this.streams.size >= this.limits.maxStreamsPerCaller) return deny({ limit: 'calls' }, []);
+      if (this.streams.size >= this.limits.maxStreamsPerCaller || this.overP2pCalls(transport)) return deny({ limit: 'calls' }, []);
       const bad: HostCancelReason | null = requestHeadProblem(kind.RequestHead, this.limits);
       if (bad !== null) return deny({ limit: bad }, []);
       this.last = f.stream;
@@ -139,7 +140,7 @@ export class CalledStreams {
     if ('ResponseHead' in kind) {
       const head: ResponseHead = kind.ResponseHead;
       if (c.responseStarted || headersProblem(head.headers, this.limits) !== null) return this.abort(c, peer, 'protocol');
-      if (head.body_len !== null && head.body_len > BigInt(this.limits.maxResponseBodyBytes)) return this.abort(c, peer, 'response_body_too_large');
+      if (head.body_len !== null && head.body_len > BigInt(responseCap(this.limits, this.p2p, peer.via))) return this.abort(c, peer, 'response_body_too_large');
       c.responseStarted = true;
       c.declaredResponse = head.body_len;
       return deliver;
@@ -149,7 +150,7 @@ export class CalledStreams {
     if (c.creditIn <= 0) return this.abort(c, peer, 'credit');
     if (bytes > this.limits.maxChunkBytes) return this.abort(c, peer, 'chunk_too_large');
     const total: number = c.responseBytes + bytes;
-    if (total > this.limits.maxResponseBodyBytes) return this.abort(c, peer, 'response_body_too_large');
+    if (total > responseCap(this.limits, this.p2p, peer.via)) return this.abort(c, peer, 'response_body_too_large');
     if (c.declaredResponse !== null && BigInt(total) > c.declaredResponse) return this.abort(c, peer, 'body_longer_than_declared');
     c.responseBytes = total;
     c.creditIn -= 1;
@@ -183,6 +184,12 @@ export class CalledStreams {
     const out: ClosingAction[] = [...this.streams.values()].map((c: Called): ClosingAction => this.toServer(c, CLOSED_REASON));
     this.streams.clear();
     return out;
+  }
+
+  /** Whether one more call on `transport` would take the calls that may go P2P past `limits.p2p`. */
+  private overP2pCalls(transport: Transport): boolean {
+    if (transport === 'relay' || this.p2p === null) return false;
+    return [...this.streams.values()].filter((c: Called) => c.transport !== 'relay').length >= this.p2p.maxConcurrentCalls;
   }
 
   private toServer(c: Called, reason: HostCancelReason): Extract<RouterAction, { kind: 'call' }> {

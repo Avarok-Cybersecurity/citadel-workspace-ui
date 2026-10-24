@@ -34,7 +34,7 @@ function rig(gate: TopicGate | null): { d: Dispatcher; reached: number[]; clock:
   };
   const d: Dispatcher = new Dispatcher({
     granted: new Set<Capability>(['group.topic.publish']), policy: STANDARD_HOST_POLICY, clock, invoker: directInvoker({ topic }),
-    router: new IhttpRouter('net.avarok.x', STANDARD_HOST_POLICY.ihttp), pageUrl: 'https://work.avarok.net/', routerActions: (): void => {}, topics: gate,
+    router: new IhttpRouter('net.avarok.x', STANDARD_HOST_POLICY.ihttp, null), pageUrl: 'https://work.avarok.net/', routerActions: (): void => {}, topics: gate,
   });
   return { d, reached, clock };
 }

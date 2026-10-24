@@ -4,7 +4,8 @@
  * RELAY_STREAM_BIT up, so one relayed call made every later P2P id look like a step back), 30
  * requests/s per caller, 8 live streams per caller and 64 per server, head limits, the 4 MiB
  * request and 16 MiB response bodies, 64 KiB chunks, credit both ways (R4.4's initial credit is
- * implicit on both sides) and deadlines (E2).
+ * implicit on both sides) and deadlines (E2). On P2P a response is also held to the manifest's
+ * `limits.p2p.max_response_bytes`.
  *
  * Flow, as the relay holds it: a body exactly its declared length in both directions, nothing
  * after a side's End, a stream on the plane it opened on only, and a head repeated for a stream
@@ -19,7 +20,7 @@ import { abortBoth, allow, cancel, CLOSED_REASON, deny, frame, headersProblem, M
 import { servesVia } from './ihttp-planes';
 import type { HostCancelReason } from './ihttp-reasons';
 import { matchRoute, type RoutePattern } from './ihttp-routes';
-import type { IhttpLimits } from './limits';
+import { responseCap, type IhttpLimits, type P2pCaps } from './limits';
 import { TokenBucket } from './token-bucket';
 
 interface Served {
@@ -51,7 +52,7 @@ export class ServedStreams {
   private readonly lastStream: Map<string, bigint> = new Map<string, bigint>();
   private readonly buckets: Map<string, TokenBucket> = new Map<string, TokenBucket>();
 
-  constructor(private readonly appId: string, private readonly limits: IhttpLimits) {}
+  constructor(private readonly appId: string, private readonly limits: IhttpLimits, private readonly p2p: P2pCaps | null) {}
 
   get size(): number {
     return this.streams.size;
@@ -160,7 +161,7 @@ export class ServedStreams {
     if (s.responseStarted) return deny({ policy: 'response_head_sent' }, []);
     if (head.status < 100 || head.status > 599) return deny({ policy: 'status' }, []);
     if (headersProblem(head.headers, this.limits) !== null) return deny({ limit: 'headers' }, []);
-    if (head.body_len !== null && head.body_len > BigInt(this.limits.maxResponseBodyBytes)) {
+    if (head.body_len !== null && head.body_len > BigInt(responseCap(this.limits, this.p2p, s.peer.via))) {
       return deny({ limit: 'response_body' }, this.abort(s, 'response_body_too_large'));
     }
     s.responseStarted = true;
@@ -173,7 +174,7 @@ export class ServedStreams {
     if (bytes > this.limits.maxChunkBytes) return deny({ limit: 'chunk' }, []);
     if (s.creditOut <= 0) return deny({ limit: 'credit' }, []);
     const total: number = s.responseBytes + bytes;
-    if (total > this.limits.maxResponseBodyBytes) return deny({ limit: 'response_body' }, this.abort(s, 'response_body_too_large'));
+    if (total > responseCap(this.limits, this.p2p, s.peer.via)) return deny({ limit: 'response_body' }, this.abort(s, 'response_body_too_large'));
     if (s.declaredResponse !== null && BigInt(total) > s.declaredResponse) return deny({ limit: 'response_body' }, this.abort(s, 'body_longer_than_declared'));
     s.responseBytes = total;
     s.creditOut -= 1;

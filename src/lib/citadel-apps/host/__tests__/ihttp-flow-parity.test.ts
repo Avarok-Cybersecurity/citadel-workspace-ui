@@ -19,7 +19,7 @@ const alice: Caller = { username: 'alice', cid: 11n, app_id: APP, install_id: 'i
 const toAlice: Address = { user: { app_id: APP, username: 'alice' } };
 
 function router(): IhttpRouter {
-  const r: IhttpRouter = new IhttpRouter(APP, L);
+  const r: IhttpRouter = new IhttpRouter(APP, L, null);
   const parsed: ParsedRoutes = parseRoutes([{ method: 'POST', path: '/up' }], 64, 2048);
   if (!parsed.ok) throw new Error(parsed.reason);
   r.setRoutes(parsed.routes, { relay: true, p2p: true });

@@ -28,6 +28,7 @@ import { zoneInput, type FrameLoop, type ZoneInput } from './zone-input';
 import { ZonePresence } from './zone-presence';
 import { zoneSurface, type ZoneSurface } from './zone-surface';
 import { zoneToolbar, type ZoneToolbar } from './zone-toolbar';
+import { reportingVia } from './via-badge';
 import { zoneUiPort } from './ui-port';
 import type { PageLife, ZoneWatchers } from './zone-watchers';
 
@@ -141,7 +142,8 @@ function mountZone(slots: ZoneHost, zone: AppZoneMount, deps: ZoneRuntimeDeps, p
     const launch: Launch = launchAppInstance({
       appId: zone.install.app_id, module: loaded.module, granted: bound.held, memory: loaded.memory, closeGraceMs,
       context: zoneContext({ install: zone.install, zoneId: zone.zoneId, nodeId: zone.nodeId, actingUsername: zone.me, width, height: zone.height, dpr, closeGraceMs, locale: deps.locale(), theme: deps.theme() }),
-      pageUrl: deps.pageUrl(), policy: deps.policy, limits: instanceLimits(loaded.manifest.limits), ports: bound.ports, clock: deps.clock, slots: deps.slots, spawn: deps.spawn,
+      pageUrl: deps.pageUrl(), policy: deps.policy, limits: instanceLimits(loaded.manifest.limits), clock: deps.clock, slots: deps.slots, spawn: deps.spawn,
+      ports: bound.ports.ihttp === undefined ? bound.ports : { ...bound.ports, ihttp: reportingVia(bound.ports.ihttp, toolbar.via) },
     });
     if (!launch.ok) {
       surface.show({ kind: 'stopped', why: `This page is already running as many apps as it can, so ${name} was not started.` });

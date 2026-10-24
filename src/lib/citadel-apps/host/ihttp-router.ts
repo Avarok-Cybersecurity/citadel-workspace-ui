@@ -19,7 +19,7 @@ import { cancel, deny, allow, type ClosingAction, type RouterAction, type Verdic
 import type { RoutePattern } from './ihttp-routes';
 import { ServedStreams } from './ihttp-served';
 import { RELAY_STREAM_BIT } from './ihttp-wire';
-import type { IhttpLimits } from './limits';
+import type { IhttpLimits, P2pCaps } from './limits';
 
 export type { ClosingAction, RouterAction, Verdict };
 
@@ -27,9 +27,9 @@ export class IhttpRouter {
   private readonly served: ServedStreams;
   private readonly called: CalledStreams;
 
-  constructor(appId: string, limits: IhttpLimits) {
-    this.served = new ServedStreams(appId, limits);
-    this.called = new CalledStreams(limits);
+  constructor(appId: string, limits: IhttpLimits, p2p: P2pCaps | null) {
+    this.served = new ServedStreams(appId, limits, p2p);
+    this.called = new CalledStreams(limits, p2p);
   }
 
   /** The advertised table and the planes it is served on; an empty one makes every request unrouted. */

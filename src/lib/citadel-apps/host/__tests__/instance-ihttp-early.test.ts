@@ -40,7 +40,7 @@ function launch(s: Scripted, t: Transport): AppInstance {
   const l: Launch = launchAppInstance({
     appId: 'net.avarok.fixture', module: {} as WebAssembly.Module, granted: new Set<Capability>(['ihttp.call']), memory: { initialPages: 1, maxPages: 1 },
     context: fixtureContext(['ihttp.call'], FIXTURE_CLOSE_GRACE_MS), closeGraceMs: FIXTURE_CLOSE_GRACE_MS, pageUrl: 'https://work.avarok.net/',
-    policy: STANDARD_HOST_POLICY, limits: { topics: null }, ports: { ihttp: t.port }, clock: new ManualClock(), slots: new InstanceSlots(1), spawn: () => s.channel,
+    policy: STANDARD_HOST_POLICY, limits: { topics: null, p2p: null }, ports: { ihttp: t.port }, clock: new ManualClock(), slots: new InstanceSlots(1), spawn: () => s.channel,
   });
   if (!l.ok) throw new Error('no slot');
   return l.instance;

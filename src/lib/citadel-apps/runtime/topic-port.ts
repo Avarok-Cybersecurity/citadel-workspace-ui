@@ -19,7 +19,7 @@ import { agentAsk, bytesOf, variantOf, type AgentLink, type AgentOutcome, type J
 import type { PlaneSeat } from './install-plane-registry';
 import type { PeerAuthority } from './peer-authority';
 import { LIMIT_TOPIC_BYTES, LIMIT_TOPIC_RATE } from '../sdk/generated/AbiConstants';
-import { encodeTopicMessage, mayOpen, readTopicMessage, type TopicLimits } from './topic-model';
+import { mayOpen, readTopicMessage, topicEnvelope, type TopicLimits } from './topic-model';
 
 export interface TopicDeps {
   readonly cid: bigint;
@@ -168,10 +168,12 @@ export function topicPort(d: TopicDeps): OwnedTopicPort {
     },
     TopicPublish: async ({ name, body }: { name: string; body: Uint8Array }): Promise<PortAnswer<null>> => {
       const o: Open | undefined = open.get(name);
-      // Size and rate were decided by the worker as the app published (host/topic-sender.ts).
+      // Size and rate were decided by the worker as the app published (host/topic-sender.ts); the envelope is checked against the server's cap.
       if (o === undefined) return { refused: { policy: 'topic_not_open' } };
+      const message: Uint8Array | null = topicEnvelope(name, body, d.limits);
+      if (message === null) return { refused: { limit: LIMIT_TOPIC_BYTES } };
       const sent: AgentOutcome<Json | null> = await ask((request_id: string): Json =>
-        ({ GroupMessage: { cid: d.cid, message: Array.from(encodeTopicMessage(name, body)), group_key: groupIdToKey(o.groupId), request_id } }), 'GroupMessageSuccess', 'GroupMessageFailure');
+        ({ GroupMessage: { cid: d.cid, message: Array.from(message), group_key: groupIdToKey(o.groupId), request_id } }), 'GroupMessageSuccess', 'GroupMessageFailure');
       return sent.ok && sent.value !== null ? { ok: null } : UNAVAILABLE;
     },
     TopicClose: ({ name }: { name: string }): PortAnswer<null> => {

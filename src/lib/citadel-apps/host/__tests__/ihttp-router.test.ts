@@ -16,7 +16,7 @@ const alice: Caller = { username: 'alice', cid: 11n, app_id: APP, install_id: 'i
 const bob: Caller = { username: 'bob', cid: 12n, app_id: APP, install_id: 'i-1', via: 'relay' };
 
 function router(): IhttpRouter {
-  const r: IhttpRouter = new IhttpRouter(APP, STANDARD_IHTTP_LIMITS);
+  const r: IhttpRouter = new IhttpRouter(APP, STANDARD_IHTTP_LIMITS, null);
   const parsed: ParsedRoutes = parseRoutes([{ method: 'GET', path: '/cards/:id' }, { method: 'POST', path: '/upload/*' }], 64, 2048);
   if (!parsed.ok) throw new Error(parsed.reason);
   r.setRoutes(parsed.routes, { relay: true, p2p: true });
@@ -42,7 +42,7 @@ describe('routes', () => {
   });
 
   it('nothing is routed before the app advertises', () => {
-    const r: IhttpRouter = new IhttpRouter(APP, STANDARD_IHTTP_LIMITS);
+    const r: IhttpRouter = new IhttpRouter(APP, STANDARD_IHTTP_LIMITS, null);
     expect(cancels(r.inbound(alice, req(1n, head('/cards/7')), 0))).toEqual(['unrouted']);
   });
 

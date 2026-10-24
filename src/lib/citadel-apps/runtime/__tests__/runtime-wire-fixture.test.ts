@@ -136,7 +136,7 @@ describe('(c) an internal-HTTP frame between the app’s shapes and the wire’s
 describe('(d, e) the relay’s rules', () => {
   it('a caller may not choose a stream id with the relay’s bit; the page refuses it as the kernel would', () => {
     expect(RELAY_STREAM_BIT.toString()).toBe(fixture.relay.stream_bit);
-    const called: CalledStreams = new CalledStreams(STANDARD_HOST_POLICY.ihttp);
+    const called: CalledStreams = new CalledStreams(STANDARD_HOST_POLICY.ihttp, null);
     const head = (stream: bigint): IhttpFrame => ({ v: 1, stream, kind: { RequestHead: { method: 'GET', path: '/a', query: '', headers: [], body_len: 0n, app_id: 'com.acme.kanban', scope_key: 'workspace' } } });
     const to: Address = { user: { app_id: 'com.acme.kanban', username: 'bob' } };
     expect(called.outbound(to, head(RELAY_STREAM_BIT | 1n), 'relay', 0, false)).toEqual({ ok: false, refused: { policy: 'stream_id' }, actions: [] });

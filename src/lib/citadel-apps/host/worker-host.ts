@@ -142,7 +142,7 @@ export function startWorkerHost(channel: WorkerChannel, clock: DispatchClock, su
     memoryPages = memory.buffer.byteLength / PAGE_BYTES;
     const table: ReplyTable = new ReplyTable(msg.policy.maxLiveReplies, msg.policy.replyTtlMs, clock.now);
     replies = table;
-    router = new IhttpRouter(msg.appId, msg.policy.ihttp);
+    router = new IhttpRouter(msg.appId, msg.policy.ihttp, msg.limits.p2p);
     const local: HostPorts = { canvas: canvasPort(() => surface), ...(msg.hasLogPort ? { log: logToPage } : {}) };
     const invoker: PortInvoker = splitInvoker(local, LOCAL_PORTS, remote);
     const topics: TopicGate | null = msg.limits.topics === null ? null : new TopicGate(msg.limits.topics);

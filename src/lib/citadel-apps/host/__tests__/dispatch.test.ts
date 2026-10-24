@@ -30,7 +30,7 @@ function rig(granted: readonly Capability[], ports: (rec: Recorder) => HostPorts
   const p: HostPolicy = { ...STANDARD_HOST_POLICY, ...policy };
   const d: Dispatcher = new Dispatcher({
     granted: new Set<Capability>(['canvas', 'ui', 'events', 'navigate', 'log', ...granted]),
-    policy: p, clock, invoker: directInvoker(ports(rec)), router: new IhttpRouter('com.acme.app', p.ihttp), pageUrl: PAGE, routerActions: (): void => {}, topics: null,
+    policy: p, clock, invoker: directInvoker(ports(rec)), router: new IhttpRouter('com.acme.app', p.ihttp, null), pageUrl: PAGE, routerActions: (): void => {}, topics: null,
   });
   return { d, rec, clock };
 }
