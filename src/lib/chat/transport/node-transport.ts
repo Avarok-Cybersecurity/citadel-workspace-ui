@@ -7,8 +7,8 @@
  * answer, passed in live. Reactions are the server's: it attributes the reactor and holds the
  * list on the message. Receipts are derived from the members' read cursors and the roster
  * (read-receipts), and the reader's own cursor and typing go out paced below the server's limits
- * (node-read-cursor, node-status). Live documents and attachments are ports of their own, added
- * as each wave lands; until then they are null and the pane offers none of them.
+ * (node-read-cursor, node-status). Live documents are shared by a message naming them and kept on
+ * the server beside the node's page (nodeDocuments). Attachments are a port of their own, still null.
  */
 import type { ValueStore } from '@/lib/value-store';
 import type { GroupRestriction } from '@/components/chat/group-restriction';
@@ -22,10 +22,13 @@ import { pendingGroupSends, type PendingSends } from './pending-group-sends';
 import type { NodeChatIO } from './node-chat-io';
 import { nodeReact, nodeReadCursor, nodeReceipts, nodeTyping, type Roster } from './node-signals';
 import type { ReadCursor } from './node-read-cursor';
-import type { ChatMessage, ChatSelf, ChatTransport, SendPort, TextSend } from './chat-transport';
+import type { OpeningPorts } from '@/components/p2p/chat-document/chat-document-opening';
+import type { ChatMessage, ChatSelf, ChatTransport, DocumentInvitation, DocumentPort, SendPort, TextSend } from './chat-transport';
 
 export interface NodeTransportParams {
   readonly channelId: string;
+  /** How the channel's live documents open (nodeOpeningPorts: on the server, beside its node's page). */
+  readonly opening: OpeningPorts;
   /** The office's or room's name, as the pane says it ("Shared live with …"). */
   readonly channelName: string;
   readonly self: ChatSelf | null;
@@ -87,6 +90,20 @@ function nodeSend(params: NodeTransportParams, history: GroupHistory, pending: P
   };
 }
 
+/** The channel's live documents: shared by a message that names them, kept on the workspace server. */
+function nodeDocuments(params: NodeTransportParams): DocumentPort {
+  return {
+    // Where it is kept first, so a narrow strip truncates the channel's name, never that.
+    sharedWith: `On the workspace server, shared live with everyone in ${params.channelName}`,
+    opening: params.opening,
+    invite: async ({ docId, title, onRecorded }: DocumentInvitation): Promise<void> => {
+      await params.io.share(docId, title);
+      onRecorded();
+    },
+    onActivity: params.io.onDocumentActivity,
+  };
+}
+
 export function createNodeTransport(params: NodeTransportParams): ChatTransport {
   const { channelId, channelName, self, io, roster, clock } = params;
   // Receipts and typing are background traffic: a refusal is logged, and the next read or keystroke retries.
@@ -102,7 +119,7 @@ export function createNodeTransport(params: NodeTransportParams): ChatTransport 
     clearNotices: io.clearNotices,
   });
   const ports: Pick<ChatTransport, 'send' | 'status' | 'files' | 'documents' | 'settings'> = {
-    send: nodeSend(params, history, pending), status: nodeTyping(io, self, roster, clock, report), files: null, documents: null, settings: null,
+    send: nodeSend(params, history, pending), status: nodeTyping(io, self, roster, clock, report), files: null, documents: nodeDocuments(params), settings: null,
   };
   return {
     kind: 'node',

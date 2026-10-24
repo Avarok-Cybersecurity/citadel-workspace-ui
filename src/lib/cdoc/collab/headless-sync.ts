@@ -60,7 +60,7 @@ export async function syncHeldEditsHere(nodeId: string): Promise<HeadlessOutcome
   const ports: DocumentSessionPorts = workspaceCollabPorts((from: EditorOrigin): Promise<EditorSession> => {
     if (opener === null) throw new Error('the headless session opened a replica before Citadel Docs loaded');
     return opener(from).then((editor: EditorSession): EditorSession => { opened.push(editor); return editor; });
-  });
+  }, null);
   if (ports.cache === null) throw new Error('this device keeps no documents, so it holds no edits to send');
   const start = async (): Promise<HeadlessSession> => {
     const runtime: CdocRuntime = await loadCdocRuntime();

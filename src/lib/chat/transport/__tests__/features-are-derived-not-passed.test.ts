@@ -11,7 +11,7 @@ import type { ChatPane } from '@/components/chat/pane/ChatPane';
 import { chatFeatures, type StatedFeatures } from '../features';
 import { createPeerTransport } from '../peer-transport';
 import type { ChatTransport } from '../chat-transport';
-import { APP_OPENING_PORTS } from '@/components/p2p/chat-document/use-chat-documents';
+import { peerOpeningPorts } from '@/components/p2p/chat-document/use-chat-documents';
 
 vi.mock('@/lib/p2p/p2p-messenger-manager', () => ({ P2PMessengerManager: { getInstance: (): object => ({}) } }));
 
@@ -25,7 +25,7 @@ describe('chat features', () => {
   });
 
   it('follow each port on its own', () => {
-    const peer: ChatTransport = createPeerTransport({ peer: { cid: 7n, name: 'Bob', username: 'bob' }, self: null, opening: APP_OPENING_PORTS });
+    const peer: ChatTransport = createPeerTransport({ peer: { cid: 7n, name: 'Bob', username: 'bob' }, self: null, opening: peerOpeningPorts({ cid: 7n, name: 'Bob', username: 'bob' }) });
     expect(chatFeatures({ ...NONE, files: peer.files }, STATED)).toMatchObject({ files: true, documents: false });
     expect(chatFeatures({ ...NONE, documents: peer.documents }, STATED)).toMatchObject({ files: false, documents: true });
     expect(chatFeatures({ ...NONE, send: { ...BARE_SEND, react: peer.send.react } }, STATED)).toMatchObject({ reactions: true, revise: false });
@@ -33,7 +33,7 @@ describe('chat features', () => {
   });
 
   it('of the direct chat are all present, as before the port existed', () => {
-    const peer: ChatTransport = createPeerTransport({ peer: { cid: 7n, name: 'Bob', username: 'bob' }, self: null, opening: APP_OPENING_PORTS });
+    const peer: ChatTransport = createPeerTransport({ peer: { cid: 7n, name: 'Bob', username: 'bob' }, self: null, opening: peerOpeningPorts({ cid: 7n, name: 'Bob', username: 'bob' }) });
     expect(peer.features).toEqual({ ...STATED, reactions: true, revise: true, typing: true, presence: true, files: true, documents: true, settings: true });
     expect(peer.features).toEqual(chatFeatures(peer, STATED));
   });
@@ -45,7 +45,7 @@ describe('the chat pane', () => {
     // the transport already says, and `tsc` rejects the excess property. If ChatPane ever grows
     // such a prop, this expectation of an error is itself the error.
     const props: ComponentProps<typeof ChatPane> = {
-      transport: createPeerTransport({ peer: { cid: 7n, name: 'Bob', username: 'bob' }, self: null, opening: APP_OPENING_PORTS }),
+      transport: createPeerTransport({ peer: { cid: 7n, name: 'Bob', username: 'bob' }, self: null, opening: peerOpeningPorts({ cid: 7n, name: 'Bob', username: 'bob' }) }),
       header: (): null => null,
       pause: null,
       // @ts-expect-error -- what the pane can do is the transport's to say.

@@ -39,7 +39,7 @@ const ROSTER: User[] = [member('ada', 'Ada Lovelace', true), member('bob', 'Bob 
 async function open(members: User[] | null): Promise<void> {
   render(
     <ConfirmDialogProvider>
-      <NodeChat channelId={CHANNEL} channelName="Design" self={SELF} sendRestriction="allowed" rules={null} members={members} />
+      <NodeChat nodeId="node-design" channelId={CHANNEL} channelName="Design" self={SELF} sendRestriction="allowed" rules={null} members={members} />
     </ConfirmDialogProvider>,
   );
   await screen.findByText('Morning all');

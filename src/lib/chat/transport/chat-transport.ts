@@ -12,7 +12,6 @@
 import type { P2PMessage, PeerPresence } from '@/lib/p2p/p2p-types';
 import type { MessageStatus } from 'citadel-internal-service-wasm-client';
 import type { MessageType } from '@/types/message-protocol';
-import type { ChatPeer } from '@/lib/cdoc/chat/chat-app-ports';
 import type { OpeningPorts } from '@/components/p2p/chat-document/chat-document-opening';
 import type { FileDetails } from '@/components/layout/sidebar/file-details';
 import type { ChatFeatures } from './features';
@@ -193,8 +192,8 @@ export interface DocumentInvitation {
 }
 
 export interface DocumentPort {
-  /** Who the document's replica is kept live with. */
-  readonly replica: ChatPeer;
+  /** Said above an open document: who it is kept live with ("Shared live with Bob"). */
+  readonly sharedWith: string;
   readonly opening: OpeningPorts;
   /** Posts the message that names a new document. */
   invite(invitation: DocumentInvitation): Promise<void>;

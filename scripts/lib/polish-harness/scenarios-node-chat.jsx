@@ -2,8 +2,8 @@
  * An office channel's whole chat: the real pane over the real node transport, with the server
  * replaced by a page of messages held in memory (the harness has no workspace server). Senders
  * named, the reader's own messages on the right, a markdown message, a reply, a long unbroken
- * token, a system line, a reaction, one message seen by everyone, and the channel's header: its
- * roster, a member typing and its rules.
+ * token, a system line, a reaction, a shared live document, one message seen by everyone, and the
+ * channel's header: its roster, a member typing and its rules.
  */
 import { useMemo } from 'react';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -16,6 +16,7 @@ import { groupMessagingManager } from '@/lib/group-messaging-manager';
 import { createValueStore } from '@/lib/value-store';
 import { createChannelSignals } from '@/lib/group-conversations/channel-signals';
 import { browserClock } from '@/lib/browser-clock';
+import { nodeOpeningPorts } from '@/components/p2p/chat-document/use-chat-documents';
 
 const CHANNEL = 'harness-channel';
 const at = (minutes) => BigInt(new Date().setHours(10, minutes, 0, 0));
@@ -30,6 +31,9 @@ const MESSAGES = [
   message('g3', 'me', 'Me', 'Sounds good. I will **review** after.', 5, { message_type: 'Markdown', reply_to: 'g1' }),
   message('g4', 'me', 'Me', 'One more thing: can someone check the build?', 6, {
     reactions: [{ emoji: '👍', reactorCid: 2n, at: 1, active: true }],
+  }),
+  message('g5', 'ada', 'Ada Lovelace', 'Engine notes, second draft', 7, {
+    message_type: { LiveDocument: { document_id: 'cdoc-3f2a9c1e-7b4d-4e8a-9f01-2c3d4e5f6a7b' } },
   }),
 ];
 const ROSTER = [
@@ -52,6 +56,8 @@ const io = {
   react: async () => {},
   markRead: async () => {},
   typing: async () => {},
+  share: async () => {},
+  onDocumentActivity: () => () => {},
   signals: { cursors: () => signals.cursors(CHANNEL), subscribe: (listener) => signals.subscribe(CHANNEL, listener) },
   clearNotices: () => {},
   privacy: () => ({ sendReadReceipts: false, showTypingIndicators: false }),
@@ -61,7 +67,7 @@ export function NodeChatScenario() {
   const transport = useMemo(() => createNodeTransport({
     channelId: CHANNEL, channelName: 'Engine room', self: { cid: 1n, username: 'me', displayName: 'Me' },
     sendGate: createValueStore('harness-gate', 'allowed'), io, mintLocalId: () => `local-${Date.now()}`, now: Date.now,
-    roster: createValueStore('harness-roster', ROSTER), clock: browserClock,
+    roster: createValueStore('harness-roster', ROSTER), clock: browserClock, opening: nodeOpeningPorts('harness-node'),
   }), []);
   return (
     <div style={{ height: '100vh' }} className="bg-background">

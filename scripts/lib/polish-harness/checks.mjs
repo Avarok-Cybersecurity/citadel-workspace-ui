@@ -56,7 +56,7 @@ const rowsAreSeparated = (scenario, expected) => async ({ page, url }) => {
 };
 const messageRowsAreSeparated = rowsAreSeparated('p2p-conversation', 6);
 /** The same rows in a node channel, whose messages name their senders and carry a system line. */
-const nodeChatRowsAreSeparated = rowsAreSeparated('node-chat', 5);
+const nodeChatRowsAreSeparated = rowsAreSeparated('node-chat', 6);
 
 const within = (inner, outer) => inner.x >= outer.x - 0.5 && inner.y >= outer.y - 0.5 && inner.x + inner.width <= outer.x + outer.width + 0.5 && inner.y + inner.height <= outer.y + outer.height + 0.5;
 

@@ -13,11 +13,19 @@ import { isOwnGroupMessage } from '@/lib/group-conversations/own-message';
 import { senderUsernameOf } from '@/components/chat/shared/sender-username';
 import type { ChatAuthor, ChatMessage, ChatSelf } from './chat-transport';
 
-const KINDS: Readonly<Record<GroupMessage['message_type'], MessageType>> = {
+type WireKind = GroupMessage['message_type'];
+
+const KINDS: Readonly<Record<Extract<WireKind, string>, MessageType>> = {
   Text: 'text',
   Markdown: 'markdown',
   System: 'system_notice',
 };
+
+/** The pane's type, and for a shared document the fields its bubble opens it by: the title is the content. */
+function kindOf(kind: WireKind, content: string): Pick<ChatMessage, 'message_type' | 'document_id' | 'document_title'> {
+  if (typeof kind === 'string') return { message_type: KINDS[kind] };
+  return { message_type: 'live_document', document_id: kind.LiveDocument.document_id, document_title: content };
+}
 
 export function groupAuthor(message: Pick<GroupMessage, 'sender_id' | 'sender_name'>, self: ChatSelf | null): ChatAuthor {
   const own: boolean = self !== null && isOwnGroupMessage(message.sender_id, { cid: self.cid, username: self.username });
@@ -36,7 +44,7 @@ export function groupChatMessage(message: GroupMessage, self: ChatSelf | null, s
     timestamp: Number(message.timestamp),
     index: 0,
     status,
-    message_type: KINDS[message.message_type],
+    ...kindOf(message.message_type, message.content),
     ...(message.reply_to !== null ? { replyTo: message.reply_to } : {}),
     ...(message.edited_at !== null ? { edited_at: Number(message.edited_at) } : {}),
     ...(message.reactions !== undefined ? { reactions: message.reactions } : {}),

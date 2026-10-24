@@ -11,6 +11,7 @@
  *   `<node>#edits:<instance>`   one tab instance's edits the server has not acknowledged
  *   `<node>#device`             this device's choices for the document
  *   `<node>#access`             the account's last answer to "may I edit it?", for offline
+ *   `<node>/<chat doc>…`        the same records for a document shared in the node's chat
  *   `#tree`                     the last-known workspace tree (no node: deletion never matches it)
  *   `#at-rest`                  the account's encryption setting on this device, never sealed
  *
@@ -23,6 +24,7 @@ import { isAtRestEnvelope, readAtRestMode, type AtRestMode } from '@/lib/at-rest
 
 const ROOT: string = 'cdoc-collab:';
 const RESERVED: string = '#';
+const CHAT: string = '/';
 const accountPrefix = (account: bigint): string => `${ROOT}${account.toString()}:`;
 
 /** A node id names a node: it is not empty and holds no `#`. Ids are the server's, so data. */
@@ -38,6 +40,8 @@ export const documentEditsPrefix = (account: bigint, nodeId: string): string => 
 export const documentEditsKey = (account: bigint, nodeId: string, instance: string): string => `${documentEditsPrefix(account, nodeId)}${instance}`;
 export const documentDeviceKey = (account: bigint, nodeId: string): string => `${nodeKey(account, nodeId)}${RESERVED}device`;
 export const documentAccessKey = (account: bigint, nodeId: string): string => `${nodeKey(account, nodeId)}${RESERVED}access`;
+/** Where a chat document's records sit: under its node, so the node's removal takes them too. */
+export const chatDocumentRecordId = (nodeId: string, chatDoc: string): string => `${nodeId}${CHAT}${chatDoc}`;
 export const workspaceTreeKey = (account: bigint): string => `${accountPrefix(account)}${RESERVED}tree`;
 export const atRestModeKey = (account: bigint): string => `${accountPrefix(account)}${RESERVED}at-rest`;
 export const accountRecordsPrefix = (account: bigint): string => accountPrefix(account);
@@ -125,7 +129,8 @@ export async function forgetAccountDocuments(account: bigint): Promise<void> {
 export async function forgetNodeDocuments(account: bigint, nodeIds: readonly string[]): Promise<void> {
   // An id that is no node's ('', '#tree') would match the tree's record, never a document's.
   const nodes: ReadonlySet<string> = new Set<string>(nodeIds.filter(isNodeId));
-  await forgetKeys((await dbKeysWithPrefix('keyValue', accountPrefix(account))).filter((key: string): boolean => nodes.has(nodeOf(key))));
+  const ownerOf = (key: string): string => nodeOf(key).split(CHAT, 1)[0];
+  await forgetKeys((await dbKeysWithPrefix('keyValue', accountPrefix(account))).filter((key: string): boolean => nodes.has(ownerOf(key))));
 }
 
 /** A node deleted on its server is gone for every account here that held a copy of it. */

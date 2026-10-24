@@ -12,8 +12,8 @@ import type { PendingUpdate } from './outbox';
 import { LocalEdits } from './local-edits';
 import type { CachedDocument, DocumentSessionConfig, DocumentSessionPorts, HeldEdits } from './ports';
 import type { SaveInputs } from '@/lib/document-save/save-status';
-import type { DocumentSessionProblem } from './session-errors';
-import { haltsWriting } from './session-errors';
+import { haltsWriting, type DocumentSessionProblem } from './session-errors';
+import type { DeniedAccess } from './denied-access';
 import { CachedCopy, type ReplicaNow } from './cached-copy';
 import { HeldRequests } from './refused-retry';
 import { toWire } from './wire-bytes';
@@ -148,10 +148,10 @@ export class DocumentSync {
     else if ('Refused' in response) await this.onRefused(response.Refused);
   }
 
-  /** A protocol `Error` naming a permission; only ours when we have that kind of request out. */
-  async onPermissionDenied(message: string): Promise<void> {
-    const writeDenied: boolean = message.includes('EditMdx') && (!this.edits.empty || this.snapshots.inFlight);
-    const readDenied: boolean = message.includes('ViewContent') && this.cancelPullTimer !== null;
+  /** A refused permission; only ours when we have that kind of request out. */
+  async onPermissionDenied(access: DeniedAccess, message: string): Promise<void> {
+    const writeDenied: boolean = access === 'write' && (!this.edits.empty || this.snapshots.inFlight);
+    const readDenied: boolean = access === 'read' && this.cancelPullTimer !== null;
     if (!writeDenied && !readDenied) return;
     if (writeDenied) this.halt();
     if (readDenied) { this.readable = false; this.stopPullTimer(); }

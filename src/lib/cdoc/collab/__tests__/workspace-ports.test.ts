@@ -21,6 +21,6 @@ describe('workspace collaboration ports', () => {
   });
 
   it('refuses to build ports outside a signed-in session', () => {
-    expect(() => workspaceCollabPorts((): Promise<EditorController> => Promise.reject(new Error('unused')))).toThrow('signed-in session');
+    expect(() => workspaceCollabPorts((): Promise<EditorController> => Promise.reject(new Error('unused')), null)).toThrow('signed-in session');
   });
 });

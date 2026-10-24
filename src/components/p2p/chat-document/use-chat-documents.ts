@@ -8,12 +8,28 @@ import { toast } from 'sonner';
 import { describeFailure } from '@/lib/failure-message';
 import { openChatDocumentTab, type ChatDocumentOpener, type ChatDocumentOpening, type ChatDocumentTarget, type OpeningPorts } from './chat-document-opening';
 import type { ChatDocumentMigration } from '@/lib/live-doc-migration/boot';
+import type { ChatDocument, ChatDocumentRequest, ChatPeer } from '@/components/documents/chat-replica';
 
-export const APP_OPENING_PORTS: OpeningPorts = {
-  opener: (): Promise<ChatDocumentOpener> => import('@/components/documents/chat-replica').then((m): ChatDocumentOpener => m.openChatDocument),
-  migration: (): Promise<ChatDocumentMigration> => import('@/lib/live-doc-migration/boot').then((m): ChatDocumentMigration => m.chatDocumentMigration),
-  report: (title: string, error: unknown): void => { toast.error(title, { description: describeFailure(error, 'Try opening the document again.') }); },
-};
+/** A conversation's opening ports over `opener`, with the app's migration and failure notice. */
+export function appOpeningPorts(opener: () => Promise<ChatDocumentOpener>): OpeningPorts {
+  return {
+    opener,
+    migration: (): Promise<ChatDocumentMigration> => import('@/lib/live-doc-migration/boot').then((m): ChatDocumentMigration => m.chatDocumentMigration),
+    report: (title: string, error: unknown): void => { toast.error(title, { description: describeFailure(error, 'Try opening the document again.') }); },
+  };
+}
+
+/** A node channel's: its documents live on the workspace server, beside `nodeId`'s page. */
+export function nodeOpeningPorts(nodeId: string): OpeningPorts {
+  return appOpeningPorts((): Promise<ChatDocumentOpener> => import('@/components/documents/node-chat-document')
+    .then((m): ChatDocumentOpener => (request: ChatDocumentRequest): ChatDocument => m.openNodeChatDocument(nodeId, request)));
+}
+
+/** A direct chat's: its documents are kept live with `peer` over the P2P channel. */
+export function peerOpeningPorts(peer: ChatPeer): OpeningPorts {
+  return appOpeningPorts((): Promise<ChatDocumentOpener> => import('@/components/documents/chat-replica')
+    .then((m): ChatDocumentOpener => (request: ChatDocumentRequest): ChatDocument => m.openChatDocument(peer, request)));
+}
 
 export interface ChatDocuments {
   /** Every document opened in this chat: null while it opens. */
@@ -22,7 +38,7 @@ export interface ChatDocuments {
   open(target: ChatDocumentTarget): void;
   /** Opens a document again after it did not load. */
   retry(docId: string): void;
-  /** Renames it for both people; rejects with the reason when it cannot be. */
+  /** Renames it for everyone it is shared with; rejects with the reason when it cannot be. */
   rename(docId: string, title: string): Promise<void>;
 }
 
@@ -60,6 +76,7 @@ export function useChatDocuments(ports: OpeningPorts): ChatDocuments {
   const rename: (docId: string, title: string) => Promise<void> = useCallback(async (docId: string, title: string): Promise<void> => {
     const opening: ChatDocumentOpening | null | undefined = openingsRef.current.get(docId);
     if (opening?.kind !== 'canvas') throw new Error('This document did not open in the editor, so it cannot be renamed.');
+    if (opening.document.rename === null) throw new Error('This document cannot be renamed here.');
     await opening.document.rename(title);
   }, []);
 

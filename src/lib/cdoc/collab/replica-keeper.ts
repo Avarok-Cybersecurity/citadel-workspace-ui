@@ -87,5 +87,12 @@ export function replicaKeeper<E extends EditorController>(
 
 /** The app's keeper for `nodeId`: this tab's workspace session, the R1 configuration. */
 export function workspaceReplicaKeeper<E extends EditorController>(nodeId: string, onProblem: (problem: DocumentSessionError) => void, bind: SessionBinder): Keeper<E> {
-  return replicaKeeper<E>({ ...R1_COLLABORATION, nodeId, clientSeqBase: randomClientSeqBase() }, workspaceCollabPorts, onProblem, bind);
+  return replicaKeeper<E>({ ...R1_COLLABORATION, nodeId, clientSeqBase: randomClientSeqBase() }, (open: EditorOpener): DocumentSessionPorts => workspaceCollabPorts(open, null), onProblem, bind);
+}
+
+/** The app's keeper for the document `chatDoc` shared in `nodeId`'s chat: the page's, on its own log. */
+export function chatDocumentReplicaKeeper<E extends EditorController>(nodeId: string, chatDoc: string, onProblem: (problem: DocumentSessionError) => void): Keeper<E> {
+  const ports = (open: EditorOpener): DocumentSessionPorts => workspaceCollabPorts(open, chatDoc);
+  // Nothing outside the document binds to its session: a chat document has no Save control or share trigger.
+  return replicaKeeper<E>({ ...R1_COLLABORATION, nodeId, clientSeqBase: randomClientSeqBase() }, ports, onProblem, (): (() => void) => (): void => undefined);
 }

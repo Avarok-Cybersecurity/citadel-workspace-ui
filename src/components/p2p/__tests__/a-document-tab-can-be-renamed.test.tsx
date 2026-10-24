@@ -5,8 +5,9 @@ import { ChatTabBar, MESSAGES_TAB, createLiveDocumentTab, type ChatTab } from '.
 /** Real tab bar, context menu and dialog; the only fake is the rename callback (the store seam). */
 const tabs: ChatTab[] = [MESSAGES_TAB, createLiveDocumentTab('doc-1', 'Draft')];
 
-function setup(onTabRename: (id: string, title: string) => Promise<void>): void {
-  render(<ChatTabBar tabs={tabs} activeTabId="messages" onTabSelect={vi.fn()} onTabClose={vi.fn()} onTabRename={onTabRename} />);
+/** `renamable` defaults to true: every case but one is a direct chat's document, which renames. */
+function setup(onTabRename: (id: string, title: string) => Promise<void>, renamable: boolean = true): void {
+  render(<ChatTabBar tabs={tabs} activeTabId="messages" onTabSelect={vi.fn()} onTabClose={vi.fn()} onTabRename={onTabRename} renamable={(): boolean => renamable} />);
 }
 const docTab = (): HTMLElement => screen.getByRole('button', { name: /^Draft$/ });
 
@@ -24,6 +25,14 @@ describe('renaming from the tab', () => {
     fireEvent.click(screen.getByTestId('rename-document-confirm'));
     await waitFor(() => expect(rename).toHaveBeenCalledWith('doc-1', 'Launch plan'));
     await waitFor(() => expect(screen.queryByTestId('rename-document-dialog')).toBeNull());
+  });
+
+  it('offers no rename for a document whose rename nothing carries', () => {
+    setup(vi.fn(), false);
+    fireEvent.keyDown(docTab(), { key: 'F2' });
+    fireEvent.contextMenu(docTab());
+    expect(screen.queryByTestId('rename-document-dialog')).toBeNull();
+    expect(screen.queryByTestId('tab-rename')).toBeNull();
   });
 
   it('F2 on a document tab opens the same dialog', async () => {

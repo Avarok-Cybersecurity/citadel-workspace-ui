@@ -28,7 +28,6 @@ export interface ChatDocumentRequest {
   readonly docId: string;
   /** The local account: whose copy this device keeps, and who renames sign as. */
   readonly selfCid: bigint;
-  readonly peer: ChatPeer;
   /** The title the chat message gave it, shown until a rename (either person's) is heard. */
   readonly title: string;
   /** What it opens from when this device keeps no copy yet: blank, the creator's typed text, or a migration's snapshot. */
@@ -42,11 +41,15 @@ export interface ChatDocument {
   readonly editing: DocumentEditing;
   /** The document's title as it stands: the chat's, until a rename wins. */
   readonly title: ValueStore<string>;
-  /** Renames it for both people; rejects while it is not open, or for a title that is not one. */
-  rename(title: string): Promise<void>;
+  /**
+   * Renames it for everyone it is shared with; rejects while it is not open, or for a title that
+   * is not one. Null where nothing carries a rename, so no rename control is offered.
+   */
+  readonly rename: ((title: string) => Promise<void>) | null;
 }
 
-export function openChatDocument(request: ChatDocumentRequest): ChatDocument {
+/** A document of the 1:1 chat with `peer`. */
+export function openChatDocument(peer: ChatPeer, request: ChatDocumentRequest): ChatDocument {
   const title: ValueStore<string> = createValueStore<string>(`chat-document-title:${request.docId}`, request.title);
   let bound: ChatDocumentSync | null = null;
   const keep: ReplicaKeeper = (open, show, fail): (() => Promise<void>) => {
@@ -57,7 +60,7 @@ export function openChatDocument(request: ChatDocumentRequest): ChatDocument {
         if (!live) return;
         // One notice per document and kind of problem: a repeat updates it instead of stacking.
         const report = (problem: ChatSyncProblem): void => { toast.error(new ChatSyncError(problem).message, { id: `chat-document:${request.docId}:${problem.kind}` }); };
-        release = chatReplicaKeeper<EditorSession>(request.docId, request.origin, CHAT_SYNC, chatKeeperPorts(request.selfCid, request.peer), {
+        release = chatReplicaKeeper<EditorSession>(request.docId, request.origin, CHAT_SYNC, chatKeeperPorts(request.selfCid, peer), {
           report,
           titled: (stamp: CdocChatTitleStamp): void => title.set(stamp.title),
           bound: (sync: ChatDocumentSync | null): void => { bound = sync; },

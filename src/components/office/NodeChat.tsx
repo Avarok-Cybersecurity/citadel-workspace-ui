@@ -16,10 +16,13 @@ import { rosterEntries, type Roster } from '@/lib/chat/transport/node-signals';
 import type { ChatSelf, ChatTransport } from '@/lib/chat/transport/chat-transport';
 import type { RosterEntry } from '@/lib/chat/transport/read-receipts';
 import { browserClock } from '@/lib/browser-clock';
+import { nodeOpeningPorts } from '@/components/p2p/chat-document/use-chat-documents';
 import { createValueStore, type ValueStore } from '@/lib/value-store';
 import type { User } from '@/types/workspace-entities';
 
 interface NodeChatProps {
+  /** The office or room the channel belongs to, whose page its live documents sit beside. */
+  nodeId: string;
   channelId: string;
   channelName: string;
   /** Null until the tab knows its account; the reader can read, and sending says why it waits. */
@@ -40,12 +43,13 @@ function useRosterStore(channelId: string, members: readonly User[] | null): Ros
   return roster;
 }
 
-export function NodeChat({ channelId, channelName, self, sendRestriction, rules, members }: NodeChatProps): JSX.Element {
+export function NodeChat({ nodeId, channelId, channelName, self, sendRestriction, rules, members }: NodeChatProps): JSX.Element {
   const sendGate: ValueStore<GroupRestriction> = useLiveGate(`node-send-gate:${channelId}`, sendRestriction);
   const roster: Roster = useRosterStore(channelId, members);
   const transport: ChatTransport = useMemo((): ChatTransport => createNodeTransport({
-    channelId, channelName, self, sendGate, roster, io: nodeChatIO(channelId), mintLocalId, now: Date.now, clock: browserClock,
-  }), [channelId, channelName, self, sendGate, roster]);
+    channelId, channelName, self, sendGate, roster, io: nodeChatIO(channelId, nodeId), mintLocalId, now: Date.now, clock: browserClock,
+    opening: nodeOpeningPorts(nodeId),
+  }), [nodeId, channelId, channelName, self, sendGate, roster]);
   const shown: readonly RosterEntry[] | null = useMemo(() => rosterEntries(members), [members]);
   return (
     <ChatPane

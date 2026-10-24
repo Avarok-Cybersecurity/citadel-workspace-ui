@@ -131,7 +131,7 @@ export function OfficeChatTabs({
         </TabsContent>
 
         <TabsContent value="chat" className="mt-0 flex-1 overflow-hidden">
-          <NodeChat channelId={chatChannelId} channelName={roomName} self={self} sendRestriction={sendRestriction} rules={rules} members={members} />
+          <NodeChat nodeId={nodeId ?? WORKSPACE_ROOT_ID} channelId={chatChannelId} channelName={roomName} self={self} sendRestriction={sendRestriction} rules={rules} members={members} />
         </TabsContent>
       </Tabs>
     </div>

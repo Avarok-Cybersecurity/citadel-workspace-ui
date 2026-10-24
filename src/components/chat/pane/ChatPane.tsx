@@ -63,12 +63,12 @@ export function ChatPane({ transport, header, pause }: ChatPaneProps): JSX.Eleme
         typing: list.typing, presence: list.peerPresence, connected: list.isConnected, accepted: list.isRegistered,
         openSettings: transport.settings === null ? null : (): void => pane.setSettingsOpen(true),
       })}
-      <ChatTabBar tabs={tabs.tabsWithUnread} activeTabId={tabs.activeTabId} onTabSelect={tabs.handleTabSelect} onTabClose={tabs.handleCloseTab} onTabRename={tabs.handleRenameDocument} />
+      <ChatTabBar tabs={tabs.tabsWithUnread} activeTabId={tabs.activeTabId} onTabSelect={tabs.handleTabSelect} onTabClose={tabs.handleCloseTab} onTabRename={tabs.handleRenameDocument} renamable={tabs.renamable} />
 
       <div className="flex-1 p-0 flex flex-col overflow-hidden">
         {viewedDocument !== null && tabs.activeTab ? (
           <ChatDocumentPane
-            key={viewedDocument} docId={viewedDocument} title={tabs.activeTab.title} peerName={counterpart.name} selfName={self?.displayName ?? 'You'}
+            key={viewedDocument} docId={viewedDocument} title={tabs.activeTab.title} peerName={counterpart.name} sharedWith={transport.documents?.sharedWith ?? ''} selfName={self?.displayName ?? 'You'}
             opening={self === null ? NO_ACCOUNT : tabs.documents.get(viewedDocument) ?? null}
             onRetry={(): void => tabs.retryDocument(viewedDocument)}
             onRename={(title: string): Promise<void> => tabs.handleRenameDocument(viewedDocument, title)}

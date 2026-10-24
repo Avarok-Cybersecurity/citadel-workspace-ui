@@ -7,7 +7,7 @@
  */
 import { useMemo } from 'react';
 import { NoConversation } from './NoConversation';
-import { APP_OPENING_PORTS } from './chat-document/use-chat-documents';
+import { peerOpeningPorts } from './chat-document/use-chat-documents';
 import { PeerChatTop } from './PeerChatTop';
 import { useDirectCall, type DirectCallBinding } from './hooks/use-direct-call';
 import { useConnectionRoute } from './hooks/use-connection-route';
@@ -41,7 +41,7 @@ export function P2PChat({ peerCid, peerName = 'Peer', peerUsername, currentUserC
   const transport: ChatTransport = useMemo((): ChatTransport => createPeerTransport({
     peer,
     self: currentUserCid === undefined ? null : { cid: currentUserCid, username: currentUserName, displayName: currentUserName },
-    opening: APP_OPENING_PORTS,
+    opening: peerOpeningPorts(peer),
   }), [peer, currentUserCid, currentUserName]);
   const route: PeerPathReport | null = useConnectionRoute(currentUserCid ?? null, peerCid);
   const supervisor: SupervisorState | null = useSupervisorState(currentUserCid ?? null, peerCid);

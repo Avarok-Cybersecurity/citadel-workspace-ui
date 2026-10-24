@@ -35,7 +35,7 @@ const SELF: ChatSelf = { cid: 7n, username: 'ada', displayName: 'Ada Lovelace' }
 function chat(restriction: GroupRestriction): JSX.Element {
   return (
     <ConfirmDialogProvider>
-      <NodeChat channelId={CHANNEL} channelName="Design" self={SELF} sendRestriction={restriction} rules="Be kind." members={null} />
+      <NodeChat nodeId="node-design" channelId={CHANNEL} channelName="Design" self={SELF} sendRestriction={restriction} rules="Be kind." members={null} />
     </ConfirmDialogProvider>
   );
 }
@@ -75,10 +75,10 @@ describe('a node channel', () => {
     expect(screen.getByTestId('channel-rules')).toHaveTextContent('Be kind.');
   });
 
-  it('offers markdown, and no live document or file control it cannot carry yet', async () => {
+  it('offers markdown and live documents, and no file control it cannot carry yet', async () => {
     await open();
     expect(screen.getByTestId('message-type-markdown')).toBeInTheDocument();
-    expect(screen.queryByTestId('message-type-live-doc')).toBeNull();
+    expect(screen.getByTestId('message-type-live-doc')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Send file' })).toBeNull();
   });
 

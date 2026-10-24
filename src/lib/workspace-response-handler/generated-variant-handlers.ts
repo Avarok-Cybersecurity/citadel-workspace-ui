@@ -15,7 +15,7 @@ import { membershipChanged } from './membership-change';
 import { recordMemberNames } from '@/lib/member-names';
 import { recordPresenceChoices } from '@/lib/published-presence';
 import type { MappedMember } from '@/lib/workspace-response-handler/member-mapping';
-import { DOCUMENTS_EVENT } from './documents-event';
+import { DOCUMENTS_EVENT, documentsEventOf, type DocumentsEvent } from './documents-event';
 
 export function handleGeneratedVariants(
   response: WorkspaceProtocolResponse,
@@ -217,10 +217,11 @@ export function handleGeneratedVariants(
     return true;
   }
 
-  if (isVariant(response, 'Documents')) {
-    // Answers and pushes for open documents (cdoc/collab/documents-transport.ts). Not raw and
-    // not logged: no write here waits on a type match, and the bytes are the document.
-    eventEmitter.emit(DOCUMENTS_EVENT, { answer: response.Documents });
+  const documents: DocumentsEvent | null = documentsEventOf(response);
+  if (documents !== null) {
+    // Answers and pushes for open documents, pages' and chat documents' (cdoc/collab/documents-transport.ts).
+    // Not raw and not logged: no write here waits on a type match, and the bytes are the document.
+    eventEmitter.emit(DOCUMENTS_EVENT, documents);
     return true;
   }
 

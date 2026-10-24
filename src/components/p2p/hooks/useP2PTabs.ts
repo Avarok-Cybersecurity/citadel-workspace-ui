@@ -68,6 +68,8 @@ export interface P2PTabs {
   handleOpenDocument: (link: ChatDocumentLink) => void;
   handleCreateDocument: (input: NewChatDocumentInput) => Promise<ChatDocumentMade>;
   handleRenameDocument: (documentId: string, title: string) => Promise<void>;
+  /** Whether a document opened with a rename to offer. */
+  renamable: (documentId: string) => boolean;
   retryDocument: (documentId: string) => void;
 }
 
@@ -132,7 +134,7 @@ export function useP2PTabs({ documents: port, currentUserCid }: UseP2PTabsOption
   const handleOpenDocument: (link: ChatDocumentLink) => void = useCallback(({ documentId, title, mine }: ChatDocumentLink): void => {
     if (port === null) return;
     // Whoever sent the message that names the document made it: the creator's move is the document's.
-    showDocument({ docId: documentId, title, peer: port.replica, creator: mine ? 'self' : 'peer', seed: null });
+    showDocument({ docId: documentId, title, creator: mine ? 'self' : 'peer', seed: null });
   }, [showDocument, port]);
 
   const handleCreateDocument: (input: NewChatDocumentInput) => Promise<ChatDocumentMade> = useCallback(async ({ app, title, initialContent }: NewChatDocumentInput): Promise<ChatDocumentMade> => {
@@ -155,7 +157,7 @@ export function useP2PTabs({ documents: port, currentUserCid }: UseP2PTabsOption
     // ("Could not create the document…"); swallowing it here made that branch unreachable.
     await invitation.recorded;
     // The typed message becomes the document's first paragraphs, written by the canvas as it opens.
-    showDocument({ docId, title: checked.title, peer: port.replica, creator: 'self', seed: initialContent.trim() === '' ? null : initialContent });
+    showDocument({ docId, title: checked.title, creator: 'self', seed: initialContent.trim() === '' ? null : initialContent });
     return { delivered: invitation.delivered };
   }, [port, currentUserCid, showDocument]);
 
@@ -176,6 +178,10 @@ export function useP2PTabs({ documents: port, currentUserCid }: UseP2PTabsOption
     handleOpenDocument,
     handleCreateDocument,
     handleRenameDocument: documents.rename,
+    renamable: (documentId: string): boolean => {
+      const opening: ChatDocumentOpening | null | undefined = documents.openings.get(documentId);
+      return opening?.kind === 'canvas' && opening.document.rename !== null;
+    },
     retryDocument: documents.retry,
   };
 }

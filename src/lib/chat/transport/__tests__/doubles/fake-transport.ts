@@ -13,7 +13,7 @@ import type {
   ChatKind, ChatMessage, ChatSelf, ChatTransport, DocumentInvitation, DocumentPort, FilePort, FileSendReceipt,
   HistoryCursor, HistoryEvent, HistoryPage, SendPort, SettingsPort, StatusChange, StatusPort, StatusProbe, StatusSnapshot, TextSend,
 } from '../../chat-transport';
-import { APP_OPENING_PORTS } from '@/components/p2p/chat-document/use-chat-documents';
+import { peerOpeningPorts } from '@/components/p2p/chat-document/use-chat-documents';
 
 export interface Recorded {
   readonly calls: string[];
@@ -67,8 +67,8 @@ export function fakeTransport(options: FakeOptions): { transport: ChatTransport;
     details: (id: string): null => { call(`files.details:${id}`); return null; },
   };
   const documents: DocumentPort | null = !options.ports.documents ? null : {
-    replica: { cid: 0n, name: options.counterpart, username: options.counterpart },
-    opening: APP_OPENING_PORTS,
+    sharedWith: `Shared live with ${options.counterpart}`,
+    opening: peerOpeningPorts({ cid: 0n, name: options.counterpart, username: options.counterpart }),
     invite: async (invitation: DocumentInvitation): Promise<void> => { invitations.push(invitation); invitation.onRecorded(); },
     onActivity: (listener: (docId: string) => void): (() => void) => { activities.add(listener); return (): void => { activities.delete(listener); }; },
   };

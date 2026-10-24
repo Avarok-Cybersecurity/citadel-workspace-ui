@@ -10,6 +10,8 @@ import { markChannelOpen } from '@/lib/group-conversations/open-channel';
 import { channelSignals, type ChannelSignal } from '@/lib/group-conversations/channel-signals';
 import NotificationService from '@/lib/notification-service';
 import { getPrivacySettings, type PrivacySettings } from '@/lib/privacy-settings';
+import { eventEmitter } from '@/lib/event-emitter';
+import { DOCUMENTS_EVENT, type DocumentsEvent } from '@/lib/workspace-response-handler/documents-event';
 import { groupLog } from './group-log';
 import type { GroupLog } from './group-history';
 
@@ -27,6 +29,10 @@ export interface NodeChatIO {
   /** Resolves once the server holds `member`'s cursor at `uptoMessageId`. */
   markRead(uptoMessageId: string, member: string): Promise<void>;
   typing(): Promise<void>;
+  /** Posts the message that shares the live document `documentId`, titled `title`. */
+  share(documentId: string, title: string): Promise<void>;
+  /** Fires with a chat document's id when someone else changes it. */
+  onDocumentActivity(listener: (documentId: string) => void): () => void;
   /** The members' read cursors and typing notices, as the response handler records them. */
   readonly signals: {
     cursors(): ReadonlyMap<string, string>;
@@ -55,7 +61,8 @@ function pageArrives(groupId: string, deadlineKey: string, request: () => Promis
   });
 }
 
-export function nodeChatIO(groupId: string): NodeChatIO {
+/** `groupId` is the channel's id, `nodeId` the node it belongs to, whose documents its shares are. */
+export function nodeChatIO(groupId: string, nodeId: string): NodeChatIO {
   return {
     log: groupLog(groupId),
     latest: (): Promise<void> => pageArrives(groupId, `group-messages:${groupId}`, (): Promise<void> => WorkspaceService.getGroupMessages(groupId)),
@@ -73,6 +80,12 @@ export function nodeChatIO(groupId: string): NodeChatIO {
     react: (messageId: string, emoji: string, on: boolean): Promise<void> => WorkspaceService.reactGroupMessage(groupId, messageId, emoji, on),
     markRead: (uptoMessageId: string, member: string): Promise<void> => WorkspaceService.markGroupRead(groupId, uptoMessageId, member),
     typing: (): Promise<void> => WorkspaceService.groupTyping(groupId),
+    share: (documentId: string, title: string): Promise<void> =>
+      WorkspaceService.sendGroupMessage(groupId, title, { LiveDocument: { document_id: documentId } }),
+    onDocumentActivity: (listener: (documentId: string) => void): (() => void) =>
+      eventEmitter.on(DOCUMENTS_EVENT, (event: DocumentsEvent | undefined): void => {
+        if (event?.chatDoc != null && 'DocumentUpdated' in event.answer && event.answer.DocumentUpdated.node_id === nodeId) listener(event.chatDoc);
+      }),
     signals: {
       cursors: (): ReadonlyMap<string, string> => channelSignals.cursors(groupId),
       subscribe: (listener: (signal: ChannelSignal) => void): (() => void) => channelSignals.subscribe(groupId, listener),

@@ -5,12 +5,13 @@
  */
 import { createPeerTransport } from '@/lib/chat/transport/peer-transport';
 import type { ChatTransport } from '@/lib/chat/transport/chat-transport';
-import { APP_OPENING_PORTS } from '../../chat-document/use-chat-documents';
+import { peerOpeningPorts } from '../../chat-document/use-chat-documents';
 
 export function peerTransportFor(peer: { cid: bigint; name: string }, selfCid: bigint | null): ChatTransport {
+  const chatPeer = { cid: peer.cid, name: peer.name, username: peer.name };
   return createPeerTransport({
-    peer: { cid: peer.cid, name: peer.name, username: peer.name },
+    peer: chatPeer,
     self: selfCid === null ? null : { cid: selfCid, username: 'me', displayName: 'You' },
-    opening: APP_OPENING_PORTS,
+    opening: peerOpeningPorts(chatPeer),
   });
 }

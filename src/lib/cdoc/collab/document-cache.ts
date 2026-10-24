@@ -65,3 +65,17 @@ export function indexedDbDocumentCache(account: bigint, locks: InstanceLocks): D
     saveChoices: (nodeId: string, choices: DeviceChoices): Promise<void> => localRecordPut(documentDeviceKey(account, nodeId), { autoSave: choices.autoSave }),
   };
 }
+
+/** `cache` with every record under `place(nodeId)` instead: a chat document's, beside its node's page. */
+export function placedCache(cache: DocumentCache, place: (nodeId: string) => string): DocumentCache {
+  return {
+    load: (nodeId: string): Promise<CachedDocument | null> => cache.load(place(nodeId)),
+    save: (nodeId: string, document: CachedDocument): Promise<void> => cache.save(place(nodeId), document),
+    forget: (nodeId: string): Promise<void> => cache.forget(place(nodeId)),
+    loadEdits: (nodeId: string): Promise<readonly HeldEdits[]> => cache.loadEdits(place(nodeId)),
+    saveEdits: (nodeId: string, instance: string, updates: readonly Uint8Array[]): Promise<void> => cache.saveEdits(place(nodeId), instance, updates),
+    hold: (nodeId: string, instance: string): Promise<() => void> => cache.hold(place(nodeId), instance),
+    loadChoices: (nodeId: string): Promise<DeviceChoices | null> => cache.loadChoices(place(nodeId)),
+    saveChoices: (nodeId: string, choices: DeviceChoices): Promise<void> => cache.saveChoices(place(nodeId), choices),
+  };
+}

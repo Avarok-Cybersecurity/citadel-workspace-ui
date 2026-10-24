@@ -5,7 +5,7 @@
  * These types are used for structured communication between the TypeScript frontend and Rust backend.
  */
 
-import type { AppsRequest, DocumentsRequest, MemberRole, MessagingTrustRequest, RolesRequest, SecureLinksRequest, SignInSettings, TelemetryRequest, WorkspaceLogoChange, WorkspaceProtocolRequest } from 'citadel-workspace-client-ts';
+import type { AppsRequest, ChatDocumentsRequest, DocumentsRequest, GroupMessageType, MemberRole, MessagingTrustRequest, RolesRequest, SecureLinksRequest, SignInSettings, TelemetryRequest, WorkspaceLogoChange, WorkspaceProtocolRequest } from 'citadel-workspace-client-ts';
 
 /** A request variant's body, read from the generated binding rather than restated. */
 type RequestBody<K extends string> = Extract<WorkspaceProtocolRequest, Record<K, unknown>>[K];
@@ -93,7 +93,7 @@ export interface WorkspaceProtocolRequestTS {
   // Group messaging operations
   SendGroupMessage?: {
     group_id: string;
-    message_type: GroupMessageTypeTS;
+    message_type: SentGroupMessageType;
     content: string;
     reply_to?: string;
     mentions?: string[];
@@ -157,6 +157,7 @@ export interface WorkspaceProtocolRequestTS {
   MessagingTrust?: MessagingTrustRequest; // Who connects without asking (messaging-trust-operations.ts).
   Roles?: RolesRequest; // The workspace role table (roles-operations.ts).
   Documents?: DocumentsRequest; // A document node's CRDT log and awareness (cdoc/collab/documents-transport.ts).
+  ChatDocuments?: ChatDocumentsRequest; // The same, for a document shared in a node's chat.
   SecureLinks?: SecureLinksRequest; // Secure deep links (secure-links-operations.ts).
   Apps?: AppsRequest; // Citadel Apps: the marketplace and installs (apps-operations.ts).
   GetSignInSettings?: null; // The sign-in settings (lib/workspace-service/sign-in-settings.ts).
@@ -169,8 +170,7 @@ export interface WorkspaceProtocolRequestTS {
     entity_types?: Array<{ Child: string } | 'Workspace'>;
   };
   GetTreeStructure?: {
-    root_id?: string | null;
-    max_depth?: number;
+    root_id?: string | null; max_depth?: number;
   };
   GetTreeSchema?: null;
   UpdateTreeSchema?: {
@@ -182,10 +182,10 @@ export interface WorkspaceProtocolRequestTS {
 }
 
 export enum GroupMessageTypeTS {
-  Text = 'Text',
-  Markdown = 'Markdown',
-  System = 'System'
+  Text = 'Text', Markdown = 'Markdown', System = 'System'
 }
+/** What a sent message is: a plain kind, or one that carries a value (a shared live document). */
+export type SentGroupMessageType = GroupMessageTypeTS | Exclude<GroupMessageType, string>;
 
 // Group message interface
 export interface GroupMessageTS {

@@ -8,7 +8,7 @@
 import type {
   WorkspaceProtocolPayloadTS,
   WorkspaceProtocolRequestTS,
-  GroupMessageTypeTS,
+  SentGroupMessageType,
   PermissionTS,
   UpdateOperationTS,
 } from '@/types/workspace-protocol';
@@ -134,7 +134,7 @@ export class WorkspaceService implements ProtocolSender {
 
   // Messaging operations
   public sendMessage(contents: Uint8Array): Promise<void> { return messaging.sendMessage(this, contents); }
-  public sendGroupMessage(gId: string, content: string, type?: GroupMessageTypeTS, replyTo?: string, mentions?: string[]): Promise<void> { return messaging.sendGroupMessage(this, gId, content, type, replyTo, mentions); }
+  public sendGroupMessage(gId: string, content: string, type?: SentGroupMessageType, replyTo?: string, mentions?: string[]): Promise<void> { return messaging.sendGroupMessage(this, gId, content, type, replyTo, mentions); }
   public editGroupMessage(gId: string, mId: string, content: string): Promise<void> { return messaging.editGroupMessage(this, gId, mId, content); }
   public deleteGroupMessage(gId: string, mId: string): Promise<void> { return messaging.deleteGroupMessage(this, gId, mId); }
   public getGroupMessages(gId: string, before?: number | bigint, limit?: number): Promise<void> { return messaging.getGroupMessages(this, gId, before, limit); }

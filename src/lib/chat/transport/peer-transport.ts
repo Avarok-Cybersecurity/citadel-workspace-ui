@@ -61,7 +61,7 @@ function peerFiles(peer: ChatPeer): FilePort {
 
 function peerDocuments(messenger: P2PMessengerManager, peer: ChatPeer, opening: OpeningPorts): DocumentPort {
   return {
-    replica: peer,
+    sharedWith: `Shared live with ${peer.name}`,
     opening,
     invite: async ({ docId, title, onRecorded }: DocumentInvitation): Promise<void> => {
       await messenger.sendMessage(peer.cid, `Created live document: ${title}`, {
