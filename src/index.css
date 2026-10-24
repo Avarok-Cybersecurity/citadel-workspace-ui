@@ -491,9 +491,14 @@ h1, h2, h3, h4, h5, h6 {
   animation-name: lite-exit !important;
 }
 
+/* The motion-safe: forms too: Tailwind names that class `motion-safe:animate-pulse`, which the bare
+ * selector never matched, so a pulse that honoured the OS setting still pulsed under Lite. */
 .lite-motion .animate-pulse,
 .lite-motion .animate-ping,
-.lite-motion .animate-bounce {
+.lite-motion .animate-bounce,
+.lite-motion .motion-safe\:animate-pulse,
+.lite-motion .motion-safe\:animate-ping,
+.lite-motion .motion-safe\:animate-bounce {
   animation: none !important;
 }
 
