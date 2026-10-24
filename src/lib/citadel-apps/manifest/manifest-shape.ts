@@ -7,8 +7,10 @@ import type { AppCategory, AppSurface, ScopeKind } from 'citadel-workspace-clien
 import { CAPABILITIES } from '../host/capabilities';
 
 export const CATEGORIES: readonly AppCategory[] = ['planning', 'productivity', 'communication', 'documents', 'files', 'developer', 'design', 'data', 'integrations', 'utilities'];
-export const SURFACES: readonly AppSurface[] = ['canvas_pane', 'md_zone'];
+export const SURFACES: readonly AppSurface[] = ['canvas_pane', 'md_zone', 'node_tab'];
 export const SCOPE_KINDS: readonly ScopeKind[] = ['workspace', 'node', 'node_tree', 'users', 'self'];
+/** The scopes whose install everyone on some node sees, which a node tab needs (`ScopeKind::reaches_a_node` in Rust). */
+export const NODE_REACHING_SCOPES: readonly ScopeKind[] = ['workspace', 'node', 'node_tree'];
 /** The SDK's closed list (generated from citadel-app-sdk-types), which the Rust manifest reads too. */
 export { CAPABILITIES };
 const U32_MAX: number = 4_294_967_295;
