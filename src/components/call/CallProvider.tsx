@@ -17,6 +17,9 @@ import { startCall as runStartCall } from './start-call';
 import { useCallInterest } from './use-call-interest';
 import { useCallHoldsReload } from './use-call-holds-reload';
 import { useCallCapability } from './use-call-capability';
+import { useCallTakenElsewhere } from './use-call-taken-elsewhere';
+import { useRingingHandOff } from './use-ringing-hand-off';
+import { useCallDeparture } from './use-call-departure';
 import { CAMERA_UNAVAILABLE, MIC_UNAVAILABLE, SCREEN_SHARE_STOPPED } from './media-unavailable';
 import { useLiveVideoQuality } from './use-live-video-quality';
 import { buildCallContext } from './build-call-context';
@@ -94,6 +97,10 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
   }, [ensureManager, sessionRef]);
 
   useInboundMedia(sessionRef);
+  // Between this account's tabs, and between this tab and the leader; see each hook.
+  const announceTaken: (callId: string, answered: boolean) => void = useCallTakenElsewhere(selfCid, managerRef);
+  useRingingHandOff(selfCid, call);
+  useCallDeparture(selfCid, senderConfig, managerRef);
 
   // The camera must not survive the provider unmounting — and the peer must be
   // told, or they sit in a call that is over until their ring timeout fires.
@@ -137,15 +144,19 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
       // Negotiated BEFORE the accept goes out, so the accept carries the codec
       // we will actually send — see codec-sync for why no announcement here.
       adoptPeerCodecs(manager, session);
+      const callId: string | undefined = manager.getState()?.callId;
       await manager.accept(got, session.getCodec());
+      if (callId !== undefined) announceTaken(callId, true);
     },
-    [ensureSession, teardown, managerRef],
+    [ensureSession, teardown, managerRef, announceTaken],
   );
 
   const decline: () => Promise<void> = useCallback(async (): Promise<void> => {
+    const callId: string | undefined = managerRef.current?.getState()?.callId;
     await managerRef.current?.decline('rejected');
+    if (callId !== undefined) announceTaken(callId, false);
     teardown();
-  }, [teardown, managerRef]);
+  }, [teardown, managerRef, announceTaken]);
 
   const leave: () => Promise<void> = useCallback(async (): Promise<void> => {
     const manager: CallManager | null = managerRef.current;
