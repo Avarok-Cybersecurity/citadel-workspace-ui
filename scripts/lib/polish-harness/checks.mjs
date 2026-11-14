@@ -16,12 +16,25 @@ async function tooltipLeavesNeighboursReachable({ page, url }) {
   const count = await rows.count();
   assert.ok(count >= 3, `expected at least 3 member rows, found ${count}`);
   const centre = (box) => ({ x: box.x + box.width / 2, y: box.y + box.height / 2 });
+  let left = null;
   for (let i = count - 1; i >= 0; i -= 1) {
     const at = centre(await rows.nth(i).boundingBox());
-    await page.mouse.move(at.x, at.y);
-    const card = page.locator('[data-radix-popper-content-wrapper]').first();
+    // Radix keeps a card open while the pointer is "in transit" toward it, so a jump from one row to the next
+    // left the last row's card up and this row's never opened: the check measured the wrong card. Leave each
+    // row straight left, away from its card, see the card go, then come in from the left along this row.
+    const cards = page.locator('[data-radix-popper-content-wrapper]');
+    if (left !== null) {
+      await page.mouse.move(0, left.y, { steps: 8 });
+      await cards.first().waitFor({ state: 'detached', timeout: 3000 });
+    }
+    await page.mouse.move(0, at.y);
+    await page.mouse.move(at.x, at.y, { steps: 8 });
+    left = at;
+    const handle = (await rows.nth(i).getAttribute('data-testid')).slice('member-row-'.length);
+    const card = cards.filter({ hasText: `@${handle}` });
     await card.waitFor({ state: 'visible', timeout: 3000 });
     const cardBox = await card.boundingBox();
+    assert.ok(cardBox, `row ${i}'s card closed while the pointer was still on its row`);
     for (let j = 0; j < count; j += 1) {
       if (j === i) continue;
       const other = await rows.nth(j).boundingBox();
