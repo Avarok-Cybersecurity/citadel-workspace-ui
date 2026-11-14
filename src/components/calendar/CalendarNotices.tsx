@@ -1,6 +1,6 @@
 /**
  * What the Calendar could not show, said above it rather than left out: a source that failed to
- * read, values in a source the core could not decode, events whose time the core could not place (design §3.4: "could not place this time",
+ * read, values in a source the core could not decode, pages below past the core's bound, events whose time the core could not place (design §3.4: "could not place this time",
  * never a guess), and a repeating event with more occurrences than one view expands.
  */
 import { AlertTriangle } from 'lucide-react';
@@ -38,7 +38,8 @@ function Notice({ children }: { children: React.ReactNode }): JSX.Element {
 export function CalendarNotices({ loads, placement }: CalendarNoticesProps): JSX.Element | null {
   const failed = [...loads].flatMap(([source, load]) => (load.kind === 'failed' ? [{ source, reason: load.reason }] : []));
   const unreadable = [...loads].flatMap(([source, load]) => (load.kind === 'ready' && load.unreadable > 0 ? [{ source, count: load.unreadable }] : []));
-  if (failed.length === 0 && unreadable.length === 0 && placement.unplaced.length === 0 && !placement.truncated) return null;
+  const limited = [...loads].flatMap(([source, load]) => (load.kind === 'ready' && load.limitedTo !== null ? [{ source, to: load.limitedTo }] : []));
+  if (failed.length === 0 && unreadable.length === 0 && limited.length === 0 && placement.unplaced.length === 0 && !placement.truncated) return null;
   return (
     <ul className="flex flex-col gap-2" aria-label="Calendar notices" data-testid="calendar-notices">
       {failed.map(({ source, reason }) => (
@@ -46,6 +47,9 @@ export function CalendarNotices({ loads, placement }: CalendarNoticesProps): JSX
       ))}
       {unreadable.map(({ source, count }) => (
         <Notice key={`unreadable-${source}`}>{count === 1 ? 'One' : count} of {SOURCE[source]} could not be read, so {count === 1 ? 'it is' : 'they are'} not shown.</Notice>
+      ))}
+      {limited.map(({ source, to }) => (
+        <Notice key={`limited-${source}`}>Showing {SOURCE[source]} from the first {to} pages below this one only; open a page further down to see the rest.</Notice>
       ))}
       {placement.unplaced.map((u: Unplaced) => (
         <Notice key={u.entryKey}>

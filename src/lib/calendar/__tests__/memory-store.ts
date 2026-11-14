@@ -7,6 +7,9 @@ import type { KvBackend } from '@/lib/citadel-apps/sdk/generated/KvBackend';
 import type { AuthoredKey } from '@/lib/citadel-apps/sdk/generated/AuthoredKey';
 import type { StoragePort } from '@/lib/citadel-apps/host/ports';
 
+/** The kernel's answer to a call the member's rights on the node do not cover. */
+const DENIED = { refused: { policy: 'permission' } } as const;
+
 /** Small, so every multi-key test also crosses a page boundary. */
 const PAGE: number = 2;
 
@@ -16,6 +19,25 @@ export class MemoryStore {
    * member's own `user` keys stay theirs (`user:<me>|key`), every node key is everyone's.
    */
   constructor(private readonly me: string, readonly values: Map<string, Uint8Array> = new Map()) {}
+
+  /**
+   * Nodes whose keys this member may not read (no `ViewContent`) or write (no `EditMdx` for a
+   * node's own keys), refused as the kernel refuses them. Empty unless a test takes a right away.
+   */
+  readonly unreadable: Set<string> = new Set();
+  readonly unwritable: Set<string> = new Set();
+
+  private nodeOf(backend: KvBackend): string | null {
+    if (typeof backend !== 'object') return null;
+    return 'node' in backend ? backend.node.node_id : 'node_authored' in backend ? backend.node_authored.node_id : null;
+  }
+
+  private denied(backend: KvBackend, writing: boolean): boolean {
+    const node: string | null = this.nodeOf(backend);
+    if (node === null) return false;
+    if (this.unreadable.has(node)) return true;
+    return writing && typeof backend === 'object' && 'node' in backend && this.unwritable.has(node);
+  }
 
   /** Where a key lives; an authored write lands under the signed-in member, as the kernel stamps it. */
   where(backend: KvBackend, key: string, writing: boolean): string {
@@ -55,29 +77,34 @@ export class MemoryStore {
       return { items: all.slice(from, from + PAGE), next: from + PAGE < all.length ? String(from + PAGE) : null };
     };
     return {
-      KvGet: ({ backend, key }) => ({ ok: { value: this.values.get(this.where(backend, key, false)) ?? null } }),
+      KvGet: ({ backend, key }) => (this.denied(backend, false) ? DENIED : { ok: { value: this.values.get(this.where(backend, key, false)) ?? null } }),
       KvSet: ({ backend, key, value }) => {
+        if (this.denied(backend, true)) return DENIED;
         if (this.foreign(backend)) return { refused: { policy: 'author' } };
         this.put(backend, key, value);
         return { ok: null };
       },
       KvSetMany: ({ backend, entries }) => {
+        if (this.denied(backend, true)) return DENIED;
         if (this.foreign(backend)) return { refused: { policy: 'author' } };
         for (const e of entries) this.put(backend, e.key, e.value);
         return { ok: null };
       },
       KvDelete: ({ backend, key }) => {
+        if (this.denied(backend, true)) return DENIED;
         if (this.foreign(backend)) return { refused: { policy: 'author' } };
         this.values.delete(this.where(backend, key, true));
         return { ok: null };
       },
       KvList: ({ backend, prefix, cursor }) => {
+        if (this.denied(backend, false)) return DENIED;
         const base: string = this.where(backend, '', false);
         const keys: string[] = [...this.values.keys()].filter((k) => k.startsWith(base + prefix)).map((k) => k.slice(base.length)).sort();
         const { items, next } = page(keys, cursor);
         return { ok: { keys: items, next } };
       },
       KvListAuthored: ({ node_id, prefix, cursor }) => {
+        if (this.unreadable.has(node_id)) return DENIED;
         const head: string = `authored:${node_id}:`;
         const found: AuthoredKey[] = [...this.values.keys()].filter((k) => k.startsWith(head)).map((k) => {
           const [who, key] = k.slice(head.length).split('|') as [string, string];

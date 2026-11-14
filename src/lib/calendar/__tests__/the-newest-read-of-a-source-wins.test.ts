@@ -49,7 +49,7 @@ describe('reading a source twice at once', () => {
     await waitFor(() => expect(held).toHaveLength(1));
     store.put({ node: { node_id: 'n1' } }, 'cal/event/new', engine.encodeEvent(event({ id: 'new' })));
     for (const l of listeners) l({ backend: { node: { node_id: 'n1' } }, key: 'cal/event/new' });
-    await waitFor(() => expect(state.loads.get('node')).toEqual({ kind: 'ready', unreadable: 0 }));
+    await waitFor(() => expect(state.loads.get('node')).toEqual({ kind: 'ready', unreadable: 0, limitedTo: null }));
     (held[0] as () => void)();
     await new Promise<void>((done) => { setTimeout(done, 0); });
     expect([...state.entries.values()].map((e) => e.source === 'node' && e.event.id)).toEqual(['new']);

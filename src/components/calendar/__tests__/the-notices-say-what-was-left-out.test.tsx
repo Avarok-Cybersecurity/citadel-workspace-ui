@@ -17,13 +17,13 @@ const notices = (loads: [EntrySource, LoadState][]): string[] => {
 
 describe('the Calendar notices', () => {
   it('count what a source left out, and say a failed source failed', () => {
-    expect(notices([['authored', { kind: 'ready', unreadable: 2 }], ['node', { kind: 'failed', reason: 'a limit was reached (quota)' }]])).toEqual([
+    expect(notices([['authored', { kind: 'ready', unreadable: 2, limitedTo: null }], ['node', { kind: 'failed', reason: 'a limit was reached (quota)' }]])).toEqual([
       "Could not read this page's events: a limit was reached (quota)",
       '2 of events members posted here could not be read, so they are not shown.',
     ]);
   });
 
   it('say nothing for sources that read cleanly', () => {
-    expect(notices([['node', { kind: 'ready', unreadable: 0 }], ['private', { kind: 'loading' }]])).toEqual([]);
+    expect(notices([['node', { kind: 'ready', unreadable: 0, limitedTo: null }], ['private', { kind: 'loading' }]])).toEqual([]);
   });
 });

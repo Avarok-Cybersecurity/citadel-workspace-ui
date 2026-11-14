@@ -12,7 +12,7 @@ const engine = realEngine();
 const ctx: DraftContext = { id: 'e9', node: 'n1', me: 'amy', zone: NY, nowMs: 5n };
 const draft: EventDraft = {
   title: 'Planning', notes: '', date: { y: 2024, m: 7, d: 15 }, allDay: false, start: '09:00', end: '10:30',
-  location: { kind: 'in_app' }, visibility: 'public', destination: 'authored',
+  location: { kind: 'in_app' }, visibility: 'public', destination: 'authored', down: false, upTo: null,
 };
 
 describe('the event editor', () => {
@@ -30,6 +30,16 @@ describe('the event editor', () => {
     expect(official.ok && official.store).toEqual({ kind: 'node', node: 'n1' });
     const mine = checkEvent({ ...draft, visibility: 'private', destination: 'node' }, ctx, engine);
     expect(mine.ok && [mine.store, mine.key]).toEqual([{ kind: 'user' }, 'cal/private/e9']);
+  });
+
+  it('pushes only an official event down, pulls any shared one up, and never propagates a private one', () => {
+    const propagate = (patch: Partial<EventDraft>): unknown => {
+      const checked = checkEvent({ ...draft, down: true, upTo: 'root', ...patch }, ctx, engine);
+      return checked.ok ? checked.event.propagate : null;
+    };
+    expect(propagate({ destination: 'node' })).toEqual({ down: true, up_to: 'root' });
+    expect(propagate({ destination: 'authored' })).toEqual({ down: false, up_to: 'root' });
+    expect(propagate({ destination: 'node', visibility: 'private' })).toEqual({ down: false, up_to: null });
   });
 
   it('places a time in the spring-forward gap as the core resolves it, never before the start', () => {

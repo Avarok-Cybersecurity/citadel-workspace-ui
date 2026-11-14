@@ -14,6 +14,7 @@ import type { BookingChoice, BookOutcome } from '@/lib/calendar/booking-form';
 import { book as claim, bookingOf, bookingRole, cancelAsBooker, requestBooking, type BookingRole } from '@/lib/calendar/booking';
 import type { CalendarEngine } from '@/lib/calendar/engine/calendar-engine';
 import type { EventCheck } from '@/lib/calendar/event-draft';
+import { saveEvent as save, type SaveOutcome } from '@/lib/calendar/event-save';
 import type { CivilDate } from '@/lib/calendar/generated/CivilDate';
 import type { Chip } from '@/lib/calendar/placement';
 import { PortRefused, refusalCopy, type CalendarPorts } from '@/lib/calendar/ports';
@@ -25,6 +26,7 @@ import { BookWith } from './BookWith';
 import { CalendarTab } from './CalendarTab';
 import { EventDetails } from './EventDetails';
 import { EventEditor } from './EventEditor';
+import { useAbove } from './use-above';
 import { useBookings } from './use-bookings';
 import { useMinuteClock } from './use-minute-clock';
 import type { Capability } from '@/lib/citadel-apps/host/capabilities';
@@ -64,14 +66,9 @@ export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZon
   const node = { id: nodeId, name: ws.nodes[nodeId]?.name ?? 'This page' };
   const close = (): void => setPanel({ kind: 'none' });
 
-  const saveEvent = async (checked: Extract<EventCheck, { ok: true }>): Promise<string | null> => {
-    try {
-      await ports.storage.set(checked.store, checked.key, engine.encodeEvent(checked.event));
-      return null;
-    } catch (e: unknown) {
-      return reasonOf(e);
-    }
-  };
+  const above = useAbove(ports, nodeId, nodeName);
+  const saveEvent = (checked: Extract<EventCheck, { ok: true }>, progress: (done: number, of: number) => void): Promise<SaveOutcome> =>
+    save(ports, engine, checked, null, progress);
   const book = (host: string, choice: BookingChoice): Promise<BookOutcome> => {
     const booking = bookingOf(choice, { id: newId(), node: nodeId, host, me });
     if (client === null) return requestBooking(ports, engine, booking, nodeId, me);
@@ -110,7 +107,7 @@ export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZon
         </Button>
       )}
       {panel.kind === 'new' && (
-        <EventEditor date={panel.date} node={node} me={me} displayZone={displayZone} engine={engine} newId={newId} nowMs={(): bigint => BigInt(Date.now())} onSave={saveEvent} onClose={close} />
+        <EventEditor date={panel.date} node={node} above={above} nodeName={nodeName} me={me} displayZone={displayZone} engine={engine} newId={newId} nowMs={(): bigint => BigInt(Date.now())} onSave={saveEvent} onClose={close} />
       )}
       {panel.kind === 'setup' && <BookingSetup ports={ports} engine={engine} node={node} me={me} displayZone={displayZone} deviceZone={deviceZone} today={now.date} origin={window.location.origin} newId={newId} />}
       {panel.kind === 'book' && (

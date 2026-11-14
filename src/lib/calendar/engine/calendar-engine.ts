@@ -18,6 +18,7 @@ import type { Imported } from '../generated/Imported';
 import type { Interval } from '../generated/Interval';
 import type { OriginRead } from '../generated/OriginRead';
 import type { Projection } from '../generated/Projection';
+import type { PropagationBounds } from '../generated/PropagationBounds';
 import type { Reconciled } from '../generated/Reconciled';
 import type { Recurrence } from '../generated/Recurrence';
 import type { Refusal } from '../generated/Refusal';
@@ -122,6 +123,13 @@ export class CalendarEngine {
   }
   upPullTargets(descendants: string[]): UpPull {
     return call((): unknown => this.glue.upPullTargets(descendants));
+  }
+  /** What a descendant holds of `event`, by the core's allow-list. */
+  project(event: Event): Projection {
+    return call((): unknown => this.glue.project(event));
+  }
+  propagationBounds(): PropagationBounds {
+    return call((): unknown => this.glue.propagationBounds());
   }
   reconcile(projection: Projection, origin: OriginRead): Reconciled {
     return call((): unknown => this.glue.reconcile(projection, origin));

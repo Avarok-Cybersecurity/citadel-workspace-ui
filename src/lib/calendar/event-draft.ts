@@ -7,7 +7,8 @@
  * Where: `private` is the member's own (`storage.user`, `cal/private/<id>`); otherwise the member
  * posts it on the node under their name (`authored`), or, as an editor of the node, makes it one of
  * the node's official events (`node`). Whether they may is the kernel's to decide: a refusal is
- * shown, never pre-empted here.
+ * shown, never pre-empted here. A private event never propagates; only an official one is pushed
+ * down, since only the node's editors may write into the pages below.
  */
 import { parseClock } from './availability-edit';
 import type { CalendarEngine } from './engine/calendar-engine';
@@ -33,6 +34,10 @@ export interface EventDraft {
   location: { kind: 'in_app' } | { kind: 'in_person'; address: string } | { kind: 'text'; text: string };
   visibility: Visibility;
   destination: Destination;
+  /** Shown on every page below (design 3.5); only one of the node's own events propagates down. */
+  down: boolean;
+  /** Also shown on this ancestor and every page between it and here; null for here only. */
+  upTo: string | null;
 }
 
 export interface DraftContext {
@@ -77,7 +82,7 @@ export function checkEvent(draft: EventDraft, ctx: DraftContext, engine: Pick<Ca
   const event: Event = {
     id: ctx.id, rev: 1, origin_node: ctx.node, author: ctx.me, title, body: draft.notes.trim() === '' ? null : draft.notes.trim(),
     kind: 'plain', status: 'confirmed', when, zone: ctx.zone, location, hosts: [ctx.me], invitees: [], visibility: draft.visibility,
-    propagate: { down: false, up_to: null }, reminders: [], notes_doc: null, source: null, created_ms: ctx.nowMs, updated_ms: ctx.nowMs,
+    propagate: draft.visibility === 'private' ? { down: false, up_to: null } : { down: draft.down && draft.destination === 'node', up_to: draft.upTo }, reminders: [], notes_doc: null, source: null, created_ms: ctx.nowMs, updated_ms: ctx.nowMs,
   };
   if (draft.visibility === 'private') return { ok: true, event, store: { kind: 'user' }, key: `${PRIVATE_PREFIX}${ctx.id}` };
   const store: CalendarStore = draft.destination === 'node' ? { kind: 'node', node: ctx.node } : { kind: 'authored', node: ctx.node, author: ctx.me };

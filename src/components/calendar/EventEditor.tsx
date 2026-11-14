@@ -13,17 +13,24 @@ import { checkEvent, type EventCheck, type EventDraft } from '@/lib/calendar/eve
 import { dateKey } from '@/lib/calendar/grid-keyboard';
 import type { CivilDate } from '@/lib/calendar/generated/CivilDate';
 import type { Visibility } from '@/lib/calendar/generated/Visibility';
+import type { SaveOutcome } from '@/lib/calendar/event-save';
+import type { FanOutFailure } from '@/lib/calendar/fan-out';
 import { NativeSelect } from './NativeSelect';
+import { PropagationFields, type NamedNode } from './PropagationFields';
 
 interface EventEditorProps {
   date: CivilDate;
   node: { id: string; name: string };
+  /** The pages above this one, nearest first, that an event can also be shown on. */
+  above: readonly NamedNode[];
+  nodeName: (id: string) => string;
   me: string;
   displayZone: string;
   engine: Pick<CalendarEngine, 'instantOf'>;
   newId: () => string;
   nowMs: () => bigint;
-  onSave: (checked: Extract<EventCheck, { ok: true }>) => Promise<string | null>;
+  /** Writes it; `progress` is told how many pages below have been brought in line. */
+  onSave: (checked: Extract<EventCheck, { ok: true }>, progress: (done: number, of: number) => void) => Promise<SaveOutcome>;
   onClose: () => void;
 }
 
@@ -38,15 +45,28 @@ function FieldError({ id, text }: { id: string; text: string | undefined }): JSX
   return text === undefined ? null : <p id={id} className="text-sm text-destructive-emphasis">{text}</p>;
 }
 
-export function EventEditor({ date, node, me, displayZone, engine, newId, nowMs, onSave, onClose }: EventEditorProps): JSX.Element {
+function MissedPages({ missed, nodeName, onDone }: { missed: readonly FanOutFailure[]; nodeName: (id: string) => string; onDone: () => void }): JSX.Element {
+  return (
+    <div role="alert" className="flex min-w-0 flex-col gap-2 text-sm text-foreground" data-testid="calendar-fan-out-missed">
+      <p>The event was saved, but it could not be shown on {missed.length === 1 ? 'one page' : `${missed.length} pages`} below:</p>
+      <ul className="list-disc pl-5">{missed.map((m: FanOutFailure) => <li key={m.node} className="break-words">{nodeName(m.node)}: {m.reason}</li>)}</ul>
+      <p className="text-muted-foreground">Saving it again tries those pages again.</p>
+      <Button type="button" className="h-[44px] self-start" onClick={onDone}>Done</Button>
+    </div>
+  );
+}
+
+export function EventEditor({ date, node, above, nodeName, me, displayZone, engine, newId, nowMs, onSave, onClose }: EventEditorProps): JSX.Element {
   const base: string = useId();
   const title = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState<EventDraft>({
-    title: '', notes: '', date, allDay: false, start: '09:00', end: '10:00', location: { kind: 'in_app' }, visibility: 'public', destination: 'authored',
+    title: '', notes: '', date, allDay: false, start: '09:00', end: '10:00', location: { kind: 'in_app' }, visibility: 'public', destination: 'authored', down: false, upTo: null,
   });
   const [errors, setErrors] = useState<ReadonlyMap<string, string>>(new Map());
   const [saving, setSaving] = useState<boolean>(false);
   const [failed, setFailed] = useState<string | null>(null);
+  const [progress, setProgress] = useState<{ done: number; of: number } | null>(null);
+  const [missed, setMissed] = useState<readonly FanOutFailure[] | null>(null);
   useEffect(() => { title.current?.focus(); }, []);
   const set = (patch: Partial<EventDraft>): void => setDraft({ ...draft, ...patch });
   const aria = (key: string): { 'aria-invalid': boolean; 'aria-describedby': string | undefined } => ({ 'aria-invalid': errors.has(key), 'aria-describedby': errors.has(key) ? `${base}-${key}-error` : undefined });
@@ -61,10 +81,12 @@ export function EventEditor({ date, node, me, displayZone, engine, newId, nowMs,
     setErrors(new Map());
     setSaving(true);
     setFailed(null);
-    const refused: string | null = await onSave(checked);
+    const outcome: SaveOutcome = await onSave(checked, (done: number, of: number): void => setProgress({ done, of }));
     setSaving(false);
-    if (refused === null) onClose();
-    else setFailed(refused);
+    setProgress(null);
+    if (outcome.kind === 'saved') onClose();
+    else if (outcome.kind === 'refused') setFailed(outcome.reason);
+    else setMissed(outcome.failed);
   };
 
   return (
@@ -136,15 +158,21 @@ export function EventEditor({ date, node, me, displayZone, engine, newId, nowMs,
           </label>
         </fieldset>
       )}
+      {draft.visibility !== 'private' && <PropagationFields draft={draft} nodeName={node.name} above={above} onChange={set} />}
       <div className="flex min-w-0 flex-col gap-1">
         <label htmlFor={`${base}-notes`} className="text-sm font-medium text-foreground">Notes (optional)</label>
         <Textarea id={`${base}-notes`} rows={2} value={draft.notes} onChange={(e): void => set({ notes: e.target.value })} />
       </div>
       {failed !== null && <p role="alert" className="text-sm text-destructive-emphasis">The event was not saved: {failed}.</p>}
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" className="h-[44px]" disabled={saving}>{saving ? 'Saving…' : 'Save event'}</Button>
-        <Button type="button" variant="outline" className="h-[44px]" onClick={onClose}>Cancel</Button>
-      </div>
+      {progress !== null && <p role="status" className="text-sm text-muted-foreground">Showing it on the pages below: {progress.done} of {progress.of}</p>}
+      {missed !== null ? (
+        <MissedPages missed={missed} nodeName={nodeName} onDone={onClose} />
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" className="h-[44px]" disabled={saving}>{saving ? 'Saving…' : 'Save event'}</Button>
+          <Button type="button" variant="outline" className="h-[44px]" onClick={onClose}>Cancel</Button>
+        </div>
+      )}
     </form>
   );
 }

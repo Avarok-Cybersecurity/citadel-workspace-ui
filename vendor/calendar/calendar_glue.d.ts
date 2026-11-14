@@ -72,6 +72,16 @@ export function fanOutPlan(event: any, subtree: any): any;
 export function monthGrid(year: number, month: number): any;
 
 /**
+ * What a descendant holds of `event`, by the allow-list; refused for a private event.
+ */
+export function project(event: any): any;
+
+/**
+ * How far a fan-out writes and an up-pull reads.
+ */
+export function propagationBounds(): any;
+
+/**
  * The free hosts, in the order a booking tries them.
  */
 export function rankHosts(strategy: any, hosts: any, free: any, confirmed: any): any;
@@ -120,6 +130,8 @@ export interface InitOutput {
     readonly exportIcs: (a: number, b: number) => void;
     readonly fanOutPlan: (a: number, b: number, c: number) => void;
     readonly monthGrid: (a: number, b: number, c: number) => void;
+    readonly project: (a: number, b: number) => void;
+    readonly propagationBounds: (a: number) => void;
     readonly rankHosts: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly reconcile: (a: number, b: number, c: number) => void;
     readonly shownUpAt: (a: number, b: number, c: number) => void;

@@ -10,7 +10,9 @@ import { CalendarTab } from '@/components/calendar/CalendarTab';
 import { CalendarEngine } from '@/lib/calendar/engine/calendar-engine';
 import { intlOffsetAt } from '@/lib/calendar/engine/intl-offsets';
 import { calendarReducer, initialCalendar } from '@/lib/calendar/store';
-import { JULY_WEEK, VIEWER } from '@/lib/calendar/__tests__/placement-fixture';
+import { inherited, JULY_WEEK, VIEWER } from '@/lib/calendar/__tests__/placement-fixture';
+import { event } from '@/lib/calendar/__tests__/event-fixture';
+import { treeNodesPort } from '@/lib/citadel-apps/runtime/nodes-port';
 import { CalendarMount } from '@/components/calendar/CalendarMount';
 import { WorkspaceContext } from '@/contexts/WorkspaceContext';
 import { glueInstance } from '@/lib/citadel-apps/host/glue-instance';
@@ -25,7 +27,7 @@ const SOURCES = ['node', 'authored', 'inherited', 'up_pulled'];
 
 function seeded(view) {
   return SOURCES.reduce(
-    (state, source) => calendarReducer(state, { type: 'read', source, entries: JULY_WEEK.filter((e) => e.source === source), unreadable: 0 }),
+    (state, source) => calendarReducer(state, { type: 'read', source, entries: JULY_WEEK.filter((e) => e.source === source), unreadable: 0, limitedTo: null }),
     initialCalendar(view, NOW.date),
   );
 }
@@ -48,7 +50,9 @@ function Calendar({ view, zone }) {
 
 /** The page's own clock, as the glue instance of a mounted tab is given it (glue-steps.ts). */
 const PAGE_CLOCK = { now: () => Date.now(), after: (ms, fire) => { const id = setTimeout(fire, ms); return () => clearTimeout(id); } };
-const NODE = { id: 'n1', name: 'Platform', parent_id: null, children: [], metadata: [...new TextEncoder().encode(JSON.stringify({ time_zone: 'America/New_York' }))] };
+const NODE = { id: 'n1', name: 'Platform', parent_id: 'company', children: [], metadata: [...new TextEncoder().encode(JSON.stringify({ time_zone: 'America/New_York' }))] };
+const COMPANY = { id: 'company', name: 'Company', parent_id: null, children: ['n1'], metadata: [] };
+const TREE = { company: COMPANY, n1: NODE };
 
 /**
  * The whole tab as the registry mounts it, over the real ports and gate and an in-memory store
@@ -63,12 +67,20 @@ function MountedCalendar({ engine }) {
     const ana = { node_authored: { node_id: 'n1', author: 'ana' } };
     store.values.set(store.where(ana, 'cal/type/t1', false), engine.encodeEventType(INTRO));
     store.values.set(store.where(ana, 'cal/availability', false), engine.encodeAvailability(WORKING_HOURS));
+    // Company's all-hands in the coming hour, which goes down: its origin, and the projection its publisher wrote here.
+    const p = inherited.projection;
+    const hour = BigInt(Math.ceil(Date.now() / 3_600_000) * 3_600_000);
+    const when = { once: { start_ms: hour + 3_600_000n, end_ms: hour + 7_200_000n } };
+    const allHands = event({ id: 'allhands', origin_node: 'company', rev: p.origin_rev, title: p.title, when, zone: p.zone, propagate: { down: true, up_to: null } });
+    store.put({ node: { node_id: 'company' } }, 'cal/event/allhands', engine.encodeEvent(allHands));
+    store.put({ node: { node_id: 'n1' } }, 'cal/inherit/company/allhands', engine.encodeProjection(engine.project(allHands)));
     return glueInstance({
-      appId: 'net.avarok.calendar', ports: { storage: store.port() }, held: new Set(['storage.user', 'storage.node', 'storage.node.authored']),
+      appId: 'net.avarok.calendar', ports: { storage: store.port(), nodes: treeNodesPort('Workspace', () => TREE) },
+      held: new Set(['storage.user', 'storage.node', 'storage.node.authored', 'nodes.read']),
       policy: STANDARD_HOST_POLICY, limits: { topics: null, p2p: null }, clock: PAGE_CLOCK, pageUrl: window.location.href, storageChanges: () => () => {},
     });
   });
-  const state = { nodes: { n1: NODE }, members: {}, workspace: { metadata: [] } };
+  const state = { nodes: TREE, members: {}, workspace: { metadata: [] } };
   return (
     <WorkspaceContext.Provider value={{ state }}>
       <main className="mx-auto max-w-6xl">

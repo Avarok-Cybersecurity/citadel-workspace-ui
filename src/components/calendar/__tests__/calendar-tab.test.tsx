@@ -19,7 +19,7 @@ const NAMES: Record<string, string> = { company: 'Company', 'team-d': 'Team D', 
 function Tab({ view, zone = 'America/New_York' }: { view: CalendarView; zone?: string }): JSX.Element {
   const [state, dispatch] = useReducer(calendarReducer, undefined, () => {
     const s = initialCalendar(view, NOW.date);
-    return calendarReducer(s, { type: 'read', source: 'node', entries: JULY_WEEK.filter((e) => e.source === 'node'), unreadable: 0 });
+    return calendarReducer(s, { type: 'read', source: 'node', entries: JULY_WEEK.filter((e) => e.source === 'node'), unreadable: 0, limitedTo: null });
   });
   const withOthers = JULY_WEEK.filter((e) => e.source !== 'node').reduce((s, e) => ({ ...s, entries: new Map([...s.entries, [e.key, e]]) }), state);
   return (

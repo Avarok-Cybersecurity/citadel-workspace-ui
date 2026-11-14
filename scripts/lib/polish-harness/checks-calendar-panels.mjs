@@ -50,11 +50,22 @@ async function theMountedTabFits({ page, url, viewport }) {
   await fitsAndReads(page, width, 'the mounted tab');
 }
 
+/** Company's all-hands, projected here by its publisher, read through the tab's own ports and shown as from Company. */
+async function anInheritedEventShowsWhereItIsFrom({ page, url, viewport }) {
+  await mounted(page, url, viewport);
+  await page.getByRole('button', { name: 'Agenda', exact: true }).click();
+  const chip = page.getByRole('button', { name: /All-hands.*From Company/ }).first();
+  await chip.waitFor({ state: 'visible', timeout: 5000 });
+}
+
 async function theEventEditorFits({ page, url, viewport }) {
   const width = await mounted(page, url, viewport);
   await page.getByRole('button', { name: 'New', exact: true }).first().click();
   await page.getByTestId('calendar-event-editor').waitFor({ state: 'visible' });
   await page.getByLabel('Where').selectOption('in_person');
+  await page.getByLabel("One of Platform's own events (for its editors)").check();
+  await page.getByLabel('On every page below Platform').check();
+  await page.getByLabel('On a page above').selectOption('company');
   await fitsAndReads(page, width, 'the event editor');
 }
 
@@ -77,4 +88,4 @@ async function theBookingPageFits({ page, url, viewport }) {
   await fitsAndReads(page, width, "ana's booking page");
 }
 
-export const CALENDAR_PANEL_CHECKS = { theMountedTabFits, theEventEditorFits, theBookingSetupFits, theBookingPageFits };
+export const CALENDAR_PANEL_CHECKS = { theMountedTabFits, anInheritedEventShowsWhereItIsFrom, theEventEditorFits, theBookingSetupFits, theBookingPageFits };
