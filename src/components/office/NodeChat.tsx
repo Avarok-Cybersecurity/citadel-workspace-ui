@@ -32,6 +32,8 @@ interface NodeChatProps {
   rules: string | null;
   /** The node's members (use-node-roster); null until they are known. */
   members: readonly User[] | null;
+  /** Whether the reader may manage the workspace's subscription, so a limit notice says where packs are bought. */
+  managesSubscription: boolean;
 }
 
 const mintLocalId = (): string => `local-${crypto.randomUUID()}`;
@@ -43,13 +45,14 @@ function useRosterStore(channelId: string, members: readonly User[] | null): Ros
   return roster;
 }
 
-export function NodeChat({ nodeId, channelId, channelName, self, sendRestriction, rules, members }: NodeChatProps): JSX.Element {
+export function NodeChat({ nodeId, channelId, channelName, self, sendRestriction, rules, members, managesSubscription }: NodeChatProps): JSX.Element {
   const sendGate: ValueStore<GroupRestriction> = useLiveGate(`node-send-gate:${channelId}`, sendRestriction);
+  const manages: ValueStore<boolean> = useLiveGate(`node-manages-subscription:${channelId}`, managesSubscription);
   const roster: Roster = useRosterStore(channelId, members);
   const transport: ChatTransport = useMemo((): ChatTransport => createNodeTransport({
     channelId, channelName, self, sendGate, roster, io: nodeChatIO(channelId, nodeId), mintLocalId, now: Date.now, clock: browserClock,
-    opening: nodeOpeningPorts(nodeId),
-  }), [nodeId, channelId, channelName, self, sendGate, roster]);
+    opening: nodeOpeningPorts(nodeId, (): boolean => manages.get()),
+  }), [nodeId, channelId, channelName, self, sendGate, roster, manages]);
   const shown: readonly RosterEntry[] | null = useMemo(() => rosterEntries(members), [members]);
   return (
     <ChatPane

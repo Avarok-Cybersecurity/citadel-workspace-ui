@@ -14,11 +14,12 @@ import type { DocumentSessionError } from '@/lib/cdoc/collab/session-errors';
 import { createValueStore } from '@/lib/value-store';
 import type { ChatDocument, ChatDocumentRequest } from './chat-replica';
 import type { ReplicaKeeper } from './use-docs-document';
+import { limitNoticeDetail } from '@/lib/chat/chat-document-limit';
 
 export const CHANNEL_PICTURES_UNAVAILABLE: string = 'Pictures cannot be added to a chat document yet: the channel\'s readers would see an empty box where the picture is.';
 
-/** A document of `nodeId`'s chat. */
-export function openNodeChatDocument(nodeId: string, request: ChatDocumentRequest): ChatDocument {
+/** A document of `nodeId`'s chat. `managesSubscription` is read when a notice is shown: whether to say where packs are bought. */
+export function openNodeChatDocument(nodeId: string, request: ChatDocumentRequest, managesSubscription: () => boolean): ChatDocument {
   const keep: ReplicaKeeper = (open, show, fail): (() => Promise<void>) => {
     let live: boolean = true;
     let release: (() => Promise<void>) | null = null;
@@ -28,7 +29,10 @@ export function openNodeChatDocument(nodeId: string, request: ChatDocumentReques
       ([{ chatDocumentReplicaKeeper }, { seed: typeSeed }]): void => {
         if (!live) return;
         // One notice per document and kind of problem: a repeat updates it instead of stacking.
-        const report = (problem: DocumentSessionError): void => { toast.error(problem.message, { id: `node-chat-document:${request.docId}:${problem.problem.kind}` }); };
+        const report = (problem: DocumentSessionError): void => {
+          const description: string | undefined = limitNoticeDetail(problem.problem, managesSubscription());
+          toast.error(problem.message, { id: `node-chat-document:${request.docId}:${problem.problem.kind}`, description });
+        };
         const shown = (editor: EditorSession): void => {
           show(editor);
           if (seed === null) return;

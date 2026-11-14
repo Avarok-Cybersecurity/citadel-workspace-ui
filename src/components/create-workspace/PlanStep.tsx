@@ -3,11 +3,14 @@ import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
+  CHAT_DOCUMENT_PACK_ADDON,
   LINK_PACK_ADDON,
+  MAX_CHAT_DOCUMENT_PACKS,
   MAX_LINK_PACKS,
   MAX_STORAGE_BLOCKS,
   STORAGE_ADDON,
   addonOfferedOn,
+  clampChatDocumentPacks,
   clampLinkPacks,
   clampSeats,
   clampStorageBlocks,
@@ -72,7 +75,7 @@ function IntervalToggle({ interval, onChange }: { readonly interval: BillingInte
 }
 
 interface AddonStepper {
-  readonly field: 'storageBlocks' | 'linkPacks';
+  readonly field: 'storageBlocks' | 'linkPacks' | 'chatDocumentPacks';
   readonly testId: string;
   readonly title: string;
   readonly unitName: string;
@@ -88,6 +91,7 @@ function addonSteppers(interval: BillingInterval): readonly AddonStepper[] {
   const per: string = INTERVAL_NAME[interval];
   const gb: number = STORAGE_ADDON.gbPerBlock;
   const links: number = LINK_PACK_ADDON.linksPerPack;
+  const docs: string = CHAT_DOCUMENT_PACK_ADDON.documentsPerPack.toLocaleString('en-US');
   return [
     {
       field: 'storageBlocks', testId: 'plan-storage', title: 'Extra storage', unitName: `${gb} GB storage blocks`, max: MAX_STORAGE_BLOCKS,
@@ -100,6 +104,12 @@ function addonSteppers(interval: BillingInterval): readonly AddonStepper[] {
       offeredOn: (tier) => addonOfferedOn(LINK_PACK_ADDON, tier),
       hint: `${links}-link packs, ${formatUsd(LINK_PACK_ADDON.unitAmount[interval])} each per ${per}, shared by the whole workspace.`,
       line: (n, q) => [`${n} × ${links}-link pack`, q.linkPacksCents],
+    },
+    {
+      field: 'chatDocumentPacks', testId: 'plan-chat-document-packs', title: 'Extra chat documents', unitName: `${docs}-document packs`, max: MAX_CHAT_DOCUMENT_PACKS,
+      offeredOn: (tier) => addonOfferedOn(CHAT_DOCUMENT_PACK_ADDON, tier),
+      hint: `${docs}-document packs, ${formatUsd(CHAT_DOCUMENT_PACK_ADDON.unitAmount[interval])} each per ${per}, for documents shared in chats.`,
+      line: (n, q) => [`${n} × ${docs}-document pack`, q.chatDocumentPacksCents],
     },
   ];
 }
@@ -118,6 +128,7 @@ export function PlanStep({ plan, onChange, onBack, onContinue, coupon }: PlanSte
       seats: isPaid(tier) ? clampSeats(tier, plan.seats) : plan.seats,
       storageBlocks: clampStorageBlocks(tier, plan.storageBlocks),
       linkPacks: clampLinkPacks(tier, plan.linkPacks),
+      chatDocumentPacks: clampChatDocumentPacks(tier, plan.chatDocumentPacks),
     });
 
   return (
@@ -189,7 +200,8 @@ export function PlanStep({ plan, onChange, onBack, onContinue, coupon }: PlanSte
         )}
         <p className="pt-1 text-xs text-muted-foreground">
           {q.storageGb.toLocaleString('en-US')} GB storage in total. {tierById(plan.tier).secureLinksPerMember} secure links per member
-          {q.sharedLinks > 0 && `, plus ${q.sharedLinks.toLocaleString('en-US')} shared`}.{paid && ' Paid securely through Stripe Checkout.'}
+          {q.sharedLinks > 0 && `, plus ${q.sharedLinks.toLocaleString('en-US')} shared`}. {q.chatDocuments.toLocaleString('en-US')} chat documents.
+          {paid && ' Paid securely through Stripe Checkout.'}
         </p>
       </div>
       {coupon}

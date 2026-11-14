@@ -67,7 +67,7 @@ export function NodeChatScenario() {
   const transport = useMemo(() => createNodeTransport({
     channelId: CHANNEL, channelName: 'Engine room', self: { cid: 1n, username: 'me', displayName: 'Me' },
     sendGate: createValueStore('harness-gate', 'allowed'), io, mintLocalId: () => `local-${Date.now()}`, now: Date.now,
-    roster: createValueStore('harness-roster', ROSTER), clock: browserClock, opening: nodeOpeningPorts('harness-node'),
+    roster: createValueStore('harness-roster', ROSTER), clock: browserClock, opening: nodeOpeningPorts('harness-node', () => false),
   }), []);
   return (
     <div style={{ height: '100vh' }} className="bg-background">

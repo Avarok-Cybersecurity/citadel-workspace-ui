@@ -47,7 +47,7 @@ describe('a discount code', () => {
     const redirect: ReturnType<typeof vi.fn> = vi.fn();
     renderFlow(fake, '/create', redirect);
     await teamWithCode('launch10');
-    expect(couponRequests(fake)).toEqual([{ code: 'LAUNCH10', tier: 'team', interval: 'month', seats: 3, storage_blocks: 0, link_packs: 0 }]);
+    expect(couponRequests(fake)).toEqual([{ code: 'LAUNCH10', tier: 'team', interval: 'month', seats: 3, storage_blocks: 0, link_packs: 0, chat_document_packs: 0 }]);
     expect(screen.getByTestId('review-coupon')).toHaveTextContent('LAUNCH10: 10% off the first payment');
     expect(screen.getByTestId('review-total')).toHaveTextContent('$18 / month');
     expect(screen.getByTestId('review-due-today')).toHaveTextContent('$16.20');
@@ -60,7 +60,7 @@ describe('a discount code', () => {
 
   it('comes back applied after a cancelled Checkout', async () => {
     saveDraft({
-      displayName: 'Acme', slug: 'acme', plan: { tier: 'team', interval: 'month', seats: 3, storageBlocks: 0, linkPacks: 0 },
+      displayName: 'Acme', slug: 'acme', plan: { tier: 'team', interval: 'month', seats: 3, storageBlocks: 0, linkPacks: 0, chatDocumentPacks: 0 },
       reservationToken: 'rt_cp', coupon: { code: 'LAUNCH10', preview: { kind: 'discount', percent_off: 10, duration: 'once' } },
     });
     renderFlow(contractFake(), '/create?tenant=acme&canceled=1');

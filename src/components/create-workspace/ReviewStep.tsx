@@ -93,6 +93,9 @@ export function ReviewStep({ displayName, slug, plan, coupon, onBack, onSubmit }
         {paid && q.sharedLinks > 0 && (
           <Row label="Extra secure links" value={`${q.sharedLinks.toLocaleString('en-US')}, shared by the workspace`} testId="review-link-packs" />
         )}
+        {paid && plan.chatDocumentPacks > 0 && (
+          <Row label="Chat documents" value={`${q.chatDocuments.toLocaleString('en-US')} in all, with ${plan.chatDocumentPacks} extra ${plan.chatDocumentPacks === 1 ? 'pack' : 'packs'}`} testId="review-chat-document-packs" />
+        )}
         {paid && coupon && <Row label="Code" value={`${coupon.code}: ${couponSummary(coupon.preview)}`} testId="review-coupon" words />}
         <Row label="Total" value={!paid ? 'Free' : priced.covered ? COVERED_BY_CODE : `${formatUsd(q.totalCents)} / ${per}`} testId="review-total" />
         {paid && !priced.covered && <Row label="Due today" value={formatUsd(priced.dueTodayCents)} testId="review-due-today" />}

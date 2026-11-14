@@ -34,6 +34,8 @@ export interface Tier {
   readonly prioritySupport: boolean;
   /** Live secure links each member may hold; packs add a pool the workspace shares. */
   readonly secureLinksPerMember: number;
+  /** Documents shared in chats the whole workspace may hold, every node's together; packs add more. */
+  readonly chatDocuments: number;
   /** Cents per seat for each interval, or `null` for the free tier. */
   readonly unitAmount: Readonly<Record<BillingInterval, number>> | null;
 }
@@ -48,6 +50,7 @@ export const TIERS: readonly Tier[] = [
     storage: { kind: 'total', gb: 1 },
     prioritySupport: false,
     secureLinksPerMember: 5,
+    chatDocuments: 50,
     unitAmount: null,
   },
   {
@@ -59,6 +62,7 @@ export const TIERS: readonly Tier[] = [
     storage: { kind: 'per-seat', gb: 10 },
     prioritySupport: false,
     secureLinksPerMember: 50,
+    chatDocuments: 1000,
     unitAmount: { month: 600, year: 6000 },
   },
   {
@@ -70,6 +74,7 @@ export const TIERS: readonly Tier[] = [
     storage: { kind: 'per-seat', gb: 25 },
     prioritySupport: true,
     secureLinksPerMember: 50,
+    chatDocuments: 10000,
     unitAmount: { month: 1200, year: 12000 },
   },
 ];
@@ -110,12 +115,29 @@ export const LINK_PACK_ADDON: LinkPackAddon = {
 /** The most packs the stepper offers. A UI bound only, like MAX_STORAGE_BLOCKS. */
 export const MAX_LINK_PACKS: number = 100;
 
+export interface ChatDocumentPackAddon {
+  readonly documentsPerPack: number;
+  readonly availableOn: readonly PaidTierId[];
+  readonly unitAmount: Readonly<Record<BillingInterval, number>>;
+}
+
+/** Chat-document packs: 5000 more documents shared in chats each; Business only. */
+export const CHAT_DOCUMENT_PACK_ADDON: ChatDocumentPackAddon = {
+  documentsPerPack: 5000,
+  availableOn: ['business'],
+  unitAmount: { month: 500, year: 5000 },
+};
+
+/** The most packs the stepper offers. A UI bound only, like MAX_STORAGE_BLOCKS. */
+export const MAX_CHAT_DOCUMENT_PACKS: number = 100;
+
 export interface PlanSelection {
   readonly tier: TierId;
   readonly interval: BillingInterval;
   readonly seats: number;
   readonly storageBlocks: number;
   readonly linkPacks: number;
+  readonly chatDocumentPacks: number;
 }
 
 export function tierById(id: TierId): Tier {
@@ -128,7 +150,7 @@ export function isPaid(id: TierId): id is PaidTierId {
   return tierById(id).unitAmount !== null;
 }
 
-/** Whether an add-on (`STORAGE_ADDON`, `LINK_PACK_ADDON`) is sold on `id`. */
+/** Whether an add-on (`STORAGE_ADDON`, `LINK_PACK_ADDON`, `CHAT_DOCUMENT_PACK_ADDON`) is sold on `id`. */
 export function addonOfferedOn(addon: { readonly availableOn: readonly PaidTierId[] }, id: TierId): boolean {
   return isPaid(id) && addon.availableOn.includes(id);
 }
@@ -155,20 +177,27 @@ export function clampLinkPacks(id: TierId, packs: number): number {
   return clampUnits(LINK_PACK_ADDON, id, packs, MAX_LINK_PACKS);
 }
 
+export function clampChatDocumentPacks(id: TierId, packs: number): number {
+  return clampUnits(CHAT_DOCUMENT_PACK_ADDON, id, packs, MAX_CHAT_DOCUMENT_PACKS);
+}
+
 export interface Quote {
   readonly seatsCents: number;
   readonly storageCents: number;
   readonly linkPacksCents: number;
+  readonly chatDocumentPacksCents: number;
   readonly totalCents: number;
   readonly storageGb: number;
   /** Links the packs add to the workspace's shared pool, beyond each member's own allowance. */
   readonly sharedLinks: number;
+  /** Documents shared in chats the workspace may hold: the tier's, plus what the packs add. */
+  readonly chatDocuments: number;
 }
 
 /**
  * What a selection costs per interval, in cents.
  *
- * Seats, storage blocks and link packs are clamped first, so the quote is always for a
+ * Seats, storage blocks and packs are clamped first, so the quote is always for a
  * selection that could actually be bought.
  */
 export function quote(selection: PlanSelection): Quote {
@@ -180,14 +209,18 @@ export function quote(selection: PlanSelection): Quote {
   const storageCents: number = blocks * STORAGE_ADDON.unitAmount[selection.interval];
   const packs: number = clampLinkPacks(tier.id, selection.linkPacks);
   const linkPacksCents: number = packs * LINK_PACK_ADDON.unitAmount[selection.interval];
+  const documentPacks: number = clampChatDocumentPacks(tier.id, selection.chatDocumentPacks);
+  const chatDocumentPacksCents: number = documentPacks * CHAT_DOCUMENT_PACK_ADDON.unitAmount[selection.interval];
   const baseGb: number = tier.storage.kind === 'total' ? tier.storage.gb : tier.storage.gb * seats;
   return {
     seatsCents,
     storageCents,
     linkPacksCents,
-    totalCents: seatsCents + storageCents + linkPacksCents,
+    chatDocumentPacksCents,
+    totalCents: seatsCents + storageCents + linkPacksCents + chatDocumentPacksCents,
     storageGb: baseGb + blocks * STORAGE_ADDON.gbPerBlock,
     sharedLinks: packs * LINK_PACK_ADDON.linksPerPack,
+    chatDocuments: tier.chatDocuments + documentPacks * CHAT_DOCUMENT_PACK_ADDON.documentsPerPack,
   };
 }
 

@@ -83,6 +83,7 @@ function isDraft(value: unknown): value is FlowDraft {
     typeof p.seats === 'number' &&
     typeof p.storageBlocks === 'number' &&
     typeof p.linkPacks === 'number' &&
+    typeof p.chatDocumentPacks === 'number' &&
     (draft.reservationToken === undefined || typeof draft.reservationToken === 'string')
   );
 }
@@ -106,15 +107,19 @@ export function couponForPlan(coupon: AppliedCoupon | undefined, before: PlanSel
   return same ? coupon : undefined;
 }
 
+/** The pack counts a plan states, each added by a later release than the draft may be from. */
+const PACK_FIELDS: readonly ('linkPacks' | 'chatDocumentPacks')[] = ['linkPacks', 'chatDocumentPacks'];
+
 /**
- * A draft saved before link packs were sold has no `linkPacks`: that visitor bought none. Upgraded
- * on read so a Checkout that spans the deploy does not come back to a blank form.
+ * A draft saved before a kind of pack was sold has no count of it: that visitor bought none.
+ * Upgraded on read so a Checkout that spans the deploy does not come back to a blank form.
  */
 function withLinkPacks(value: unknown): unknown {
   if (typeof value !== 'object' || value === null) return value;
   const plan: unknown = (value as { plan?: unknown }).plan;
-  if (typeof plan !== 'object' || plan === null || 'linkPacks' in plan) return value;
-  return { ...value, plan: { ...plan, linkPacks: 0 } };
+  if (typeof plan !== 'object' || plan === null) return value;
+  const missing: Record<string, number> = Object.fromEntries(PACK_FIELDS.filter((f) => !(f in plan)).map((f) => [f, 0]));
+  return Object.keys(missing).length === 0 ? value : { ...value, plan: { ...plan, ...missing } };
 }
 
 /**
@@ -150,4 +155,4 @@ export function clearDraft(): void {
  * A fresh plan: Free, so nothing is charged unless the visitor chooses to be.
  * The seat count is what a paid tier starts at when they switch to one.
  */
-export const INITIAL_PLAN: PlanSelection = { tier: 'free', interval: 'month', seats: 3, storageBlocks: 0, linkPacks: 0 };
+export const INITIAL_PLAN: PlanSelection = { tier: 'free', interval: 'month', seats: 3, storageBlocks: 0, linkPacks: 0, chatDocumentPacks: 0 };

@@ -35,7 +35,7 @@ const SELF: ChatSelf = { cid: 7n, username: 'ada', displayName: 'Ada Lovelace' }
 function chat(restriction: GroupRestriction): JSX.Element {
   return (
     <ConfirmDialogProvider>
-      <NodeChat nodeId="node-design" channelId={CHANNEL} channelName="Design" self={SELF} sendRestriction={restriction} rules="Be kind." members={null} />
+      <NodeChat nodeId="node-design" channelId={CHANNEL} channelName="Design" self={SELF} sendRestriction={restriction} rules="Be kind." members={null} managesSubscription={false} />
     </ConfirmDialogProvider>
   );
 }

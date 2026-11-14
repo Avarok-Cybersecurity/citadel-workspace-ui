@@ -19,10 +19,10 @@ export function appOpeningPorts(opener: () => Promise<ChatDocumentOpener>): Open
   };
 }
 
-/** A node channel's: its documents live on the workspace server, beside `nodeId`'s page. */
-export function nodeOpeningPorts(nodeId: string): OpeningPorts {
+/** A node channel's: its documents live on the workspace server, beside `nodeId`'s page. `managesSubscription`: whether the reader may buy packs. */
+export function nodeOpeningPorts(nodeId: string, managesSubscription: () => boolean): OpeningPorts {
   return appOpeningPorts((): Promise<ChatDocumentOpener> => import('@/components/documents/node-chat-document')
-    .then((m): ChatDocumentOpener => (request: ChatDocumentRequest): ChatDocument => m.openNodeChatDocument(nodeId, request)));
+    .then((m): ChatDocumentOpener => (request: ChatDocumentRequest): ChatDocument => m.openNodeChatDocument(nodeId, request, managesSubscription)));
 }
 
 /** A direct chat's: its documents are kept live with `peer` over the P2P channel. */

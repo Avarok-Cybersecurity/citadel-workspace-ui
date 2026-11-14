@@ -32,7 +32,7 @@ function fakePort(): { port: CouponPort; asked: Asked[] } {
   return { port, asked };
 }
 
-const TEAM: PlanSelection = { tier: 'team', interval: 'month', seats: 3, storageBlocks: 0, linkPacks: 0 };
+const TEAM: PlanSelection = { tier: 'team', interval: 'month', seats: 3, storageBlocks: 0, linkPacks: 0, chatDocumentPacks: 0 };
 const TEN_OFF: CouponPreviewAnswer = { ok: true, preview: { kind: 'discount', percent_off: 10, duration: 'once' } };
 
 /** The parent's half, as CreateWorkspace does it: it owns the plan and the applied coupon. */
@@ -96,7 +96,7 @@ describe('the coupon field', () => {
     typeAndApply('launch10');
     expect(state()).toBe('checking');
     expect(screen.getByTestId('coupon-apply')).toBeDisabled();
-    expect(asked.map((a) => a.request)).toEqual([{ code: 'LAUNCH10', tier: 'team', interval: 'month', seats: 3, storage_blocks: 0, link_packs: 0 }]);
+    expect(asked.map((a) => a.request)).toEqual([{ code: 'LAUNCH10', tier: 'team', interval: 'month', seats: 3, storage_blocks: 0, link_packs: 0, chat_document_packs: 0 }]);
     await act(async () => asked[0].answer(TEN_OFF));
     expect(state()).toBe('applied');
     expect(screen.getByTestId('coupon-preview-line')).toHaveTextContent('10% off the first payment');

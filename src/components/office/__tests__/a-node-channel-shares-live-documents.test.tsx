@@ -35,7 +35,7 @@ const SHARED_WITH: string = 'On the workspace server, shared live with everyone 
 async function open(): Promise<void> {
   render(
     <ConfirmDialogProvider>
-      <NodeChat nodeId="node-design" channelId={CHANNEL} channelName="Design" self={SELF} sendRestriction="allowed" rules={null} members={null} />
+      <NodeChat nodeId="node-design" channelId={CHANNEL} channelName="Design" self={SELF} sendRestriction="allowed" rules={null} members={null} managesSubscription={false} />
     </ConfirmDialogProvider>,
   );
   await screen.findByText('Morning all');

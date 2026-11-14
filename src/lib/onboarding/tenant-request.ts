@@ -7,7 +7,7 @@ import type { CreateTenantRequest } from './control-plane-client';
 import type { CouponPreviewRequest } from './coupon-preview';
 import type { FlowDraft } from './create-flow';
 import { SHOWN_CUSTOMER_TERMS_VERSION } from '@/lib/terms/customer-terms';
-import { clampLinkPacks, clampSeats, clampStorageBlocks, isPaid, type BillingInterval, type PaidTierId, type PlanSelection } from './tiers';
+import { clampChatDocumentPacks, clampLinkPacks, clampSeats, clampStorageBlocks, isPaid, type BillingInterval, type PaidTierId, type PlanSelection } from './tiers';
 
 interface PaidPlanFields {
   readonly tier: PaidTierId;
@@ -15,6 +15,7 @@ interface PaidPlanFields {
   readonly seats: number;
   readonly storage_blocks: number;
   readonly link_packs: number;
+  readonly chat_document_packs: number;
 }
 
 /** The plan as the control plane reads it, or undefined on the free tier, which takes none of it. */
@@ -27,6 +28,7 @@ function paidPlanFields(plan: PlanSelection): PaidPlanFields | undefined {
     seats: clampSeats(tier, plan.seats),
     storage_blocks: clampStorageBlocks(tier, plan.storageBlocks),
     link_packs: clampLinkPacks(tier, plan.linkPacks),
+    chat_document_packs: clampChatDocumentPacks(tier, plan.chatDocumentPacks),
   };
 }
 

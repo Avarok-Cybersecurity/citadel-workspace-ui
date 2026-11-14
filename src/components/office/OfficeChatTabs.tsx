@@ -7,7 +7,7 @@ import type { ChatSelf } from '@/lib/chat/transport/chat-transport';
 import { GroupCallControls } from '@/components/call/GroupCallControls';
 import type { RoomCallRoster } from '@/lib/call/callable-members';
 import { usePermission } from '@/hooks/use-permission';
-import { permits } from '@/hooks/use-permission-result';
+import { confirms, permits } from '@/hooks/use-permission-result';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 import { debugLog } from '@/lib/debug-config';
 import type { GroupRestriction } from '@/components/chat/group-restriction';
@@ -62,6 +62,8 @@ export function OfficeChatTabs({
   // Office chat is governed by the workspace permission system, not by group
   // roles, so its only two answers are the permission's.
   const send: ReturnType<typeof usePermission> = usePermission(nodeId, Permission.SendMessages);
+  // Who may buy chat-document packs, as the share panel decides who may buy link packs.
+  const managesSubscription: boolean = confirms(usePermission(WORKSPACE_ROOT_ID, Permission.ManageRoles));
 
   // `permits`, not `allowed`: four states are not the answer "no", and this
   // site had three of them. See hooks/use-permission-result.ts.
@@ -131,7 +133,7 @@ export function OfficeChatTabs({
         </TabsContent>
 
         <TabsContent value="chat" className="mt-0 flex-1 overflow-hidden">
-          <NodeChat nodeId={nodeId ?? WORKSPACE_ROOT_ID} channelId={chatChannelId} channelName={roomName} self={self} sendRestriction={sendRestriction} rules={rules} members={members} />
+          <NodeChat nodeId={nodeId ?? WORKSPACE_ROOT_ID} channelId={chatChannelId} channelName={roomName} self={self} sendRestriction={sendRestriction} rules={rules} members={members} managesSubscription={managesSubscription} />
         </TabsContent>
       </Tabs>
     </div>
