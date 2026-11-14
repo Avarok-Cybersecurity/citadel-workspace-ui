@@ -16,6 +16,7 @@ import { deliverSend, stopStaging } from './deliver-send';
 import { buildTransferAnnouncement } from './transfer-announcement';
 import { showOwnOffer } from './send-transfer-request';
 import { browserSendRefusal } from './staged-upload/send-route';
+import { rememberSentPicture } from '@/lib/received-files/sent-pictures';
 
 export interface LifecycleDeps {
   state: FileTransferState;
@@ -80,6 +81,7 @@ export async function sendFile(
   }
 
   const transferId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
+  rememberSentPicture(transferId, file);
   const expiresAt: number = Date.now() + FILE_TRANSFER_REQUEST_TTL_MS;
 
   const transfer: FileTransfer = {

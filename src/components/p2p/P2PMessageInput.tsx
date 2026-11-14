@@ -110,6 +110,7 @@ export const P2PMessageInput: React.ForwardRefExoticComponent<P2PMessageInputPro
               disabled={paused || awaitingAcceptFrom !== null}
               className="text-muted-foreground hover:text-foreground hover:bg-foreground/10"
               aria-label="Send file"
+              data-testid="p2p-send-file"
               title={paused ? PAUSE_COPY.fileReason : 'Send file'}
             >
               <Paperclip className="h-4 w-4" />
