@@ -18,8 +18,16 @@ import type { FanOutFailure } from '@/lib/calendar/fan-out';
 import { NativeSelect } from './NativeSelect';
 import { PropagationFields, type NamedNode } from './PropagationFields';
 
+/** An event being changed: its form read back (event-edit.ts) and the store it stays in. */
+export interface Editing {
+  readonly draft: EventDraft;
+  readonly kept: 'node' | 'authored' | 'private';
+}
+
 interface EventEditorProps {
   date: CivilDate;
+  /** Null for a new event. */
+  editing: Editing | null;
   node: { id: string; name: string };
   /** The pages above this one, nearest first, that an event can also be shown on. */
   above: readonly NamedNode[];
@@ -56,12 +64,14 @@ function MissedPages({ missed, nodeName, onDone }: { missed: readonly FanOutFail
   );
 }
 
-export function EventEditor({ date, node, above, nodeName, me, displayZone, engine, newId, nowMs, onSave, onClose }: EventEditorProps): JSX.Element {
+export function EventEditor({ date, editing, node, above, nodeName, me, displayZone, engine, newId, nowMs, onSave, onClose }: EventEditorProps): JSX.Element {
   const base: string = useId();
   const title = useRef<HTMLInputElement>(null);
-  const [draft, setDraft] = useState<EventDraft>({
+  const [draft, setDraft] = useState<EventDraft>(editing?.draft ?? {
     title: '', notes: '', date, allDay: false, start: '09:00', end: '10:00', location: { kind: 'in_app' }, visibility: 'public', destination: 'authored', down: false, upTo: null,
   });
+  // An edit keeps the event where it is stored: a private event stays private, a shared one shared.
+  const choices = editing === null ? VISIBILITY : editing.kept === 'private' ? [] : VISIBILITY.filter((v) => v.value !== 'private');
   const [errors, setErrors] = useState<ReadonlyMap<string, string>>(new Map());
   const [saving, setSaving] = useState<boolean>(false);
   const [failed, setFailed] = useState<string | null>(null);
@@ -90,7 +100,7 @@ export function EventEditor({ date, node, above, nodeName, me, displayZone, engi
   };
 
   return (
-    <form onSubmit={(e): void => { void save(e); }} className="flex min-w-0 flex-col gap-3 rounded-md border border-border p-3" aria-label="New event" data-testid="calendar-event-editor">
+    <form onSubmit={(e): void => { void save(e); }} className="flex min-w-0 flex-col gap-3 rounded-md border border-border p-3" aria-label={editing === null ? 'New event' : 'Edit event'} data-testid="calendar-event-editor">
       <div className="flex min-w-0 flex-col gap-1">
         <label htmlFor={`${base}-title`} className="text-sm font-medium text-foreground">Title</label>
         <Input id={`${base}-title`} ref={title} className="h-[44px]" value={draft.title} onChange={(e): void => set({ title: e.target.value })} {...aria('title')} />
@@ -136,16 +146,16 @@ export function EventEditor({ date, node, above, nodeName, me, displayZone, engi
         )}
         <FieldError id={`${base}-location-error`} text={errors.get('location')} />
       </div>
-      <fieldset className="flex min-w-0 flex-col gap-2">
+      {choices.length > 0 && <fieldset className="flex min-w-0 flex-col gap-2">
         <legend className="mb-1 text-sm font-semibold text-foreground">Who sees it</legend>
-        {VISIBILITY.map((v) => (
+        {choices.map((v) => (
           <label key={v.value} className={OPTION}>
             <input type="radio" name={`${base}-vis`} className="h-4 w-4 accent-primary" checked={draft.visibility === v.value} onChange={(): void => set({ visibility: v.value })} />
             {v.label}
           </label>
         ))}
-      </fieldset>
-      {draft.visibility !== 'private' && (
+      </fieldset>}
+      {draft.visibility !== 'private' && editing === null && (
         <fieldset className="flex min-w-0 flex-col gap-2">
           <legend className="mb-1 text-sm font-semibold text-foreground">Post it as</legend>
           <label className={OPTION}>
@@ -169,7 +179,7 @@ export function EventEditor({ date, node, above, nodeName, me, displayZone, engi
         <MissedPages missed={missed} nodeName={nodeName} onDone={onClose} />
       ) : (
         <div className="flex flex-wrap gap-2">
-          <Button type="submit" className="h-[44px]" disabled={saving}>{saving ? 'Saving…' : 'Save event'}</Button>
+          <Button type="submit" className="h-[44px]" disabled={saving}>{saving ? 'Saving…' : editing === null ? 'Save event' : 'Save changes'}</Button>
           <Button type="button" variant="outline" className="h-[44px]" onClick={onClose}>Cancel</Button>
         </div>
       )}

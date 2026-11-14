@@ -14,11 +14,13 @@ import type { BookingChoice, BookOutcome } from '@/lib/calendar/booking-form';
 import { book as claim, bookingOf, bookingRole, cancelAsBooker, requestBooking, type BookingRole } from '@/lib/calendar/booking';
 import type { CalendarEngine } from '@/lib/calendar/engine/calendar-engine';
 import type { EventCheck } from '@/lib/calendar/event-draft';
+import { cancelEvent, saveRevision } from '@/lib/calendar/event-change';
+import { changeableBy, draftOf } from '@/lib/calendar/event-edit';
 import { saveEvent as save, type SaveOutcome } from '@/lib/calendar/event-save';
 import type { CivilDate } from '@/lib/calendar/generated/CivilDate';
 import type { Chip } from '@/lib/calendar/placement';
 import { PortRefused, refusalCopy, type CalendarPorts } from '@/lib/calendar/ports';
-import { calendarReducer, initialCalendar, type CalendarState } from '@/lib/calendar/store';
+import { calendarReducer, initialCalendar, type CalendarState, type EventEntry } from '@/lib/calendar/store';
 import { useCalendarSources } from '@/lib/calendar/use-calendar-sources';
 import { nodeZone } from '@/lib/calendar/zones';
 import { BookingSetup } from './BookingSetup';
@@ -43,14 +45,16 @@ export interface CalendarPaneProps {
   deviceZone: string;
   /** What the install holds for this member: which booking planes it may serve and call on. */
   held: ReadonlySet<Capability>;
+  /** Whether the member holds `EditMdx` on this node: who may change its own events. */
+  mayEditNode: boolean;
 }
 
-type Panel = { kind: 'none' } | { kind: 'new'; date: CivilDate } | { kind: 'setup' } | { kind: 'book' };
+type Panel = { kind: 'none' } | { kind: 'new'; date: CivilDate } | { kind: 'edit'; entry: EventEntry } | { kind: 'setup' } | { kind: 'book' };
 
 const newId = (): string => crypto.randomUUID();
 const reasonOf = (e: unknown): string => (e instanceof PortRefused ? refusalCopy(e.refused) : 'something went wrong');
 
-export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZone, held }: CalendarPaneProps): JSX.Element {
+export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZone, held, mayEditNode }: CalendarPaneProps): JSX.Element {
   const { state: ws } = useWorkspace();
   const now = useMinuteClock(engine, displayZone);
   const nowMs: bigint = useMemo(() => engine.instantOf(displayZone, now), [engine, displayZone, now]);
@@ -76,7 +80,9 @@ export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZon
   };
 
   const openEntry = open === null ? undefined : state.entries.get(open.entryKey);
-  const openEvent = openEntry === undefined || openEntry.source === 'inherited' ? null : openEntry.event;
+  const openOwn: EventEntry | null = openEntry === undefined || openEntry.source === 'inherited' ? null : openEntry;
+  const openEvent = openOwn === null ? null : openOwn.event;
+  const changeable: EventEntry | null = openOwn !== null && changeableBy(openOwn, me, mayEditNode) ? openOwn : null;
   const role: BookingRole | null = openEvent === null ? null : bookingRole(openEvent, me);
   const cancelOpen = async (reason: string | null): Promise<string | null> => {
     if (role === null || openEvent === null) return 'this is not a booking you can cancel';
@@ -91,6 +97,10 @@ export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZon
       return reasonOf(e);
     }
   };
+  const cancelBooking = async (reason: string | null): Promise<string | null> => {
+    const failed: string | null = await cancelOpen(reason);
+    return failed === null ? null : `The booking was not cancelled: ${failed}.`;
+  };
 
   return (
     <div className="flex min-w-0 flex-col gap-3 p-[16px]" data-testid="calendar-pane">
@@ -100,23 +110,30 @@ export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZon
           <Button variant="outline" className="h-[44px]" onClick={(): void => setPanel({ kind: 'setup' })}>Your booking page</Button>
         </div>
       )}
-      {panel.kind !== 'none' && panel.kind !== 'new' && (
+      {panel.kind !== 'none' && panel.kind !== 'new' && panel.kind !== 'edit' && (
         <Button variant="ghost" className="h-[44px] self-start" onClick={close}>
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           <span>Back to the calendar</span>
         </Button>
       )}
       {panel.kind === 'new' && (
-        <EventEditor date={panel.date} node={node} above={above} nodeName={nodeName} me={me} displayZone={displayZone} engine={engine} newId={newId} nowMs={(): bigint => BigInt(Date.now())} onSave={saveEvent} onClose={close} />
+        <EventEditor date={panel.date} editing={null} node={node} above={above} nodeName={nodeName} me={me} displayZone={displayZone} engine={engine} newId={newId} nowMs={(): bigint => BigInt(Date.now())} onSave={saveEvent} onClose={close} />
+      )}
+      {panel.kind === 'edit' && (
+        <EventEditor key={panel.entry.key} date={now.date} editing={{ draft: draftOf(panel.entry.event, displayZone, engine, panel.entry.source), kept: panel.entry.source === 'node' ? 'node' : panel.entry.source === 'private' ? 'private' : 'authored' }}
+          node={node} above={above} nodeName={nodeName} me={me} displayZone={displayZone} engine={engine} newId={(): string => panel.entry.event.id} nowMs={(): bigint => BigInt(Date.now())}
+          onSave={(checked, progress): Promise<SaveOutcome> => saveRevision(ports, engine, panel.entry, checked, progress)} onClose={(): void => { setOpen(null); close(); }} />
       )}
       {panel.kind === 'setup' && <BookingSetup ports={ports} engine={engine} node={node} me={me} displayZone={displayZone} deviceZone={deviceZone} today={now.date} origin={window.location.origin} newId={newId} />}
       {panel.kind === 'book' && (
         <BookWith ports={ports} engine={engine} node={node} me={me} entries={state.entries} displayZone={displayZone} deviceZone={deviceZone}
           today={now.date} nowMs={nowMs} initial={linked === null ? null : { host: linked.host, typeId: linked.typeId }} onBook={book} />
       )}
-      {(panel.kind === 'none' || panel.kind === 'new') && (
+      {(panel.kind === 'none' || panel.kind === 'new' || panel.kind === 'edit') && (
         <>
-          {open !== null && <EventDetails chip={open} displayZone={displayZone} nodeName={nodeName} onClose={(): void => setOpen(null)} onCancelBooking={role === null ? null : cancelOpen} />}
+          {open !== null && panel.kind !== 'edit' && <EventDetails chip={open} displayZone={displayZone} nodeName={nodeName} onClose={(): void => setOpen(null)} onCancelBooking={role === null ? null : cancelBooking}
+            onEdit={changeable === null ? null : (): void => setPanel({ kind: 'edit', entry: changeable })}
+            onCancelEvent={changeable === null ? null : (reason: string | null): Promise<string | null> => cancelEvent(ports, engine, changeable, me, reason, BigInt(Date.now()), nodeName)} />}
           <CalendarTab
             state={state} dispatch={dispatch} engine={engine} viewer={me} displayZone={displayZone}
             node={{ ...node, zone }} nodeName={nodeName} now={now} onOpenChip={setOpen}

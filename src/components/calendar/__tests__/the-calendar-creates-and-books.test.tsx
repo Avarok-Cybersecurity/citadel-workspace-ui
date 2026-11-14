@@ -33,7 +33,7 @@ const authored = (author: string): KvBackend => ({ node_authored: { node_id: 'n1
 
 function signedIn(me: string, store: MemoryStore = new MemoryStore(me)): MemoryStore {
   store.put('user', SETTINGS_KEY, encodeSettings({ displayZone: { kind: 'fixed', zone: 'America/New_York' } }));
-  mountCalendar(mountRig(me, store).glue, me);
+  mountCalendar(mountRig(me, store).glue, me, false);
   return store;
 }
 

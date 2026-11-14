@@ -25,7 +25,7 @@ async function mounted(page, url, viewport) {
   return width;
 }
 
-async function fitsAndReads(page, width, what) {
+export async function fitsAndReads(page, width, what) {
   await settled(page);
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   assert.ok(overflow <= 0, `${what}: the page scrolls sideways by ${overflow}px`);

@@ -28,6 +28,11 @@ export interface GlueTabProps {
   readonly nodeId: string;
   readonly me: string;
   readonly tabId: string;
+  /**
+   * Whether to offer the member changes to what the node itself holds: `EditMdx` on the node, or
+   * not yet known (`permits`), since the kernel refuses a write the member may not make.
+   */
+  readonly mayEditNode: boolean;
 }
 
 export type GlueTabLoader = () => Promise<ComponentType<GlueTabProps>>;

@@ -1,7 +1,7 @@
 /**
  * What one event is, opened from its chip: in the page's flow above the grid, never a card over
  * the event it describes, with every fact in words (chip-label.ts). A booking its reader hosts or
- * booked can be cancelled from here.
+ * booked can be cancelled from here; an event they may change (event-edit.ts) edited or cancelled.
  */
 import { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
@@ -18,9 +18,12 @@ interface EventDetailsProps {
   onClose: () => void;
   /** Null unless the reader hosts or booked this booking and it is not cancelled. */
   onCancelBooking: ((reason: string | null) => Promise<string | null>) | null;
+  /** Both null unless the reader may change this event (`changeableBy`). */
+  onEdit: (() => void) | null;
+  onCancelEvent: ((reason: string | null) => Promise<string | null>) | null;
 }
 
-export function EventDetails({ chip, displayZone, nodeName, onClose, onCancelBooking }: EventDetailsProps): JSX.Element {
+export function EventDetails({ chip, displayZone, nodeName, onClose, onCancelBooking, onEdit, onCancelEvent }: EventDetailsProps): JSX.Element {
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => { heading.current?.focus(); }, [chip.id]);
   const words: ChipWords = chipWords(chip, displayZone, nodeName);
@@ -33,7 +36,9 @@ export function EventDetails({ chip, displayZone, nodeName, onClose, onCancelBoo
         <p className="text-sm text-muted-foreground">{when}{words.badge !== null ? ` (made in ${words.badge})` : ''}</p>
         {words.from !== null && <p className="text-sm text-muted-foreground">{words.from}</p>}
         {words.cancelled && <p className="text-sm font-medium text-foreground">Cancelled</p>}
-        {onCancelBooking !== null && <CancelBooking key={chip.id} onCancel={onCancelBooking} />}
+        {onCancelBooking !== null && <CancelBooking key={chip.id} noun="booking" onCancel={onCancelBooking} />}
+        {onEdit !== null && <Button type="button" variant="outline" className="mt-2 h-[44px]" onClick={onEdit}>Edit event</Button>}
+        {onCancelEvent !== null && <CancelBooking key={`${chip.id}-event`} noun="event" onCancel={onCancelEvent} />}
       </div>
       <Button variant="ghost" size="icon" className="h-[44px] w-[44px] shrink-0" aria-label="Close event details" onClick={onClose}>
         <X className="h-4 w-4" aria-hidden="true" />

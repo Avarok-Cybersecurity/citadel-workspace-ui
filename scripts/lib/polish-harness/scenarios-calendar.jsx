@@ -84,7 +84,7 @@ function MountedCalendar({ engine }) {
   return (
     <WorkspaceContext.Provider value={{ state }}>
       <main className="mx-auto max-w-6xl">
-        <CalendarMount glue={glue} install={{}} manifest={{ name: 'Calendar' }} nodeId="n1" me={VIEWER} tabId="calendar" />
+        <CalendarMount glue={glue} install={{}} manifest={{ name: 'Calendar' }} nodeId="n1" me={VIEWER} tabId="calendar" mayEditNode={false} />
       </main>
     </WorkspaceContext.Provider>
   );

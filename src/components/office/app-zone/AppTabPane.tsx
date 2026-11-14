@@ -10,6 +10,9 @@ import { useCallback, useContext, useEffect, useState, type ComponentType } from
 import type { AppInstall } from 'citadel-workspace-client-ts';
 import type { CloseReason } from '@/lib/citadel-apps/sdk/generated/CloseReason';
 import { glueTab, mountFor, type GlueTabLoader, type GlueTabProps } from '@/lib/citadel-apps/first-party/registry';
+import { usePermission } from '@/hooks/use-permission';
+import { permits } from '@/hooks/use-permission-result';
+import { Permission } from '@/contexts/PermissionsContext';
 import { AppZoneContext, type AppTabMount, type AppZoneEnvironment, type AppZoneHandle, type AppZoneRuntime, type ZoneHost } from './app-zone-environment';
 import { useGlueBinding, type GlueBinding } from './use-glue-binding';
 import { AppZoneRequired, type PlaceholderView } from './AppZoneRequired';
@@ -52,7 +55,8 @@ function TabRuntimeHost({ runtime, view, reasonFor, tabId, nodeId, me }: TabRunt
 
 function GlueTabHost({ runtime, load, tab }: { runtime: AppZoneRuntime; load: GlueTabLoader; tab: AppTabMount }): JSX.Element {
   const binding: GlueBinding = useGlueBinding(runtime, tab);
-  const props: Omit<GlueTabProps, 'glue'> = tab;
+  const props: Omit<GlueTabProps, 'glue' | 'mayEditNode'> = tab;
+  const edit: ReturnType<typeof usePermission> = usePermission(tab.nodeId, Permission.EditMdx);
   const [loaded, setLoaded] = useState<{ Tab: ComponentType<GlueTabProps> } | 'loading' | 'failed'>('loading');
   useEffect(() => {
     let live: boolean = true;
@@ -67,7 +71,7 @@ function GlueTabHost({ runtime, load, tab }: { runtime: AppZoneRuntime; load: Gl
   if (loaded === 'failed') return <p role="alert" className="m-[16px] text-sm text-destructive-emphasis">{props.manifest.name} could not be loaded. Reload the page to try again.</p>;
   return (
     <div className="flex min-h-0 w-full flex-1 flex-col" data-testid="app-tab-pane" data-app-id={props.manifest.id}>
-      <loaded.Tab {...props} glue={binding.instance} />
+      <loaded.Tab {...props} glue={binding.instance} mayEditNode={permits(edit)} />
     </div>
   );
 }

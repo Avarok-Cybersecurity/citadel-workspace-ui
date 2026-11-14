@@ -41,11 +41,12 @@ export function mountRig(me: string, store: MemoryStore = new MemoryStore(me), e
   return { store, glue, change: (c: StorageChange): void => { for (const l of listeners) l(c); } };
 }
 
-export function mountCalendar(glue: GlueInstance, me: string): void {
+/** `mayEditNode`: whether `me` holds EditMdx on n1, as the tab host reads it from the member's permissions. */
+export function mountCalendar(glue: GlueInstance, me: string, mayEditNode: boolean): void {
   const state = { nodes: { n1: NODE }, members: {}, workspace: { metadata: [] } } as unknown as WorkspaceState;
   render(
     <WorkspaceContext.Provider value={{ state }}>
-      <CalendarMount glue={glue} install={{} as AppInstall} manifest={{ name: 'Calendar' } as AppManifest} nodeId="n1" me={me} tabId="calendar" />
+      <CalendarMount glue={glue} install={{} as AppInstall} manifest={{ name: 'Calendar' } as AppManifest} nodeId="n1" me={me} tabId="calendar" mayEditNode={mayEditNode} />
     </WorkspaceContext.Provider>,
   );
 }

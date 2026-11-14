@@ -28,7 +28,7 @@ vi.mock('@/lib/calendar/engine/load-calendar-wasm', async () => {
 
 const engine = realEngine();
 const rig = (): MountRig => mountRig('amy');
-const mount = (glue: GlueInstance): void => mountCalendar(glue, 'amy');
+const mount = (glue: GlueInstance): void => mountCalendar(glue, 'amy', false);
 
 const chipTitles = (): string[] => screen.queryAllByTestId('calendar-event-chip').map((c) => (c.getAttribute('aria-label') ?? '').split(',')[0] as string);
 

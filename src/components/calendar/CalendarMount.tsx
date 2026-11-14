@@ -21,7 +21,7 @@ function Status({ children, alert = false }: { children: React.ReactNode; alert?
   return <p role={alert ? 'alert' : 'status'} className={`m-[16px] text-sm ${alert ? 'text-destructive-emphasis' : 'text-muted-foreground'}`}>{children}</p>;
 }
 
-export function CalendarMount({ glue, nodeId, me }: GlueTabProps): JSX.Element {
+export function CalendarMount({ glue, nodeId, me, mayEditNode }: GlueTabProps): JSX.Element {
   const ports: CalendarPorts = useMemo(() => calendarPorts(glue), [glue]);
   const [loaded, setLoaded] = useState<EngineState>({ kind: 'loading' });
   useEffect(() => {
@@ -41,5 +41,5 @@ export function CalendarMount({ glue, nodeId, me }: GlueTabProps): JSX.Element {
   if (settings.kind === 'absent') {
     return <ZoneQuestion deviceZone={deviceZone} saving={settings.saving} error={settings.error} onChoose={(choice: DisplayZoneChoice): void => settings.choose(choice)} />;
   }
-  return <CalendarPane ports={ports} engine={loaded.engine} nodeId={nodeId} me={me} displayZone={displayZoneOf(settings.settings.displayZone, deviceZone)} deviceZone={deviceZone} held={glue.held} />;
+  return <CalendarPane ports={ports} engine={loaded.engine} nodeId={nodeId} me={me} displayZone={displayZoneOf(settings.settings.displayZone, deviceZone)} deviceZone={deviceZone} held={glue.held} mayEditNode={mayEditNode} />;
 }

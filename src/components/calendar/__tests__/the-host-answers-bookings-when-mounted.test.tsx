@@ -47,7 +47,7 @@ function anaOffersIntro(shared: Map<string, Uint8Array>): void {
 function signedIn(me: string, shared: Map<string, Uint8Array>, relay: IhttpRelay): void {
   const store: MemoryStore = new MemoryStore(me, shared);
   store.put('user', SETTINGS_KEY, encodeSettings({ displayZone: { kind: 'fixed', zone: 'America/New_York' } }));
-  mountCalendar(mountRig(me, store, { ihttp: relay.port(me), held: IHTTP }).glue, me);
+  mountCalendar(mountRig(me, store, { ihttp: relay.port(me), held: IHTTP }).glue, me, false);
 }
 
 beforeEach((): void => {
@@ -80,7 +80,7 @@ describe("the host's Calendar", () => {
     const bob: MemoryStore = new MemoryStore('bob', shared);
     bob.put('user', SETTINGS_KEY, encodeSettings({ displayZone: { kind: 'fixed', zone: 'America/New_York' } }));
     window.history.replaceState(null, '', '/workspace?nodeId=n1&tab=app%3Anet.avarok.calendar&book=ana');
-    mountCalendar(mountRig('bob', bob, { ihttp: relay.port('bob'), held: IHTTP }).glue, 'bob');
+    mountCalendar(mountRig('bob', bob, { ihttp: relay.port('bob'), held: IHTTP }).glue, 'bob', false);
     const page = within(await screen.findByTestId('calendar-booking-page'));
     const day: RegExp = new RegExp(`^${formatDayLong({ y: 2024, m: 7, d: 17 })},`);
     fireEvent.click(page.getByRole('button', { name: day }));
@@ -116,7 +116,7 @@ describe("the host's Calendar", () => {
     bob.put('user', SETTINGS_KEY, encodeSettings({ displayZone: { kind: 'fixed', zone: 'America/New_York' } }));
     const own = engine.decodeEvent(shared.get('authored:n1:ana|cal/event/k1') as Uint8Array);
     bob.put('user', 'cal/private/k1', engine.encodeEvent({ ...own, author: 'bob', hosts: ['ana'], visibility: 'private', title: 'Intro call with ana' }));
-    mountCalendar(mountRig('bob', bob, { ihttp: relay.port('bob'), held: IHTTP }).glue, 'bob');
+    mountCalendar(mountRig('bob', bob, { ihttp: relay.port('bob'), held: IHTTP }).glue, 'bob', false);
     const chips = await screen.findAllByRole('button', { name: /^Intro call with ana/ });
     fireEvent.click(chips[0] as HTMLElement);
     fireEvent.change(screen.getByLabelText('Reason (optional)'), { target: { value: 'clash' } });
