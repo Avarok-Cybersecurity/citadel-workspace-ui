@@ -62,7 +62,7 @@ async function fileManager(treeEvents: boolean): Promise<{ current: UseFileManag
   io.execute = async (i: RevfsIntent): Promise<RevfsIntentResult> =>
     i.type === 'backend-send-file' ? { type: 'backend-send-file', success: true } : real(i);
   vi.spyOn(fileTransferService, 'getSettings').mockReturnValue({
-    autoAccept: false, maxFileSize: 1e9, allowRevfsStorage: true, revfsQuota: 100e6,
+    autoAccept: false, autoAcceptAnswered: false, maxFileSize: 1e9, allowRevfsStorage: true, revfsQuota: 100e6,
   });
   if (!treeEvents) vi.spyOn(revfsService, 'onTreeChanged').mockReturnValue((): void => {});
   // Bob's storage, by address: the file manager no longer picks a peer itself.

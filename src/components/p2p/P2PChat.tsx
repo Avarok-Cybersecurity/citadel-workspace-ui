@@ -241,7 +241,7 @@ export function P2PChat({
       </div>
 
       <LiveDocumentModal isOpen={showDocModal} onClose={closeDocModal} onCreateDocument={handleDocCreate} initialContent={inputMessage} />
-      <ChatFileDialogs send={fileSend} peerCid={peerCid} />
+      <ChatFileDialogs send={fileSend} peerCid={peerCid} peerName={peerName} />
       <ChatSettingsPanel isOpen={showSettingsModal} onClose={() => setShowSettingsModal(false)} peerCid={peerCid.toString()} peerName={peerName} />
     </ChatDropTarget>
   );

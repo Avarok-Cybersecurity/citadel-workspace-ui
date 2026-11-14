@@ -18,6 +18,7 @@ export function useChatSettings(isOpen: boolean, peerCid: string): { stats: { me
   const [activeFileTab, setActiveFileTab] = useState('standard');
   const [settings, setSettings] = useState<FileTransferSettings>({
     autoAccept: false,
+    autoAcceptAnswered: false,
     maxFileSize: FILE_TRANSFER_DEFAULT_MAX_SIZE_BYTES,
     allowRevfsStorage: false,
     revfsQuota: REVFS_DEFAULT_QUOTA_BYTES,

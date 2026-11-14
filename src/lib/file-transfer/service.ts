@@ -122,7 +122,7 @@ export class FileTransferService {
     await this.saveSettings(key_, settings);
   }
 
-  async setAutoAccept(peerCid: string, enabled: boolean): Promise<void> { return this.updateSetting(peerCid, 'autoAccept', enabled); }
+  async setAutoAccept(peerCid: string, enabled: boolean): Promise<void> { await this.updateSetting(peerCid, 'autoAcceptAnswered', true); return this.updateSetting(peerCid, 'autoAccept', enabled); }
   async setMaxFileSize(peerCid: string, maxBytes: number): Promise<void> { return this.updateSetting(peerCid, 'maxFileSize', maxBytes); }
   async setAllowRevfsStorage(peerCid: string, allowed: boolean): Promise<void> { return this.updateSetting(peerCid, 'allowRevfsStorage', allowed); }
   async setRevfsQuota(peerCid: string, quotaBytes: number): Promise<void> { return this.updateSetting(peerCid, 'revfsQuota', quotaBytes); }

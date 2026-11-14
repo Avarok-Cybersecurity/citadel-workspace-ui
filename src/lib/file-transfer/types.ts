@@ -32,6 +32,8 @@ export interface FileTransfer {
 
 export interface FileTransferSettings {
   autoAccept: boolean;
+  /** The person has decided autoAccept, here or when first asked (always-accept.ts). */
+  autoAcceptAnswered: boolean;
   maxFileSize: number;
   // RE-VFS settings
   allowRevfsStorage: boolean;
