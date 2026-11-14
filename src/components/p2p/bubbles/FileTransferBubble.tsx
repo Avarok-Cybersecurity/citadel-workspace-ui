@@ -23,7 +23,7 @@ import type { TransferView } from '@/lib/file-transfer/transfer-view';
  * States (receiver view):
  * - pending: Accept/Decline buttons
  * - transferring: "Downloading..." + progress bar
- * - complete: "Downloaded" (clickable to open)
+ * - complete: "Downloaded" (clickable: the browser downloads the original)
  * - declined: "You declined this file"
  * - cancelled: "Sender cancelled transfer"
  */
@@ -200,7 +200,7 @@ export function FileTransferBubble({
 
         {/* Click hint for completed downloads */}
         {status.clickable && (
-          <p className="text-xs mt-1">Click to see where it was saved</p>
+          <p className="text-xs mt-1">Click to download</p>
         )}
       </div>
 

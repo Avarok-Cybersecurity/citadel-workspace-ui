@@ -8,7 +8,7 @@ export function ChatFileDialogs({ send, peerCid }: { send: ChatFileSend; peerCid
   return (
     <>
       <FileTransferModal isOpen={send.dialogOpen} onClose={send.closeDialog} onSendFile={fileTransfer.handleSendFile} peerCid={peerCid.toString()} />
-      <FilePreviewDialog file={fileTransfer.openedFile} isOpen={fileTransfer.openedFile !== null} onClose={fileTransfer.closeOpenedFile} />
+      <FilePreviewDialog file={fileTransfer.openedFile} isOpen={fileTransfer.openedFile !== null} onClose={fileTransfer.closeOpenedFile} failure={fileTransfer.openFailure} />
     </>
   );
 }

@@ -12,6 +12,8 @@ import { failureDescription } from '@/lib/p2p/peer-failure-detail';
 import { fileTransferService } from '@/lib/file-transfer';
 import { useToast } from '@/hooks/use-toast';
 import { debugLog } from '@/lib/debug-config';
+import { openReceivedFile, type ReceivedFileRead } from '@/lib/received-files/received-file';
+import { browserReceivedFileIO } from '@/lib/received-files/received-file-io';
 
 interface UseP2PFileTransferProps {
   peerCid: bigint;
@@ -24,8 +26,10 @@ interface UseP2PFileTransferReturn {
   handleDeclineTransfer: (transferId: string) => Promise<void>;
   handleCancelTransfer: (transferId: string) => Promise<void>;
   handleOpenFile: (transferId: string) => void;
-  /** The received file whose details are showing, or null. */
+  /** The received file whose details are showing, because it could not be opened; or null. */
   openedFile: FileDetails | null;
+  /** Why `openedFile` could not be downloaded. */
+  openFailure: string | null;
   closeOpenedFile: () => void;
 }
 
@@ -99,19 +103,25 @@ export function useP2PFileTransfer({
   }, [toast]);
 
   const [openedFile, setOpenedFile] = useState<FileDetails | null>(null);
+  const [openFailure, setOpenFailure] = useState<string | null>(null);
 
-  // The same details the sidebar's Files list shows. The file is on the
-  // agent's own filesystem and the browser has no route to it (see
-  // FilePreviewDialog), so what arrived and where it was saved is the answer.
+  // Like Slack: the browser downloads the original, under its own name. The file is on the
+  // agent's disk; its bytes come over the agent socket (lib/received-files). Only when the agent
+  // cannot hand them over (it restarted since, or the file is over the page's limit) does the
+  // chat fall back to saying what arrived and where the agent saved it.
   const handleOpenFile: (transferId: string) => void = useCallback((transferId: string): void => {
     const transfer: FileTransfer | undefined = fileTransferService.getTransfer(transferId);
-    if (!transfer?.downloadPath) {
-      toast({ variant: 'destructive', title: 'File location not known', description: 'This device has no record of where this file was saved.' });
+    if (!transfer) {
+      toast({ variant: 'destructive', title: 'File not known', description: 'This device has no record of this file.' });
       return;
     }
-    setOpenedFile(transferDetails(transfer, (cid: string): string | undefined => (cid === peerCid.toString() ? peerName : undefined)).details);
+    const opening: Promise<void> = openReceivedFile(transfer, browserReceivedFileIO).then((read: ReceivedFileRead): void => {
+      if (read.kind === 'read') return;
+      setOpenFailure(read.reason);
+      setOpenedFile(transferDetails(transfer, (cid: string): string | undefined => (cid === peerCid.toString() ? peerName : undefined)).details);
+    });
+    void opening;
   }, [toast, peerCid, peerName]);
-
   return {
     handleSendFile,
     handleAcceptTransfer,
@@ -119,6 +129,7 @@ export function useP2PFileTransfer({
     handleCancelTransfer,
     handleOpenFile,
     openedFile,
-    closeOpenedFile: (): void => setOpenedFile(null),
+    openFailure,
+    closeOpenedFile: (): void => { setOpenedFile(null); setOpenFailure(null); },
   };
 }

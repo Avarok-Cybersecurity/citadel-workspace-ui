@@ -4,7 +4,7 @@
  * Live (admin-lab): a completed direct P2P transfer read "Downloaded — Click to
  * open file", and clicking did nothing: the click required `virtual_path`,
  * which only a staged (server) transfer carries. It now hands the transfer to
- * the chat, which shows where the agent saved it (FilePreviewDialog). Mocked
+ * the chat, which downloads the original (useP2PFileTransfer). Mocked
  * as in a-transfer-bubble-tells-the-truth: the agent socket and the tab's
  * session lookup, the two I/O boundaries the bubble's service reaches.
  */
@@ -46,7 +46,7 @@ describe('a received file', () => {
 
   it('says what the click does', () => {
     render(<FileTransferBubble message={received()} isOwn={false} onOpen={(): void => undefined} />);
-    expect(screen.getByText(/where it was saved/i)).toBeInTheDocument();
+    expect(screen.getByText(/click to download/i)).toBeInTheDocument();
     expect(screen.queryByText(/click to open file/i)).toBeNull();
   });
 });
