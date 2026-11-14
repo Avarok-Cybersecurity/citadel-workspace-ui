@@ -17,15 +17,13 @@ const answer: { reply: (requestId: string) => Record<string, unknown> } = vi.hoi
   reply: (): Record<string, unknown> => ({}),
 }));
 
-interface FakeClient { sendDirectToInternalService: (request: MediaOpenRequest) => Promise<void> }
-
-vi.mock('@/lib/websocket-service', (): { websocketService: { getWasmClient: () => Promise<FakeClient> } } => ({
+// sendRequest is the service's own send: the leader's socket or, in a
+// follower, the proxy through it. Either way the answer comes back as an event.
+vi.mock('@/lib/websocket-service', (): { websocketService: { sendRequest: (request: MediaOpenRequest) => Promise<void> } } => ({
   websocketService: {
-    getWasmClient: async (): Promise<FakeClient> => ({
-      sendDirectToInternalService: async (request: MediaOpenRequest): Promise<void> => {
-        queueMicrotask((): void => eventEmitter.emit('websocket-message', answer.reply(request.MediaOpen.request_id)));
-      },
-    }),
+    sendRequest: async (request: MediaOpenRequest): Promise<void> => {
+      queueMicrotask((): void => eventEmitter.emit('websocket-message', answer.reply(request.MediaOpen.request_id)));
+    },
   },
 }));
 vi.mock('@/lib/p2p/message-send-operations', (): { sendP2PCommand: ReturnType<typeof vi.fn> } => ({ sendP2PCommand: vi.fn() }));

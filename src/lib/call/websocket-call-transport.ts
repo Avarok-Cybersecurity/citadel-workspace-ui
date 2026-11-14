@@ -15,6 +15,8 @@ import type { WireFrame } from './frame-codec';
 import { SIGNAL_QUEUE_MAX_WAIT_MS } from './call-constants';
 import { requestResponse } from '@/lib/websocket/request-response';
 import { debugLog, warnLog } from '@/lib/debug-config';
+import { instanceChannel, instanceManager } from '@/lib/multi-instance';
+import { deliverRelayedFrame, MEDIA_FRAME_OUT, type RelayedFrame } from '@/lib/multi-instance/media-frame-relay';
 
 /**
  * How long to wait for the service to confirm a media session.
@@ -45,9 +47,6 @@ export class WebSocketCallTransport implements CallTransport {
   constructor(private readonly options: WebSocketCallTransportOptions) {}
 
   async openSession(peerCid: bigint): Promise<void> {
-    const client: Awaited<ReturnType<typeof websocketService.getWasmClient>> = await websocketService.getWasmClient();
-    if (!client) throw new Error('Not connected');
-
     const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
     debugLog('Call', 'requesting media session', { peerCid: peerCid.toString() });
 
@@ -65,7 +64,10 @@ export class WebSocketCallTransport implements CallTransport {
           },
         },
         requestId,
-        sendRequest: (request) => client.sendDirectToInternalService(request as never),
+        // sendRequest, not the raw client: in a follower tab there is no client,
+        // and this proxies through the leader with the answer routed back here
+        // by this request_id (send-request.ts).
+        sendRequest: (request) => websocketService.sendRequest(request as Record<string, unknown>),
         timeoutMs: MEDIA_OPEN_TIMEOUT_MS,
         operationName: 'MediaOpen',
         matcher: {
@@ -95,16 +97,13 @@ export class WebSocketCallTransport implements CallTransport {
   }
 
   async closeSession(peerCid: bigint): Promise<void> {
-    const client: Awaited<ReturnType<typeof websocketService.getWasmClient>> = await websocketService.getWasmClient();
-    if (!client) return;
-
-    await client.sendDirectToInternalService({
+    await websocketService.sendRequest({
       MediaClose: {
         request_id: crypto.randomUUID(),
         cid: this.options.selfCid,
         peer_cid: peerCid,
       },
-    } as never);
+    });
   }
 
   sendFrame(peerCid: bigint, frame: WireFrame): void {
@@ -112,27 +111,18 @@ export class WebSocketCallTransport implements CallTransport {
     // request path: at 30-60 frames a second per track, a promise and a full
     // request serialization per frame is pure overhead for a result nobody
     // inspects.
+    if (!instanceManager.isLeader) {
+      // The media stays in this tab; only the encoded frame crosses, once, and
+      // the leader puts it on its socket. See media-frame-relay.ts.
+      const relayed: RelayedFrame = { cid: this.options.selfCid, peerCid, ...frame };
+      instanceChannel.send({ type: MEDIA_FRAME_OUT, targetInstanceId: 'leader', payload: relayed });
+      return;
+    }
     // getClient(), not getWasmClient(): the async variant awaits init(), and a
     // frame path cannot afford an await per frame. By the time frames flow the
     // client is initialised, so the synchronous accessor is the correct one.
-    const client: ReturnType<typeof websocketService.getClient> = websocketService.getClient();
-    if (!client) return;
-
-    try {
-      client.sendMediaFrame(
-        this.options.selfCid,
-        peerCid,
-        frame.track,
-        frame.kind,
-        frame.timestamp,
-        frame.flags,
-        frame.payload,
-      );
-    } catch (error) {
-      // One frame failing is not worth ending a call over; the next one is
-      // 16 milliseconds away.
-      debugLog('Call', 'frame send failed', error);
-    }
+    // The leader's own call sends here and never relays.
+    deliverRelayedFrame({ cid: this.options.selfCid, peerCid, ...frame }, true, websocketService.getClient());
   }
 
   async sendSignal(peerCid: bigint, signal: CallSignalPayload): Promise<void> {

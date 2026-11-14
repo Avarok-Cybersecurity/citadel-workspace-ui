@@ -61,7 +61,12 @@ const LEADER_ONLY: Record<string, { why: string; requires?: RegExp }> = {
     why: 'runs on the leader by definition',
   },
   'lib/call/websocket-call-transport.ts': {
-    why: 'calling is leader-only by design — see use-leader-tab.ts on the frame-path economics',
+    why: "only the leader's own frames; a follower relays them to the leader (media-frame-relay.ts)",
+    requires: /instanceManager\.isLeader/,
+  },
+  'lib/websocket-service/index.ts': {
+    why: "hands the leader's socket to relayed media frames, sent only while this tab leads",
+    requires: /installMediaFrameRelay\(\{[\s\S]*?isLeader: \(\): boolean => instanceManager\.isLeader,\s*sink:/,
   },
   'lib/peer-registration-store/lifecycle.ts': {
     why: 'only reachable from the leader-gated resend poll',

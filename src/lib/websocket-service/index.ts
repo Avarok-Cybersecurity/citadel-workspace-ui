@@ -14,6 +14,7 @@ import { TIMEOUT } from '../timeout-constants';
 import { installClaimRelay } from '../multi-instance/claim-relay';
 import { installNoticesHeardRelay } from '../multi-instance/notices-heard-relay';
 import { noticesHeard } from '../agent-conversations/capabilities';
+import { installMediaFrameRelay } from '../multi-instance/media-frame-relay';
 
 // Singleton instance - preserves original API
 export const websocketService: WebSocketServiceCore = new WebSocketServiceCore();
@@ -37,6 +38,13 @@ installFollowerSessionClaims({
 installClaimRelay({
   on: (event: string, handler: (payload: unknown) => void): void => { eventEmitter.on(event, handler); },
   send: (cid: bigint): void => instanceChannel.send({ type: 'session-claimed', targetInstanceId: '*', payload: { cid } }),
+});
+
+// A follower's call frames go out on the leader's socket; see media-frame-relay.ts.
+installMediaFrameRelay({
+  on: (event: string, handler: (payload: unknown) => void): void => { eventEmitter.on(event, handler); },
+  isLeader: (): boolean => instanceManager.isLeader,
+  sink: () => websocketService.getClient(),
 });
 
 // What the leader's agent says about its notifier reaches every tab; see notices-heard-relay.ts.

@@ -7,7 +7,6 @@ import { adoptPeerCodecs, syncNegotiatedCodecs } from '@/lib/call/codec-sync';
 import type { CallHome, CallState } from '@/lib/call/call-state';
 import type { CaptureFailure } from '@/lib/call/media-capture';
 import { useCallRuntime } from './use-call-runtime';
-import { useIsLeaderTab } from './use-leader-tab';
 import type { CallMediaKinds, CallSignalPayload } from '@/types/p2p-commands';
 import { useInboundMedia } from './use-inbound-media';
 import type { MessageSenderConfig } from '@/lib/p2p/message-sender-types';
@@ -64,7 +63,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
   }, [captureFailure]);
   useCallInterest(selfCid, call);
   useCallHoldsReload(call);
-  const { capability } = useCallCapability({ call, isLeaderTab: useIsLeaderTab() });
+  const { capability } = useCallCapability({ call });
 
   const { managerRef, sessionRef, teardown, ensureManager, ensureSession } = useCallRuntime({
     selfCid,

@@ -30,7 +30,9 @@ export type ChannelMessageType =
   // A session was claimed on the leader's connection; see claim-relay.ts.
   | 'session-claimed'
   // Whether anything shows the agent's notices changed; see notices-heard-relay.ts.
-  | 'notices-heard';
+  | 'notices-heard'
+  // A follower's encoded media frame for the leader's socket; see media-frame-relay.ts.
+  | 'media-frame-out';
 
 export interface ChannelMessage {
   type: ChannelMessageType;
