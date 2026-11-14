@@ -66,7 +66,7 @@ function harness(): Harness {
 describe('a media session that opens after the call is over', () => {
   it('is closed rather than registered', async (): Promise<void> => {
     const h: Harness = harness();
-    const pending: Promise<void> = openSessionFor(h.m, PEER);
+    const pending: Promise<void> = openSessionFor(h.m, PEER, null);
 
     h.setStatus('ended');
     h.resolveOpen();
@@ -80,7 +80,7 @@ describe('a media session that opens after the call is over', () => {
     // `peer-connected` is what moves a call to 'active' and starts the duration
     // clock. Applying it to an ended call revives it in the UI.
     const h: Harness = harness();
-    const pending: Promise<void> = openSessionFor(h.m, PEER);
+    const pending: Promise<void> = openSessionFor(h.m, PEER, null);
 
     h.setStatus('ended');
     h.resolveOpen();
@@ -91,7 +91,7 @@ describe('a media session that opens after the call is over', () => {
 
   it('treats a failed call the same as an ended one', async (): Promise<void> => {
     const h: Harness = harness();
-    const pending: Promise<void> = openSessionFor(h.m, PEER);
+    const pending: Promise<void> = openSessionFor(h.m, PEER, null);
 
     h.setStatus('failed');
     h.resolveOpen();
@@ -105,7 +105,7 @@ describe('a media session that opens after the call is over', () => {
     // The opposite failure: refusing to register on the success path would make
     // every call silently medialess, and both assertions above would still pass.
     const h: Harness = harness();
-    const pending: Promise<void> = openSessionFor(h.m, PEER);
+    const pending: Promise<void> = openSessionFor(h.m, PEER, null);
 
     h.resolveOpen();
     await pending;

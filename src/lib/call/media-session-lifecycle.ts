@@ -8,6 +8,7 @@
 import type { CallManagerInternals } from './call-manager-internals';
 import type { CallState } from '@/lib/call/call-state';
 import { nextOpenAttempt, type OpenRetryDecision } from './open-session-retry';
+import { LOST_ON_TAKEOVER } from './call-failure-detail';
 
 /** A delay expressed through the manager's injected timer, so tests own the clock. */
 function pause(m: CallManagerInternals, delayMs: number): Promise<void> {
@@ -16,7 +17,12 @@ function pause(m: CallManagerInternals, delayMs: number): Promise<void> {
   });
 }
 
-export async function openSessionFor(m: CallManagerInternals, cid: bigint): Promise<void> {
+/**
+ * `failureReason` is what a failure is reported as: null for the transport's
+ * own words, which is right for a first open. A re-open has a cause the
+ * transport cannot know -- the connection under the call was replaced.
+ */
+export async function openSessionFor(m: CallManagerInternals, cid: bigint, failureReason: string | null): Promise<void> {
   if (m.openSessions.has(cid)) return;
 
   // One open per peer at a time.
@@ -34,7 +40,7 @@ export async function openSessionFor(m: CallManagerInternals, cid: bigint): Prom
   const inFlight: Promise<void> | undefined = m.openingSessions.get(cid);
   if (inFlight) return inFlight;
 
-  const attempt: Promise<void> = openSessionOnce(m, cid);
+  const attempt: Promise<void> = openSessionOnce(m, cid, failureReason);
   m.openingSessions.set(cid, attempt);
   try {
     await attempt;
@@ -43,7 +49,7 @@ export async function openSessionFor(m: CallManagerInternals, cid: bigint): Prom
   }
 }
 
-async function openSessionOnce(m: CallManagerInternals, cid: bigint): Promise<void> {
+async function openSessionOnce(m: CallManagerInternals, cid: bigint, failureReason: string | null): Promise<void> {
   const startedAt: number = m.now();
   let attemptsMade: number = 0;
   let longestAttemptMs: number = 0;
@@ -80,7 +86,7 @@ async function openSessionOnce(m: CallManagerInternals, cid: bigint): Promise<vo
       attemptsMade += 1;
       const lastAttemptMs: number = m.now() - attemptStartedAt;
       longestAttemptMs = Math.max(longestAttemptMs, lastAttemptMs);
-      const reason: string = error instanceof Error ? error.message : 'could not open the media session';
+      const reason: string = failureReason ?? (error instanceof Error ? error.message : 'could not open the media session');
 
       const state: CallState | null = m.getState();
       // A call that ended or failed while we were waiting has nothing left to
@@ -116,6 +122,24 @@ async function openSessionOnce(m: CallManagerInternals, cid: bigint): Promise<vo
       return;
     }
   }
+}
+
+/**
+ * The connection under the call was replaced: every open session again, on
+ * the new one. A leg that cannot be re-opened ends exactly as a failed open
+ * does -- the 1:1 call fails with the reason, a group drops that participant --
+ * and that peer is told, so neither side sits on a dead media leg.
+ */
+export async function reopenAllSessions(m: CallManagerInternals): Promise<void> {
+  const peers: bigint[] = [...m.openSessions];
+  await Promise.all(peers.map(async (cid: bigint): Promise<void> => {
+    m.openSessions.delete(cid);
+    await openSessionFor(m, cid, LOST_ON_TAKEOVER);
+    const state: CallState | null = m.getState();
+    if (m.openSessions.has(cid) || !state) return;
+    await m.transport.sendSignal(cid, { kind: 'CallEnd', call_id: state.callId, reason: 'error' }).catch(() => undefined);
+  }));
+  await closeIfFinished(m);
 }
 
 export async function closeSessionFor(m: CallManagerInternals, cid: bigint): Promise<void> {

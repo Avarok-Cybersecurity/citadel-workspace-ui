@@ -1,85 +1,104 @@
 /**
- * A call survives the leader tab closing or reloading.
+ * A call when another Citadel tab takes over the browser's connection.
  *
- * The agent binds a media session to the connection that opened it. A new
- * leader opens a new connection, so the call -- untouched in its own tab --
- * kept sending into sessions whose inbound frames went to a dead socket. Once
- * the new connection has claimed the session (announced in every tab), the
- * call's media sessions are opened again there.
+ * The agent binds a media session to the connection that opened it, and a new
+ * leader tab opens a new connection. Once that connection has claimed the
+ * session, the call's media sessions are opened again on it. When that fails,
+ * the leg is gone: the call says so the way any media failure does -- a 1:1
+ * call fails with the reason on screen, a group drops that participant -- and
+ * the peer is told, rather than the call carrying on with a dead media leg.
  *
- * Mocked: the service and the instance channel, the transport's I/O boundary.
+ * Real: the CallManager, reducer, retry policy and session lifecycle. Mocked:
+ * the transport (the socket) and the clock's timers.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import { CallManager } from '../call-manager';
+import { DIRECT_CALL, type CallState } from '../call-state';
+import { LOST_ON_TAKEOVER } from '../call-failure-detail';
+import type { CallTransport } from '../call-transport';
+import type { CallCodecCapabilities, CallMediaKinds, CallSignalPayload } from '@/types/p2p-commands';
 
-const sendRequest: ReturnType<typeof vi.fn> = vi.hoisted(() => vi.fn());
-vi.mock('@/lib/multi-instance', () => ({ instanceManager: { isLeader: false }, instanceChannel: { send: vi.fn() } }));
-vi.mock('@/lib/websocket-service', () => ({ websocketService: { sendRequest, getClient: (): null => null } }));
+const AUDIO: CallMediaKinds = { audio: true, video: false, screen: false };
+const CAPS: CallCodecCapabilities = { audio: ['opus'], video: [] };
 
-import { eventEmitter } from '@/lib/event-emitter';
-import { SESSION_CLAIMED } from '@/lib/multi-instance/claim-relay';
-import { WebSocketCallTransport } from '../websocket-call-transport';
-import { MediaSessionRebind } from '../media-session-rebind';
-import type { MessageSenderConfig } from '@/lib/p2p/message-sender-types';
-
-type Open = { MediaOpen: { request_id: string; cid: bigint; peer_cid: bigint } };
-
-beforeEach(() => {
-  sendRequest.mockReset();
-  // The service confirms every open, as the agent does for a claimed session.
-  sendRequest.mockImplementation(async (request: Open | Record<string, unknown>): Promise<void> => {
-    const open: Open['MediaOpen'] | undefined = (request as Open).MediaOpen;
-    if (open) queueMicrotask(() => eventEmitter.emit('websocket-message', { MediaSessionOpened: { ...open } }));
-  });
-});
-
-function opens(): bigint[] {
-  return sendRequest.mock.calls.map((c) => (c[0] as Open).MediaOpen?.peer_cid).filter((p): p is bigint => p !== undefined);
+interface Harness {
+  manager: CallManager;
+  openSession: ReturnType<typeof vi.fn>;
+  sendSignal: ReturnType<typeof vi.fn>;
+  ends: () => Array<[bigint, CallSignalPayload]>;
+  settle: (work: Promise<void>) => Promise<void>;
 }
 
-describe('a call when its session is claimed on a new connection', () => {
-  it('opens its media sessions again there', async () => {
-    const t: WebSocketCallTransport = new WebSocketCallTransport({ selfCid: 11n, senderConfig: {} as MessageSenderConfig });
-    await t.openSession(22n);
-    expect(opens()).toEqual([22n]);
-
-    eventEmitter.emit(SESSION_CLAIMED, { cid: 11n, relayed: true });
-    await vi.waitFor(() => expect(opens()).toEqual([22n, 22n]));
-
-    // Another session's claim is not this call's socket changing.
-    eventEmitter.emit(SESSION_CLAIMED, { cid: 99n, relayed: true });
-    // A closed session is not reopened, and a finished call stops listening.
-    await t.closeSession(22n);
-    eventEmitter.emit(SESSION_CLAIMED, { cid: 11n, relayed: true });
-    await Promise.resolve();
-    expect(opens()).toEqual([22n, 22n]);
+function harness(): Harness {
+  const openSession: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue(undefined);
+  const sendSignal: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue(undefined);
+  const timers: Array<() => void> = [];
+  const transport: CallTransport = { openSession, closeSession: vi.fn().mockResolvedValue(undefined), sendFrame: vi.fn(), sendSignal };
+  const manager: CallManager = new CallManager({
+    transport, selfCid: 1n, capabilities: CAPS, now: () => 0,
+    schedule: (fn) => { timers.push(fn); return (): void => undefined; },
+    onStateChanged: () => undefined, resolvePeerName: (cid: bigint) => `peer-${cid}`, onKeyframeRequested: () => undefined,
   });
-});
+  return {
+    manager, openSession, sendSignal,
+    ends: () => sendSignal.mock.calls.filter((c) => (c[1] as CallSignalPayload).kind === 'CallEnd') as Array<[bigint, CallSignalPayload]>,
+    // Fires the retry pauses (and whatever else is due) until the work is done.
+    settle: async (work: Promise<void>): Promise<void> => {
+      let done: boolean = false;
+      void work.finally((): void => { done = true; });
+      for (let round: number = 0; round < 50 && !done; round += 1) {
+        await new Promise<void>((r) => setTimeout(r, 0));
+        for (const fn of timers.splice(0)) fn();
+      }
+      await work;
+    },
+  };
+}
 
-describe('MediaSessionRebind', () => {
-  it('listens only while a session is open', () => {
-    const unsubscribe: ReturnType<typeof vi.fn> = vi.fn();
-    const subscribe: ReturnType<typeof vi.fn> = vi.fn(() => unsubscribe);
-    const r: MediaSessionRebind = new MediaSessionRebind({
-      onSessionClaimed: subscribe, selfCid: 11n, reopen: vi.fn().mockResolvedValue(undefined), reportFailure: vi.fn(),
-    });
-    r.opened(1n);
-    r.opened(2n);
-    expect(subscribe).toHaveBeenCalledTimes(1);
-    r.closed(1n);
-    expect(unsubscribe).not.toHaveBeenCalled();
-    r.closed(2n);
-    expect(unsubscribe).toHaveBeenCalledTimes(1);
+async function inCallWith(h: Harness, peers: bigint[]): Promise<void> {
+  await h.manager.start('c1', peers.map((cid) => ({ cid, username: `peer-${cid}` })), AUDIO, peers.length > 1 ? { kind: 'group', roomId: 'g1' } : DIRECT_CALL, null);
+  for (const cid of peers) {
+    await h.manager.handleSignal(cid, `peer-${cid}`, { kind: 'CallAccept', call_id: 'c1', codecs: CAPS, media: AUDIO });
+  }
+  expect(h.manager.getState()?.status).toBe('active');
+  h.openSession.mockClear();
+  h.sendSignal.mockClear();
+}
+
+describe('a call whose connection another tab took over', () => {
+  it('opens every media session again on the new connection', async () => {
+    const h: Harness = harness();
+    await inCallWith(h, [2n]);
+    await h.settle(h.manager.reopenMedia());
+    expect(h.openSession).toHaveBeenCalledWith(2n);
+    expect(h.manager.getState()?.status).toBe('active');
+    expect(h.ends()).toEqual([]);
   });
 
-  it('reports a re-open that fails rather than dropping it', async () => {
-    const claim: { handler: ((cid: bigint) => void) | null } = { handler: null };
-    const reportFailure: ReturnType<typeof vi.fn> = vi.fn();
-    const r: MediaSessionRebind = new MediaSessionRebind({
-      onSessionClaimed: (h) => { claim.handler = h; return (): void => undefined; },
-      selfCid: 11n, reopen: vi.fn().mockRejectedValue(new Error('refused')), reportFailure,
+  it('fails a 1:1 call that cannot get its media back, says why, and tells the peer', async () => {
+    const h: Harness = harness();
+    await inCallWith(h, [2n]);
+    h.openSession.mockRejectedValue(new Error('Session unavailable to this connection'));
+    await h.settle(h.manager.reopenMedia());
+
+    const state: CallState | null = h.manager.getState();
+    expect(state?.status).toBe('failed');
+    expect(state?.reason).toBe(LOST_ON_TAKEOVER);
+    expect(h.ends()).toEqual([[2n, { kind: 'CallEnd', call_id: 'c1', reason: 'error' }]]);
+  });
+
+  it('in a group, drops only the participant whose media is gone, and tells them', async () => {
+    const h: Harness = harness();
+    await inCallWith(h, [2n, 3n]);
+    h.openSession.mockImplementation(async (cid: bigint): Promise<void> => {
+      if (cid === 3n) throw new Error('refused');
     });
-    r.opened(7n);
-    claim.handler?.(11n);
-    await vi.waitFor(() => expect(reportFailure).toHaveBeenCalledWith(7n, expect.any(Error)));
+    await h.settle(h.manager.reopenMedia());
+
+    const state: CallState | null = h.manager.getState();
+    expect(state?.status).toBe('active');
+    expect(state?.participants.get(3n)?.status).toBe('left');
+    expect(state?.participants.get(2n)?.status).toBe('active');
+    expect(h.ends()).toEqual([[3n, { kind: 'CallEnd', call_id: 'c1', reason: 'error' }]]);
   });
 });

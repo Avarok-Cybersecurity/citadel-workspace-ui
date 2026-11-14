@@ -20,6 +20,7 @@ import { useCallCapability } from './use-call-capability';
 import { useCallTakenElsewhere } from './use-call-taken-elsewhere';
 import { useRingingHandOff } from './use-ringing-hand-off';
 import { useCallDeparture } from './use-call-departure';
+import { useMediaFollowsTheConnection } from './use-media-follows-the-connection';
 import { CAMERA_UNAVAILABLE, MIC_UNAVAILABLE, SCREEN_SHARE_STOPPED } from './media-unavailable';
 import { useLiveVideoQuality } from './use-live-video-quality';
 import { buildCallContext } from './build-call-context';
@@ -101,6 +102,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
   const announceTaken: (callId: string, answered: boolean) => void = useCallTakenElsewhere(selfCid, managerRef);
   useRingingHandOff(selfCid, call);
   useCallDeparture(selfCid, senderConfig, managerRef);
+  useMediaFollowsTheConnection(selfCid, managerRef);
 
   // The camera must not survive the provider unmounting — and the peer must be
   // told, or they sit in a call that is over until their ring timeout fires.
