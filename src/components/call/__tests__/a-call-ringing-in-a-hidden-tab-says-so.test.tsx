@@ -74,6 +74,27 @@ describe('a tab in front, for another session', () => {
     expect(toastSpy.dismiss).toHaveBeenCalledWith('call-ringing-elsewhere-c1');
   });
 
+  it('shows it when the tab comes to the front while the call is still ringing', () => {
+    // The notice was posted while this tab was in the background too; what it
+    // shows on coming forward is the current state, not only the next event.
+    setVisibility('hidden');
+    renderHook(() => useRingingHandOff(22n, null));
+    act(() => { eventEmitter.emit(RINGING_ELSEWHERE, event); });
+    expect(toastSpy.show).not.toHaveBeenCalled();
+
+    setVisibility('visible');
+    act(() => { document.dispatchEvent(new Event('visibilitychange')); });
+    expect(toastSpy.show).toHaveBeenCalledTimes(1);
+
+    // Ringing over before it came forward: nothing to show.
+    toastSpy.show.mockReset();
+    setVisibility('hidden');
+    act(() => { eventEmitter.emit(RINGING_ELSEWHERE, { ...event, ringing: false }); });
+    setVisibility('visible');
+    act(() => { document.dispatchEvent(new Event('visibilitychange')); });
+    expect(toastSpy.show).not.toHaveBeenCalled();
+  });
+
   it('is silent for a tab of the same session, which rings by itself', () => {
     expect(handOffNotice(event, 11n, true)).toEqual({ kind: 'none' });
     expect(handOffNotice(event, 22n, false)).toEqual({ kind: 'none' });

@@ -48,14 +48,30 @@ export function useRingingHandOff(selfCid: bigint | null, call: CallState | null
     };
   }, [selfCid, callId, callerCid, callerUsername]);
 
-  // Every other tab's half.
+  // Every other tab's half. What is ringing elsewhere is kept, so a tab that
+  // comes to the front while it still rings shows it: the post that announced
+  // it may have arrived while this tab was in the background.
   useEffect(() => {
-    return eventEmitter.on(RINGING_ELSEWHERE, (payload: unknown): void => {
-      const event: RingingElsewhere | null = readRingingElsewhere(payload);
-      if (!event) return;
+    const ringingElsewhere: Map<string, RingingElsewhere> = new Map<string, RingingElsewhere>();
+    const show = (event: RingingElsewhere): void => {
       const notice: HandOffNotice = handOffNotice(event, selfCid, inFront());
       if (notice.kind === 'show') toast(notice.text, { id: notice.id, duration: Infinity });
       if (notice.kind === 'dismiss') toast.dismiss(notice.id);
+    };
+    const onFront = (): void => {
+      if (inFront()) ringingElsewhere.forEach(show);
+    };
+    const off: () => void = eventEmitter.on(RINGING_ELSEWHERE, (payload: unknown): void => {
+      const event: RingingElsewhere | null = readRingingElsewhere(payload);
+      if (!event) return;
+      if (event.ringing) ringingElsewhere.set(event.callId, event);
+      else ringingElsewhere.delete(event.callId);
+      show(event);
     });
+    document.addEventListener('visibilitychange', onFront);
+    return (): void => {
+      off();
+      document.removeEventListener('visibilitychange', onFront);
+    };
   }, [selfCid]);
 }
