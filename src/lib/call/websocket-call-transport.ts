@@ -16,6 +16,9 @@ import { SIGNAL_QUEUE_MAX_WAIT_MS } from './call-constants';
 import { requestResponse } from '@/lib/websocket/request-response';
 import { debugLog, warnLog } from '@/lib/debug-config';
 import { instanceChannel, instanceManager } from '@/lib/multi-instance';
+import { eventEmitter } from '@/lib/event-emitter';
+import { SESSION_CLAIMED, type ClaimedEvent } from '@/lib/multi-instance/claim-relay';
+import { MediaSessionRebind } from './media-session-rebind';
 import { deliverRelayedFrame, MEDIA_FRAME_OUT, type RelayedFrame } from '@/lib/multi-instance/media-frame-relay';
 
 /**
@@ -44,9 +47,28 @@ export class WebSocketCallTransport implements CallTransport {
   /** Tail of the in-flight signal sends; see sendSignal for why they chain. */
   private signalChain: Promise<void> = Promise.resolve();
 
-  constructor(private readonly options: WebSocketCallTransportOptions) {}
+  /** Re-opens this call's media sessions on a new leader's connection; see media-session-rebind.ts. */
+  private readonly rebind: MediaSessionRebind;
+
+  constructor(private readonly options: WebSocketCallTransportOptions) {
+    this.rebind = new MediaSessionRebind({
+      onSessionClaimed: (handler: (cid: bigint) => void): (() => void) =>
+        eventEmitter.on<ClaimedEvent>(SESSION_CLAIMED, (event: ClaimedEvent): void => handler(event.cid)),
+      selfCid: options.selfCid,
+      // Not openSession: a re-open answered after the call closed that peer
+      // must not put it back on the list of sessions to keep.
+      reopen: (peerCid: bigint): Promise<void> => this.requestOpen(peerCid),
+      reportFailure: (peerCid: bigint, error: unknown): void =>
+        warnLog('Call', `media session with ${peerCid} could not move to the new connection:`, error instanceof Error ? error.message : String(error)),
+    });
+  }
 
   async openSession(peerCid: bigint): Promise<void> {
+    await this.requestOpen(peerCid);
+    this.rebind.opened(peerCid);
+  }
+
+  private async requestOpen(peerCid: bigint): Promise<void> {
     const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
     debugLog('Call', 'requesting media session', { peerCid: peerCid.toString() });
 
@@ -97,6 +119,7 @@ export class WebSocketCallTransport implements CallTransport {
   }
 
   async closeSession(peerCid: bigint): Promise<void> {
+    this.rebind.closed(peerCid);
     await websocketService.sendRequest({
       MediaClose: {
         request_id: crypto.randomUUID(),
