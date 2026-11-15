@@ -1,7 +1,8 @@
 /**
  * The Calendar pane as an editor of Platform sees it (company > n1 > n2), over the shipped engine,
  * the real ports, gate and tree port, and an in-memory store: one of Platform's own events that goes
- * down, its projection already written on Team below by its save, and a booking the viewer hosts.
+ * down, its projection already written on Team below by its save, a booking the viewer hosts, and
+ * the viewer's own copy of one they made with bo (which they may reschedule).
  * The store's keys are left on `window.__calendarKeys` for the checks to read what the controls
  * wrote; it is the harness's, never the app's.
  */
@@ -52,6 +53,9 @@ async function seeded(engine) {
   const booking = { id: 'b1', page: { member: { username: VIEWER, slug: 'intro' } }, type_id: 't1', host: VIEWER, booker: { member: { username: 'ana' } }, start_ms, end_ms, zone: ZONE, answers: [], state: 'confirmed' };
   store.put(mine, 'cal/booking-ack/b1', engine.encodeBooking(booking));
   store.put(mine, 'cal/event/b1', engine.encodeEvent(event({ id: 'b1', origin_node: 'n1', author: VIEWER, hosts: [VIEWER], title: 'Intro with ana', kind: { booking: { booking_id: 'b1' } }, visibility: 'busy_only', when: second, zone: ZONE })));
+  // The viewer's own copy of a booking they made with bo: what offers Reschedule.
+  const third = { once: { start_ms: second.once.start_ms + 1_800_000n, end_ms: second.once.end_ms + 1_800_000n } };
+  store.put('user', 'cal/private/b2', engine.encodeEvent(event({ id: 'b2', origin_node: 'n1', author: VIEWER, hosts: ['bo'], title: 'Call with bo', kind: { booking: { booking_id: 'b2' } }, visibility: 'private', when: third, zone: ZONE })));
   window.__calendarKeys = () => [...store.values.keys()];
   window.__calendarEvent = (key) => engine.decodeEvent(store.values.get(key));
   return ports;
@@ -70,7 +74,7 @@ function Changes() {
   return (
     <WorkspaceContext.Provider value={{ state }}>
       <main className="mx-auto max-w-6xl">
-        <CalendarPane ports={ready.ports} engine={ready.engine} nodeId="n1" me={VIEWER} displayZone={ZONE} deviceZone={ZONE} held={new Set()} mayEditNode />
+        <CalendarPane ports={ready.ports} engine={ready.engine} nodeId="n1" me={VIEWER} displayZone={ZONE} deviceZone={ZONE} held={new Set(['ihttp.call'])} mayEditNode />
       </main>
     </WorkspaceContext.Provider>
   );

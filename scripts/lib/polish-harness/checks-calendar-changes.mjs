@@ -66,4 +66,14 @@ async function theHostCancelsABookingFromTheUi({ page, url, viewport }) {
   assert.deepEqual(status, { cancelled: { by: 'alice', reason: 'travelling' } });
 }
 
-export const CALENDAR_CHANGE_CHECKS = { theScenarioRunsOnItsPinnedDay, theEventControlsFit, cancellingAnEventTakesItOffThePagesBelow, theHostCancelsABookingFromTheUi };
+/** A booker's Reschedule is a full 44px target at every width, beside Cancel, inside the pane. */
+async function theRescheduleButtonIsAFullTarget({ page, url, viewport }) {
+  const width = await opened(page, url, viewport, 'Call with bo');
+  const button = page.getByRole('button', { name: 'Reschedule' });
+  await button.waitFor({ state: 'visible' });
+  const box = await button.boundingBox();
+  assert.ok(box.width >= 44 && box.height >= 44, `Reschedule is ${Math.round(box.width)}x${Math.round(box.height)}px, under 44px`);
+  await fitsAndReads(page, width, "a booker's booking details");
+}
+
+export const CALENDAR_CHANGE_CHECKS = { theScenarioRunsOnItsPinnedDay, theEventControlsFit, cancellingAnEventTakesItOffThePagesBelow, theHostCancelsABookingFromTheUi, theRescheduleButtonIsAFullTarget };
