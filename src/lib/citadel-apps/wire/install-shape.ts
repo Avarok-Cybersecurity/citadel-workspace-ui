@@ -37,7 +37,7 @@ function isInstallState(v: unknown): v is InstallState {
 }
 
 export function isListingSource(v: unknown): v is ListingSource {
-  return v === 'Upload' || single(v, 'Global', (x: unknown) => exactly(x, { catalogue_version: isBigint }))
+  return v === 'Upload' || v === 'FirstParty' || single(v, 'Global', (x: unknown) => exactly(x, { catalogue_version: isBigint }))
     || single(v, 'WorkspaceRegistry', (x: unknown) => exactly(x, { entry_id: isString }));
 }
 
