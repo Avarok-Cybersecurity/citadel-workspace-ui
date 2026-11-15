@@ -38,7 +38,7 @@ function answers(ack: Booking, request: Booking, me: string): boolean {
 
 async function tell(d: AnswerDeps, title: string, body: string): Promise<void> {
   // The answer is taken whether or not the booker can be shown a notification (an install without `notifications`).
-  await d.ports.notify(title, body).catch((e: unknown): void => { console.error('[calendar] the booker was not told of an answer', e); });
+  await d.ports.notify('bookings', title, body).catch((e: unknown): void => { console.error('[calendar] the booker was not told of an answer', e); });
 }
 
 /** Takes every answer to the member's requests on the node; returns how many it took. */

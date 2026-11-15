@@ -27,6 +27,8 @@ export interface Editing {
 
 interface EventEditorProps {
   date: CivilDate;
+  /** The reminders a new event starts with (the member's notification settings); an edit keeps its own. */
+  reminders: readonly number[];
   /** Null for a new event. */
   editing: Editing | null;
   node: { id: string; name: string };
@@ -65,11 +67,11 @@ function MissedPages({ missed, nodeName, onDone }: { missed: readonly FanOutFail
   );
 }
 
-export function EventEditor({ date, editing, node, above, nodeName, me, displayZone, engine, newId, nowMs, onSave, onClose }: EventEditorProps): JSX.Element {
+export function EventEditor({ date, reminders, editing, node, above, nodeName, me, displayZone, engine, newId, nowMs, onSave, onClose }: EventEditorProps): JSX.Element {
   const base: string = useId();
   const title = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState<EventDraft>(editing?.draft ?? {
-    title: '', notes: '', date, allDay: false, start: '09:00', end: '10:00', location: { kind: 'in_app' }, visibility: 'public', destination: 'authored', down: false, upTo: null, reminders: [],
+    title: '', notes: '', date, allDay: false, start: '09:00', end: '10:00', location: { kind: 'in_app' }, visibility: 'public', destination: 'authored', down: false, upTo: null, reminders,
   });
   // An edit keeps the event where it is stored: a private event stays private, a shared one shared.
   const choices = editing === null ? VISIBILITY : editing.kept === 'private' ? [] : VISIBILITY.filter((v) => v.value !== 'private');

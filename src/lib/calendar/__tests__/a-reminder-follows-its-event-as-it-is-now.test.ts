@@ -31,7 +31,7 @@ async function rig(): Promise<{ ana: Member; bo: Member; fired: Due[]; tick: () 
   await ana.ports.storage.set(USER, `${REMINDER_PREFIX}m1`, engine.encodeReminderPlan(plan));
   await ana.ports.storage.set(USER, HANDLED_KEY, encodeHandled(utc('2024-07-16T13:00:00Z')));
   const fired: Due[] = [];
-  const runner = new ReminderRunner({ ...reminderStore(ana.ports, engine), engine, clock, isLeader: () => true, fire: async (d: Due) => { fired.push(d); } });
+  const runner = new ReminderRunner({ ...reminderStore(ana.ports, engine), engine, clock, isLeader: () => true, fire: async (d: Due) => { fired.push(d); }, missed: async () => {}, rescanMs: 60_000 });
   return { ana, bo, fired, tick: () => runner.tick() };
 }
 

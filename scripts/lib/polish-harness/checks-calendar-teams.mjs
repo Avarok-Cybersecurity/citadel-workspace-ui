@@ -137,18 +137,25 @@ async function aNewPollFits({ page, url, viewport }) {
   await fitsAndReads(page, width, 'a new poll');
 }
 
-/** A reminder missed while no window was open is listed once, fits, and goes when dismissed. */
-async function aMissedReminderIsShownOnce({ page, url, viewport }) {
-  const width = viewport.width < 600 ? 375 : viewport.width;
-  await page.setViewportSize({ width, height: viewport.height });
-  await page.goto(url('calendar-teams'));
-  const away = page.getByTestId('calendar-reminders-away');
-  await away.getByText('Design review').waitFor({ state: 'visible', timeout: 5000 });
-  await fitsAndReads(page, width, 'while you were away');
-  await away.getByRole('button', { name: 'Dismiss' }).click();
-  await away.waitFor({ state: 'detached', timeout: 5000 });
-  const handled = await page.evaluate(() => window.__calendarHandled());
-  assert.ok(handled >= Date.UTC(2024, 6, 16, 15, 0), `the leader did not move the handled instant on: ${new Date(handled).toISOString()}`);
+/**
+ * The member's notification settings fit with 44px targets, light and dark, and each change is
+ * saved to their own storage as it is made; turned off, every option is stilled.
+ */
+async function theNotificationSettingsFitAndSave({ page, url, viewport }) {
+  const width = await opened(page, url, viewport, 'Notifications');
+  const form = page.getByTestId('calendar-notify-settings');
+  await form.waitFor({ state: 'visible', timeout: 5000 });
+  await fitsAndReads(page, width, 'the notification settings');
+  await form.getByLabel(/^Bookings/).uncheck();
+  await form.getByLabel('30 minutes before').check();
+  await form.getByLabel(/^In Citadel only/).check();
+  await page.getByTestId('calendar-notify-preview').getByText('Shown in the bell only.').waitFor({ state: 'visible', timeout: 5000 });
+  const key = (await keysLike(page, 'user:')).find((k) => k.endsWith('cal/settings/notifications'));
+  assert.ok(key !== undefined, 'the settings were not saved to the member');
+  await form.getByRole('switch', { name: 'Calendar notifications' }).click();
+  await page.getByText('You will not be reminded of your events.').waitFor({ state: 'visible', timeout: 5000 });
+  assert.ok(await form.getByLabel(/^Invitations/).isDisabled(), 'an option stayed live with the Calendar turned off');
+  await fitsAndReads(page, width, 'the notification settings, turned off');
 }
 
 /** The apps the viewer answered fit with 44px targets, and "Ask again" forgets an answer (design §3.8). */
@@ -165,7 +172,7 @@ async function theAppsUsingTheCalendarFit({ page, url, viewport }) {
 }
 
 export const CALENDAR_TEAM_CHECKS = {
-  aMissedReminderIsShownOnce,
+  theNotificationSettingsFitAndSave,
   theTeamTypeEditorFitsAndSaves, aRoundRobinGoesToTheHostWithFewerBookings, aCollectiveBookingPageFits,
   aRoutingAnswerOpensThePageItRoutesTo, aRoutingFormIsMadeInItsEditor, aVoteAndAPickAreSavedFromThePolls, aNewPollFits,
   theAppsUsingTheCalendarFit,

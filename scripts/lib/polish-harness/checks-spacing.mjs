@@ -71,6 +71,7 @@ export const SPACING_CHECKS = {
   noCollisionsInConnectionSettings: checkScenario('settings-connections', '[role="dialog"]'),
   noCollisionsInAppearanceSettings: checkScenario('settings-appearance', '[role="dialog"]'),
   noCollisionsInPrivacySettings: checkScenario('settings-privacy', '[role="dialog"]'),
+  noCollisionsInNotificationSettings: checkScenario('settings-notifications', '[data-testid="settings-notifications"]'),
   noCollisionsOnTheLandingPage: checkScenario('landing', 'h1'),
   noCollisionsInTheOfficeHeader: checkScenario('office-header', '[data-testid="hierarchy-breadcrumbs"]'),
 };

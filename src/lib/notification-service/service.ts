@@ -47,7 +47,7 @@ export class NotificationService {
     // Whether the window is in front is read NOW, as the notification arrives; the
     // delivery (who owns it, the OS surface, the chime) loads with the first one, off
     // the landing page's critical path (check-bundle-budget.mjs).
-    if (mayInterruptTheOs()) {
+    if (fullNotification.inAppOnly !== true && mayInterruptTheOs()) {
       void this.deliverToOs(fullNotification)
         .catch((error: unknown): void => { errorLog('NotificationService', 'could not reach the OS notification surface', error); });
     }

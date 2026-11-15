@@ -37,7 +37,7 @@ async function opened(mayEditNode: boolean): Promise<Map<string, Uint8Array>> {
   const state = { nodes: TREE, members: {}, workspace: { metadata: [] } } as unknown as WorkspaceState;
   render(
     <WorkspaceContext.Provider value={{ state }}>
-      <CalendarPane ports={amy.ports} engine={engine} nodeId="a" me="amy" displayZone="America/New_York" deviceZone="America/New_York" held={new Set()} mayEditNode={mayEditNode} leader={false} />
+      <CalendarPane ports={amy.ports} engine={engine} nodeId="a" me="amy" displayZone="America/New_York" deviceZone="America/New_York" held={new Set()} mayEditNode={mayEditNode} />
     </WorkspaceContext.Provider>,
   );
   fireEvent.click((await screen.findAllByRole('button', { name: /All hands/ }))[0] as HTMLElement);

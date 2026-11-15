@@ -92,9 +92,9 @@ describe("the Calendar's ports", () => {
   it('refuses a notification the grant does not cover in the page; the port is never reached (control: granted, it is)', async () => {
     const rec: Recorder = { calls: [] };
     const without = rig({ notify: notifyRecorder(rec) }, ALL.filter((c) => c !== 'notifications'));
-    await expect(without.notify('Standup', 'in 10 minutes')).rejects.toMatchObject({ op: 'Notify', refused: 'ungranted' });
+    await expect(without.notify('reminders', 'Standup', 'in 10 minutes')).rejects.toMatchObject({ op: 'Notify', refused: 'ungranted' });
     expect(rec.calls).toEqual([]);
-    await rig({ notify: notifyRecorder(rec) }).notify('Standup', 'in 10 minutes');
+    await rig({ notify: notifyRecorder(rec) }).notify('reminders', 'Standup', 'in 10 minutes');
     expect(rec.calls).toEqual([{ method: 'Notify', args: { title: 'Standup', body: 'in 10 minutes' } }]);
   });
 

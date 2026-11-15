@@ -28,13 +28,13 @@ import { dateKey } from '@/lib/calendar/grid-keyboard';
 import { BookingSetup } from './BookingSetup';
 import { BookWith } from './BookWith';
 import { PollsPanel } from './PollsPanel';
-import { RemindersAway } from './RemindersAway';
-import { useReminders } from './use-reminders';
 import { CalendarTab } from './CalendarTab';
 import { EventDetails } from './EventDetails';
 import { EventEditor } from './EventEditor';
 import { useAbove } from './use-above';
 import { SdkAppsPanel } from './SdkAppsPanel';
+import { CalendarNotifications } from './CalendarNotifications';
+import { readPrefs } from '@/lib/calendar/notice-gate';
 import { SdkConsentPrompt } from './SdkConsentPrompt';
 import { useBookings } from './use-bookings';
 import { useSdkConsent } from './use-sdk-consent';
@@ -55,11 +55,9 @@ export interface CalendarPaneProps {
   held: ReadonlySet<Capability>;
   /** Whether the member holds `EditMdx` on this node: who may change its own events. */
   mayEditNode: boolean;
-  /** Whether this tab holds the WebSocket: the one whose reminders fire. */
-  leader: boolean;
 }
 
-type Panel = { kind: 'none' } | { kind: 'new'; date: CivilDate } | { kind: 'edit'; entry: EventEntry } | { kind: 'setup' } | { kind: 'polls' } | { kind: 'apps' }
+type Panel = { kind: 'none' } | { kind: 'new'; date: CivilDate; reminders: readonly number[] } | { kind: 'edit'; entry: EventEntry } | { kind: 'setup' } | { kind: 'polls' } | { kind: 'apps' } | { kind: 'notifications' }
   /** `moving`: the booking this one replaces, with the host and type it was made with. */
   | { kind: 'book'; moving: { id: string; host: string; typeId: string } | null };
 
@@ -67,7 +65,7 @@ const newId = (): string => crypto.randomUUID();
 const nowOf = (ports: CalendarPorts): bigint => BigInt(Math.floor(ports.clock.now()));
 const reasonOf = (e: unknown): string => (e instanceof PortRefused ? refusalCopy(e.refused) : 'something went wrong');
 
-export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZone, held, mayEditNode, leader }: CalendarPaneProps): JSX.Element {
+export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZone, held, mayEditNode }: CalendarPaneProps): JSX.Element {
   const { state: ws } = useWorkspace();
   const now = useMinuteClock(engine, displayZone, ports.clock);
   const nowMs: bigint = useMemo(() => engine.instantOf(displayZone, now), [engine, displayZone, now]);
@@ -83,7 +81,13 @@ export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZon
   const zone: string | null = useMemo(() => nodeZone(ws.nodes, nodeId, ws.workspace?.metadata), [ws.nodes, nodeId, ws.workspace?.metadata]);
   const node = { id: nodeId, name: ws.nodes[nodeId]?.name ?? 'This page' };
   const close = (): void => setPanel({ kind: 'none' });
-  const reminders = useReminders({ ports, engine, leader, displayZone, nodeName, revision: state.entries });
+  /** A new event starts with the member's chosen reminders, read as it is opened so a change elsewhere holds. */
+  const create = (date: CivilDate): void => {
+    readPrefs(ports.storage).then((p) => setPanel({ kind: 'new', date, reminders: p.leadMinutes }), (e: unknown): void => {
+      console.error('[calendar] the notification settings could not be read; the new event starts with no reminder', e);
+      setPanel({ kind: 'new', date, reminders: [] });
+    });
+  };
 
   const above = useAbove(ports, nodeId, nodeName);
   const saveEvent = (checked: Extract<EventCheck, { ok: true }>, progress: (done: number, of: number) => void): Promise<SaveOutcome> =>
@@ -135,13 +139,13 @@ export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZon
   return (
     <div className="flex min-w-0 flex-col gap-3 p-[16px]" data-testid="calendar-pane">
       <SdkConsentPrompt consent={consent} />
-      <RemindersAway missed={reminders.missed} engine={engine} displayZone={displayZone} nodeName={nodeName} onDismiss={reminders.dismiss} />
       {panel.kind === 'none' && (
         <div className="flex min-w-0 flex-wrap gap-2">
           <Button variant="outline" className="h-[44px]" onClick={(): void => setPanel({ kind: 'book', moving: null })}>Book with someone</Button>
           <Button variant="outline" className="h-[44px]" onClick={(): void => setPanel({ kind: 'setup' })}>Your booking page</Button>
           <Button variant="outline" className="h-[44px]" onClick={(): void => setPanel({ kind: 'polls' })}>Polls</Button>
           <Button variant="outline" className="h-[44px]" onClick={(): void => setPanel({ kind: 'apps' })}>Apps</Button>
+          <Button variant="outline" className="h-[44px]" onClick={(): void => setPanel({ kind: 'notifications' })}>Notifications</Button>
         </div>
       )}
       {panel.kind !== 'none' && panel.kind !== 'new' && panel.kind !== 'edit' && (
@@ -151,15 +155,21 @@ export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZon
         </Button>
       )}
       {panel.kind === 'new' && (
-        <EventEditor date={panel.date} editing={null} node={node} above={above} nodeName={nodeName} me={me} displayZone={displayZone} engine={engine} newId={newId} nowMs={(): bigint => nowOf(ports)} onSave={saveEvent} onClose={close} />
+        <EventEditor date={panel.date} reminders={panel.reminders} editing={null} node={node} above={above} nodeName={nodeName} me={me} displayZone={displayZone} engine={engine} newId={newId} nowMs={(): bigint => nowOf(ports)} onSave={saveEvent} onClose={close} />
       )}
       {panel.kind === 'edit' && (
-        <EventEditor key={panel.entry.key} date={now.date} editing={{ draft: draftOf(panel.entry.event, displayZone, engine, panel.entry.source), kept: panel.entry.source === 'node' ? 'node' : panel.entry.source === 'private' ? 'private' : 'authored' }}
+        <EventEditor key={panel.entry.key} date={now.date} reminders={[]} editing={{ draft: draftOf(panel.entry.event, displayZone, engine, panel.entry.source), kept: panel.entry.source === 'node' ? 'node' : panel.entry.source === 'private' ? 'private' : 'authored' }}
           node={node} above={above} nodeName={nodeName} me={me} displayZone={displayZone} engine={engine} newId={(): string => panel.entry.event.id} nowMs={(): bigint => nowOf(ports)}
           onSave={(checked, progress): Promise<SaveOutcome> => saveRevision(ports, engine, panel.entry, checked, progress)} onClose={(): void => { setOpen(null); close(); }} />
       )}
       {panel.kind === 'setup' && <BookingSetup ports={ports} engine={engine} node={node} me={me} displayZone={displayZone} deviceZone={deviceZone} today={now.date} origin={window.location.origin} newId={newId} mayEditNode={mayEditNode} />}
       {panel.kind === 'apps' && <SdkAppsPanel ports={ports} engine={engine} />}
+      {panel.kind === 'notifications' && (
+        <section aria-labelledby="calendar-notifications-heading" className="flex min-w-0 max-w-2xl flex-col gap-3">
+          <h2 id="calendar-notifications-heading" className="text-base font-semibold text-foreground">Notifications</h2>
+          <CalendarNotifications ports={ports} />
+        </section>
+      )}
       {panel.kind === 'polls' && <PollsPanel ports={ports} engine={engine} node={node} me={me} displayZone={displayZone} firstDate={dateKey(now.date)} newId={newId} nowMs={(): bigint => nowOf(ports)} />}
       {panel.kind === 'book' && (
         <BookWith ports={ports} engine={engine} node={node} me={me} entries={state.entries} displayZone={displayZone} deviceZone={deviceZone}
@@ -174,7 +184,7 @@ export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZon
           <CalendarTab
             state={state} dispatch={dispatch} engine={engine} viewer={me} displayZone={displayZone}
             node={{ ...node, zone }} nodeName={nodeName} now={now} onOpenChip={setOpen}
-            onCreate={(date: CivilDate): void => setPanel({ kind: 'new', date })}
+            onCreate={create}
           />
         </>
       )}

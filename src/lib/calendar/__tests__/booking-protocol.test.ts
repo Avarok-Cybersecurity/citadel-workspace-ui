@@ -2,7 +2,7 @@
  * The booking protocol between members' instances (design §3.6.1), over the real glue gate and
  * iHTTP router, a fake relay and one shared store that answers on a later turn, as the kernel does: two bookers racing for one slot get one 201 and
  * one 409 with other times; a booking for someone other than its caller is refused; an offline host
- * is left a request, which their next instance answers and the booker then takes, told either way; a cancellation says who made it; and a
+ * is left a request, which their next instance answers and the booker then takes, told either way; a cancellation says who made it, and tells the host; and a
  * reschedule moves a booking to a new time, the old one cancelled and the booker's copy moved.
  */
 import { describe, expect, it } from 'vitest';
@@ -110,6 +110,17 @@ describe('the booking protocol', () => {
     expect(await cancelBooking(bob.endpoint.client, 'ana', 'b3', 'clash')).toEqual({ ok: true });
     const event = shared.get('authored:n1:ana|cal/event/b3');
     expect(event === undefined ? null : engine.decodeEvent(event).status).toEqual({ cancelled: { by: 'bob', reason: 'clash' } });
+    expect(ana.notes.at(-1)).toBe('Booking cancelled: bob cancelled: clash');
+  });
+
+  it('tells the host nothing of a cancellation they made themselves', async () => {
+    const relay = new IhttpRelay();
+    const shared: Map<string, Uint8Array> = new Map();
+    const [ana, bob] = (await Promise.all(['ana', 'bob'].map((n) => member(n, relay, shared)))) as [Member, Member];
+    await anaOpensBookings(ana);
+    expect((await bookAs(bob, booking('bob', 'b7'))).kind).toBe('confirmed');
+    expect((await ana.host.cancelAsHost('b7', 'travelling')).status).toBe(200);
+    expect(ana.notes.filter((n: string) => n.startsWith('Booking cancelled'))).toEqual([]);
   });
 
   it('moves a booking to a new time, cancelling the old one and moving the booker\'s copy', async () => {
@@ -124,6 +135,8 @@ describe('the booking protocol', () => {
     expect(moved.kind === 'confirmed' && moved.booking.state).toEqual({ rescheduled: { from: 'b5' } });
     const old = shared.get('authored:n1:ana|cal/event/b5');
     expect(old === undefined ? null : engine.decodeEvent(old).status).toEqual({ cancelled: { by: 'bob', reason: 'rescheduled' } });
+    // A reschedule is a new booking, said as one, never also as a cancellation.
+    expect(ana.notes.filter((n: string) => n.startsWith('Booking cancelled'))).toEqual([]);
     expect([...shared.keys()].filter((k) => k.startsWith('user:bob|cal/private/'))).toEqual(['user:bob|cal/private/b6']);
   });
 });

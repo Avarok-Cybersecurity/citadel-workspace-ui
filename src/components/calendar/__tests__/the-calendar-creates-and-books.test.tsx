@@ -51,7 +51,8 @@ describe('the Calendar tab', () => {
   it('opens the event editor from New, and posts the saved event under the member on the node', async () => {
     const store = signedIn('amy');
     fireEvent.click(await screen.findByRole('button', { name: 'New' }));
-    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Planning' } });
+    // The editor opens once the member's notification settings are read: a new event starts with their reminders.
+    fireEvent.change(await screen.findByLabelText('Title'), { target: { value: 'Planning' } });
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Save event' })); });
     await waitFor(() => expect(screen.queryByTestId('calendar-event-editor')).toBeNull());
     const events = decoded(store, 'authored:n1:amy|cal/event/', (b) => engine.decodeEvent(b));
@@ -64,7 +65,7 @@ describe('the Calendar tab', () => {
     const focused: HTMLElement | undefined = within(grid).getAllByRole('gridcell').find((c) => c.tabIndex === 0);
     if (focused === undefined) throw new Error('the grid has no tab stop');
     fireEvent.keyDown(focused, { key: 'n' });
-    expect(within(screen.getByTestId('calendar-event-editor')).getByLabelText('Day')).toHaveValue('2024-07-16');
+    expect(within(await screen.findByTestId('calendar-event-editor')).getByLabelText('Day')).toHaveValue('2024-07-16');
   });
 
   it("saves a member's types and hours on their booking page, where a booker reads them", async () => {

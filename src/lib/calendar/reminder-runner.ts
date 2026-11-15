@@ -1,15 +1,17 @@
 /**
  * The interim reminder scheduler's edge (design §3.7): it reads the member's plans and the instant
  * reminders were last handled, fires what is due through `notify`, and waits on the clock for the
- * next. Only the leader tab fires and moves that instant on (one WebSocket, one leader), so two
- * windows never fire one reminder twice; every window shows what was missed while none was open.
+ * next, or for `rescanMs`, whichever comes first: a plan saved in another window is not announced
+ * (user stores never are), so the runner looks again on its own. Only the runner that leads fires
+ * and moves that instant on (calendar-background.ts holds one per account across windows), so two
+ * windows never fire one reminder twice; what was missed while none was open is answered once.
  *
  * A plan is the saver's, but the event is everyone's who may edit it: before anything is fired or
  * shown, each plan is checked against its event as it is now (reminder-reconcile.ts), so a
  * reminder never fires for an event someone else cancelled, deleted or moved.
  *
- * A reminder fires only while some window has the Calendar open: the limitation is said where
- * reminders are chosen, until Signals timers and the durable inbox replace this.
+ * A reminder fires only while one of the member's workspace windows is open: the limitation is
+ * said where reminders are chosen, until Signals timers and the durable inbox replace this.
  */
 import type { DispatchClock } from '@/lib/citadel-apps/host/dispatch';
 import type { CalendarEngine } from './engine/calendar-engine';
@@ -49,6 +51,10 @@ export interface ReminderDeps {
   readonly drop: (eventId: string) => Promise<void>;
   readonly engine: Pick<CalendarEngine, 'expand' | 'instantOf'>;
   readonly fire: (due: Due) => Promise<void>;
+  /** Told, by the leader, of reminders whose occurrence had started before they were handled: never fired. */
+  readonly missed: (late: readonly Due[]) => Promise<void>;
+  /** The longest the runner waits before reading the plans again. */
+  readonly rescanMs: number;
 }
 
 /** The runner's deps over the Calendar's own ports; `isLeader` and `fire` are the mount's. */
@@ -85,8 +91,8 @@ export class ReminderRunner {
   constructor(private readonly deps: ReminderDeps) {}
 
   /**
-   * Handles what is due now and waits for the next; answers what was missed, for the caller to
-   * show once. Run again on a storage change and on becoming the leader.
+   * Handles what is due now and waits for the next; answers what was missed, which the leader
+   * has already passed to `missed`.
    */
   async tick(): Promise<Due[]> {
     this.cancel?.();
@@ -97,10 +103,12 @@ export class ReminderRunner {
     const schedule: Schedule = nextDue(plans, now, since ?? now);
     if (this.deps.isLeader()) {
       for (const due of schedule.due) await this.deps.fire(due);
+      if (schedule.missed.length > 0) await this.deps.missed(schedule.missed);
       await this.deps.setHandled(now);
     }
-    if (!this.stopped && schedule.nextMs !== null) {
-      this.cancel = this.deps.clock.after(Number(schedule.nextMs - now), (): void => {
+    if (!this.stopped) {
+      const wait: number = schedule.nextMs === null ? this.deps.rescanMs : Math.min(Number(schedule.nextMs - now), this.deps.rescanMs);
+      this.cancel = this.deps.clock.after(wait, (): void => {
         this.tick().catch((e: unknown): void => console.error('[calendar] reminders could not be handled', e));
       });
     }

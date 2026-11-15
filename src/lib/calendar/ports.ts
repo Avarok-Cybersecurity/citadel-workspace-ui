@@ -8,6 +8,7 @@
  * Storage addresses a store, not a backend: the member's own (`user`), a node's official events
  * (`node`), and what members posted on a node (`authored`, `author` null for every author).
  */
+import type { NoticeKind } from './notify-prefs';
 import type { DispatchClock } from '@/lib/citadel-apps/host/dispatch';
 import type { GlueInstance, StorageChange, Unsubscribe } from '@/lib/citadel-apps/host/glue-instance';
 import type { OpName } from '@/lib/citadel-apps/host/op-args';
@@ -87,8 +88,11 @@ export interface CalendarPorts {
   readonly members: () => Promise<readonly Member[]>;
   readonly node: (id: string) => Promise<NodeInfo>;
   readonly children: (id: string) => Promise<readonly NodeInfo[]>;
-  /** A notification in the page's list, badged with the Calendar's name by the port. */
-  readonly notify: (title: string, body: string) => Promise<void>;
+  /**
+   * A notification in the page's list, badged with the Calendar's name by the port. The port posts
+   * every kind it is given; the member's choice of kinds is applied over it (notice-gate.ts).
+   */
+  readonly notify: (kind: NoticeKind, title: string, body: string) => Promise<void>;
   readonly onStorageChanged: (listener: (change: StorageChange) => void) => Unsubscribe;
   /** The instance's clock: the only "now" the Calendar reads. */
   readonly clock: DispatchClock;
@@ -148,7 +152,7 @@ export function calendarPorts(glue: GlueInstance): CalendarPorts {
     members: async () => (await ok('MembersList', {})).members,
     node: (id) => ok('NodeGet', { node_id: id }),
     children: async (id) => (await ok('NodeChildren', { node_id: id })).nodes,
-    notify: (title, body) => done('Notify', { title, body }),
+    notify: (_kind, title, body) => done('Notify', { title, body }),
     onStorageChanged: glue.onStorageChanged,
     clock: glue.clock,
   };

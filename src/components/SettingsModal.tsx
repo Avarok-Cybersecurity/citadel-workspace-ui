@@ -12,12 +12,13 @@ import {
   PrivacySettingsTab,
   PermissionsSettingsTab,
   SecuritySettingsTab,
+  NotificationsSettingsTab,
 } from './settings';
-import { Settings, Wifi, Palette, Shield, Lock, KeyRound } from 'lucide-react';
+import { Settings, Wifi, Palette, Shield, Lock, KeyRound, Bell } from 'lucide-react';
 import { connectionManager } from '@/lib/connection';
 import type { CurrentConnectionInfo } from '@/lib/connection/types';
 
-export type SettingsTab = 'general' | 'connections' | 'appearance' | 'privacy' | 'permissions' | 'security';
+export type SettingsTab = 'general' | 'connections' | 'appearance' | 'privacy' | 'notifications' | 'permissions' | 'security';
 
 export interface SettingsModalProps {
   open: boolean;
@@ -30,7 +31,7 @@ export function SettingsModal({ open, onOpenChange, tab }: SettingsModalProps): 
   const connectionInfo: CurrentConnectionInfo | null = connectionManager.getConnectionInfo();
   const isConnected: boolean = !!connectionInfo?.cid;
 
-  const tabTriggerClass: "data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground gap-1.5 text-xs rounded-lg transition-all data-[state=active]:shadow-md data-[state=active]:shadow-primary-accent/20" = "data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground gap-1.5 text-xs rounded-lg transition-all data-[state=active]:shadow-md data-[state=active]:shadow-primary-accent/20";
+  const tabTriggerClass: "data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground gap-1.5 px-1.5 text-xs rounded-lg transition-all data-[state=active]:shadow-md data-[state=active]:shadow-primary-accent/20 [&>svg]:shrink-0" = "data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground gap-1.5 px-1.5 text-xs rounded-lg transition-all data-[state=active]:shadow-md data-[state=active]:shadow-primary-accent/20 [&>svg]:shrink-0";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -45,7 +46,7 @@ export function SettingsModal({ open, onOpenChange, tab }: SettingsModalProps): 
             {/* Each trigger's text is hidden below `sm`, which left five
                 icon-only tabs with no accessible name on a phone. aria-label
                 gives them one at every width. */}
-            <TabsList className="grid w-full grid-cols-6 bg-input h-10 rounded-lg p-1">
+            <TabsList className="grid w-full grid-cols-7 bg-input h-10 rounded-lg p-1">
               <TabsTrigger value="general" aria-label="General" className={tabTriggerClass}>
                 <Settings className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">General</span>
@@ -67,6 +68,10 @@ export function SettingsModal({ open, onOpenChange, tab }: SettingsModalProps): 
               <TabsTrigger value="privacy" aria-label="Privacy" className={tabTriggerClass}>
                 <Shield className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Privacy</span>
+              </TabsTrigger>
+              <TabsTrigger value="notifications" aria-label="Notifications" className={tabTriggerClass} data-testid="settings-tab-notifications">
+                <Bell className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Notify</span>
               </TabsTrigger>
               <TabsTrigger
                 value="permissions"
@@ -107,6 +112,10 @@ export function SettingsModal({ open, onOpenChange, tab }: SettingsModalProps): 
 
             <TabsContent value="privacy" className="mt-4 min-h-[300px]">
               <PrivacySettingsTab />
+            </TabsContent>
+
+            <TabsContent value="notifications" className="mt-4 min-h-[300px]">
+              <NotificationsSettingsTab />
             </TabsContent>
 
             <TabsContent value="permissions" className="mt-4 min-h-[300px]">

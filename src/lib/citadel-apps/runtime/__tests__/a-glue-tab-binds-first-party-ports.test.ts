@@ -36,7 +36,7 @@ describe('a glue tab binding', () => {
     expect((await ports.node('n-1')).name).toBe('Platform');
     tree = { 'n-1': { id: 'n-1', name: 'Platform team', parent_id: null, children: [] } };
     expect((await ports.node('n-1')).name).toBe('Platform team');
-    await ports.notify('New booking', 'Intro with ana');
+    await ports.notify('bookings', 'New booking', 'Intro with ana');
     expect(notices).toEqual([{ appId: kernel.rel.install.app_id, from: 'Kanban', title: 'New booking', body: 'Intro with ana' }]);
   });
 
