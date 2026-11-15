@@ -79,6 +79,7 @@ describe('clicking a saved account the agent does not hold', () => {
     await userEvent.click(await screen.findByTestId('switcher-account-signed-out'));
     expect(await screen.findByDisplayValue('bob', {}, { timeout: 5000 })).toBeInTheDocument();
     expect(screen.getByTestId('login-notice')).toHaveTextContent('bob on acme.work.example.net is signed out.');
+    expect(screen.getByTestId('login-scope')).toHaveTextContent('Signing in to acme.work.example.net');
     expect(claims).toEqual([]);
   });
 

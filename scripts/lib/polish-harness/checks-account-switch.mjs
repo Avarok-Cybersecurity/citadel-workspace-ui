@@ -52,4 +52,82 @@ async function theSignInSaysWhy({ page, url, viewport }) {
   await page.getByTestId('sign-in-closed').waitFor({ timeout: 3000 });
 }
 
-export const ACCOUNT_SWITCH_CHECKS = { aSignedOutRowSaysSo, theSignInSaysWhy };
+const within = (inner, outer, what) => assert.ok(inside(inner, outer), `${what} ${JSON.stringify(inner)} leaves ${JSON.stringify(outer)}`);
+const ACME = 'acme-research-and-development-laboratories.work.avarok.net';
+
+/** The scope line sits inside the form above the username, which it describes. */
+async function aScopedSignInSaysWhere({ page, url, viewport }) {
+  await page.goto(url('sign-in-scoped'));
+  const scope = page.getByTestId('login-scope');
+  await scope.waitFor({ state: 'visible' });
+  await settled(page);
+  const form = await page.locator('form').boundingBox();
+  within(await scope.boundingBox(), form, 'the scope line');
+  within(form, { x: 0, y: 0, ...viewport }, 'the form');
+  assert.match(await scope.textContent(), /Signing in to bench\.work\.avarok\.net/);
+  assert.ok((await scope.boundingBox()).y < (await page.locator('#username').boundingBox()).y, 'the scope line is not above the username');
+  assert.match(await page.locator('#username').getAttribute('aria-describedby'), /login-scope/);
+}
+
+/** With nothing saved for the server, the form says so inside itself and still takes a username. */
+async function anEmptyScopeSaysSo({ page, url, viewport }) {
+  await page.goto(url('sign-in-scope-empty'));
+  const empty = page.getByTestId('login-scope-empty');
+  await empty.waitFor({ state: 'visible' });
+  await settled(page);
+  const form = await page.locator('form').boundingBox();
+  within(await empty.boundingBox(), form, 'the no-account note');
+  within(form, { x: 0, y: 0, ...viewport }, 'the form');
+  await page.locator('#username').fill('zed');
+  assert.ok(await page.getByTestId('login-submit').isEnabled(), 'a username for that server cannot be submitted');
+}
+
+/**
+ * Another server's username: the notice fits inside the form, its way out is a 44px target
+ * inside it, Enter does not sign in but moves to that way out, and taking it rescopes.
+ */
+async function theWrongServerIsCaught({ page, url, viewport }) {
+  await page.goto(url('sign-in-scoped'));
+  await page.getByTestId('login-scope').waitFor({ state: 'visible' });
+  await page.locator('#username').fill('bob');
+  const notice = page.getByTestId('login-wrong-server');
+  await notice.waitFor({ state: 'visible' });
+  await settled(page);
+  const box = await notice.boundingBox();
+  within(box, await page.locator('form').boundingBox(), 'the wrong-server notice');
+  within(box, { x: 0, y: 0, ...viewport }, 'the wrong-server notice');
+  const go = page.getByTestId('login-switch-server');
+  const goBox = await go.boundingBox();
+  assert.ok(goBox.height >= 44, `the way to the other server is ${goBox.height}px tall`);
+  within(goBox, box, 'its button');
+  assert.ok(await go.evaluate((el) => el.scrollWidth <= el.clientWidth + 1 && el.scrollHeight <= el.clientHeight + 1), 'the button\'s label runs out of it');
+  assert.equal(await notice.getAttribute('role'), 'alert');
+  assert.equal(await page.getByTestId('login-submit').getAttribute('aria-describedby'), 'login-wrong-server', 'Sign In does not point at the notice');
+  await page.locator('#password').fill('pw');
+  await page.locator('#password').press('Enter');
+  assert.equal(await page.evaluate(() => document.activeElement?.dataset.testid), 'login-switch-server', 'Enter did not move to the way out');
+  await go.click();
+  assert.match(await page.getByTestId('login-scope').textContent(), new RegExp(`Signing in to ${ACME.replace(/\./g, '\\.')}`));
+  assert.equal(await notice.count(), 0, 'the notice stayed after rescoping');
+}
+
+/** Every row names its server inside itself; two accounts called alice read differently. */
+async function everyRowNamesItsServer({ page, url }) {
+  await page.goto(url('passkey-rows'));
+  const rows = page.getByTestId('login-passkey-account');
+  await rows.first().waitFor({ state: 'visible' });
+  const servers = [];
+  for (let i = 0; i < await rows.count(); i += 1) {
+    const row = rows.nth(i);
+    const box = await row.boundingBox();
+    assert.ok(box.height >= 44, `row ${i} is ${box.height}px tall`);
+    within(await row.getByTestId('login-passkey-server').boundingBox(), box, `row ${i}'s server`);
+    within(await row.getByTestId('login-passkey-name').boundingBox(), box, `row ${i}'s name`);
+    servers.push(await row.getByTestId('login-passkey-server').textContent());
+  }
+  assert.equal(new Set(servers).size, servers.length, `rows share a server label: ${servers}`);
+}
+
+export const ACCOUNT_SWITCH_CHECKS = {
+  aSignedOutRowSaysSo, theSignInSaysWhy, aScopedSignInSaysWhere, anEmptyScopeSaysSo, theWrongServerIsCaught, everyRowNamesItsServer,
+};

@@ -22,14 +22,14 @@ import { useClearAfterClose } from './use-clear-after-close';
  * The parser and the switch flow are imported only when a link is present
  * (account-link-runner.ts), so a plain visit does not load them.
  */
-export function useAccountLink(onLogin: (username: string) => void, signInOpen: boolean): void {
+export function useAccountLink(onLogin: (username: string, server: string | null) => void, signInOpen: boolean): void {
   const navigate: NavigateFunction = useNavigate();
   const { toast } = useToast();
   const confirm: ReturnType<typeof useConfirm> = useConfirm();
   const [searchParams, setSearchParams] = useSearchParams();
   /** The query string last acted on, so a StrictMode re-run does not act twice. */
   const consumed: React.MutableRefObject<string | null> = useRef<string | null>(null);
-  const latestOnLogin: React.MutableRefObject<(username: string) => void> = useRef(onLogin);
+  const latestOnLogin: React.MutableRefObject<(username: string, server: string | null) => void> = useRef(onLogin);
   latestOnLogin.current = onLogin;
   const [signInPending, setSignInPending] = useState<boolean>(false);
 
@@ -50,7 +50,7 @@ export function useAccountLink(onLogin: (username: string) => void, signInOpen: 
     const linkParams: URLSearchParams = new URLSearchParams(searchParams);
     runAsyncSetup(async (): Promise<void> => {
       const { runAccountLink } = await import('./account-link-runner');
-      const login = (username: string): void => { setSignInPending(true); latestOnLogin.current(username); };
+      const login = (username: string, server: string | null): void => { setSignInPending(true); latestOnLogin.current(username, server); };
       const outcome: AccountLinkDecision<OrphanSessionWithWorkspace> | null = await runAccountLink(linkParams, { navigate, toast, confirm, login });
       if (outcome?.kind !== 'login') clearLink();
     });
@@ -64,9 +64,11 @@ export function useAccountLink(onLogin: (username: string) => void, signInOpen: 
  * carried, for the form to start with; `startPlainLogin` is the ordinary button,
  * which clears it. `signInOpen` is whether the sign-in step is showing.
  */
-export function useLinkedLogin(startLogin: () => void, signInOpen: boolean): { linkedUsername: string | undefined; startPlainLogin: () => void } {
-  const [linkedUsername, setLinkedUsername] = useState<string | undefined>(undefined);
-  useAccountLink((username: string): void => { setLinkedUsername(username); startLogin(); }, signInOpen);
-  const startPlainLogin = (): void => { setLinkedUsername(undefined); startLogin(); };
-  return { linkedUsername, startPlainLogin };
+export function useLinkedLogin(
+  startLogin: () => void, signInOpen: boolean,
+): { linkedUsername: string | undefined; linkedServer: string | undefined; startPlainLogin: () => void } {
+  const [linked, setLinked] = useState<{ username: string; server: string | undefined } | undefined>(undefined);
+  useAccountLink((username: string, server: string | null): void => { setLinked({ username, server: server ?? undefined }); startLogin(); }, signInOpen);
+  const startPlainLogin = (): void => { setLinked(undefined); startLogin(); };
+  return { linkedUsername: linked?.username, linkedServer: linked?.server, startPlainLogin };
 }

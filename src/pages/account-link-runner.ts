@@ -23,7 +23,7 @@ type Toast = ReturnType<typeof useToast>['toast'];
  */
 export async function runAccountLink(
   params: URLSearchParams,
-  deps: { navigate: NavigateFunction; toast: Toast; login: (username: string) => void; confirm: SwitchCallbacks['confirm'] },
+  deps: { navigate: NavigateFunction; toast: Toast; login: (username: string, server: string | null) => void; confirm: SwitchCallbacks['confirm'] },
 ): Promise<AccountLinkDecision<OrphanSessionWithWorkspace> | null> {
   const link: AccountLink | null = parseAccountLink(params);
   if (!link) {
@@ -49,9 +49,9 @@ export async function runAccountLink(
       new Promise((resolve: () => void) => { setTimeout(resolve, TIMEOUT.ACCOUNT_LINK_SIGN_IN_MS); }),
     switchTo: (session: OrphanSessionWithWorkspace) =>
       switchToSession(session, {
-        navigate: deps.navigate, toast: deps.toast, confirm: deps.confirm, signInAs: deps.login,
+        navigate: deps.navigate, toast: deps.toast, confirm: deps.confirm, signInAs: (username: string) => deps.login(username, null),
         // The landing page's own sign-in; the switch's notice has already said the session ended.
-        signInAgain: (request: SignedOutSignIn) => deps.login(request.username),
+        signInAgain: (request: SignedOutSignIn) => deps.login(request.username, request.server),
       }),
     login: deps.login,
   });

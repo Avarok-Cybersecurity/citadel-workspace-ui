@@ -14,6 +14,7 @@ export const PASSKEY_COPY: {
   readonly pinNote: string;
   readonly unavailableHere: string;
   readonly chooseAccount: 'Sign in with a passkey as:';
+  readonly serverUnknown: 'server not recorded on this device';
 } = {
   signInButton: 'Use passkey or security key',
   orPassword: 'or use your password',
@@ -23,6 +24,7 @@ export const PASSKEY_COPY: {
   pinNote: 'Security keys need a PIN set first — we require it so a lost key can\'t be used on its own.',
   unavailableHere: 'Passkeys need a secure (https or localhost) page in a browser that supports them. Your password still works.',
   chooseAccount: 'Sign in with a passkey as:',
+  serverUnknown: 'server not recorded on this device',
 } as const;
 
 export const removeCopy = (label: string): string =>

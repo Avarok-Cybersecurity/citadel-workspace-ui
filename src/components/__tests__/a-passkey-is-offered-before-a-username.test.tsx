@@ -53,7 +53,7 @@ describe('the sign-in form on a device with a passkey', () => {
     await enrol('alice', 7n);
     await enrol('bob', 8n);
     renderLogin();
-    await waitFor(() => expect(screen.getAllByTestId('login-passkey-account').map(b => b.textContent)).toEqual(['alice', 'bob']));
+    await waitFor(() => expect(screen.getAllByTestId('login-passkey-name').map(b => b.textContent)).toEqual(['alice', 'bob']));
   });
 
   it('offers nothing on a device with no passkey', async () => {

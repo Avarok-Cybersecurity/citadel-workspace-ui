@@ -1,7 +1,8 @@
 /**
- * The top bar's switcher row for an account the agent no longer holds, and the sign-in it
- * opens, measured at 375px as well as the harness's 390px and desktop, under Full and Lite
- * motion as well as reduced: the menu and the sign-in animate in.
+ * The top bar's switcher row for an account the agent no longer holds, the sign-in it opens,
+ * and that sign-in scoped to its server (the scope, no saved account there, another server's
+ * username, server-named rows), measured at 375px as well as the harness's 390px and desktop,
+ * under Full and Lite motion as well as reduced: the menu and the sign-in animate in.
  */
 import { runMatrix } from './lib/polish-harness/run-checks.mjs';
 import { ACCOUNT_SWITCH_CHECKS } from './lib/polish-harness/checks-account-switch.mjs';

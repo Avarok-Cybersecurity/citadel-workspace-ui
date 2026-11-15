@@ -23,7 +23,8 @@ export interface LinkableSession {
 
 export type AccountLinkDecision<T extends LinkableSession> =
   | { readonly kind: 'switch'; readonly session: T }
-  | { readonly kind: 'login'; readonly username: string };
+  /** `server`: the link's own, which the sign-in is scoped to; null when the link names none. */
+  | { readonly kind: 'login'; readonly username: string; readonly server: string | null };
 
 export interface AccountLinkIO<T extends LinkableSession> {
   /** `ok: false` when the agent never answered -- not the same as "none". */
@@ -35,7 +36,7 @@ export interface AccountLinkIO<T extends LinkableSession> {
    */
   signInDeadline: () => Promise<void>;
   switchTo: (session: T) => Promise<void>;
-  login: (username: string) => void;
+  login: (username: string, server: string | null) => void;
 }
 
 
@@ -56,7 +57,7 @@ export function decideAccountLink<T extends LinkableSession>(
       (link.server === undefined || sessionIsOnServer(session, link.server)),
   );
   const only: T | undefined = matches.length === 1 ? matches[0] : undefined;
-  return only ? { kind: 'switch', session: only } : { kind: 'login', username: link.username };
+  return only ? { kind: 'switch', session: only } : { kind: 'login', username: link.username, server: link.server ?? null };
 }
 
 /**
@@ -75,10 +76,10 @@ export async function openAccountLink<T extends LinkableSession>(
     io.signInDeadline().then((): 'deadline' => 'deadline'),
   ]);
   const signedInEarly: boolean = first === 'deadline';
-  if (signedInEarly) io.login(link.username);
+  if (signedInEarly) io.login(link.username, link.server ?? null);
   const { ok, sessions }: Answer = first === 'deadline' ? await answered : first;
   const decision: AccountLinkDecision<T> = decideAccountLink(link, ok ? sessions : []);
   if (decision.kind === 'switch') await io.switchTo(decision.session);
-  else if (!signedInEarly) io.login(decision.username);
+  else if (!signedInEarly) io.login(decision.username, decision.server);
   return decision;
 }

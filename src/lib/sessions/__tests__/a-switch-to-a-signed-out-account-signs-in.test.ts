@@ -54,7 +54,7 @@ describe('switching to an account the agent does not hold', () => {
   it('opens its sign-in with the username and server, and a reason in plain words', async () => {
     const seen: Seen = await switchWith(`Session ${CID} not found`);
     expect(seen.signIns).toEqual([{
-      kind: 'signed-out', username: 'alice',
+      kind: 'signed-out', username: 'alice', server: 'bench.work.avarok.net',
       notice: 'alice on bench.work.avarok.net is signed out. Enter the password to sign in again.',
     }]);
     expect(seen.navigated).toEqual([]);

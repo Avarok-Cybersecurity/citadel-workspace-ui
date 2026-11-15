@@ -12,6 +12,7 @@
 import '@/lib/session-startup-service';
 import { claimSessionForThisTab, isGoneFromTheAgent, type ClaimOutcome } from './claim-session';
 import { signedOutSignIn, type SignedOutSignIn } from './sign-in-request';
+import { sessionHost } from './same-server';
 import type { TakeoverCallbacks } from './takeover';
 import { sessionSwitchToasts, type SessionSwitchToasts } from './session-switch-toasts';
 import { readLastLocation } from './last-location';
@@ -32,6 +33,8 @@ export interface SwitchTarget {
   cid: bigint;
   username: string;
   server_address: string;
+  /** The host as typed, where the agent reports it: `server_address` may be a resolved address. */
+  server_host?: string | null;
   workspaceName: string;
   storedSessionIndex: number;
 }
@@ -61,7 +64,7 @@ export async function switchToSession(session: SwitchTarget, callbacks: SwitchCa
       if (!isGoneFromTheAgent(error)) throw error;
       // Signed out, deleted elsewhere, or ended by an agent restart after the list was read.
       toast(notices.signedOut);
-      callbacks.signInAgain(signedOutSignIn(session.username, session.server_address));
+      callbacks.signInAgain(signedOutSignIn(session.username, sessionHost(session)));
       return;
     }
     if (outcome.status === 'owned-by-another-tab') {

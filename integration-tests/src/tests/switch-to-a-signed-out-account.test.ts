@@ -61,7 +61,9 @@ async function runTest(): Promise<boolean> {
 
     await row.click();
     const notice = alice.getByTestId('login-notice');
+    // Scoped to bob's server: the form says which, and offers nothing from another.
     results.signInPrefilled = await isVisibleWithin(notice, 15_000)
+      && /Signing in to /.test(await alice.getByTestId('login-scope').innerText())
       && (await alice.locator('#username').inputValue()) === BOB
       && (await alice.locator('#password').inputValue()) === '';
     await takeScreenshot(alice, '02_sign_in_prefilled');

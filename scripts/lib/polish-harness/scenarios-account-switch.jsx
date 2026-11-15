@@ -1,12 +1,15 @@
 /**
- * The top bar's account switcher with an account the agent no longer holds, and the
- * sign-in that row opens. Real components; the rows are input, as the switcher builds them.
+ * The top bar's account switcher with an account the agent no longer holds, the sign-in
+ * that row opens, and that sign-in scoped to its server. Real components; the rows and the
+ * browser's saved accounts are input (there is no agent here to keep them).
  */
 import { useState } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { DropdownMenu, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { WorkspaceSwitcherDropdown } from '@/components/layout/sidebar/WorkspaceSwitcherDropdown';
 import { Login } from '@/components/Login';
+import { PasskeySignIn } from '@/components/passkey/PasskeySignIn';
+import { connectionManager } from '@/lib/connection';
 import { signedOutSignIn } from '@/lib/sessions/sign-in-request';
 
 const row = (username, fullName, signedIn, cid) => ({
@@ -44,4 +47,30 @@ function SignInSignedOut() {
   );
 }
 
-export const ACCOUNT_SWITCH_SCENARIOS = { 'switcher-signed-out': SwitcherSignedOut, 'sign-in-signed-out': SignInSignedOut };
+const BENCH = 'bench.work.avarok.net';
+const ACME = 'acme-research-and-development-laboratories.work.avarok.net';
+
+/** The browser's saved accounts, which the agent's LocalDB would hold: alice on bench, bob on acme. */
+function savedAccounts() {
+  const sessions = [{ username: 'alice', serverAddress: BENCH, cid: 1n }, { username: 'bob', serverAddress: ACME, cid: 2n }];
+  connectionManager.getStoredSessions = () => ({ sessions });
+}
+
+function SignInScoped() {
+  savedAccounts();
+  return <MemoryRouter><Login initialUsername={undefined} scope={BENCH} onNext={() => {}} onCancel={() => {}} /></MemoryRouter>;
+}
+
+function SignInScopeEmpty() {
+  return <MemoryRouter><Login initialUsername={undefined} scope="new-workspace.work.avarok.net" onNext={() => {}} onCancel={() => {}} /></MemoryRouter>;
+}
+
+function PasskeyRows() {
+  const rows = [{ username: 'alice', server: BENCH }, { username: 'alice', server: ACME }, { username: 'margaret.hamilton.apollo', server: null }];
+  return <div style={{ padding: 16, maxWidth: 400 }}><PasskeySignIn accounts={rows} onUse={() => {}} disabled={false} /></div>;
+}
+
+export const ACCOUNT_SWITCH_SCENARIOS = {
+  'switcher-signed-out': SwitcherSignedOut, 'sign-in-signed-out': SignInSignedOut,
+  'sign-in-scoped': SignInScoped, 'sign-in-scope-empty': SignInScopeEmpty, 'passkey-rows': PasskeyRows,
+};
