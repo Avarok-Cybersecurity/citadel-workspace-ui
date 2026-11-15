@@ -7,6 +7,8 @@
  * A moved chat document's loss banner, opened all the way, fits a phone, wraps its original's text and passes axe.
  * A member's P2P consent panel fits a 375px phone: every control inside it, 44px targets, long blocked names wrapped.
  * An app's toolbar fits a 375px phone: host buttons with plain-text labels, 44px targets, above the zone.
+ * A node channel's shared-file cards (file, picture, downloading, refused), its upload strip (storing, shared,
+ * refused) and the composer's destination line fit 375px and desktop, under Full and Lite motion, with 44px targets.
  * Serves the real components (see lib/polish-harness) and asserts bounding boxes, in Chromium and WebKit,
  * light and dark, at desktop and phone widths.
  */
@@ -24,5 +26,6 @@ import { RIBBON_CHECKS } from './lib/polish-harness/checks-ribbons.mjs';
 import { MIGRATION_CHECKS } from './lib/polish-harness/checks-migration.mjs';
 import { APP_TOOLBAR_CHECKS } from './lib/polish-harness/checks-app-toolbar.mjs';
 import { PEER_CONSENT_CHECKS } from './lib/polish-harness/checks-peer-consent.mjs';
+import { SERVER_FILE_CHECKS } from './lib/polish-harness/checks-server-files.mjs';
 
-process.exit(await runChecks({ ...PEOPLE_CHECKS, ...OVERLAY_CHECKS, ...CONTROL_CHECKS, ...SPACING_CHECKS, ...SIDEBAR_CHECKS, ...PERMISSION_CHECKS, ...FILE_MANAGER_CHECKS, ...BREADCRUMB_CHECKS, ...SHARE_CHECKS, ...RIBBON_CHECKS, ...MIGRATION_CHECKS, ...APP_TOOLBAR_CHECKS, ...PEER_CONSENT_CHECKS }, Number(process.env.SWEEP_PORT ?? 4198)));
+process.exit(await runChecks({ ...PEOPLE_CHECKS, ...OVERLAY_CHECKS, ...CONTROL_CHECKS, ...SPACING_CHECKS, ...SIDEBAR_CHECKS, ...PERMISSION_CHECKS, ...FILE_MANAGER_CHECKS, ...BREADCRUMB_CHECKS, ...SHARE_CHECKS, ...RIBBON_CHECKS, ...MIGRATION_CHECKS, ...APP_TOOLBAR_CHECKS, ...PEER_CONSENT_CHECKS, ...SERVER_FILE_CHECKS }, Number(process.env.SWEEP_PORT ?? 4198)));

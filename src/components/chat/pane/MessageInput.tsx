@@ -129,7 +129,7 @@ export const MessageInput: React.ForwardRefExoticComponent<MessageInputProps & R
               variant="ghost"
               onClick={onFileClick}
               disabled={paused || awaitingAcceptFrom !== null}
-              className="text-muted-foreground hover:text-foreground hover:bg-foreground/10"
+              className="h-[44px] w-[44px] shrink-0 text-muted-foreground hover:text-foreground hover:bg-foreground/10"
               aria-label="Send file"
               aria-describedby={showsDestination ? destinationId : undefined}
               title={paused ? PAUSE_COPY.fileReason : 'Send file'}
@@ -177,7 +177,7 @@ export const MessageInput: React.ForwardRefExoticComponent<MessageInputProps & R
               // of seconds, and the text is still in the field for all of it.
               disabled={isSending || (!inputMessage.trim() && !isLiveDocMode)}
               aria-busy={isSending}
-              className="bg-primary text-primary-foreground"
+              className="h-[44px] w-[44px] shrink-0 bg-primary text-primary-foreground"
             >
               <Send className="h-4 w-4" aria-hidden="true" />
             </Button>

@@ -82,4 +82,7 @@ export function NodeChatScenario() {
   );
 }
 
+/** The channel's server, for a scenario that replaces only what it is about (scenarios-server-files). */
+export { io as NODE_CHAT_IO };
+
 export const NODE_CHAT_SCENARIOS = { 'node-chat': NodeChatScenario };
