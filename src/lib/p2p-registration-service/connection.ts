@@ -186,7 +186,7 @@ export async function acceptRegistrationRequest(
   }
 
   debugLog('P2PRegistrationService', `[P2P] Accepting registration from ${peerUsername || peerCid.toString()}`);
-  await registerPeer(peerCid, { connectAfterRegister: false }, pendingRequests);
+  await registerPeer(peerCid, pendingRequests);
   await peerRegistrationStore.removeRequestByPeerCid(peerCid);
 
   if (registeredPeers) {

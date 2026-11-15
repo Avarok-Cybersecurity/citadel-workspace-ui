@@ -175,7 +175,7 @@ export class P2PRegistrationService {
     const registeredPeers: PeerInfoResponse[] = await doListRegisteredPeersWithRetry(this.pendingRequests);
     updatePeerMaps(this.allPeers, this.registeredPeers, allPeers, registeredPeers);
     if (options.autoRegisterAll) {
-      await doRegisterUnregisteredPeers(this.allPeers, options, this.pendingRequests);
+      await doRegisterUnregisteredPeers(this.allPeers, this.pendingRequests);
     }
     eventEmitter.emit('p2p:peers-updated', {
       allPeers: Array.from(this.allPeers.values()),
@@ -195,8 +195,8 @@ export class P2PRegistrationService {
     return doListRegisteredPeers(this.pendingRequests);
   }
 
-  public async registerPeer(peerCid: bigint, options: PeerRegistrationOptions = {}): Promise<void> {
-    return doRegisterPeer(peerCid, options, this.pendingRequests);
+  public async registerPeer(peerCid: bigint): Promise<void> {
+    return doRegisterPeer(peerCid, this.pendingRequests);
   }
 
   /** A peer round now rather than at the next tick, for a lookup that missed (workspace-peers.ts). */

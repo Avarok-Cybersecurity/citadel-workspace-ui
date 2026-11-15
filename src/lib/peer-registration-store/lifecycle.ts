@@ -11,7 +11,7 @@ import { notificationService, NotificationPriority } from '../notification-servi
 import { describeError } from '../describe-error';
 import { p2pAutoConnectService } from '../p2p-auto-connect-service';
 import { p2pRegistrationService } from '../p2p-registration-service';
-import { getDefaultSecuritySettings } from '../security-utils';
+import { sendPeerRegisterRequest, resendPeerRegistration } from '@/lib/p2p/send-peer-registration';
 import { debugLog } from '@/lib/debug-config';
 import { OUTGOING_RESEND_THRESHOLD_MS } from './constants';
 import { hasRequestFromPeer } from './state';
@@ -21,8 +21,6 @@ import type {
   OutgoingPeerRequest,
   PeerRegisterNotification,
 } from './types';
-import { toInternalServiceRequest } from './types';
-import type { SessionSecuritySettings } from '@/lib/security-utils';
 import { markAsDecline } from '../p2p-registration-service/decline-correlation';
 
 /**
@@ -151,52 +149,19 @@ export async function executeAcceptRequest(request: PendingPeerRequest): Promise
   const currentCid: bigint = request.cid;
   if (!currentCid) throw new Error('No active session - cannot accept registration');
 
-  const registerRequestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
-  const registerRequest: { PeerRegister: { request_id: `${string}-${string}-${string}-${string}-${string}`; cid: bigint; peer_cid: bigint; session_security_settings: SessionSecuritySettings; connect_after_register: boolean; peer_session_password: null; }; } = {
-    PeerRegister: {
-      request_id: registerRequestId,
-      cid: currentCid,
-      peer_cid: request.peer_cid,
-      session_security_settings: getDefaultSecuritySettings(),
-      connect_after_register: false,
-      peer_session_password: null
-    }
-  };
-
+  const registerRequestId: string = crypto.randomUUID();
   debugLog('PeerRegistrationStore', 'acceptRequest waiting for response', { registerRequestId, targetPeerCid: request.peer_cid });
 
   const responsePromise: Promise<void> = waitForAcceptResponse(registerRequestId, request.peer_cid, currentCid);
 
   debugLog('PeerRegistrationStore', 'Claiming session', currentCid, 'before sending PeerRegister');
   await websocketService.claimSession(currentCid);
-  await websocketService.sendMessage(registerRequest);
+  await sendPeerRegisterRequest(registerRequestId, currentCid, request.peer_cid);
   await responsePromise;
 
   p2pAutoConnectService.connectToPeer(request.peer_cid).catch((err) => {
     debugLog('PeerRegistrationStore', 'Auto-connect after accept failed:', err);
   });
-}
-
-/**
- * Resend a PeerRegister request for an outgoing request
- */
-export async function resendPeerRegister(request: OutgoingPeerRequest): Promise<void> {
-  const client: ReturnType<typeof websocketService.getClient> = websocketService.getClient();
-  if (!client) throw new Error('No WebSocket client available');
-
-  await websocketService.claimSession(request.fromCid);
-  const registerRequest: { PeerRegister: { request_id: string; cid: bigint; peer_cid: bigint; session_security_settings: SessionSecuritySettings; connect_after_register: boolean; peer_session_password: null; }; } = {
-    PeerRegister: {
-      request_id: request.id,
-      cid: request.fromCid,
-      peer_cid: request.toCid,
-      session_security_settings: getDefaultSecuritySettings(),
-      connect_after_register: false,
-      peer_session_password: null
-    }
-  };
-  await client.sendDirectToInternalService(toInternalServiceRequest(registerRequest));
-  debugLog('PeerRegistrationStore', 'Resent PeerRegister to', request.peerUsername);
 }
 
 /**
@@ -220,7 +185,7 @@ export async function processPollRequest(
   debugLog('PeerRegistrationStore', 'Resending request to', request.peerUsername, '(elapsed:', elapsed, 'ms)');
 
   try {
-    await resendPeerRegister(request);
+    await resendPeerRegistration(request);
     request.timeLastSent = Date.now();
     return 'updated';
   } catch (error: unknown) {

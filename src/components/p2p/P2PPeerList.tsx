@@ -88,8 +88,9 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
 
   const [showDiscovery, setShowDiscovery] = useState(false);
   const navigate: NavigateFunction = useNavigate();
-  // One click on someone in the Available list sends them a request.
-  const { error: addPeerError, request: sendRequest } = usePeerRequest((cid) => messenger.autoRegisterPeer(cid), loadPeers);
+  // One click on someone in the Available list sends them a request, recorded under the name they are addressed by.
+  const handleOf = (cid: bigint): string => peerHandleName({ cid, username: availablePeers.find((p: Peer): boolean => p.cid === cid)?.username });
+  const { error: addPeerError, request: sendRequest } = usePeerRequest((cid) => messenger.autoRegisterPeer(cid, handleOf(cid)), loadPeers);
 
   return (
     <div className="h-full flex flex-col bg-input">
