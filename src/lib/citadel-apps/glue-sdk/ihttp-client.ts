@@ -49,11 +49,12 @@ export class IhttpClient {
 
   constructor(private readonly io: IhttpIo) {}
 
-  request(to: Address, transport: Transport, method: HttpMethod, path: string, body: Uint8Array): Promise<IhttpResponse> {
+  /** `query`: the request's query string, without its `?` (empty for none). */
+  request(to: Address, transport: Transport, method: HttpMethod, path: string, query: string, body: Uint8Array): Promise<IhttpResponse> {
     this.last += 1n;
     const stream: bigint = this.last;
     const appId: string = appOf(to);
-    const head: FrameKind = { RequestHead: { method, path, query: '', headers: [], body_len: BigInt(body.length), app_id: appId, scope_key: 'scope' in to ? to.scope.scope_key : '' } };
+    const head: FrameKind = { RequestHead: { method, path, query, headers: [], body_len: BigInt(body.length), app_id: appId, scope_key: 'scope' in to ? to.scope.scope_key : '' } };
     return new Promise<IhttpResponse>((resolve, reject): void => {
       this.open.set(keyOf(appId, stream), { to, transport, outbox: new Outbox(head, body), status: null, chunks: [], resolve, reject });
       void this.flush(appId, stream);

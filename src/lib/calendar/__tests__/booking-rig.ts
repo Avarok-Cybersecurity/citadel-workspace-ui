@@ -7,7 +7,9 @@ import { glueInstance } from '@/lib/citadel-apps/host/glue-instance';
 import { STANDARD_HOST_POLICY } from '@/lib/citadel-apps/host/limits';
 import { ManualClock } from '@/lib/citadel-apps/host/__tests__/fakes';
 import type { IhttpEndpoint } from '@/lib/citadel-apps/glue-sdk/ihttp-endpoint';
-import { BookingHost, serveBookings } from '../booking-host';
+import { BookingHost } from '../booking-host';
+import { BOOKING_ROUTES } from '../booking-wire';
+import { serveCalendar } from '../calendar-endpoint';
 import type { BookingChoice } from '../booking-form';
 import { calendarPorts, type CalendarPorts } from '../ports';
 import { realEngine, utc } from './engine-rig';
@@ -45,5 +47,5 @@ export async function member(name: string, relay: IhttpRelay, shared: Map<string
   });
   const ports: CalendarPorts = calendarPorts(glue);
   const host: BookingHost = new BookingHost({ ports, engine, node: 'n1', me: name, nowMs: () => NOW });
-  return { name, ports, endpoint: await serveBookings(ports, host, { relay: true, p2p: false }), host, notes };
+  return { name, ports, endpoint: await serveCalendar(ports, BOOKING_ROUTES, host.handle, { relay: true, p2p: false }), host, notes };
 }

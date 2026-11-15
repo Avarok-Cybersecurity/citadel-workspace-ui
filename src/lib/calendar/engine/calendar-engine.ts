@@ -31,6 +31,7 @@ import type { Write } from '../generated/Write';
 import type { CalendarGlue } from './load-calendar-wasm';
 import { call } from './call';
 import type { OffsetAt } from './intl-offsets';
+import { SdkEngine } from './sdk-engine';
 import { TeamEngine } from './team-engine';
 
 export { CalendarRefusal } from './call';
@@ -40,12 +41,15 @@ export class CalendarEngine {
   private readonly zoned: InstanceType<CalendarGlue['CalendarEngine']>;
   /** Team bookings, polls and routing forms (design §3.6.2, §3.6.3). */
   readonly team: TeamEngine;
+  /** The Calendar SDK's wire and decisions (design §3.8). */
+  readonly sdk: SdkEngine;
 
   /** Over an initialised glue and the page's time-zone database. */
   constructor(glue: CalendarGlue, offsetAt: OffsetAt) {
     this.glue = glue;
     this.zoned = new glue.CalendarEngine(offsetAt);
     this.team = new TeamEngine(glue);
+    this.sdk = new SdkEngine(glue);
   }
 
   resolve(zone: string, local: CivilDateTime): Resolution {

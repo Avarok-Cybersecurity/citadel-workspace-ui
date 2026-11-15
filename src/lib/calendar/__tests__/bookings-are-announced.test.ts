@@ -28,7 +28,7 @@ describe("the host's booking writes", () => {
     const host: BookingHost = new BookingHost({ ports: ana.ports, engine, node: 'n1', me: 'ana', nowMs: () => NOW });
     const booking = bookingOf({ type: INTRO, durationMin: 30, slot: SLOT, zone: 'America/New_York', answers: [{ question_id: 'q-topic', value: 'Roadmap secret' }] }, { id: 'b1', node: 'n1', host: 'ana', me: 'bob' });
 
-    const made = await host.handle({ caller: caller('bob'), method: 'POST', path: '/book', body: engine.encodeBooking(booking) });
+    const made = await host.handle({ caller: caller('bob'), method: 'POST', path: '/book', query: '', body: engine.encodeBooking(booking) });
     expect(made.status).toBe(201);
     expect((await host.cancelAsHost('b1', 'travelling')).status).toBe(200);
 

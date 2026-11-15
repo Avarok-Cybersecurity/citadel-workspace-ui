@@ -26,6 +26,7 @@ import { STANDARD_HOST_POLICY } from '@/lib/citadel-apps/host/limits';
 import { treeNodesPort } from '@/lib/citadel-apps/runtime/nodes-port';
 import { rosterMembersPort } from '@/lib/citadel-apps/runtime/first-party-ports';
 import { decodeHandled, encodeHandled } from '@/lib/calendar/reminder-runner';
+import { saveConsent } from '@/lib/calendar/sdk-store';
 
 const PAGE_CLOCK = pinnedClock();
 const TREE = {
@@ -74,6 +75,8 @@ function build(engine) {
     held: new Set(['storage.user', 'storage.node', 'storage.node.authored', 'nodes.read', 'members.list']),
     policy: { ...STANDARD_HOST_POLICY, serverCallsPerSecond: 100_000 }, limits: { topics: null, p2p: null }, clock: PAGE_CLOCK, pageUrl: window.location.href, storageChanges: () => () => {},
   }));
+  // An app the viewer allowed and one they refused, for the Apps panel (design §3.8).
+  void saveConsent(ports, engine, 'com.acme.kanban', 'allow').then(() => saveConsent(ports, engine, 'com.acme.spam', 'refuse'));
   window.__calendarKeys = () => [...store.values.keys()];
   window.__calendarRead = (codec, key) => engine[codec](store.values.get(key));
   window.__calendarTeam = (codec, key) => engine.team[codec](store.values.get(key));

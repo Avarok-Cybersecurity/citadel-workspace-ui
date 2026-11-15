@@ -57,9 +57,25 @@ export function decodeBooking(bytes: Uint8Array): any;
 
 export function decodeChange(bytes: Uint8Array): any;
 
+export function decodeConsent(bytes: Uint8Array): any;
+
 export function decodeEvent(bytes: Uint8Array): any;
 
+export function decodeEventPatch(bytes: Uint8Array): any;
+
+export function decodeEventRef(bytes: Uint8Array): any;
+
 export function decodeEventType(bytes: Uint8Array): any;
+
+export function decodeEvents(bytes: Uint8Array): any;
+
+export function decodeFreeBusy(bytes: Uint8Array): any;
+
+export function decodeHealth(bytes: Uint8Array): any;
+
+export function decodeNewEvent(bytes: Uint8Array): any;
+
+export function decodePlacement(bytes: Uint8Array): any;
 
 export function decodePoll(bytes: Uint8Array): any;
 
@@ -69,7 +85,11 @@ export function decodeProjection(bytes: Uint8Array): any;
 
 export function decodeReminderPlan(bytes: Uint8Array): any;
 
+export function decodeRev(bytes: Uint8Array): any;
+
 export function decodeRoutingForm(bytes: Uint8Array): any;
+
+export function decodeSdkRefusal(bytes: Uint8Array): any;
 
 export function encodeAvailability(value: any): Uint8Array;
 
@@ -80,12 +100,28 @@ export function encodeBooking(value: any): Uint8Array;
  */
 export function encodeChange(change: any): Uint8Array;
 
+export function encodeConsent(value: any): Uint8Array;
+
 /**
  * An event's stored bytes: versioned CBOR, refused past `EVENT_MAX_BYTES`.
  */
 export function encodeEvent(event: any): Uint8Array;
 
+export function encodeEventPatch(value: any): Uint8Array;
+
+export function encodeEventRef(value: any): Uint8Array;
+
 export function encodeEventType(value: any): Uint8Array;
+
+export function encodeEvents(value: any): Uint8Array;
+
+export function encodeFreeBusy(value: any): Uint8Array;
+
+export function encodeHealth(value: any): Uint8Array;
+
+export function encodeNewEvent(value: any): Uint8Array;
+
+export function encodePlacement(value: any): Uint8Array;
 
 export function encodePoll(value: any): Uint8Array;
 
@@ -95,13 +131,36 @@ export function encodeProjection(value: any): Uint8Array;
 
 export function encodeReminderPlan(value: any): Uint8Array;
 
+export function encodeRev(value: any): Uint8Array;
+
 export function encodeRoutingForm(value: any): Uint8Array;
+
+export function encodeSdkRefusal(value: any): Uint8Array;
+
+export function eventPath(id: string): string;
 
 export function exportIcs(events: any): any;
 
 export function fanOutPlan(event: any, subtree: any): any;
 
+export function freeBusyQueryString(query: any): string;
+
+export function listQueryString(query: any): string;
+
+export function mayChangeSdkEvent(event: any, app_id: string, rev: number): any;
+
 export function monthGrid(year: number, month: number): any;
+
+/**
+ * `[event, placement]`, or the refusal.
+ */
+export function newSdkEvent(request: any, adding: any): any;
+
+export function parseFreeBusyQuery(query: string): any;
+
+export function parseListQuery(query: string): any;
+
+export function patchSdkEvent(event: any, patch: any, app_id: string, now_ms: bigint): any;
 
 /**
  * `[picked poll, the slot it picked]`.
@@ -132,6 +191,37 @@ export function reconcile(projection: any, origin: any): any;
  * Where `answers` route on `form`: the first rule that holds, else its fallback.
  */
 export function route(form: any, answers: any): any;
+
+/**
+ * `consent`: the member's stored answer for the calling app, or null.
+ */
+export function sdkGate(route: any, caller: string, acting: string, consent: any): any;
+
+export function sdkHealth(): any;
+
+/**
+ * An ancestor's event as the page's projection of it holds it.
+ */
+export function sdkProjectionView(event_id: string, projection: any): any;
+
+/**
+ * The instants to keep, this one included, or null when it does not fit.
+ */
+export function sdkRateAdmit(recent_ms: any, now_ms: bigint): any;
+
+/**
+ * The SDK route a request names, or null.
+ */
+export function sdkRoute(method: any, path: string): any;
+
+export function sdkRoutes(): any;
+
+export function sdkStatus(code: any): number;
+
+/**
+ * The app's view of an event, or null for one it is not shown.
+ */
+export function sdkView(event: any, include: any): any;
 
 export function seatsLeft(seats: number, taken: number): number;
 
@@ -172,32 +262,68 @@ export interface InitOutput {
     readonly decodeAvailability: (a: number, b: number, c: number) => void;
     readonly decodeBooking: (a: number, b: number, c: number) => void;
     readonly decodeChange: (a: number, b: number, c: number) => void;
+    readonly decodeConsent: (a: number, b: number, c: number) => void;
     readonly decodeEvent: (a: number, b: number, c: number) => void;
+    readonly decodeEventPatch: (a: number, b: number, c: number) => void;
+    readonly decodeEventRef: (a: number, b: number, c: number) => void;
     readonly decodeEventType: (a: number, b: number, c: number) => void;
+    readonly decodeEvents: (a: number, b: number, c: number) => void;
+    readonly decodeFreeBusy: (a: number, b: number, c: number) => void;
+    readonly decodeHealth: (a: number, b: number, c: number) => void;
+    readonly decodeNewEvent: (a: number, b: number, c: number) => void;
+    readonly decodePlacement: (a: number, b: number, c: number) => void;
     readonly decodePoll: (a: number, b: number, c: number) => void;
     readonly decodePollVote: (a: number, b: number, c: number) => void;
     readonly decodeProjection: (a: number, b: number, c: number) => void;
     readonly decodeReminderPlan: (a: number, b: number, c: number) => void;
+    readonly decodeRev: (a: number, b: number, c: number) => void;
     readonly decodeRoutingForm: (a: number, b: number, c: number) => void;
+    readonly decodeSdkRefusal: (a: number, b: number, c: number) => void;
     readonly encodeAvailability: (a: number, b: number) => void;
     readonly encodeBooking: (a: number, b: number) => void;
     readonly encodeChange: (a: number, b: number) => void;
+    readonly encodeConsent: (a: number, b: number) => void;
     readonly encodeEvent: (a: number, b: number) => void;
+    readonly encodeEventPatch: (a: number, b: number) => void;
+    readonly encodeEventRef: (a: number, b: number) => void;
     readonly encodeEventType: (a: number, b: number) => void;
+    readonly encodeEvents: (a: number, b: number) => void;
+    readonly encodeFreeBusy: (a: number, b: number) => void;
+    readonly encodeHealth: (a: number, b: number) => void;
+    readonly encodeNewEvent: (a: number, b: number) => void;
+    readonly encodePlacement: (a: number, b: number) => void;
     readonly encodePoll: (a: number, b: number) => void;
     readonly encodePollVote: (a: number, b: number) => void;
     readonly encodeProjection: (a: number, b: number) => void;
     readonly encodeReminderPlan: (a: number, b: number) => void;
+    readonly encodeRev: (a: number, b: number) => void;
     readonly encodeRoutingForm: (a: number, b: number) => void;
+    readonly encodeSdkRefusal: (a: number, b: number) => void;
+    readonly eventPath: (a: number, b: number, c: number) => void;
     readonly exportIcs: (a: number, b: number) => void;
     readonly fanOutPlan: (a: number, b: number, c: number) => void;
+    readonly freeBusyQueryString: (a: number, b: number) => void;
+    readonly listQueryString: (a: number, b: number) => void;
+    readonly mayChangeSdkEvent: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly monthGrid: (a: number, b: number, c: number) => void;
+    readonly newSdkEvent: (a: number, b: number, c: number) => void;
+    readonly parseFreeBusyQuery: (a: number, b: number, c: number) => void;
+    readonly parseListQuery: (a: number, b: number, c: number) => void;
+    readonly patchSdkEvent: (a: number, b: number, c: number, d: number, e: number, f: bigint) => void;
     readonly pickPoll: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly project: (a: number, b: number) => void;
     readonly propagationBounds: (a: number) => void;
     readonly rankHosts: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly reconcile: (a: number, b: number, c: number) => void;
     readonly route: (a: number, b: number, c: number) => void;
+    readonly sdkGate: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
+    readonly sdkHealth: (a: number) => void;
+    readonly sdkProjectionView: (a: number, b: number, c: number, d: number) => void;
+    readonly sdkRateAdmit: (a: number, b: number, c: bigint) => void;
+    readonly sdkRoute: (a: number, b: number, c: number, d: number) => void;
+    readonly sdkRoutes: (a: number) => void;
+    readonly sdkStatus: (a: number, b: number) => void;
+    readonly sdkView: (a: number, b: number, c: number) => void;
     readonly seatsLeft: (a: number, b: number) => number;
     readonly shownUpAt: (a: number, b: number, c: number) => void;
     readonly tallyPoll: (a: number, b: number, c: number) => void;

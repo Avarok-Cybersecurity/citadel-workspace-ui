@@ -92,7 +92,7 @@ export async function claimWith(d: Pick<BookerDeps, 'engine' | 'client'>, bookin
   let r: IhttpResponse;
   try {
     const path: string = replacing === null ? BOOK_PATH : reschedulePath(replacing);
-    r = await d.client.request(hostAddress(booking.host), 'prefer_p2p_then_relay', 'POST', path, d.engine.encodeBooking(booking));
+    r = await d.client.request(hostAddress(booking.host), 'prefer_p2p_then_relay', 'POST', path, '', d.engine.encodeBooking(booking));
   } catch (e: unknown) {
     const unavailable: boolean = e instanceof PortRefused && typeof e.refused === 'object' && 'unavailable' in e.refused;
     if (e instanceof PortRefused) return { kind: unavailable ? 'unreachable' : 'failed', reason: refusalCopy(e.refused) };
@@ -124,7 +124,7 @@ export async function book(d: BookerDeps, booking: Booking, replacing: string | 
 /** Cancels booking `id` with `host`, saying why; the host records who cancelled from the session. */
 export async function cancelBooking(client: IhttpClient, host: string, id: string, reason: string | null): Promise<{ ok: true } | { ok: false; reason: string }> {
   try {
-    const r: IhttpResponse = await client.request(hostAddress(host), 'prefer_p2p_then_relay', 'POST', cancelPath(id), encodeCancel(reason));
+    const r: IhttpResponse = await client.request(hostAddress(host), 'prefer_p2p_then_relay', 'POST', cancelPath(id), '', encodeCancel(reason));
     return r.status === 200 ? { ok: true } : { ok: false, reason: answered(host, r) };
   } catch (e: unknown) {
     if (e instanceof PortRefused) return { ok: false, reason: refusalCopy(e.refused) };

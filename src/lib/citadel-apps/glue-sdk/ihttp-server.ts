@@ -15,6 +15,8 @@ export interface IhttpRequest {
   readonly caller: Caller;
   readonly method: HttpMethod;
   readonly path: string;
+  /** The query string, without its `?`; empty for none. */
+  readonly query: string;
   readonly body: Uint8Array;
 }
 
@@ -23,6 +25,7 @@ export type IhttpHandler = (request: IhttpRequest) => Promise<IhttpMessage>;
 interface Incoming {
   readonly method: HttpMethod;
   readonly path: string;
+  readonly query: string;
   readonly chunks: Uint8Array[];
 }
 
@@ -48,8 +51,8 @@ export class IhttpServer {
     if (kind === 'End') {
       const inc: Incoming | undefined = this.incoming.get(key);
       this.incoming.delete(key);
-      if (inc !== undefined) void this.answer(from, f.stream, { caller: from, method: inc.method, path: inc.path, body: joined(inc.chunks) });
-    } else if ('RequestHead' in kind) this.incoming.set(key, { method: kind.RequestHead.method, path: kind.RequestHead.path, chunks: [] });
+      if (inc !== undefined) void this.answer(from, f.stream, { caller: from, method: inc.method, path: inc.path, query: inc.query, body: joined(inc.chunks) });
+    } else if ('RequestHead' in kind) this.incoming.set(key, { method: kind.RequestHead.method, path: kind.RequestHead.path, query: kind.RequestHead.query, chunks: [] });
     else if ('Body' in kind) {
       const inc: Incoming | undefined = this.incoming.get(key);
       if (inc === undefined) return;

@@ -5,7 +5,8 @@
  * takes the hosts' answers to the requests this member left (booking-answers.ts) on mount and
  * whenever a host's answer is written. Until the
  * endpoint is up, or when the install may not call (`ihttp.call` for the relay, `ihttp.p2p.call`),
- * the client is null, and a booking is left as a request.
+ * the client is null, and a booking is left as a request. The same endpoint answers the Calendar
+ * SDK's routes for other apps in this member's session (sdk-host.ts).
  */
 import { useEffect, useMemo, useState } from 'react';
 import type { IhttpClient } from '@/lib/citadel-apps/glue-sdk/ihttp-client';
@@ -13,7 +14,9 @@ import type { IhttpEndpoint } from '@/lib/citadel-apps/glue-sdk/ihttp-endpoint';
 import type { Capability } from '@/lib/citadel-apps/host/capabilities';
 import { BOOKING_ACK_PREFIX } from '@/lib/calendar/booking';
 import { takeAnswers } from '@/lib/calendar/booking-answers';
-import { BookingHost, serveBookings } from '@/lib/calendar/booking-host';
+import { BookingHost } from '@/lib/calendar/booking-host';
+import { calendarHandler, calendarRoutes, serveCalendar } from '@/lib/calendar/calendar-endpoint';
+import { SdkHost, type ConsentAnswer } from '@/lib/calendar/sdk-host';
 import type { StorageChange } from '@/lib/citadel-apps/host/glue-instance';
 import type { CalendarEngine } from '@/lib/calendar/engine/calendar-engine';
 import type { CalendarPorts } from '@/lib/calendar/ports';
@@ -28,16 +31,18 @@ export interface Bookings {
 const isAnswerOn = (change: StorageChange, node: string): boolean =>
   typeof change.backend === 'object' && 'node_authored' in change.backend && change.backend.node_authored.node_id === node && change.key.startsWith(BOOKING_ACK_PREFIX);
 
-export function useBookings(ports: CalendarPorts, engine: CalendarEngine, node: string, me: string, held: ReadonlySet<Capability>): Bookings {
+/** `ask`: the member's answer to an app that wants to change their calendar (use-sdk-consent.ts). */
+export function useBookings(ports: CalendarPorts, engine: CalendarEngine, node: string, me: string, held: ReadonlySet<Capability>, ask: (appId: string) => Promise<ConsentAnswer>): Bookings {
   const [client, setClient] = useState<IhttpClient | null>(null);
   const host: BookingHost = useMemo(() => new BookingHost({ ports, engine, node, me, nowMs: (): bigint => BigInt(Math.floor(ports.clock.now())) }), [ports, engine, node, me]);
+  const sdk: SdkHost = useMemo(() => new SdkHost({ ports, engine, me, nowMs: (): bigint => BigInt(Math.floor(ports.clock.now())), newId: (): string => crypto.randomUUID(), ask }), [ports, engine, me, ask]);
   const relay: boolean = held.has('ihttp.serve');
   const p2p: boolean = held.has('ihttp.p2p.serve');
   const calls: boolean = held.has('ihttp.call') || held.has('ihttp.p2p.call');
   useEffect(() => {
     let live: boolean = true;
     let endpoint: IhttpEndpoint | null = null;
-    serveBookings(ports, host, relay || p2p ? { relay, p2p } : null).then(async (ep: IhttpEndpoint): Promise<void> => {
+    serveCalendar(ports, calendarRoutes(engine), calendarHandler(sdk, host), relay || p2p ? { relay, p2p } : null).then(async (ep: IhttpEndpoint): Promise<void> => {
       if (!live) {
         ep.close();
         return;
@@ -51,7 +56,7 @@ export function useBookings(ports: CalendarPorts, engine: CalendarEngine, node: 
       endpoint?.close();
       setClient(null);
     };
-  }, [ports, host, relay, p2p, calls]);
+  }, [ports, engine, host, sdk, relay, p2p, calls]);
   useEffect(() => {
     // One take at a time, so an answer arriving during the mount's take is not taken (and told) twice.
     let turn: Promise<void> = Promise.resolve();

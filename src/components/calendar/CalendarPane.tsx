@@ -34,7 +34,10 @@ import { CalendarTab } from './CalendarTab';
 import { EventDetails } from './EventDetails';
 import { EventEditor } from './EventEditor';
 import { useAbove } from './use-above';
+import { SdkAppsPanel } from './SdkAppsPanel';
+import { SdkConsentPrompt } from './SdkConsentPrompt';
 import { useBookings } from './use-bookings';
+import { useSdkConsent } from './use-sdk-consent';
 import { useMinuteClock } from './use-minute-clock';
 import type { Capability } from '@/lib/citadel-apps/host/capabilities';
 
@@ -56,7 +59,7 @@ export interface CalendarPaneProps {
   leader: boolean;
 }
 
-type Panel = { kind: 'none' } | { kind: 'new'; date: CivilDate } | { kind: 'edit'; entry: EventEntry } | { kind: 'setup' } | { kind: 'polls' }
+type Panel = { kind: 'none' } | { kind: 'new'; date: CivilDate } | { kind: 'edit'; entry: EventEntry } | { kind: 'setup' } | { kind: 'polls' } | { kind: 'apps' }
   /** `moving`: the booking this one replaces, with the host and type it was made with. */
   | { kind: 'book'; moving: { id: string; host: string; typeId: string } | null };
 
@@ -74,7 +77,8 @@ export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZon
   const [panel, setPanel] = useState<Panel>(linked === null ? { kind: 'none' } : { kind: 'book', moving: null });
   const [open, setOpen] = useState<Chip | null>(null);
   useCalendarSources(ports, engine, nodeId, dispatch);
-  const { client, host } = useBookings(ports, engine, nodeId, me, held);
+  const consent = useSdkConsent();
+  const { client, host } = useBookings(ports, engine, nodeId, me, held, consent.ask);
   const nodeName = useCallback((id: string): string => ws.nodes[id]?.name ?? 'a page you cannot see', [ws.nodes]);
   const zone: string | null = useMemo(() => nodeZone(ws.nodes, nodeId, ws.workspace?.metadata), [ws.nodes, nodeId, ws.workspace?.metadata]);
   const node = { id: nodeId, name: ws.nodes[nodeId]?.name ?? 'This page' };
@@ -130,12 +134,14 @@ export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZon
 
   return (
     <div className="flex min-w-0 flex-col gap-3 p-[16px]" data-testid="calendar-pane">
+      <SdkConsentPrompt consent={consent} />
       <RemindersAway missed={reminders.missed} engine={engine} displayZone={displayZone} nodeName={nodeName} onDismiss={reminders.dismiss} />
       {panel.kind === 'none' && (
         <div className="flex min-w-0 flex-wrap gap-2">
           <Button variant="outline" className="h-[44px]" onClick={(): void => setPanel({ kind: 'book', moving: null })}>Book with someone</Button>
           <Button variant="outline" className="h-[44px]" onClick={(): void => setPanel({ kind: 'setup' })}>Your booking page</Button>
           <Button variant="outline" className="h-[44px]" onClick={(): void => setPanel({ kind: 'polls' })}>Polls</Button>
+          <Button variant="outline" className="h-[44px]" onClick={(): void => setPanel({ kind: 'apps' })}>Apps</Button>
         </div>
       )}
       {panel.kind !== 'none' && panel.kind !== 'new' && panel.kind !== 'edit' && (
@@ -153,6 +159,7 @@ export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZon
           onSave={(checked, progress): Promise<SaveOutcome> => saveRevision(ports, engine, panel.entry, checked, progress)} onClose={(): void => { setOpen(null); close(); }} />
       )}
       {panel.kind === 'setup' && <BookingSetup ports={ports} engine={engine} node={node} me={me} displayZone={displayZone} deviceZone={deviceZone} today={now.date} origin={window.location.origin} newId={newId} mayEditNode={mayEditNode} />}
+      {panel.kind === 'apps' && <SdkAppsPanel ports={ports} engine={engine} />}
       {panel.kind === 'polls' && <PollsPanel ports={ports} engine={engine} node={node} me={me} displayZone={displayZone} firstDate={dateKey(now.date)} newId={newId} nowMs={(): bigint => nowOf(ports)} />}
       {panel.kind === 'book' && (
         <BookWith ports={ports} engine={engine} node={node} me={me} entries={state.entries} displayZone={displayZone} deviceZone={deviceZone}

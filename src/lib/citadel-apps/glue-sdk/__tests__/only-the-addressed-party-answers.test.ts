@@ -28,7 +28,7 @@ describe("an internal-HTTP client's answer", () => {
   it('is taken only from the member it called, and that member answering still completes the call', async () => {
     const client: IhttpClient = new IhttpClient(io);
     let settled: IhttpResponse | null = null;
-    const call = client.request({ user: { app_id: APP, username: 'ana' } }, 'relay', 'POST', '/book', new Uint8Array([1]));
+    const call = client.request({ user: { app_id: APP, username: 'ana' } }, 'relay', 'POST', '/book', '', new Uint8Array([1]));
     void call.then((r: IhttpResponse) => { settled = r; });
     answer(client, caller('mallory'), 1n, 201, 'forged');
     answer(client, caller('ana', 'com.acme.other'), 1n, 201, 'other app');

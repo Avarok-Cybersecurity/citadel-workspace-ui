@@ -38,7 +38,7 @@ describe("a glue app's internal HTTP", () => {
     const bob: IhttpEndpoint = instance('bob', relay, []);
     const chunks: number = IHTTP_INITIAL_CREDIT + 2;
     const body: Uint8Array = new Uint8Array(chunks * IHTTP_MAX_CHUNK_BYTES - 7).map((_v, i) => i % 251);
-    const answer = await bob.client.request({ user: { app_id: 'net.avarok.calendar', username: 'ana' } }, 'relay', 'POST', '/echo', body);
+    const answer = await bob.client.request({ user: { app_id: 'net.avarok.calendar', username: 'ana' } }, 'relay', 'POST', '/echo', '', body);
     expect([answer.status, answer.from.username, answer.body]).toEqual([200, 'ana', body]);
     expect(heard.map((r) => r.caller.username)).toEqual(['bob']);
     const sent = (from: string, kind: string): number => relay.carried.filter((c) => c.from === from && typeof c.frame.kind === 'object' && kind in c.frame.kind).length;

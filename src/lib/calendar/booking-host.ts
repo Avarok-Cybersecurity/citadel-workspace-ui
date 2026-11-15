@@ -11,16 +11,14 @@
  * and the topic reaches every instance of the install whatever its scope. The ack is not
  * announced: no pane shows it.
  */
-import { ihttpEndpoint, type IhttpEndpoint } from '@/lib/citadel-apps/glue-sdk/ihttp-endpoint';
 import type { IhttpMessage } from '@/lib/citadel-apps/glue-sdk/ihttp-io';
-import type { ServeOn } from '@/lib/citadel-apps/sdk/generated/ServeOn';
 import type { IhttpRequest } from '@/lib/citadel-apps/glue-sdk/ihttp-server';
 import { BOOKING_ACK_PREFIX, BOOKING_PREFIX, bookingAckOf } from './booking';
 import { decideClaim, type ClaimVerdict } from './booking-claim';
 import { readAcks, sharedSeats } from './group-seats';
 import { busyOf, readBookingPage } from './booking-pages';
 import { announce } from './cal-topic';
-import { BOOKING_ROUTES, decodeCancel, encodeAlternatives, encodeReason, routeOf } from './booking-wire';
+import { decodeCancel, encodeAlternatives, encodeReason, routeOf } from './booking-wire';
 import type { CalendarEngine } from './engine/calendar-engine';
 import type { Booking } from './generated/Booking';
 import type { Event } from './generated/Event';
@@ -174,13 +172,3 @@ export class BookingHost {
   }
 }
 
-/**
- * This instance's iHTTP, answering bookings with `host`: listening first, so no frame is missed,
- * then advertising the routes on the planes the install holds. With neither plane held it serves
- * nothing, and bookers leave requests (`answerRequests` answers them).
- */
-export async function serveBookings(ports: CalendarPorts, host: BookingHost, on: ServeOn | null): Promise<IhttpEndpoint> {
-  const endpoint: IhttpEndpoint = ihttpEndpoint(ports.ihttp, host.handle);
-  if (on !== null) await ports.ihttp.serve(BOOKING_ROUTES, on);
-  return endpoint;
-}

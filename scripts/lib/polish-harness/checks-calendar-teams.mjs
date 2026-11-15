@@ -151,8 +151,22 @@ async function aMissedReminderIsShownOnce({ page, url, viewport }) {
   assert.ok(handled >= Date.UTC(2024, 6, 16, 15, 0), `the leader did not move the handled instant on: ${new Date(handled).toISOString()}`);
 }
 
+/** The apps the viewer answered fit with 44px targets, and "Ask again" forgets an answer (design §3.8). */
+async function theAppsUsingTheCalendarFit({ page, url, viewport }) {
+  const width = await opened(page, url, viewport, 'Apps');
+  const section = page.getByTestId('calendar-sdk-apps');
+  await section.getByText('com.acme.spam · refused').waitFor({ state: 'visible', timeout: 5000 });
+  await fitsAndReads(page, width, 'the apps using the calendar');
+  await section.getByRole('button', { name: 'Ask com.acme.spam again' }).click();
+  await section.getByText('com.acme.spam will be asked again.').waitFor({ state: 'visible', timeout: 5000 });
+  const kept = await keysLike(page, 'user:');
+  assert.ok(!kept.some((k) => k.endsWith('cal/sdk/allow/com.acme.spam')), 'the refusal was not forgotten');
+  assert.ok(kept.some((k) => k.endsWith('cal/sdk/allow/com.acme.kanban')), 'the answer kept was forgotten too');
+}
+
 export const CALENDAR_TEAM_CHECKS = {
   aMissedReminderIsShownOnce,
   theTeamTypeEditorFitsAndSaves, aRoundRobinGoesToTheHostWithFewerBookings, aCollectiveBookingPageFits,
   aRoutingAnswerOpensThePageItRoutesTo, aRoutingFormIsMadeInItsEditor, aVoteAndAPickAreSavedFromThePolls, aNewPollFits,
+  theAppsUsingTheCalendarFit,
 };
