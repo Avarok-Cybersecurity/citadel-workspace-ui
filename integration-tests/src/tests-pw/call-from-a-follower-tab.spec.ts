@@ -137,7 +137,10 @@ test.describe.serial('a call from a follower tab', () => {
     await connectPair(alice, dave);
     await dave.page.getByTestId('call-start-audio').click();
     await expect(alice.page.getByTestId('incoming-call-card')).toBeVisible({ timeout: 60_000 });
-    await alice.page.getByTestId('incoming-call-accept-audio').click();
+    // Accept, not "Answer without video": that is offered only on a video call
+    // (IncomingCallCard; call-ui.test.tsx pins its absence on an audio one), and
+    // waiting for it on this audio call spent the whole test timeout.
+    await alice.page.getByTestId('incoming-call-accept').click();
     await expectCallLive(alice.page);
     await dave.page.close();
     // Well inside the heartbeat timeout: the end is said by the leader, not inferred from silence.
