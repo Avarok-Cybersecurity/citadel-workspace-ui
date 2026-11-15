@@ -4,7 +4,8 @@
  * saved to their authored namespace on the node (booking-pages.ts), where a booker reads it.
  */
 import { useCallback, useEffect, useId, useState } from 'react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Trash2, UserPlus } from 'lucide-react';
+import { useShareLauncher, type ShareLauncher } from '@/components/share/use-share-launcher';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { bookingLink } from '@/lib/calendar/booking-link';
@@ -44,6 +45,7 @@ export function BookingSetup({ ports, engine, node, me, displayZone, deviceZone,
   const [editing, setEditing] = useState<Editing>({ kind: 'none' });
   const [said, setSaid] = useState<string>('');
   const [scheduleId] = useState<string>(newId);
+  const share: ShareLauncher = useShareLauncher();
   const reload = useCallback(async (): Promise<void> => {
     try {
       setLoaded({ kind: 'ready', page: await readBookingPage(ports, engine, node.id, me) });
@@ -81,6 +83,12 @@ export function BookingSetup({ ports, engine, node, me, displayZone, deviceZone,
             navigator.clipboard.writeText(link).then((): void => setSaid('Link copied.'), (): void => setSaid('The link could not be copied; select it and copy it instead.'));
           }}>Copy</Button>
         </div>
+        <Button type="button" variant="outline" className="h-[44px] self-start" data-testid="calendar-share-booking-guests"
+          onClick={(): void => share.open({ kind: 'booking-page', nodeId: node.id, host: me, nodeName: node.name })}>
+          <UserPlus className="h-4 w-4" aria-hidden="true" />
+          <span>Invite guests from outside…</span>
+        </Button>
+        {share.dialog}
       </div>
       <section aria-label="Event types" className="flex min-w-0 flex-col gap-2">
         <h3 className="text-sm font-semibold text-foreground">What people can book</h3>
