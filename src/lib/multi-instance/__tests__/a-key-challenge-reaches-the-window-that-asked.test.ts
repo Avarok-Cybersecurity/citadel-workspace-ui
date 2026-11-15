@@ -20,10 +20,10 @@ import { eventEmitter } from '../../event-emitter';
 const channel: { requestCidReport: ReturnType<typeof vi.fn>; forwardToInstance: ReturnType<typeof vi.fn>; broadcast: ReturnType<typeof vi.fn> } =
   vi.hoisted(() => ({ requestCidReport: vi.fn(), forwardToInstance: vi.fn(), broadcast: vi.fn() }));
 const manager: {
-  instanceId: string; findInstanceByCid: ReturnType<typeof vi.fn>; findInstancesByCid: () => string[];
+  instanceId: string; isLeader: boolean; findInstanceByCid: ReturnType<typeof vi.fn>; findInstancesByCid: () => string[];
   getAllInstances: ReturnType<typeof vi.fn>; registerInstance: ReturnType<typeof vi.fn>;
 } = vi.hoisted(() => ({
-  instanceId: 'leader-tab', findInstanceByCid: vi.fn(() => null), findInstancesByCid: (): string[] => [],
+  instanceId: 'leader-tab', isLeader: true, /* the router reads leadership here, not from the event */ findInstanceByCid: vi.fn(() => null), findInstancesByCid: (): string[] => [],
   getAllInstances: vi.fn(() => []), registerInstance: vi.fn(),
 }));
 vi.mock('../instance-channel', () => ({ instanceChannel: channel }));

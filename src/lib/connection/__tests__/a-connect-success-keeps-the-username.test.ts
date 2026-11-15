@@ -19,9 +19,12 @@
 import { describe, it, expect } from 'vitest';
 import { ConnectionStateCore } from '../state-core';
 
+/** Leadership plays no part in what these tests check; a follower's answer keeps it inert. */
+const NOT_LEADING: () => boolean = (): boolean => false;
+
 describe('a connect success that knows only the CID', () => {
   it('keeps the username the auth path recorded', () => {
-    const state: ConnectionStateCore = new ConnectionStateCore();
+    const state: ConnectionStateCore = new ConnectionStateCore(NOT_LEADING);
     state.setCurrentConnectionInfo({
       cid: 42n,
       username: 'admin',
@@ -36,13 +39,13 @@ describe('a connect success that knows only the CID', () => {
 
   it('still records the CID when there was nothing there yet', () => {
     // The registration path, where the success arrives before anything else.
-    const state: ConnectionStateCore = new ConnectionStateCore();
+    const state: ConnectionStateCore = new ConnectionStateCore(NOT_LEADING);
     state.updateCurrentConnectionInfo({ cid: 7n });
     expect(state.currentConnectionInfo?.cid).toBe(7n);
   });
 
   it('takes a newer CID over the one it held', () => {
-    const state: ConnectionStateCore = new ConnectionStateCore();
+    const state: ConnectionStateCore = new ConnectionStateCore(NOT_LEADING);
     state.setCurrentConnectionInfo({ cid: 1n, username: 'admin' });
     state.updateCurrentConnectionInfo({ cid: 2n });
     expect(state.currentConnectionInfo?.cid).toBe(2n);

@@ -35,12 +35,12 @@ const instanceChannelMock: {
 }));
 
 const instanceManagerMock: {
-  instanceId: string;
+  instanceId: string; isLeader: boolean;
   findInstancesByCid: ReturnType<typeof vi.fn<(cid: bigint) => string[]>>;
   getAllInstances: ReturnType<typeof vi.fn>;
   registerInstance: ReturnType<typeof vi.fn>;
 } = vi.hoisted(() => ({
-  instanceId: 'leader-instance',
+  instanceId: 'leader-instance', isLeader: true, // the router reads leadership here, not from the event
   findInstancesByCid: vi.fn<(cid: bigint) => string[]>(),
   getAllInstances: vi.fn(() => [] as Array<{ instanceId: string; cid: bigint | null }>),
   registerInstance: vi.fn(),
