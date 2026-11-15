@@ -50,7 +50,7 @@ export function NodeChat({ nodeId, channelId, channelName, self, sendRestriction
   const manages: ValueStore<boolean> = useLiveGate(`node-manages-subscription:${channelId}`, managesSubscription);
   const roster: Roster = useRosterStore(channelId, members);
   const transport: ChatTransport = useMemo((): ChatTransport => createNodeTransport({
-    channelId, channelName, self, sendGate, roster, io: nodeChatIO(channelId, nodeId), mintLocalId, now: Date.now, clock: browserClock,
+    channelId, nodeId, channelName, self, sendGate, roster, io: nodeChatIO(channelId, nodeId), mintLocalId, now: Date.now, clock: browserClock,
     opening: nodeOpeningPorts(nodeId, (): boolean => manages.get()),
   }), [nodeId, channelId, channelName, self, sendGate, roster, manages]);
   const shown: readonly RosterEntry[] | null = useMemo(() => rosterEntries(members), [members]);

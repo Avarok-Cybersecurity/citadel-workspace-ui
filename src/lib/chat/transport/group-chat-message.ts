@@ -12,6 +12,7 @@ import type { MessageType } from '@/types/message-protocol';
 import { isOwnGroupMessage } from '@/lib/group-conversations/own-message';
 import { senderUsernameOf } from '@/components/chat/shared/sender-username';
 import type { ChatAuthor, ChatMessage, ChatSelf } from './chat-transport';
+import { sharedFile } from '@/lib/chat/attachments/shared-file';
 
 type WireKind = GroupMessage['message_type'];
 
@@ -21,10 +22,14 @@ const KINDS: Readonly<Record<Extract<WireKind, string>, MessageType>> = {
   System: 'system_notice',
 };
 
-/** The pane's type, and for a shared document the fields its bubble opens it by: the title is the content. */
-function kindOf(kind: WireKind, content: string): Pick<ChatMessage, 'message_type' | 'document_id' | 'document_title'> {
+/**
+ * The pane's type, and for a shared document the fields its bubble opens it by (the title is the
+ * content); for a shared file, the file its card reads from the server.
+ */
+function kindOf(kind: WireKind, content: string): Pick<ChatMessage, 'message_type' | 'document_id' | 'document_title' | 'attachment'> {
   if (typeof kind === 'string') return { message_type: KINDS[kind] };
-  return { message_type: 'live_document', document_id: kind.LiveDocument.document_id, document_title: content };
+  if ('LiveDocument' in kind) return { message_type: 'live_document', document_id: kind.LiveDocument.document_id, document_title: content };
+  return { message_type: 'text', attachment: sharedFile(kind.FileShare) };
 }
 
 export function groupAuthor(message: Pick<GroupMessage, 'sender_id' | 'sender_name'>, self: ChatSelf | null): ChatAuthor {

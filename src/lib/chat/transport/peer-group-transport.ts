@@ -48,6 +48,7 @@ function peerGroupFiles(io: PeerGroupChatIO, groupName: string): FilePort {
     decline: (transferId: string): Promise<void> => io.transfers.declineTransfer(transferId),
     cancel: (transferId: string): Promise<void> => io.transfers.cancelTransfer(transferId),
     details: (): null => null,
+    read: null,
   };
 }
 

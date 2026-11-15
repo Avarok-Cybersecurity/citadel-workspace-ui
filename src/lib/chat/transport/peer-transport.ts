@@ -56,6 +56,7 @@ function peerFiles(peer: ChatPeer): FilePort {
       if (!transfer?.downloadPath) return null;
       return transferDetails(transfer, (cid: string): string | undefined => (cid === key ? peer.name : undefined)).details;
     },
+    read: null,
   };
 }
 

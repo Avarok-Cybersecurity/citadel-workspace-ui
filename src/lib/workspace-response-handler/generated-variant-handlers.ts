@@ -16,6 +16,7 @@ import { recordMemberNames } from '@/lib/member-names';
 import { recordPresenceChoices } from '@/lib/published-presence';
 import type { MappedMember } from '@/lib/workspace-response-handler/member-mapping';
 import { DOCUMENTS_EVENT, documentsEventOf, type DocumentsEvent } from './documents-event';
+import { emitChatAttachments } from './chat-attachments-event';
 
 export function handleGeneratedVariants(
   response: WorkspaceProtocolResponse,
@@ -224,6 +225,8 @@ export function handleGeneratedVariants(
     eventEmitter.emit(DOCUMENTS_EVENT, documents);
     return true;
   }
+
+  if (emitChatAttachments(response)) return true;
 
   if (isVariant(response, 'Roles')) {
     // The table, listed or changed: the store replaces its copy (workspace-roles/roles-store.ts),

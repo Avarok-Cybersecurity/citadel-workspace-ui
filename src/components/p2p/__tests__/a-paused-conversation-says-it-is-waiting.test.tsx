@@ -29,7 +29,7 @@ function composer(paused: boolean, text: string): void {
       inputMessage={text} messageType="text" showMarkdownPreview={false}
       isSending={false} paused={paused} awaitingAcceptFrom={null}
       onInputChange={vi.fn()} onInputFocus={vi.fn()} onInputBlur={vi.fn()}
-      onSubmit={vi.fn()} onFileClick={vi.fn()} onFormat={vi.fn()}
+      onSubmit={vi.fn()} onFileClick={vi.fn()} fileDestination={null} onFormat={vi.fn()}
       onTogglePreview={vi.fn()} onMessageTypeChange={vi.fn()}
     />,
   );

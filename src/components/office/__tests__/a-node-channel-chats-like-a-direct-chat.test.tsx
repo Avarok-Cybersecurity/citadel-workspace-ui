@@ -75,11 +75,12 @@ describe('a node channel', () => {
     expect(screen.getByTestId('channel-rules')).toHaveTextContent('Be kind.');
   });
 
-  it('offers markdown and live documents, and no file control it cannot carry yet', async () => {
+  it('offers markdown, live documents and files, saying where a file is kept', async () => {
     await open();
     expect(screen.getByTestId('message-type-markdown')).toBeInTheDocument();
     expect(screen.getByTestId('message-type-live-doc')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Send file' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Send file' })).toBeInTheDocument();
+    expect(screen.getByTestId('attach-destination')).toHaveTextContent("Stored on the workspace server, readable by this channel's members");
   });
 
   it('sends markdown as the wire\'s Markdown type', async () => {

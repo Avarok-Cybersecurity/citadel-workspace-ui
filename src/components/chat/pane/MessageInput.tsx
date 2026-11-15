@@ -5,7 +5,7 @@
  * selector, each shown only where the conversation's transport can carry it.
  */
 
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useId } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { shouldSendOnKey } from '@/components/chat/should-send-on-key';
 import { Button } from '@/components/ui/button';
@@ -55,6 +55,8 @@ interface MessageInputProps {
   onInputBlur: () => void;
   onSubmit: () => void;
   onFileClick: () => void;
+  /** Where an attached file goes and who can read it, said under the composer; null without files. */
+  fileDestination: string | null;
   onFormat: (format: string, prefix: string, suffix: string) => void;
   onTogglePreview: () => void;
   onMessageTypeChange: (type: MessageType) => void;
@@ -76,12 +78,15 @@ export const MessageInput: React.ForwardRefExoticComponent<MessageInputProps & R
       onInputBlur,
       onSubmit,
       onFileClick,
+      fileDestination,
       onFormat,
       onTogglePreview,
       onMessageTypeChange,
     }: MessageInputProps,
     ref: React.ForwardedRef<HTMLTextAreaElement>
   ) {
+    const destinationId: string = useId();
+    const showsDestination: boolean = features.files && fileDestination !== null;
     const isMarkdownMode: boolean = messageType === 'markdown';
     const isLiveDocMode: boolean = messageType === 'live_document';
 
@@ -126,6 +131,7 @@ export const MessageInput: React.ForwardRefExoticComponent<MessageInputProps & R
               disabled={paused || awaitingAcceptFrom !== null}
               className="text-muted-foreground hover:text-foreground hover:bg-foreground/10"
               aria-label="Send file"
+              aria-describedby={showsDestination ? destinationId : undefined}
               title={paused ? PAUSE_COPY.fileReason : 'Send file'}
             >
               <Paperclip className="h-4 w-4" />
@@ -176,6 +182,9 @@ export const MessageInput: React.ForwardRefExoticComponent<MessageInputProps & R
               <Send className="h-4 w-4" aria-hidden="true" />
             </Button>
           </form>
+          {showsDestination && (
+            <p id={destinationId} className="mt-1 text-xs text-muted-foreground" data-testid="attach-destination">{fileDestination}</p>
+          )}
         </div>
 
         {offeredTypes(features).length > 1 && (

@@ -8,7 +8,8 @@
  * list on the message. Receipts are derived from the members' read cursors and the roster
  * (read-receipts), and the reader's own cursor and typing go out paced below the server's limits
  * (node-read-cursor, node-status). Live documents are shared by a message naming them and kept on
- * the server beside the node's page (nodeDocuments). Attachments are a port of their own, still null.
+ * the server beside the node's page (nodeDocuments); files are uploaded to the server under the node
+ * and shared the same way (node-files).
  */
 import type { ValueStore } from '@/lib/value-store';
 import type { GroupRestriction } from '@/components/chat/group-restriction';
@@ -22,11 +23,14 @@ import { pendingGroupSends, type PendingSends } from './pending-group-sends';
 import type { NodeChatIO } from './node-chat-io';
 import { nodeReact, nodeReadCursor, nodeReceipts, nodeTyping, type Roster } from './node-signals';
 import type { ReadCursor } from './node-read-cursor';
+import { nodeFiles } from './node-files';
 import type { OpeningPorts } from '@/components/p2p/chat-document/chat-document-opening';
 import type { ChatMessage, ChatSelf, ChatTransport, DocumentInvitation, DocumentPort, SendPort, TextSend } from './chat-transport';
 
 export interface NodeTransportParams {
   readonly channelId: string;
+  /** The node the channel belongs to, whose files its shares are. */
+  readonly nodeId: string;
   /** How the channel's live documents open (nodeOpeningPorts: on the server, beside its node's page). */
   readonly opening: OpeningPorts;
   /** The office's or room's name, as the pane says it ("Shared live with …"). */
@@ -119,7 +123,7 @@ export function createNodeTransport(params: NodeTransportParams): ChatTransport 
     clearNotices: io.clearNotices,
   });
   const ports: Pick<ChatTransport, 'send' | 'status' | 'files' | 'documents' | 'settings'> = {
-    send: nodeSend(params, history, pending), status: nodeTyping(io, self, roster, clock, report), files: null, documents: nodeDocuments(params), settings: null,
+    send: nodeSend(params, history, pending), status: nodeTyping(io, self, roster, clock, report), files: nodeFiles(io, params.nodeId), documents: nodeDocuments(params), settings: null,
   };
   return {
     kind: 'node',

@@ -40,7 +40,7 @@ describe('the direct-message composer', () => {
         onInputFocus={vi.fn()}
         onInputBlur={vi.fn()}
         onSubmit={vi.fn()}
-        onFileClick={vi.fn()}
+        onFileClick={vi.fn()} fileDestination={null}
         onFormat={vi.fn()}
         onTogglePreview={vi.fn()}
         onMessageTypeChange={vi.fn()}

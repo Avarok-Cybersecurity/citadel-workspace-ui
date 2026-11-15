@@ -36,7 +36,7 @@ const SELF: ChatSelf = { cid: 7n, username: 'ada', displayName: 'Ada' };
 const gate = (): ReturnType<typeof createValueStore<GroupRestriction>> => createValueStore<GroupRestriction>('test-gate', 'allowed');
 
 function node(): ChatTransport {
-  return createNodeTransport({ channelId: CHANNEL, channelName: 'Design', self: SELF, sendGate: gate(), io: nodeChatIO(CHANNEL, 'node-1'), mintLocalId: (): string => 'local-1', now: (): number => 1,
+  return createNodeTransport({ channelId: CHANNEL, nodeId: 'node-1', channelName: 'Design', self: SELF, sendGate: gate(), io: nodeChatIO(CHANNEL, 'node-1'), mintLocalId: (): string => 'local-1', now: (): number => 1,
     opening: nodeOpeningPorts('node-1', (): boolean => false),
     // Nobody's roster: these cases are about where pages come from, not who has read them.
     roster: createValueStore<readonly RosterEntry[] | null>('test-roster', null), clock: browserClock });

@@ -18,6 +18,7 @@ import type { ChatFeatures } from './features';
 import type { GroupRestriction } from '@/components/chat/group-restriction';
 import type { ValueStore } from '@/lib/value-store';
 import type { GroupFileShare } from '@/types/group-file-share';
+import type { SharedFile } from '@/lib/chat/attachments/shared-file';
 import type { ReadReceipt } from './read-receipts';
 
 export type ChatKind = 'peer' | 'node' | 'peer-group';
@@ -59,6 +60,8 @@ export type ChatMessage = PaneMessage & {
   readonly author: ChatAuthor;
   /** A file shared into a peer group, with who has it; null for every other message. */
   readonly share: GroupFileShare | null;
+  /** A file a node channel keeps on the server, which the message shares; absent for every other message. */
+  readonly attachment?: SharedFile;
 };
 
 /** Where older history continues from. Opaque to the pane: only its adapter reads it. */
@@ -176,6 +179,8 @@ export interface FilePort {
   accept(transferId: string): Promise<void>;
   decline(transferId: string): Promise<void>;
   cancel(transferId: string): Promise<void>;
+  /** The bytes of a file a message shares, read from where the conversation keeps it; null where files are offered, not kept. */
+  readonly read: ((file: SharedFile) => Promise<Uint8Array>) | null;
   /** What is known about a received file, or null when this device has no record of it. */
   details(transferId: string): FileDetails | null;
   /**

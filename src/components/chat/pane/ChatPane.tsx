@@ -7,7 +7,7 @@
  * so nothing here answers "not available in this chat". Only what sits above the tabs differs
  * between kinds (a peer's connection header, a channel's roster), and the caller supplies it.
  */
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import type { PeerPresence } from '@/lib/p2p';
 import { restrictionText } from '@/components/chat/group-restriction';
 import { NewMessagesPill } from '@/components/chat/NewMessagesPill';
@@ -22,6 +22,9 @@ import { ChatSettingsPanel } from '@/components/p2p/ChatSettingsPanel';
 import type { PauseView } from '@/components/p2p/hooks/use-peer-pause';
 import type { ChatTransport } from '@/lib/chat/transport/chat-transport';
 import { MessageList } from './MessageList';
+import { AttachmentIOContext, type AttachmentIO } from '@/components/chat/attachments/attachment-io';
+import type { SharedFile } from '@/lib/chat/attachments/shared-file';
+import { browserDocumentFiles } from '@/lib/document-files';
 import { MessageInput } from './MessageInput';
 import { paneTestIds, type PaneTestIds } from './pane-test-ids';
 import { useChatPane, type ChatPaneModel } from './use-chat-pane';
@@ -50,6 +53,8 @@ interface ChatPaneProps {
 
 export function ChatPane({ transport, header, pause }: ChatPaneProps): JSX.Element {
   const pane: ChatPaneModel = useChatPane(transport, pause);
+  const read: ((file: SharedFile) => Promise<Uint8Array>) | null = transport.files?.read ?? null;
+  const attachmentIO: AttachmentIO | null = useMemo((): AttachmentIO | null => (read === null ? null : { read, files: browserDocumentFiles }), [read]);
   const { tabs, messages: list, compose, fileSend } = pane;
   const ids: PaneTestIds = paneTestIds(transport.kind);
   const { counterpart, features, self } = transport;
@@ -58,6 +63,7 @@ export function ChatPane({ transport, header, pause }: ChatPaneProps): JSX.Eleme
   const restricted: string | null = restrictionText(pane.sendGate, 'send messages');
 
   return (
+    <AttachmentIOContext.Provider value={attachmentIO}>
     <ChatDropTarget className="h-full flex flex-col bg-background" testId={ids.root['data-testid']} recipient={counterpart.name} hint="Only the first file is sent. You can cancel it from the conversation." {...fileSend.drop}>
       {header({
         typing: list.typing, presence: list.peerPresence, connected: list.isConnected, accepted: list.isRegistered,
@@ -107,7 +113,7 @@ export function ChatPane({ transport, header, pause }: ChatPaneProps): JSX.Eleme
                 showMarkdownPreview={compose.showMarkdownPreview} paused={pane.paused} isSending={compose.isSending} awaitingAcceptFrom={awaitingAcceptFrom}
                 onInputChange={compose.setInputMessage} onInputFocus={compose.handleInputFocus}
                 onInputBlur={compose.handleInputBlur} onSubmit={compose.handleSendMessage}
-                onFileClick={fileSend.openDialog} onFormat={compose.applyFormat}
+                onFileClick={fileSend.openDialog} onFormat={compose.applyFormat} fileDestination={transport.files?.destination ?? null}
                 onTogglePreview={(): void => compose.setShowMarkdownPreview((prev: boolean): boolean => !prev)}
                 onMessageTypeChange={compose.handleMessageTypeChange}
               />
@@ -122,5 +128,6 @@ export function ChatPane({ transport, header, pause }: ChatPaneProps): JSX.Eleme
         <ChatSettingsPanel isOpen={pane.settingsOpen} onClose={(): void => pane.setSettingsOpen(false)} peerCid={transport.settings.key} peerName={counterpart.name} />
       )}
     </ChatDropTarget>
+    </AttachmentIOContext.Provider>
   );
 }

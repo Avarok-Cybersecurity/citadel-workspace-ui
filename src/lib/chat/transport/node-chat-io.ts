@@ -14,6 +14,16 @@ import { eventEmitter } from '@/lib/event-emitter';
 import { DOCUMENTS_EVENT, type DocumentsEvent } from '@/lib/workspace-response-handler/documents-event';
 import { groupLog } from './group-log';
 import type { GroupLog } from './group-history';
+import type { AttachmentWire } from '@/lib/chat/attachments/attachment-wire';
+import type { SharedFile } from '@/lib/chat/attachments/shared-file';
+import { CHAT_ATTACHMENTS_EVENT } from '@/lib/workspace-response-handler/chat-attachments-event';
+import type { ChatAttachmentsRequest, ChatAttachmentsResponse } from 'citadel-workspace-client-ts';
+
+/**
+ * How long one chunk of a channel file may take to be answered. A chunk is at most 256 KiB, a
+ * second or so on a slow link; past this the server is not answering, which is reported.
+ */
+const ATTACHMENT_ANSWER_DEADLINE_MS: number = 30_000;
 
 /** What a node channel's adapter asks of the workspace server. */
 export interface NodeChatIO {
@@ -31,6 +41,12 @@ export interface NodeChatIO {
   typing(): Promise<void>;
   /** Posts the message that shares the live document `documentId`, titled `title`. */
   share(documentId: string, title: string): Promise<void>;
+  /** Where the channel's files are uploaded and read (attachment-wire). */
+  readonly attachments: AttachmentWire;
+  /** The bytes of a file the reader picked or dropped. */
+  readFile(file: File): Promise<Uint8Array>;
+  /** Posts the message that shares a file this reader uploaded here. */
+  shareFile(file: SharedFile): Promise<void>;
   /** Fires with a chat document's id when someone else changes it. */
   onDocumentActivity(listener: (documentId: string) => void): () => void;
   /** The members' read cursors and typing notices, as the response handler records them. */
@@ -82,6 +98,15 @@ export function nodeChatIO(groupId: string, nodeId: string): NodeChatIO {
     typing: (): Promise<void> => WorkspaceService.groupTyping(groupId),
     share: (documentId: string, title: string): Promise<void> =>
       WorkspaceService.sendGroupMessage(groupId, title, { LiveDocument: { document_id: documentId } }),
+    attachments: {
+      send: (request: ChatAttachmentsRequest): Promise<void> => WorkspaceService.sendProtocolRequest({ ChatAttachments: request }),
+      onAnswer: (listener: (answer: ChatAttachmentsResponse) => void): (() => void) =>
+        eventEmitter.on(CHAT_ATTACHMENTS_EVENT, (answer: ChatAttachmentsResponse | undefined): void => { if (answer !== undefined) listener(answer); }),
+      answerDeadlineMs: ATTACHMENT_ANSWER_DEADLINE_MS,
+    },
+    readFile: async (file: File): Promise<Uint8Array> => new Uint8Array(await file.arrayBuffer()),
+    shareFile: ({ id, name, size, mime }: SharedFile): Promise<void> =>
+      WorkspaceService.sendGroupMessage(groupId, name, { FileShare: { attachment_id: id, name, size_bytes: BigInt(size), mime } }),
     onDocumentActivity: (listener: (documentId: string) => void): (() => void) =>
       eventEmitter.on(DOCUMENTS_EVENT, (event: DocumentsEvent | undefined): void => {
         if (event?.chatDoc != null && 'DocumentUpdated' in event.answer && event.answer.DocumentUpdated.node_id === nodeId) listener(event.chatDoc);

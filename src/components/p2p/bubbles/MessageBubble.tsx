@@ -7,6 +7,7 @@ import { getBubbleContainerStyles } from './types';
 import { MESSAGE_ANCHOR_ATTRIBUTE, JUMP_TARGET_CLASSES } from '@/components/chat/shared/jump-to-message';
 import type { QuotedMessage } from '@/components/chat/shared/reply-quote';
 import type { ChatMessage, PaneMessage } from '@/lib/chat/transport/chat-transport';
+import { ServerFileCard } from '@/components/chat/attachments/ServerFileCard';
 import { GroupFileShareCard } from '@/components/chat/GroupFileShareCard';
 import type { ReactionBinding } from '@/components/chat/shared/reactions/reaction-binding';
 import type { ChatDocumentLink } from '../hooks/useP2PTabs';
@@ -77,6 +78,13 @@ export function MessageBubble({
   };
 
   const renderBubble: () => JSX.Element = (): JSX.Element => {
+    if ('attachment' in message && message.attachment !== undefined) {
+      return (
+        <TextBubble {...commonProps} quoted={quoted}>
+          <ServerFileCard file={message.attachment} />
+        </TextBubble>
+      );
+    }
     if ('share' in message && message.share !== null) {
       return (
         <TextBubble {...commonProps} quoted={quoted}>

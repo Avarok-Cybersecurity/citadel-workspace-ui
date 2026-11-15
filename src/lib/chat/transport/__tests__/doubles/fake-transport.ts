@@ -65,6 +65,7 @@ export function fakeTransport(options: FakeOptions): { transport: ChatTransport;
     decline: async (id: string): Promise<void> => call(`files.decline:${id}`),
     cancel: async (id: string): Promise<void> => call(`files.cancel:${id}`),
     details: (id: string): null => { call(`files.details:${id}`); return null; },
+    read: null,
   };
   const documents: DocumentPort | null = !options.ports.documents ? null : {
     sharedWith: `Shared live with ${options.counterpart}`,

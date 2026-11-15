@@ -5,7 +5,7 @@
  * These types are used for structured communication between the TypeScript frontend and Rust backend.
  */
 
-import type { AppsRequest, ChatDocumentsRequest, DocumentsRequest, GroupMessageType, MemberRole, MessagingTrustRequest, RolesRequest, SecureLinksRequest, SignInSettings, TelemetryRequest, WorkspaceLogoChange, WorkspaceProtocolRequest } from 'citadel-workspace-client-ts';
+import type { AppsRequest, ChatAttachmentsRequest, ChatDocumentsRequest, DocumentsRequest, GroupMessageType, MemberRole, MessagingTrustRequest, RolesRequest, SecureLinksRequest, SignInSettings, TelemetryRequest, WorkspaceLogoChange, WorkspaceProtocolRequest } from 'citadel-workspace-client-ts';
 
 /** A request variant's body, read from the generated binding rather than restated. */
 type RequestBody<K extends string> = Extract<WorkspaceProtocolRequest, Record<K, unknown>>[K];
@@ -158,6 +158,7 @@ export interface WorkspaceProtocolRequestTS {
   Roles?: RolesRequest; // The workspace role table (roles-operations.ts).
   Documents?: DocumentsRequest; // A document node's CRDT log and awareness (cdoc/collab/documents-transport.ts).
   ChatDocuments?: ChatDocumentsRequest; // The same, for a document shared in a node's chat.
+  ChatAttachments?: ChatAttachmentsRequest; // A file shared in a node's chat, uploaded or read in chunks.
   SecureLinks?: SecureLinksRequest; // Secure deep links (secure-links-operations.ts).
   Apps?: AppsRequest; // Citadel Apps: the marketplace and installs (apps-operations.ts).
   GetSignInSettings?: null; // The sign-in settings (lib/workspace-service/sign-in-settings.ts).

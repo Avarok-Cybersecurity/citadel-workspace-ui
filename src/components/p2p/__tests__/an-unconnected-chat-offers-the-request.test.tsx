@@ -83,7 +83,7 @@ describe('the composer while they have not accepted', () => {
         inputMessage="hello" messageType="text" showMarkdownPreview={false}
         paused={false} isSending={false} awaitingAcceptFrom="Bob"
         onInputChange={vi.fn()} onInputFocus={vi.fn()} onInputBlur={vi.fn()}
-        onSubmit={onSubmit} onFileClick={vi.fn()} onFormat={vi.fn()}
+        onSubmit={onSubmit} onFileClick={vi.fn()} fileDestination={null} onFormat={vi.fn()}
         onTogglePreview={vi.fn()} onMessageTypeChange={vi.fn()}
       />,
     );
