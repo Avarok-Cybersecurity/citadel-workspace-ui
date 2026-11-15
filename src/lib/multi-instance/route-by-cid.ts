@@ -19,7 +19,7 @@ import { instanceChannel } from './instance-channel';
 import { instanceManager } from './instance-manager';
 import type { InstanceInfo } from './instance-manager';
 import { extractTargetCid } from './message-routing';
-import { LEADER_MUST_PROCESS_LOCALLY, UNRELIABLE_FORWARDS } from './routing-rules';
+import { LEADER_MUST_PROCESS_LOCALLY, UNRELIABLE_FORWARDS, arrivesAtFrameRate } from './routing-rules';
 import type { OrphanBuffer } from './orphan-buffer';
 import { debugLog } from '@/lib/debug-config';
 
@@ -34,7 +34,7 @@ export function routeByCid(
   messageType: string,
 ): boolean {
   const targetCid: string | null = extractTargetCid(message);
-  debugLog('InstanceInboundRouter', `[ILM-Router] Routing ${messageType} (CID: ${targetCid || 'none'})`);
+  if (!arrivesAtFrameRate(messageType)) debugLog('InstanceInboundRouter', `[ILM-Router] Routing ${messageType} (CID: ${targetCid || 'none'})`);
 
   if (!targetCid) {
     // Nobody can own it, so the leader takes it and the legacy broadcast stays

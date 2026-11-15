@@ -21,6 +21,7 @@ import {
   REQUEST_TRACKING_TIMEOUT_MS,
   getMessageType,
   shouldBroadcast,
+  arrivesAtFrameRate,
 } from './routing-rules';
 import { extractRequestId } from './message-routing';
 import { OrphanBuffer } from './orphan-buffer';
@@ -157,7 +158,7 @@ class InstanceInboundRouter {
 
     const messageType: ReturnType<typeof getMessageType> = getMessageType(message);
     const requestId: string | null = extractRequestId(message);
-    debugLog('InstanceInboundRouter',
+    if (!arrivesAtFrameRate(messageType)) debugLog('InstanceInboundRouter',
       `[ILM-Router] routeMessage: type=${messageType}, requestId=${requestId}, pendingMapSize=${this.pendingRequestMap.size}`
     );
 

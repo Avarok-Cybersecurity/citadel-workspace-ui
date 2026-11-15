@@ -9,6 +9,7 @@ import { debugLog } from '@/lib/debug-config';
 import {
   CID_FIELDS,
   CID_ROUTED_NOTIFICATIONS,
+  arrivesAtFrameRate,
   getMessageType,
 } from './routing-rules';
 
@@ -29,7 +30,7 @@ export function extractRequestId(message: Record<string, unknown>): string | nul
 
   // Skip request_id extraction for notification messages that should be routed by CID
   if (CID_ROUTED_NOTIFICATIONS.has(messageType)) {
-    debugLog('InstanceInboundRouter', `[ILM-Router] ${messageType} uses CID routing, skipping request_id extraction`);
+    if (!arrivesAtFrameRate(messageType)) debugLog('InstanceInboundRouter', `[ILM-Router] ${messageType} uses CID routing, skipping request_id extraction`);
     return null;
   }
 

@@ -145,6 +145,17 @@ export const LEADER_MUST_PROCESS_LOCALLY: Set<string> = new Set<ResponseType | s
 /**
  * Get the type of the message (first key)
  */
+/**
+ * Whether a message type arrives at frame rate, so no per-message debug line may run for it.
+ * The same types UNRELIABLE_FORWARDS names, for the same reason: 30-60 a second per track,
+ * per participant. A debug line there redacts and prints the whole frame, payload and all,
+ * six times per frame on the leader's path; in a three-way call that was ~420 console lines
+ * a second per page, and the dev build CI runs pays all of it. Errors are not affected.
+ */
+export function arrivesAtFrameRate(messageType: string): boolean {
+  return UNRELIABLE_FORWARDS.has(messageType);
+}
+
 export function getMessageType(message: unknown): ResponseType {
   if (!message || typeof message !== 'object') {
     return 'unknown' as ResponseType;
