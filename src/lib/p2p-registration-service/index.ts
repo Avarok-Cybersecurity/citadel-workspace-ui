@@ -25,7 +25,6 @@ export {
   DEFAULT_LIST_RETRIES,
   PEER_REGISTER_TIMEOUT_MS,
   CID_RESOLUTION_TIMEOUT_MS,
-  DEFAULT_SESSION_SECURITY,
   toGeneratedSecuritySettings,
 } from './constants';
 

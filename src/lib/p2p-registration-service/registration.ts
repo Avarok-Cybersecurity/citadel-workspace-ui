@@ -6,22 +6,19 @@
  */
 
 import { isPlaceholderName, peerDisplayName } from '@/lib/peer-display';
-import { websocketService } from '../websocket-service';
+import { sendPeerRegisterRequest } from '@/lib/p2p/send-peer-registration';
 import { failOnSocketLoss } from '../websocket/request-response';
 import { broadcastChannelService } from '../broadcast-channel-service';
 import { debugLog } from '@/lib/debug-config';
 import { isForThisSession } from '@/lib/sessions/notification-ownership';
-import type { InternalServiceRequest } from 'citadel-workspace-client-ts';
 import type { WebSocketMessage } from '@/types/ws-message-types';
 import { eventEmitter } from '../event-emitter';
-import type { Peer, PendingRequestEntry, PeerRegistrationOptions } from './types';
-import {
-  toGeneratedSecuritySettings, DEFAULT_SESSION_SECURITY,
-  CONCURRENT_REGISTRATIONS, PEER_REGISTER_TIMEOUT_MS,
-} from './constants';
+import type { Peer, PendingRequestEntry } from './types';
+import { CONCURRENT_REGISTRATIONS, PEER_REGISTER_TIMEOUT_MS } from './constants';
 import { getCurrentCid } from './discovery';
 import { consumeWasDecline } from './decline-correlation';
 import { broadcastPeerUpdate } from './broadcast-peer-update';
+import { isAlreadyRegistered } from '../peer-registration-store/already-registered';
 
 /** Context passed from the service so the message handler can read/write shared state. */
 export interface RegistrationContext {
@@ -110,7 +107,7 @@ function handlePeerRegisterFailure(data: Record<string, unknown>, ctx: Registrat
   const errorMsg: string = (data.message as string) || 'Failed to register peer';
   const peerCid: bigint | undefined = data.peer_cid as bigint | undefined;
 
-  if (errorMsg.includes('already registered')) {
+  if (isAlreadyRegistered(errorMsg)) {
     debugLog('P2PRegistrationService', `[P2P] Peer ${peerCid?.toString()} already registered - treating as success`);
     if (peerCid !== undefined) {
       ctx.outgoingRegistrations.add(peerCid);
@@ -187,23 +184,14 @@ function handlePeerRegisterNotification(data: Record<string, unknown>, ctx: Regi
 
 /** Register a specific peer via PeerRegister request. */
 export async function registerPeer(
-  peerCid: bigint, options: PeerRegistrationOptions,
-  pendingRequests: Map<string, PendingRequestEntry>
+  peerCid: bigint, pendingRequests: Map<string, PendingRequestEntry>
 ): Promise<void> {
   const currentCid: bigint | null = await getCurrentCid();
   if (!currentCid || currentCid === 0n) throw new Error('No active user session (CID 0 is service connection)');
   if (peerCid === currentCid) throw new Error('Cannot register with self');
 
-  const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
+  const requestId: string = crypto.randomUUID();
   broadcastChannelService.registerRequest(requestId, currentCid);
-  const request: InternalServiceRequest = {
-    PeerRegister: {
-      request_id: requestId, cid: currentCid, peer_cid: peerCid,
-      session_security_settings: toGeneratedSecuritySettings(options.sessionSecuritySettings || DEFAULT_SESSION_SECURITY),
-      connect_after_register: options.connectAfterRegister ?? false,
-      peer_session_password: null
-    }
-  };
   const responsePromise: Promise<Record<string, unknown>> = new Promise<Record<string, unknown>>((resolve, reject): void => {
     pendingRequests.set(requestId, { resolve, reject });
     setTimeout(() => {
@@ -214,15 +202,14 @@ export async function registerPeer(
       }
     }, PEER_REGISTER_TIMEOUT_MS);
   });
-  await websocketService.sendMessage(request);
+  await sendPeerRegisterRequest(requestId, currentCid, peerCid);
   await failOnSocketLoss('PeerRegister', responsePromise);
   debugLog('P2PRegistrationService', `Successfully registered peer ${peerCid}`);
 }
 
 /** Register all unregistered peers in batches. */
 export async function registerUnregisteredPeers(
-  allPeers: Map<bigint, Peer>, options: PeerRegistrationOptions,
-  pendingRequests: Map<string, PendingRequestEntry>
+  allPeers: Map<bigint, Peer>, pendingRequests: Map<string, PendingRequestEntry>
 ): Promise<void> {
   const unregistered: Peer[] = Array.from(allPeers.values()).filter(p => !p.isRegistered);
   if (unregistered.length === 0) return;
@@ -230,7 +217,7 @@ export async function registerUnregisteredPeers(
   for (let i: number = 0; i < unregistered.length; i += CONCURRENT_REGISTRATIONS) {
     const batch: Peer[] = unregistered.slice(i, i + CONCURRENT_REGISTRATIONS);
     await Promise.all(batch.map(peer =>
-      registerPeer(peer.cid, options, pendingRequests).catch(error => {
+      registerPeer(peer.cid, pendingRequests).catch(error => {
         debugLog('P2PRegistrationService', `Failed to register peer ${peer.cid}:`, error);
       })
     ));

@@ -29,6 +29,8 @@ export const PeerListItem: React.FC<PeerListItemProps> = ({
   return (
     <div
       className="flex items-center justify-between p-3 rounded-lg bg-card hover:bg-surface transition-colors"
+      data-testid="peer-row"
+      data-peer-username={peerHandleName(peer)}
     >
       <div className="flex items-center space-x-3">
         <MemberAvatar username={peerHandleName(peer)} name={peerDisplayName(peer)} className="h-10 w-10 text-sm" />
@@ -62,6 +64,7 @@ export const PeerListItem: React.FC<PeerListItemProps> = ({
             size="sm"
             disabled
             className="border-warning/50 text-warning-emphasis cursor-not-allowed"
+            data-testid="peer-awaiting"
           >
             <Clock className="h-3 w-3 mr-1 animate-pulse" />
             Awaiting Response...

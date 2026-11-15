@@ -17,6 +17,7 @@ import type { Peer, PeerInfoResponse, PendingRequestEntry } from './types';
 import { AUTO_ACCEPT_KEY, RETRY_BACKOFF_MS, DEFAULT_LIST_RETRIES } from './constants';
 import { getCurrentCid, listRegisteredPeers } from './discovery';
 import { registerPeer } from './registration';
+import { afterPeerAccepted } from '@/lib/p2p/after-peer-accepted';
 import { isGenuinelyAbsent } from '@/lib/storage/absence';
 
 /**
@@ -186,7 +187,7 @@ export async function acceptRegistrationRequest(
   }
 
   debugLog('P2PRegistrationService', `[P2P] Accepting registration from ${peerUsername || peerCid.toString()}`);
-  await registerPeer(peerCid, { connectAfterRegister: false }, pendingRequests);
+  await registerPeer(peerCid, pendingRequests);
   await peerRegistrationStore.removeRequestByPeerCid(peerCid);
 
   if (registeredPeers) {
@@ -194,7 +195,7 @@ export async function acceptRegistrationRequest(
     registeredPeers.set(peerCid, peer);
   }
 
-  eventEmitter.emit('p2p:registration-accepted', { peerCid, peerUsername });
+  afterPeerAccepted(peerCid, peerUsername);
 }
 
 /**

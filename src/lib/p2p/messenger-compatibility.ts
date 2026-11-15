@@ -5,19 +5,16 @@
  * operations extracted from P2PMessengerManager for modularity.
  */
 
-import { peerDisplayName } from '@/lib/peer-display';
-import { websocketService } from '../websocket-service';
 import { wireMapEntries } from '@/lib/wire-map';
 import { connectionManager } from '../connection';
 import { p2pAutoConnectService } from '../p2p-auto-connect-service';
-import { getDefaultSecuritySettings } from '../security-utils';
+import { sendPeerRegistration } from './send-peer-registration';
 import { messagePaginationStore } from './message-pagination-store';
 import type { ConversationManager } from './conversation-manager';
 import type { P2PMessage } from './p2p-types';
 import { debugLog } from '@/lib/debug-config';
 import { getPrivacySettings } from '@/lib/privacy-settings';
 import type { P2PConversation } from '@/lib/p2p/p2p-types';
-import type { SessionSecuritySettings } from '@/lib/security-utils';
 import type { ActiveSession } from '@/types/session-types';
 
 type EmitFn = (event: string, data: unknown) => void;
@@ -179,25 +176,19 @@ export async function updateUnreadCount(
 }
 
 /**
- * Auto-register a peer for P2P communication.
+ * Ask a peer to connect, from the Messages page's Available list.
+ *
+ * The same request the discovery modal and the directory send: recorded, so it
+ * is resent and the peer's answer is recognised as theirs to ours. It had its
+ * own copy, which recorded nothing, sent string CIDs, and announced the peer as
+ * registered before they had answered (a-click-request-is-a-real-request.test.ts).
  */
 export async function autoRegisterPeer(
   getCurrentCid: () => Promise<bigint | null>,
-  emit: EmitFn,
   peerCid: bigint,
-  ownCid?: bigint | null
+  peerUsername: string
 ): Promise<void> {
-  const cidToUse: bigint | null = ownCid ?? await getCurrentCid();
-  if (!cidToUse) throw new Error('No CID provided for registration');
-  const request: { PeerRegister: { request_id: `${string}-${string}-${string}-${string}-${string}`; cid: string; peer_cid: string; session_security_settings: SessionSecuritySettings; connect_after_register: boolean; peer_session_password: null; }; } = {
-    PeerRegister: {
-      request_id: crypto.randomUUID(), cid: cidToUse.toString(), peer_cid: peerCid.toString(),
-      session_security_settings: getDefaultSecuritySettings(),
-      connect_after_register: false, peer_session_password: null
-    }
-  };
-  await websocketService.sendMessage(request);
-  emit('p2p:peer-registered', {
-    peer: { cid: peerCid, username: peerDisplayName({ cid: peerCid }), fullName: peerDisplayName({ cid: peerCid }), isOnline: true, isRegistered: true }
-  });
+  const ownCid: bigint | null = await getCurrentCid();
+  if (!ownCid) throw new Error('No CID provided for registration');
+  await sendPeerRegistration(ownCid, peerCid, peerUsername);
 }
