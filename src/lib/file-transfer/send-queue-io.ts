@@ -33,12 +33,14 @@ let presence: Presence | null = null;
 export const sendQueuePort: SendQueuePort = {
   peerOnlineStatus: (peerCid: bigint): boolean | null => presence?.peerOnlineStatus(peerCid) ?? null,
   peerName: (peerCid: string): string => listedPeerUsername(BigInt(peerCid)) ?? 'your contact',
-  hold: async (transferId: string, file: File): Promise<void> => {
+  hold: async (transferId: string, file: File): Promise<boolean> => {
     inMemory.set(transferId, file);
     try {
       await dbPut('keyValue', keyFor(transferId), file);
+      return true;
     } catch (error) {
       debugLog('SendQueue', 'held file kept in memory only; a reload will lose it', error);
+      return false;
     }
   },
   take: async (transferId: string): Promise<File | undefined> =>

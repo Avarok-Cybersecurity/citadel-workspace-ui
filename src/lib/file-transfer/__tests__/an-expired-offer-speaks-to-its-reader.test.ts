@@ -12,7 +12,7 @@ const restoredPending: TransferMessageFields = { transfer_state: 'pending' };
 
 describe('an offer restored from storage with nothing left to answer it', () => {
   it('tells the recipient to ask the sender', () => {
-    expect(transferView(restoredPending, undefined, false, 'received')).toEqual({ state: 'expired', progress: 0, reason: STALE_OFFER_REASON });
+    expect(transferView(restoredPending, undefined, false, 'received')).toEqual({ state: 'expired', progress: 0, reason: STALE_OFFER_REASON, resuming: false, resendable: false });
   });
 
   it('tells the sender to send it again, not to ask themselves', () => {

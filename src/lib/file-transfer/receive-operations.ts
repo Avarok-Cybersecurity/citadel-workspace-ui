@@ -163,6 +163,7 @@ export function createProgressHandler(
       totalBytes: parsed.totalBytes,
       percentage: parsed.percentage,
       status: parsed.status,
+      ...(parsed.downloadPath !== undefined ? { downloadPath: parsed.downloadPath } : {}),
     });
   };
 }

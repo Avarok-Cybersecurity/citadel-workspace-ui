@@ -84,6 +84,12 @@ export function persistTransfer(transfer: FileTransfer): void {
       downloadPath: transfer.downloadPath,
       errorMessage: transfer.errorMessage,
       waitingFor: transfer.waitingFor,
+      // What a reload needs to pick the transfer up again; see restore-transfer.ts.
+      tickRequestId: transfer.tickRequestId,
+      objectId: transfer.objectId,
+      bytesKept: transfer.bytesKept,
+      offerMessageId: transfer.offerMessageId,
+      resendable: transfer.resendable,
     };
 
     // Pruned on write, because this is the only moment the whole map is in

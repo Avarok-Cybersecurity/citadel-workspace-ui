@@ -16,6 +16,7 @@
  */
 import type { FileTransfer } from './types';
 import { waitingText } from './send-queue';
+import { isTerminalTransferState } from './transfer-outcome';
 import { fromStoredState, type StoredTransferState } from './stored-state';
 import type { FileTransferState as TransferLifecycleState } from '@/types/messaging-layer';
 
@@ -30,6 +31,10 @@ export interface TransferView {
   state: TransferLifecycleState;
   progress: number;
   reason: string | undefined;
+  /** Picked up again after a reload and not yet heard from (reload-recovery.ts). */
+  resuming: boolean;
+  /** Ended by a reload with nothing kept: the sender may send it again in one click. */
+  resendable: boolean;
 }
 
 /** The fields of a conversation entry that describe its transfer. */
@@ -55,13 +60,17 @@ export function transferView(
 ): TransferView {
   if (record) {
     const reason: string | undefined = record.state === 'queued' ? waitingText(record.waitingFor ?? 'your contact') : record.errorMessage;
-    return { state: record.state, progress: record.progress, reason };
+    return {
+      state: record.state, progress: record.progress, reason,
+      resuming: record.resuming === true && !isTerminalTransferState(record.state),
+      resendable: side === 'sent' && record.resendable === true && record.state === 'error',
+    };
   }
   const state: TransferLifecycleState = message.transfer_state === undefined ? 'pending' : fromStoredState(message.transfer_state);
   // An offer with no record that did not arrive in this page's life is one
   // restored from storage: there is nothing left that could accept it.
   if (AWAITING_ANSWER.has(state) && !offerArriving) {
-    return { state: 'expired', progress: 0, reason: side === 'sent' ? STALE_SENT_OFFER_REASON : STALE_OFFER_REASON };
+    return { state: 'expired', progress: 0, reason: side === 'sent' ? STALE_SENT_OFFER_REASON : STALE_OFFER_REASON, resuming: false, resendable: false };
   }
-  return { state, progress: message.transfer_progress ?? 0, reason: message.error };
+  return { state, progress: message.transfer_progress ?? 0, reason: message.error, resuming: false, resendable: false };
 }

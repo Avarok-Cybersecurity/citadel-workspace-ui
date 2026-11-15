@@ -34,11 +34,9 @@ describe('restoring a transfer after a reload', () => {
     }
   });
 
-  it('does not bring an in-flight transfer back as in-flight', () => {
-    // The bytes were flowing through a stream that no longer has a reader and
-    // the Blob went with the tab. Restoring `transferring` gives a progress bar
-    // that never moves again — the "Downloading… 40%" forever this same store
-    // produced elsewhere.
+  it('does not bring back as in-flight a transfer nothing can follow', () => {
+    // No id the agent's ticks carry was kept (a record from before they were),
+    // so nothing could move its bar: a "Downloading… 40%" forever otherwise.
     for (const state of ['uploading', 'staged', 'transferring']) {
       const restored: FileTransfer | null = restoreTransfer(persisted({ state, progress: 40 }));
       expect(restored?.state, state).toBe('error');
@@ -46,23 +44,18 @@ describe('restoring a transfer after a reload', () => {
     }
   });
 
-  it('ends an offer we never answered as expired, not failed, and says what to do', () => {
+  it('ends an unanswerable offer as expired, not failed, without sending anyone to ask', () => {
     // Nothing was moving, so "interrupted" and a red failure would be false.
-    // What is true is that it can no longer be answered: accepting names the
-    // protocol object_id, whose join was in memory. The sender's own pending
-    // offer is not ours to expire and keeps the interrupted treatment.
     const offer: FileTransfer | null = restoreTransfer(persisted({ state: 'pending', progress: 0 }));
     expect(offer?.state).toBe('expired');
-    expect(offer?.errorMessage).toMatch(/ask the sender to send it again/i);
-
-    const ours: FileTransfer | null = restoreTransfer(persisted({ state: 'pending', isIncoming: false }));
-    expect(ours?.state).toBe('error');
+    expect(offer?.errorMessage).toMatch(/reloaded/i);
+    expect(offer?.errorMessage).not.toMatch(/ask/i);
   });
 
-  it('says why an interrupted transfer failed', () => {
+  it('says what happened to a lost download, and does not tell the reader to ask', () => {
     const restored: FileTransfer | null = restoreTransfer(persisted({ state: 'transferring' }));
     expect(restored?.errorMessage).toMatch(/reload/i);
-    expect(restored?.errorMessage, 'and what to do about it').toMatch(/again/i);
+    expect(restored?.errorMessage).not.toMatch(/ask/i);
   });
 
   it('drops a record too damaged to render or act on', () => {

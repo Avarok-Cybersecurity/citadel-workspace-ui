@@ -5,10 +5,9 @@
 
 import { scopedSettingsKey } from './settings-key';
 import { startExpirySweep } from './expiry-sweep';
-import { bindAccountHistory } from './account-history';
+import { bindAccountHistory, type TransferHistoryState } from './account-history';
 import { loadPersistedTransfers, persistTransfer, persistSettings } from './transfer-persistence';
 import { eventEmitter } from '../event-emitter';
-import { type MessagingLayer, isFileTransferRequest, isFileTransferResponse, isFileTransferCancel } from '@/types/messaging-layer';
 import { FileTransferState } from './state';
 import { isOpenTransfer } from './transfer-outcome';
 import { FileTransferIO } from './io';
@@ -19,9 +18,9 @@ import type {
   IncomingFileTransferMessage,
 } from './types';
 import { debugLog } from '@/lib/debug-config';
-import { handleTransferRequest, handleTransferResponse } from './async-transfers';
+import { handlePeerSignal } from './peer-signals';
+import { resendLostTransfer } from './resend-transfer';
 import { ProtocolOfferCorrelator } from './protocol-offer-correlation';
-import { handleTransferCancel } from './p2p-transfers';
 import { openPeerChannelViaAutoConnect } from './open-peer-channel';
 import { agentNativePicker, agentStagesUploads } from '../agent-conversations/capabilities';
 import { sendQueuePort, wireSendQueue } from './send-queue-io';
@@ -38,7 +37,7 @@ export class FileTransferService {
 
   private readonly state: FileTransferState = new FileTransferState();
   private readonly correlator: ProtocolOfferCorrelator = new ProtocolOfferCorrelator((transferId, objectId): void =>
-    this.io.registerTransferMapping(transferId, objectId), (transferId: string): boolean => isOpenTransfer(this.state.getTransfer(transferId)));
+    this.noteJoin(transferId, objectId), (transferId: string): boolean => isOpenTransfer(this.state.getTransfer(transferId)));
   private io: FileTransferIO;
   private initialized: boolean = false;
 
@@ -66,7 +65,7 @@ export class FileTransferService {
     if (this.initialized) return;
     this.setupMessageHandlers();
     await this.loadFromStorage();
-    bindAccountHistory(this.state);
+    bindAccountHistory(this.restoring);
     startExpirySweep(this.state, this.emitStateChange.bind(this), this.saveTransfer.bind(this));
     wireSendQueue(this.deps, () => this.io.getCurrentCid());
     this.initialized = true;
@@ -94,6 +93,11 @@ export class FileTransferService {
 
   async sendFileWithNativePicker(recipientCid: string, title?: string, allowedExtensions?: string[]): Promise<string> {
     return sendFileWithNativePicker(this.deps, recipientCid, title, allowedExtensions);
+  }
+
+  /** The sender's one click for a send a reload lost; see resend-transfer.ts. */
+  async resendLostTransfer(transferId: string, file: File): Promise<string> {
+    return resendLostTransfer({ ...this.deps, getTransfer: (id: string) => this.state.getTransfer(id), sendFile: (to: string, f: File) => this.sendFile(to, f) }, transferId, file);
   }
 
   async cancelTransfer(transferId: string): Promise<void> {
@@ -211,37 +215,30 @@ export class FileTransferService {
   }
 
   private async handleFileTransferMessage(message: IncomingFileTransferMessage): Promise<void> {
-    const { layer: rawLayer, senderCid } = message;
-    const layer: MessagingLayer = rawLayer as MessagingLayer;
-    const deps: { state: FileTransferState; io: FileTransferIO; emitStateChange: (transfer: FileTransfer) => void; saveTransfer: (transfer: FileTransfer) => Promise<void>; saveSettings: (peerCid: string, settings: FileTransferSettings) => Promise<void>; } = this.deps;
-
-    if (isFileTransferRequest(layer)) {
-      // Join the two halves BEFORE handleTransferRequest, because auto-accept
-      // fires from inside it — and an accept that cannot name the object_id is
-      // exactly the failure this correlation exists to prevent.
-      this.state.noteOfferArriving(layer.transfer_id);
-      this.correlator.noteMessageOffer(
-        layer.transfer_id,
-        senderCid,
-        layer.file_name,
-        layer.file_size
-      );
-      await handleTransferRequest(
-        deps, layer, senderCid,
-        // An offer this browser asked for (a peer-storage share): same size limit, no prompt.
-        (cid) => this.getAutoAccept(cid) || requestedShares.isExpected(layer.transfer_id),
-        (id) => this.acceptTransfer(id)
-      );
-    } else if (isFileTransferResponse(layer)) {
-      await handleTransferResponse(deps, layer, senderCid);
-    } else if (isFileTransferCancel(layer)) {
-      await handleTransferCancel(deps, layer, senderCid);
-    }
-    // FileTransferProgress / FileTransferComplete / FileTransferChunk layers
-    // have no handlers on purpose: they belonged to an abandoned message-plane
-    // transfer implementation that nothing ever emitted. Progress and
-    // completion are protocol notifications now (see setupMessageHandlers).
+    await handlePeerSignal({
+      ...this.deps, correlator: this.correlator,
+      noteOfferArriving: (id: string): void => this.state.noteOfferArriving(id),
+      // An offer this browser asked for (a peer-storage share): same size limit, no prompt.
+      getAutoAccept: (cid: string, id: string): boolean => this.getAutoAccept(cid) || requestedShares.isExpected(id),
+      acceptTransfer: (id: string): Promise<void> => this.acceptTransfer(id),
+    }, message);
   }
+
+  /** An offer's two halves joined: remembered on its record too, so a reload can still answer it. */
+  private noteJoin(transferId: string, objectId: string): void {
+    this.io.registerTransferMapping(transferId, objectId);
+    const transfer: FileTransfer | undefined = this.state.getTransfer(transferId);
+    if (transfer?.isIncoming !== true) return;
+    transfer.objectId = objectId;
+    void this.saveTransfer(transfer);
+  }
+
+  /** Restored records go in through here, and what the agent still holds is followed again. */
+  private readonly restoring: TransferHistoryState = {
+    getTransfer: (id: string): FileTransfer | undefined => this.state.getTransfer(id),
+    setTransfer: (transfer: FileTransfer): void => { this.state.setTransfer(transfer); this.io.reattach(transfer); },
+    setSettings: (key: string, settings: FileTransferSettings): void => this.state.setSettings(key, settings),
+  };
 
   private emitStateChange(transfer: FileTransfer): void {
     eventEmitter.emit(FILE_TRANSFER_EVENTS.STATE_CHANGED, transfer);
@@ -249,7 +246,7 @@ export class FileTransferService {
   }
 
   private async loadFromStorage(): Promise<void> {
-    await loadPersistedTransfers(this.state);
+    await loadPersistedTransfers(this.restoring);
   }
 
   private async saveTransfer(transfer: FileTransfer): Promise<void> {

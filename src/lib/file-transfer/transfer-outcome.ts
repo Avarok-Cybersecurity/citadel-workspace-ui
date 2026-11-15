@@ -41,7 +41,9 @@ export async function applyTransferOutcome(
 
   if (outcome.success) {
     transfer.state = 'complete';
-    transfer.downloadPath = outcome.downloadPath;
+    // A page that reloaded mid-reception lost the path with the tick that named
+    // it; the record kept it (protocol-transfer-events.ts).
+    transfer.downloadPath = outcome.downloadPath ?? transfer.downloadPath;
     transfer.progress = 100;
   } else {
     transfer.state = 'error';
