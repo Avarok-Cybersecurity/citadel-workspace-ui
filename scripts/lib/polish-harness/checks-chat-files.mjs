@@ -64,6 +64,15 @@ async function theAlwaysAcceptQuestionFits({ page, url, viewport }) {
   const directions = await page.getByTestId('always-accept-directions').boundingBox();
   assert.ok(inside(directions, await dialog.boundingBox()), 'the directions leave the dialog');
   await targetsAreTouchSized(dialog.getByRole('button').filter({ hasText: /Always accept|Ask me/ }), 'always-accept answers');
+  for (const testid of ['always-accept-no', 'always-accept-yes']) {
+    const answer = dialog.getByTestId(testid);
+    const box = await answer.boundingBox();
+    assert.ok(inside(box, await dialog.boundingBox()), `${testid} ${JSON.stringify(box)} leaves the dialog`);
+    // The box alone is not reach: a button clipped by the dialog's overflow keeps its box, and a
+    // click at its centre lands on the overlay. Ask what a click there would hit.
+    const hit = await answer.evaluate((el, at) => el.contains(document.elementFromPoint(at.x, at.y)), { x: box.x + box.width / 2, y: box.y + box.height / 2 });
+    assert.ok(hit, `a click at the centre of ${testid} does not reach it`);
+  }
 }
 
 export const CHAT_FILE_CHECKS = { thePictureViewerFitsTheScreen, aPictureSitsInItsBubble, theAlwaysAcceptQuestionFits };

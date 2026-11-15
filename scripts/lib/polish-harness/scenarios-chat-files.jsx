@@ -38,9 +38,11 @@ function PictureBubble() {
   return <div style={{ padding: 16 }}><FileTransferBubble message={message} isOwn={false} /></div>;
 }
 
+// A peer's name is often its username, one unbreakable token: CI's peers are named like this one,
+// and "Always accept from <it>" outgrew the dialog and pushed "Ask me each time" off its left edge.
 function AlwaysAccept() {
   const offer = sent('quarterly-report', 1);
-  return <AlwaysAcceptDialog peerName="Ada Lovelace" prompt={{ offer: { ...offer, fileName: 'quarterly-report.pdf', isIncoming: true, state: 'pending' }, answer: async () => {}, dismiss: () => {} }} />;
+  return <AlwaysAcceptDialog peerName="file_alice_1794760367429" prompt={{ offer: { ...offer, fileName: 'quarterly-report.pdf', isIncoming: true, state: 'pending' }, answer: async () => {}, dismiss: () => {} }} />;
 }
 
 export const CHAT_FILE_SCENARIOS = { 'picture-viewer': Viewer, 'picture-bubble': PictureBubble, 'always-accept': AlwaysAccept };
