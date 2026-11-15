@@ -7,8 +7,12 @@
  * stop answering every offer was to find the switch in Chat settings unprompted.
  *
  * The answer is stored where the chat settings keep it (the real service, over jsdom's
- * localStorage). Mocked: the agent socket the service module would otherwise open, and the
- * service's list of this peer's transfers, standing in for an offer that arrived.
+ * localStorage). An offer arrives through handleTransferRequest, the function the service runs
+ * on an incoming FileTransferRequest, so the dialog hears whatever that emits: it once listened
+ * for STATE_CHANGED, which an arrival never emits, and CI saw no dialog until an offer had been
+ * accepted by hand. Mocked: the agent socket the service module would otherwise open; the
+ * service's list of this peer's transfers, which that arrival writes to its own state; and the
+ * arrival's session lookup (its only use of the IO port).
  */
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor, act } from '@testing-library/react';
@@ -22,8 +26,10 @@ vi.mock('@/lib/websocket-service', () => ({
 }));
 
 import { fileTransferService } from '@/lib/file-transfer';
-import { eventEmitter } from '@/lib/event-emitter';
-import { FILE_TRANSFER_EVENTS } from '@/lib/file-transfer/events';
+import { handleTransferRequest, type AsyncTransferDeps } from '@/lib/file-transfer/async-transfers';
+import { FileTransferState } from '@/lib/file-transfer/state';
+import type { FileTransferIO } from '@/lib/file-transfer/io';
+import { MessagingLayerType } from '@/types/messaging-layer';
 import type { FileTransfer } from '@/lib/file-transfer/types';
 import { AlwaysAcceptDialog } from '../AlwaysAcceptDialog';
 import { useAlwaysAcceptPrompt } from '../hooks/useAlwaysAcceptPrompt';
@@ -43,9 +49,20 @@ function Harness({ accept }: { accept: (id: string) => Promise<void> }): JSX.Ele
   return <AlwaysAcceptDialog prompt={useAlwaysAcceptPrompt(PEER, accept)} peerName="Bob" />;
 }
 
-function arrive(t: FileTransfer): void {
+const OWN_CID: bigint = 7n;
+const arrival: AsyncTransferDeps = {
+  state: new FileTransferState(),
+  io: { getCurrentCid: async (): Promise<bigint> => OWN_CID } as unknown as FileTransferIO,
+  emitStateChange: (): void => undefined,
+  saveTransfer: async (): Promise<void> => undefined,
+};
+
+async function arrive(t: FileTransfer): Promise<void> {
   transfers = [...transfers, t];
-  act((): void => { eventEmitter.emit(FILE_TRANSFER_EVENTS.STATE_CHANGED, t); });
+  const layer = { type: MessagingLayerType.FileTransferRequest, transfer_id: t.id, file_name: t.fileName, file_size: t.fileSize, file_type: t.fileType, timestamp: t.createdAt } as const;
+  await act(async (): Promise<void> => {
+    await handleTransferRequest(arrival, layer, t.senderCid, (): boolean => false, async (): Promise<void> => undefined);
+  });
 }
 
 beforeEach((): void => {
@@ -57,9 +74,9 @@ beforeEach((): void => {
 afterEach((): void => { cleanup(); vi.restoreAllMocks(); });
 
 describe('the first offer from a peer', () => {
-  it('asks, with directions to the chat settings switch', () => {
+  it('asks, with directions to the chat settings switch', async () => {
     render(<Harness accept={async (): Promise<void> => undefined} />);
-    arrive(offer('first', 1));
+    await arrive(offer('first', 1));
     expect(screen.getByRole('dialog', { name: 'Always accept files from Bob?' })).toBeTruthy();
     const directions: string = screen.getByTestId('always-accept-directions').textContent ?? '';
     expect(directions).toMatch(/Chat settings.*File.*Auto-accept files from Bob/);
@@ -68,35 +85,35 @@ describe('the first offer from a peer', () => {
   it('"always" turns on the chat setting, accepts this offer, and never asks again', async () => {
     const accepted: string[] = [];
     render(<Harness accept={async (id: string): Promise<void> => { accepted.push(id); }} />);
-    arrive(offer('first', 1));
+    await arrive(offer('first', 1));
     fireEvent.click(screen.getByRole('button', { name: 'Always accept from Bob' }));
     await waitFor((): void => expect(accepted).toEqual(['first']));
     expect(fileTransferService.getSettings(PEER.toString())).toMatchObject({ autoAccept: true, autoAcceptAnswered: true });
-    arrive(offer('second', 2));
+    await arrive(offer('second', 2));
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('"ask me each time" keeps asking per file, but never shows this question again', async () => {
     const accepted: string[] = [];
     const { unmount } = render(<Harness accept={async (id: string): Promise<void> => { accepted.push(id); }} />);
-    arrive(offer('first', 1));
+    await arrive(offer('first', 1));
     fireEvent.click(screen.getByRole('button', { name: 'Ask me each time' }));
     await waitFor((): void => expect(fileTransferService.getSettings(PEER.toString()).autoAcceptAnswered).toBe(true));
     expect(accepted).toEqual([]);
     expect(fileTransferService.getAutoAccept(PEER.toString())).toBe(false);
     unmount();
     render(<Harness accept={async (): Promise<void> => undefined} />);
-    arrive(offer('second', 2));
+    await arrive(offer('second', 2));
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('closing without an answer asks again on the next offer, not this one', () => {
+  it('closing without an answer asks again on the next offer, not this one', async () => {
     render(<Harness accept={async (): Promise<void> => undefined} />);
-    arrive(offer('first', 1));
+    await arrive(offer('first', 1));
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
     expect(screen.queryByRole('dialog')).toBeNull();
     transfers = transfers.map((t: FileTransfer): FileTransfer => ({ ...t, state: 'declined' }));
-    arrive(offer('second', 2));
+    await arrive(offer('second', 2));
     expect(screen.getByRole('dialog')).toBeTruthy();
   });
 });

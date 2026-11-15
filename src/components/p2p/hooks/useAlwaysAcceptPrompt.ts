@@ -1,10 +1,12 @@
 /**
  * The first file offer from a peer, while the person has not yet said whether to always accept
- * that peer's files. Re-read whenever a transfer changes, so an offer arriving while the chat
- * is open is asked about at once.
+ * that peer's files. Re-read when an offer arrives and whenever a transfer changes, so an offer
+ * arriving while the chat is open is asked about at once. An arrival is REQUEST_RECEIVED, not
+ * STATE_CHANGED (async-transfers.ts): listening to the second alone asked nothing until the person
+ * had answered the first offer by hand, then asked about the next one over its Accept button.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { useEventListener } from '@/hooks/use-event-listener';
+import { useEventListeners } from '@/hooks/use-event-listener';
 import { fileTransferService } from '@/lib/file-transfer';
 import { FILE_TRANSFER_EVENTS } from '@/lib/file-transfer/events';
 import { offerToAskAbout } from '@/lib/file-transfer/always-accept';
@@ -29,7 +31,7 @@ export function useAlwaysAcceptPrompt(peerCid: bigint, accept: (transferId: stri
     setOffer(next !== null && next.id !== dismissed ? next : null);
   }, [peer, dismissed]);
   useEffect(reread, [reread]);
-  useEventListener(FILE_TRANSFER_EVENTS.STATE_CHANGED, reread);
+  useEventListeners([FILE_TRANSFER_EVENTS.REQUEST_RECEIVED, FILE_TRANSFER_EVENTS.STATE_CHANGED], reread);
 
   const answer: (always: boolean) => Promise<void> = useCallback(async (always: boolean): Promise<void> => {
     const asked: FileTransfer | null = offer;
