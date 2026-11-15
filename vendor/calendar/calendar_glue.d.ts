@@ -33,6 +33,17 @@ export function addDays(date: any, days: number): any;
 
 export function addMonths(date: any, months: number): any;
 
+export function checkPoll(poll: any): void;
+
+export function checkRoutingForm(form: any): void;
+
+export function checkVote(poll: any, vote: any): void;
+
+/**
+ * `answers`: `[host, HostAnswer][]` in the order the hosts were asked.
+ */
+export function collectiveOutcome(answers: any): any;
+
 export function collectiveSlots(per_host: any): any;
 
 export function decodeAvailability(bytes: Uint8Array): any;
@@ -45,7 +56,13 @@ export function decodeEvent(bytes: Uint8Array): any;
 
 export function decodeEventType(bytes: Uint8Array): any;
 
+export function decodePoll(bytes: Uint8Array): any;
+
+export function decodePollVote(bytes: Uint8Array): any;
+
 export function decodeProjection(bytes: Uint8Array): any;
+
+export function decodeRoutingForm(bytes: Uint8Array): any;
 
 export function encodeAvailability(value: any): Uint8Array;
 
@@ -63,13 +80,24 @@ export function encodeEvent(event: any): Uint8Array;
 
 export function encodeEventType(value: any): Uint8Array;
 
+export function encodePoll(value: any): Uint8Array;
+
+export function encodePollVote(value: any): Uint8Array;
+
 export function encodeProjection(value: any): Uint8Array;
+
+export function encodeRoutingForm(value: any): Uint8Array;
 
 export function exportIcs(events: any): any;
 
 export function fanOutPlan(event: any, subtree: any): any;
 
 export function monthGrid(year: number, month: number): any;
+
+/**
+ * `[picked poll, the slot it picked]`.
+ */
+export function pickPoll(poll: any, proposal: number, event_id: string): any;
 
 /**
  * What a descendant holds of `event`, by the allow-list; refused for a private event.
@@ -91,7 +119,19 @@ export function rankHosts(strategy: any, hosts: any, free: any, confirmed: any):
  */
 export function reconcile(projection: any, origin: any): any;
 
+/**
+ * Where `answers` route on `form`: the first rule that holds, else its fallback.
+ */
+export function route(form: any, answers: any): any;
+
+export function seatsLeft(seats: number, taken: number): number;
+
 export function shownUpAt(event: any, reader_chain: any): any;
+
+/**
+ * `votes`: `[voter, vote][]`. Each proposal with who said yes and maybe.
+ */
+export function tallyPoll(poll: any, votes: any): any;
 
 export function upPullTargets(descendants: any): any;
 
@@ -114,27 +154,41 @@ export interface InitOutput {
     readonly calendarengine_new: (a: number) => number;
     readonly calendarengine_offers: (a: number, b: number, c: number, d: number) => void;
     readonly calendarengine_resolve: (a: number, b: number, c: number, d: number) => void;
+    readonly checkPoll: (a: number, b: number) => void;
+    readonly checkRoutingForm: (a: number, b: number) => void;
+    readonly checkVote: (a: number, b: number, c: number) => void;
+    readonly collectiveOutcome: (a: number, b: number) => void;
     readonly collectiveSlots: (a: number, b: number) => void;
     readonly decodeAvailability: (a: number, b: number, c: number) => void;
     readonly decodeBooking: (a: number, b: number, c: number) => void;
     readonly decodeChange: (a: number, b: number, c: number) => void;
     readonly decodeEvent: (a: number, b: number, c: number) => void;
     readonly decodeEventType: (a: number, b: number, c: number) => void;
+    readonly decodePoll: (a: number, b: number, c: number) => void;
+    readonly decodePollVote: (a: number, b: number, c: number) => void;
     readonly decodeProjection: (a: number, b: number, c: number) => void;
+    readonly decodeRoutingForm: (a: number, b: number, c: number) => void;
     readonly encodeAvailability: (a: number, b: number) => void;
     readonly encodeBooking: (a: number, b: number) => void;
     readonly encodeChange: (a: number, b: number) => void;
     readonly encodeEvent: (a: number, b: number) => void;
     readonly encodeEventType: (a: number, b: number) => void;
+    readonly encodePoll: (a: number, b: number) => void;
+    readonly encodePollVote: (a: number, b: number) => void;
     readonly encodeProjection: (a: number, b: number) => void;
+    readonly encodeRoutingForm: (a: number, b: number) => void;
     readonly exportIcs: (a: number, b: number) => void;
     readonly fanOutPlan: (a: number, b: number, c: number) => void;
     readonly monthGrid: (a: number, b: number, c: number) => void;
+    readonly pickPoll: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly project: (a: number, b: number) => void;
     readonly propagationBounds: (a: number) => void;
     readonly rankHosts: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly reconcile: (a: number, b: number, c: number) => void;
+    readonly route: (a: number, b: number, c: number) => void;
+    readonly seatsLeft: (a: number, b: number) => number;
     readonly shownUpAt: (a: number, b: number, c: number) => void;
+    readonly tallyPoll: (a: number, b: number, c: number) => void;
     readonly upPullTargets: (a: number, b: number) => void;
     readonly weekOf: (a: number, b: number) => void;
     readonly weekdayOf: (a: number, b: number) => void;

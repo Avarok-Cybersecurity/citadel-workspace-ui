@@ -80,28 +80,45 @@ export function ownCopy(booking: Booking, d: Pick<BookerDeps, 'node' | 'me' | 't
   };
 }
 
+/** What one host's instance answered a claim; `unreachable` when none answered at all. */
+export type Claimed = BookOutcome | { readonly kind: 'unreachable'; readonly reason: string };
+
 /**
- * Books `booking`; with `replacing`, moves that booking of the same host to this one instead. The
- * answer is the host's: the client takes none from anyone else (ihttp-client.ts).
+ * Claims `booking` on its host alone, writing nothing of the booker's: the answer is the host's,
+ * and the client takes none from anyone else (ihttp-client.ts). Team bookings claim through this,
+ * one host at a time (team-booking.ts).
  */
-export async function book(d: BookerDeps, booking: Booking, replacing: string | null): Promise<BookOutcome> {
+export async function claimWith(d: Pick<BookerDeps, 'engine' | 'client'>, booking: Booking, replacing: string | null): Promise<Claimed> {
   let r: IhttpResponse;
   try {
     const path: string = replacing === null ? BOOK_PATH : reschedulePath(replacing);
     r = await d.client.request(hostAddress(booking.host), 'prefer_p2p_then_relay', 'POST', path, d.engine.encodeBooking(booking));
   } catch (e: unknown) {
     const unavailable: boolean = e instanceof PortRefused && typeof e.refused === 'object' && 'unavailable' in e.refused;
-    if (unavailable && replacing === null) return requestBooking(d.ports, d.engine, booking, d.node, d.me);
-    if (e instanceof PortRefused) return { kind: 'failed', reason: refusalCopy(e.refused) };
+    if (e instanceof PortRefused) return { kind: unavailable ? 'unreachable' : 'failed', reason: refusalCopy(e.refused) };
     if (e instanceof IhttpCancelled) return { kind: 'failed', reason: `the booking was cut off (${e.reason})` };
     throw e;
   }
   if (r.status === 409) return { kind: 'taken', alternatives: decodeAlternatives(r.body) ?? [] };
   if (r.status !== 201) return { kind: 'failed', reason: answered(booking.host, r) };
-  const confirmed: Booking = d.engine.decodeBooking(r.body);
-  await d.ports.storage.set({ kind: 'user' }, `${PRIVATE_PREFIX}${confirmed.id}`, d.engine.encodeEvent(ownCopy(confirmed, d)));
+  return { kind: 'confirmed', booking: d.engine.decodeBooking(r.body) };
+}
+
+/** Keeps a confirmed booking in the booker's own calendar; with `replacing`, drops the one it moved. */
+export async function keepOwnCopy(d: Pick<BookerDeps, 'ports' | 'engine'>, own: Event, replacing: string | null): Promise<void> {
+  await d.ports.storage.set({ kind: 'user' }, `${PRIVATE_PREFIX}${own.id}`, d.engine.encodeEvent(own));
   if (replacing !== null) await d.ports.storage.remove({ kind: 'user' }, `${PRIVATE_PREFIX}${replacing}`);
-  return { kind: 'confirmed', booking: confirmed };
+}
+
+/**
+ * Books `booking`; with `replacing`, moves that booking of the same host to this one instead. With
+ * no instance of the host online a new booking is left as a request; a move is not.
+ */
+export async function book(d: BookerDeps, booking: Booking, replacing: string | null): Promise<BookOutcome> {
+  const claimed: Claimed = await claimWith(d, booking, replacing);
+  if (claimed.kind === 'unreachable') return replacing === null ? requestBooking(d.ports, d.engine, booking, d.node, d.me) : { kind: 'failed', reason: claimed.reason };
+  if (claimed.kind === 'confirmed') await keepOwnCopy(d, ownCopy(claimed.booking, d), replacing);
+  return claimed;
 }
 
 /** Cancels booking `id` with `host`, saying why; the host records who cancelled from the session. */

@@ -21,8 +21,6 @@ import type { Projection } from '../generated/Projection';
 import type { PropagationBounds } from '../generated/PropagationBounds';
 import type { Reconciled } from '../generated/Reconciled';
 import type { Recurrence } from '../generated/Recurrence';
-import type { Refusal } from '../generated/Refusal';
-import type { RefusalCode } from '../generated/RefusalCode';
 import type { Resolution } from '../generated/Resolution';
 import type { SlotRequest } from '../generated/SlotRequest';
 import type { Strategy } from '../generated/Strategy';
@@ -30,44 +28,23 @@ import type { UpPull } from '../generated/UpPull';
 import type { Weekday } from '../generated/Weekday';
 import type { Write } from '../generated/Write';
 import type { CalendarGlue } from './load-calendar-wasm';
+import { call } from './call';
 import type { OffsetAt } from './intl-offsets';
+import { TeamEngine } from './team-engine';
 
-/** A value the core refused, with the core's code for why. */
-export class CalendarRefusal extends Error {
-  readonly code: RefusalCode;
-  readonly detail: string | null;
-  constructor(refusal: Refusal) {
-    super(refusal.detail === null ? refusal.code : `${refusal.code}: ${refusal.detail}`);
-    this.name = 'CalendarRefusal';
-    this.code = refusal.code;
-    this.detail = refusal.detail;
-  }
-}
-
-function isRefusal(thrown: unknown): thrown is Refusal {
-  if (typeof thrown !== 'object' || thrown === null) return false;
-  const fields: Record<string, unknown> = thrown as Record<string, unknown>;
-  return typeof fields.code === 'string' && (fields.detail === null || typeof fields.detail === 'string');
-}
-
-/** Runs one glue call; the core's refusal is rethrown typed, anything else as it was. */
-function call<T>(body: () => unknown): T {
-  try {
-    return body() as T;
-  } catch (thrown: unknown) {
-    if (isRefusal(thrown)) throw new CalendarRefusal(thrown);
-    throw thrown;
-  }
-}
+export { CalendarRefusal } from './call';
 
 export class CalendarEngine {
   private readonly glue: CalendarGlue;
   private readonly zoned: InstanceType<CalendarGlue['CalendarEngine']>;
+  /** Team bookings, polls and routing forms (design §3.6.2, §3.6.3). */
+  readonly team: TeamEngine;
 
   /** Over an initialised glue and the page's time-zone database. */
   constructor(glue: CalendarGlue, offsetAt: OffsetAt) {
     this.glue = glue;
     this.zoned = new glue.CalendarEngine(offsetAt);
+    this.team = new TeamEngine(glue);
   }
 
   resolve(zone: string, local: CivilDateTime): Resolution {
