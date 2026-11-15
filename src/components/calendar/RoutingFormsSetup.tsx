@@ -3,15 +3,21 @@
  * new one. They are kept in the node's own store (routing-forms.ts), which only `EditMdx` holders
  * write; the kernel is the guard, and its refusal is said here. Bookers answer them on the node's
  * "Book with someone" page (RoutingAnswer).
+ *
+ * The forms and the team types they may route to are read when the setup mounts, and again when
+ * the kernel says either changed on this node (it tells the writer's own session too), so a team
+ * type added while the setup is open can be chosen at once.
  */
 import { useCallback, useEffect, useState } from 'react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { isNodeKeyChange } from '@/lib/calendar/change-routing';
 import type { CalendarEngine } from '@/lib/calendar/engine/calendar-engine';
 import type { EventType } from '@/lib/calendar/generated/EventType';
 import type { RoutingForm } from '@/lib/calendar/generated/RoutingForm';
 import { PortRefused, refusalCopy, type CalendarPorts } from '@/lib/calendar/ports';
-import { readRoutingForms, removeRoutingForm, saveRoutingForm } from '@/lib/calendar/routing-forms';
+import { TYPE_PREFIX } from '@/lib/calendar/booking-pages';
+import { readRoutingForms, removeRoutingForm, ROUTING_PREFIX, saveRoutingForm } from '@/lib/calendar/routing-forms';
 import { readTeamTypes } from '@/lib/calendar/team-types';
 import type { Member } from '@/lib/citadel-apps/sdk/generated/Member';
 import { RoutingFormEditor } from './RoutingFormEditor';
@@ -42,6 +48,9 @@ export function RoutingFormsSetup({ ports, engine, node, newId }: RoutingFormsSe
     }
   }, [ports, engine, node.id]);
   useEffect(() => { void reload(); }, [reload]);
+  useEffect(() => ports.onStorageChanged((change): void => {
+    if (isNodeKeyChange(change, node.id, TYPE_PREFIX) || isNodeKeyChange(change, node.id, ROUTING_PREFIX)) void reload();
+  }), [ports, node.id, reload]);
   const saved = async (write: () => Promise<void>): Promise<string | null> => {
     try {
       await write();

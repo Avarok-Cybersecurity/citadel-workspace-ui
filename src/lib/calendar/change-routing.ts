@@ -42,6 +42,12 @@ export function sourcesOfStorageChange(change: StorageChange, around: Around): E
   return [];
 }
 
+/** Whether the kernel's change is to a key under `prefix` in `node`'s own store (its editors' keys). */
+export function isNodeKeyChange(change: StorageChange, node: string, prefix: string): boolean {
+  const { backend, key } = change;
+  return typeof backend === 'object' && 'node' in backend && backend.node.node_id === node && key.startsWith(prefix);
+}
+
 export function sourcesOfTopicChange(change: CalChange, around: Around): EntrySource[] {
   return sourcesAt(change.node, change.key, around, 'either');
 }
