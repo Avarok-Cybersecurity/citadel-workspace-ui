@@ -29,7 +29,7 @@ export function AlwaysAcceptDialog({ prompt, peerName }: { prompt: AlwaysAcceptP
           </span>
         </p>
         <DialogFooter className="flex-col-reverse gap-2 sm:flex-row">
-          <Button variant="outline" className="min-h-11" onClick={(): void => { void prompt.answer(false); }}>
+          <Button variant="outline" className="min-h-11" onClick={(): void => { void prompt.answer(false); }} data-testid="always-accept-no">
             Ask me each time
           </Button>
           <Button className="min-h-11" onClick={(): void => { void prompt.answer(true); }} data-testid="always-accept-yes">

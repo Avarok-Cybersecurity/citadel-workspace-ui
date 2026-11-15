@@ -28,6 +28,7 @@ import {
   runTestMain,
 } from '../lib/index.js';
 import { isVisibleWithin } from '../lib/index.js';
+import { keepAskingEachTime } from '../lib/always-accept.js';
 
 // ============================================================================
 // Types
@@ -531,6 +532,8 @@ async function acceptFileTransfer(page: Page, username: string): Promise<boolean
     const acceptButton = page.locator('button').filter({ hasText: /accept/i }).first();
 
     if (await isVisibleWithin(acceptButton, 5000)) {
+      // The first offer asks "always accept?" over this button; see lib/always-accept.ts.
+      if (await keepAskingEachTime(page, 10000)) console.log('  Answered the first-offer question: ask each time');
       await acceptButton.click();
       console.log('  Clicked Accept button');
       await sleep(2000);
@@ -767,6 +770,8 @@ async function acceptAllTransfers(
       // Click the first visible accept button
       const firstAccept = acceptButtons.first();
       if (await isVisibleWithin(firstAccept, 1000)) {
+        // The first offer asks "always accept?" over this button; see lib/always-accept.ts.
+        if (await keepAskingEachTime(page, 10000)) console.log('  Answered the first-offer question: ask each time');
         await firstAccept.click();
         acceptedCount++;
         console.log(`  ✓ Accepted transfer ${acceptedCount}`);
