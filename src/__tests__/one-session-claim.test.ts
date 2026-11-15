@@ -30,7 +30,7 @@ const CLAIM_HOME: "lib/sessions/claim-session.ts" = 'lib/sessions/claim-session.
  *
  * The distinction that matters is `onlyIfOrphaned`: a claim that passes `true`
  * is asking "may I take this?", which is the question another tab can already
- * have answered. The two below are not asking that.
+ * have answered. The entries below are not asking that.
  */
 const NOT_A_TAB_ADOPTING: Record<string, string> = {
   'lib/connection/io-websocket.ts':
@@ -38,6 +38,9 @@ const NOT_A_TAB_ADOPTING: Record<string, string> = {
   'lib/peer-registration-store/lifecycle.ts':
     're-asserts ownership of a session this tab already holds before sending ' +
     'PeerRegister; passes no onlyIfOrphaned, so it is not adopting anything',
+  'lib/p2p/send-peer-registration.ts':
+    're-asserts ownership of the session that recorded a PeerRegister before ' +
+    'the leader resends it; passes no onlyIfOrphaned, so it is not adopting anything',
   'components/WorkspaceApp.tsx':
     'the connection-retry modal reclaiming the session this tab just lost — ' +
     'the CID came from this tab losing it, so no other tab can own it',

@@ -68,8 +68,8 @@ const LEADER_ONLY: Record<string, { why: string; requires?: RegExp }> = {
     why: "hands the leader's socket to relayed media frames, sent only while this tab leads",
     requires: /installMediaFrameRelay\(\{[\s\S]*?isLeader: \(\): boolean => instanceManager\.isLeader,\s*sink:/,
   },
-  'lib/peer-registration-store/lifecycle.ts': {
-    why: 'only reachable from the leader-gated resend poll',
+  'lib/p2p/send-peer-registration.ts': {
+    why: 'resendPeerRegistration is only reachable from the leader-gated resend poll (peer-registration-store/service.ts)',
   },
 };
 
