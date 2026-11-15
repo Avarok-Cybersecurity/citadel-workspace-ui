@@ -32,9 +32,11 @@ interface LoginProps {
   onCancel: () => void;
   /** A username to start with (from an account link); the password is still typed. */
   initialUsername: string | undefined;
+  /** Why this sign-in opened, in plain words: given only when there is something to explain. */
+  notice?: string;
 }
 
-export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.Element {
+export function Login({ onNext, onCancel, initialUsername, notice }: LoginProps): JSX.Element {
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [showSecuritySettings, setShowSecuritySettings] = useState(false);
 
@@ -145,8 +147,8 @@ export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.El
               <div>
                 <CitadelLogo variant="mark" height={30} className="mb-3" />
                 <h2 className="text-xl font-bold text-foreground">Login to Workspace</h2>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  Enter your credentials to connect
+                <p className="text-sm text-muted-foreground mt-0.5" data-testid={notice === undefined ? undefined : 'login-notice'}>
+                  {notice ?? 'Enter your credentials to connect'}
                 </p>
               </div>
             </div>

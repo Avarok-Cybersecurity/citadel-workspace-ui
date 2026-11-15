@@ -59,7 +59,7 @@ type Flow = (toast: (opts: ToastOptions) => unknown) => Promise<void>;
 const flows: Array<[string, Flow]> = [
   // confirm/signInAs are the takeover path's (#59), which none of these cases reach.
   ['the previous-sessions bar', (toast): Promise<void> => switchToSession(BOB, {
-    navigate: (): void => {}, toast, confirm: async (): Promise<boolean> => false, signInAs: (): void => {},
+    navigate: (): void => {}, toast, confirm: async (): Promise<boolean> => false, signInAs: (): void => {}, signInAgain: (): void => {},
   })],
   ['the login redirect', (toast): Promise<void> => redirectToExistingSession(BOB, { toast, onNext: (): void => {} })],
 ];

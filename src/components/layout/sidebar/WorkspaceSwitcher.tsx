@@ -14,14 +14,15 @@ import { useRegistrationChoices, type RegistrationChoices } from "@/components/r
 import { WorkspaceLogoMark } from "@/components/shared/WorkspaceLogoMark";
 import { useWorkspaceSwitcher } from "./useWorkspaceSwitcher";
 import { WorkspaceSwitcherDropdown } from "./WorkspaceSwitcherDropdown";
+import type { SignInRequest } from "@/lib/sessions/sign-in-request";
 
 interface WorkspaceSwitcherProps {
   workspaceName?: string;
 }
 
 export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps): JSX.Element => {
-  // Set when the user chose to move a session another browser window holds.
-  const [takeoverUsername, setTakeoverUsername] = useState<string | null>(null);
+  // Set when the user chose to move a session another browser window holds, or to sign in to one the agent does not hold.
+  const [signInRequest, setSignInRequest] = useState<SignInRequest | null>(null);
   // This tab's person, named as the top bar names them (the current workspace is this tab's).
   const selfName: string | undefined = useSelfName().name;
   const {
@@ -46,7 +47,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps): JS
     handleManageAccounts,
     handleNext,
     handleBack,
-  } = useWorkspaceSwitcher(workspaceName, setTakeoverUsername);
+  } = useWorkspaceSwitcher(workspaceName, setSignInRequest);
 
   /**
    * The switcher button, so closing the account manager can put focus back on
@@ -176,7 +177,7 @@ export const WorkspaceSwitcher = ({ workspaceName }: WorkspaceSwitcherProps): JS
         />
       )}
 
-      <TakeoverSignIn username={takeoverUsername} onClose={() => setTakeoverUsername(null)} />
+      <TakeoverSignIn request={signInRequest} onClose={() => setSignInRequest(null)} />
 
       <AccountManagementDialog
         isOpen={isManagingAccounts}

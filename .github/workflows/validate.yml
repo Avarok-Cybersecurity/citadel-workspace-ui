@@ -173,6 +173,8 @@ jobs:
           - { name: Chat polish geometry, run: 'npm run check:chat-polish' }
           # The chat's pictures, viewer and always-accept question at 375px too, under Full and Lite motion.
           - { name: Chat files geometry, run: 'npm run check:chat-files' }
+          # The switcher's signed-out account row and the sign-in it opens, at 375px too, under Full and Lite motion.
+          - { name: Account switch geometry, run: 'npm run check:account-switch' }
           - { name: UI sweep geometry, run: 'npm run check:ui-sweep' }
           # Text sharpness on pixels: the shipped editor at 1x and 2x, against fillText.
           - { name: Docs text crispness, run: 'npm run check:docs-crispness' }

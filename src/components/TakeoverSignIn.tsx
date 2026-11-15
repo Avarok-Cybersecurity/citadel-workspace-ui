@@ -8,6 +8,9 @@
  * password (connect.rs, credential_fingerprint); ClaimSession cannot. So that
  * opens the ordinary sign-in form with the username filled in, whose
  * SessionAlreadyActive path then claims and opens the workspace.
+ *
+ * An account the agent no longer holds has nothing to join or move: it goes
+ * straight to that same sign-in form, saying why.
  */
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -20,22 +23,25 @@ import { getWorkspacePath } from '@/lib/workspace-navigation';
 import { toastError } from '@/lib/toast-helpers';
 import { describeFailure } from '@/lib/failure-message';
 import { agentHostsConversations } from '@/lib/agent-conversations/capabilities';
+import type { SignInRequest } from '@/lib/sessions/sign-in-request';
 
 export interface TakeoverSignInProps {
-  /** The account to sign in as, or null when nothing is being taken over. */
-  username: string | null;
+  /** The account to sign in as and why, or null when no sign-in is open. */
+  request: SignInRequest | null;
   onClose: () => void;
 }
 
 type Way = 'deciding' | 'join' | 'move';
 
-export function TakeoverSignIn({ username, onClose }: TakeoverSignInProps): JSX.Element | null {
+export function TakeoverSignIn({ request, onClose }: TakeoverSignInProps): JSX.Element | null {
   const navigate: NavigateFunction = useNavigate();
   const { toast } = useToast();
   const [way, setWay] = useState<Way>('deciding');
+  const username: string | null = request?.username ?? null;
+  const signedOut: boolean = request?.kind === 'signed-out';
 
   useEffect(() => {
-    if (username === null) return undefined;
+    if (username === null || signedOut) return undefined;
     let live: boolean = true;
     setWay('deciding');
     agentHostsConversations().then(
@@ -43,10 +49,13 @@ export function TakeoverSignIn({ username, onClose }: TakeoverSignInProps): JSX.
       () => { if (live) setWay('move'); },
     );
     return (): void => { live = false; };
-  }, [username]);
+  }, [username, signedOut]);
 
-  if (username === null || way === 'deciding') return null;
-  if (way === 'join') return <OpenHereToo username={username} onClose={onClose} onMoveInstead={() => setWay('move')} />;
+  if (request === null) return null;
+  if (request.kind === 'held-elsewhere' && way === 'deciding') return null;
+  if (request.kind === 'held-elsewhere' && way === 'join') {
+    return <OpenHereToo username={request.username} onClose={onClose} onMoveInstead={() => setWay('move')} />;
+  }
 
   const finish = async (cid: string): Promise<void> => {
     onClose();
@@ -58,5 +67,12 @@ export function TakeoverSignIn({ username, onClose }: TakeoverSignInProps): JSX.
     }
   };
 
-  return <Login initialUsername={username} onNext={(cid: string) => { void finish(cid); }} onCancel={onClose} />;
+  return (
+    <Login
+      initialUsername={request.username}
+      notice={request.kind === 'signed-out' ? request.notice : undefined}
+      onNext={(cid: string) => { void finish(cid); }}
+      onCancel={onClose}
+    />
+  );
 }

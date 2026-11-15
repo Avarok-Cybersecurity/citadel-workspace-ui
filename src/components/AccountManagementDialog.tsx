@@ -21,6 +21,7 @@ import type { NavigateFunction } from 'react-router';
 import { sessionIsOnServer } from '@/lib/sessions/same-server';
 import { accountHost, isCurrentAccount } from '@/lib/sessions/account-display';
 import { switchToSession } from '@/lib/sessions/switch-to-session';
+import { heldElsewhereSignIn, signedOutSignIn, type SignInRequest } from '@/lib/sessions/sign-in-request';
 import { withWorkspaceNames } from '@/lib/sessions/with-workspace';
 import { readLastAccessed } from '@/lib/sessions/last-accessed';
 import { useTabIdentity } from '@/hooks/use-tab-identity';
@@ -54,7 +55,7 @@ export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: Acc
   // This tab's account, not the global connection's, which names nobody in a resumed tab.
   const me: TabIdentity | null = useTabIdentity();
   const confirm: ReturnType<typeof useConfirm> = useConfirm();
-  const [signInAs, setSignInAs] = useState<string | null>(null);
+  const [signIn, setSignIn] = useState<SignInRequest | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -96,7 +97,8 @@ export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: Acc
     }
   };
 
-  const startSignIn = (username: string): void => { onClose(); setSignInAs(username); };
+  // Not live in the agent: nothing to join or move, only a sign-in (the takeover's join answered "not found").
+  const startSignIn = (username: string, serverAddress: string): void => { onClose(); setSignIn(signedOutSignIn(username, serverAddress)); };
 
   // The same claim sequence as the navbar and the switcher. This called
   // connectionManager.switchAccount, which reconnects with a SAVED password --
@@ -106,7 +108,7 @@ export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: Acc
     const [target] = withWorkspaceNames([session], storedSessions, readLastAccessed);
     if (!target) return;
     onClose();
-    await switchToSession(target, { navigate, toast, confirm, signInAs: setSignInAs });
+    await switchToSession(target, { navigate, toast, confirm, signInAs: (u: string) => setSignIn(heldElsewhereSignIn(u)), signInAgain: setSignIn });
   };
 
   const formatLastConnected = (timestamp?: number): string => {
@@ -189,7 +191,7 @@ export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: Acc
                       live={liveSession !== undefined}
                       lastConnected={session.lastConnected ? formatLastConnected(session.lastConnected) : null}
                       signedOut={liveSession === undefined ? signedOutReasonFor(session, live.signedOut) : null}
-                      onSwitch={() => { if (liveSession) void switchToLive(liveSession); else startSignIn(session.username); }}
+                      onSwitch={() => { if (liveSession) void switchToLive(liveSession); else startSignIn(session.username, session.serverAddress); }}
                       onDelete={() => { setSessionToDelete({ username: session.username, serverAddress: session.serverAddress }); setDeleteConfirmOpen(true); }}
                     />
                   );
@@ -226,7 +228,7 @@ export function AccountManagementDialog({ isOpen, onClose, onRestoreFocus }: Acc
         </DialogContent>
       </Dialog>
 
-      <TakeoverSignIn username={signInAs} onClose={() => setSignInAs(null)} />
+      <TakeoverSignIn request={signIn} onClose={() => setSignIn(null)} />
       <DeleteConfirmDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen} username={sessionToDelete?.username} onConfirm={handleRemoveSession} />
       <ClearAllConfirmDialog open={clearAllConfirmOpen} onOpenChange={setClearAllConfirmOpen} onConfirm={handleClearAll} />
     </>

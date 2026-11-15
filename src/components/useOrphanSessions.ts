@@ -6,6 +6,7 @@ import { useAttentionGlow } from './use-attention-glow';
 import { withWorkspaceNames } from '@/lib/sessions/with-workspace';
 import { readLastAccessed } from '@/lib/sessions/last-accessed';
 import { switchToSession } from '@/lib/sessions/switch-to-session';
+import { heldElsewhereSignIn, type SignInRequest } from '@/lib/sessions/sign-in-request';
 import { useNavigate } from "react-router-dom";
 import { connectionManager } from "@/lib/connection";
 import { websocketService } from "@/lib/websocket-service";
@@ -34,7 +35,7 @@ export function useOrphanSessions(): UseOrphanSessionsResult {
   const navigate: NavigateFunction = useNavigate();
   const { toast } = useToast();
   const confirm: ReturnType<typeof useConfirm> = useConfirm();
-  const [takeoverUsername, setTakeoverUsername] = useState<string | null>(null);
+  const [signInRequest, setSignInRequest] = useState<SignInRequest | null>(null);
   const [sessions, setSessions] = useState<OrphanSessionWithWorkspace[]>([]);
   const [disconnectTarget, setDisconnectTarget] = useState<{
     session: ActiveSession;
@@ -84,7 +85,9 @@ export function useOrphanSessions(): UseOrphanSessionsResult {
   }, []);
 
   const handleNavigate = (session: OrphanSessionWithWorkspace): Promise<void> =>
-    switchToSession(session, { navigate, toast, confirm, signInAs: setTakeoverUsername });
+    switchToSession(session, {
+      navigate, toast, confirm, signInAs: (username: string) => setSignInRequest(heldElsewhereSignIn(username)), signInAgain: setSignInRequest,
+    });
 
   const handleDisconnect = (session: OrphanSessionWithWorkspace): void => {
     setDisconnectTarget({ session, workspaceName: session.workspaceName });
@@ -174,8 +177,8 @@ export function useOrphanSessions(): UseOrphanSessionsResult {
   useEventListener<UnreadCountChange>('unread-count-changed', handleUnreadCountChanged);
 
   return {
-    takeoverUsername,
-    clearTakeover: (): void => setTakeoverUsername(null),
+    signInRequest,
+    clearTakeover: (): void => setSignInRequest(null),
     sessions,
     disconnectTarget,
     setDisconnectTarget,

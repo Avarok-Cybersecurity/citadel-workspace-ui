@@ -5,6 +5,7 @@ import { withoutForgotten } from '@/lib/sessions/forgotten-sessions';
 import { withWorkspaceNames } from '@/lib/sessions/with-workspace';
 import { readLastAccessed } from '@/lib/sessions/last-accessed';
 import { switchToSession, type SwitchCallbacks } from '@/lib/sessions/switch-to-session';
+import type { SignedOutSignIn } from '@/lib/sessions/sign-in-request';
 import { debugLog } from '@/lib/debug-config';
 import { parseAccountLink, type AccountLink } from '@/lib/onboarding/account-link';
 import { stashLinkTarget } from '@/lib/onboarding/link-target';
@@ -47,7 +48,11 @@ export async function runAccountLink(
     signInDeadline: (): Promise<void> =>
       new Promise((resolve: () => void) => { setTimeout(resolve, TIMEOUT.ACCOUNT_LINK_SIGN_IN_MS); }),
     switchTo: (session: OrphanSessionWithWorkspace) =>
-      switchToSession(session, { navigate: deps.navigate, toast: deps.toast, confirm: deps.confirm, signInAs: deps.login }),
+      switchToSession(session, {
+        navigate: deps.navigate, toast: deps.toast, confirm: deps.confirm, signInAs: deps.login,
+        // The landing page's own sign-in; the switch's notice has already said the session ended.
+        signInAgain: (request: SignedOutSignIn) => deps.login(request.username),
+      }),
     login: deps.login,
   });
 }
