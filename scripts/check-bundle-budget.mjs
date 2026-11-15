@@ -216,8 +216,17 @@ const dist = join(root, 'dist');
  * secure link's: keeping `/workspace?app=…` at boot (citadel-apps/app-link-capture.ts, 339 B raw,
  * judged only when taken), the boot composition of both captures (boot-links.ts, 130 B), and the
  * response handler passing an Apps answer to its waiter (+53 B in app-services).
+ *
+ * 339 -> 340 (2026-11-15), for calls from any tab (fix/chat-files-calls): master measured 338.0,
+ * the files lane 338.2 (the picture bubble's CSS), the calls lane alone 339.8, the merge 340.0.
+ * What did not have to be on the landing path was moved off it: the media lifecycle imported one
+ * string from the failed-call copy and carried all of it (lib/call/lost-on-takeover.ts now holds
+ * the string; call-failure-detail.ts is listed in DEFERRED_MODULES), which took it to 339.7. What
+ * remains has to run in every tab from boot, because a call may now ring, be answered or end in
+ * any of them: the ringing hand-off (1,037 + 652 B raw by source map), the departure and
+ * taken-elsewhere notices (550 + 683, 455 + 335 B), and the follower's media-frame relay (693 B).
  */
-const BUDGET_KB = 339;
+const BUDGET_KB = 340;
 
 /**
  * Modules that must stay OFF the critical path, checked against the source
@@ -248,6 +257,9 @@ const DEFERRED_MODULES = [
   'src/lib/at-rest/agent-root-store.ts',
   // Its shapes and errors too: the kept-tree hook reads the lock lazily (hooks/use-kept-tree.ts).
   'src/lib/at-rest/at-rest-shape.ts',
+  // A failed call's copy loads with the call stage; the landing page's media lifecycle needs only
+  // the takeover reason (lib/call/lost-on-takeover.ts).
+  'src/lib/call/call-failure-detail.ts',
   // The kill switch loads only when /version.json pulls it (lib/pwa/watch-deployed-version.ts).
   'src/lib/pwa/kill-switch.ts',
   // Console capture for opt-in diagnostic logs: it runs while a workspace is open (TermsGate),

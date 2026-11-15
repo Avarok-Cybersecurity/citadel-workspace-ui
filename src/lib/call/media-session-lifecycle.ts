@@ -8,7 +8,7 @@
 import type { CallManagerInternals } from './call-manager-internals';
 import type { CallState } from '@/lib/call/call-state';
 import { nextOpenAttempt, type OpenRetryDecision } from './open-session-retry';
-import { LOST_ON_TAKEOVER } from './call-failure-detail';
+import { LOST_ON_TAKEOVER } from './lost-on-takeover';
 
 /** A delay expressed through the manager's injected timer, so tests own the clock. */
 function pause(m: CallManagerInternals, delayMs: number): Promise<void> {

@@ -14,7 +14,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { CallManager } from '../call-manager';
 import { DIRECT_CALL, type CallState } from '../call-state';
-import { LOST_ON_TAKEOVER } from '../call-failure-detail';
+import { LOST_ON_TAKEOVER } from '../lost-on-takeover';
 import type { CallTransport } from '../call-transport';
 import type { CallCodecCapabilities, CallMediaKinds, CallSignalPayload } from '@/types/p2p-commands';
 
