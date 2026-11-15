@@ -1,7 +1,10 @@
 /**
  * pagehide in the tab a call lives in. A follower posts the hand-over to the
  * leader -- synchronously, which is all a closing document is sure to finish.
- * Mocked: the instance channel and election (a BroadcastChannel).
+ * The hook runs as a departure step, which the channel's own pagehide handler
+ * runs ahead of its session release (departure-steps.ts), so the test departs
+ * the way that handler does. Mocked: the instance channel and election (a
+ * BroadcastChannel).
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
@@ -16,6 +19,7 @@ vi.mock('@/lib/call/websocket-call-transport', () => ({ WebSocketCallTransport: 
 
 import { useCallDeparture } from '../use-call-departure';
 import { CALL_DEPARTED } from '@/lib/call/call-departure';
+import { runDepartureSteps } from '@/lib/multi-instance/departure-steps';
 import type { CallManager } from '@/lib/call/call-manager';
 import type { CallState } from '@/lib/call/call-state';
 import type { MessageSenderConfig } from '@/lib/p2p/message-sender-types';
@@ -33,7 +37,7 @@ describe('a tab closing mid-call', () => {
     tab.isLeader = false;
     const m: ReturnType<typeof manager> = manager();
     renderHook(() => useCallDeparture(11n, {} as MessageSenderConfig, { current: m }));
-    window.dispatchEvent(new Event('pagehide'));
+    runDepartureSteps((error: unknown): void => { throw error; });
     expect(channelSend).toHaveBeenCalledWith({
       type: CALL_DEPARTED, targetInstanceId: 'leader', payload: { cid: 11n, callId: 'c1', peers: [7n] },
     });
@@ -44,7 +48,7 @@ describe('a tab closing mid-call', () => {
     tab.isLeader = true;
     const m: ReturnType<typeof manager> = manager();
     renderHook(() => useCallDeparture(11n, {} as MessageSenderConfig, { current: m }));
-    window.dispatchEvent(new Event('pagehide'));
+    runDepartureSteps((error: unknown): void => { throw error; });
     expect(m.end).toHaveBeenCalledWith('hangup');
     expect(channelSend).not.toHaveBeenCalled();
   });

@@ -6,7 +6,9 @@ import { useEffect, type MutableRefObject } from 'react';
 import { eventEmitter } from '@/lib/event-emitter';
 import { instanceChannel, instanceManager } from '@/lib/multi-instance';
 import { warnLog } from '@/lib/debug-config';
-import { CALL_DEPARTED, departureOf, endForDepartedTab, type CallDeparted } from '@/lib/call/call-departure';
+import { CALL_DEPARTED, departureOf, endForDepartedTab, readCallDeparted, type CallDeparted } from '@/lib/call/call-departure';
+import { addDepartureStep } from '@/lib/multi-instance/departure-steps';
+import { holdRelease } from '@/lib/multi-instance/release-holds';
 import { WebSocketCallTransport } from '@/lib/call/websocket-call-transport';
 import type { CallManager } from '@/lib/call/call-manager';
 import type { MessageSenderConfig } from '@/lib/p2p/message-sender-types';
@@ -29,17 +31,22 @@ export function useCallDeparture(
       }
       instanceChannel.send({ type: CALL_DEPARTED, targetInstanceId: 'leader', payload: departed });
     };
-    window.addEventListener('pagehide', onPageHide);
+    // A departure step, not a pagehide listener: it must reach the leader before the
+    // session-release that the channel sends on the same pagehide (departure-steps.ts).
+    const removeStep: () => void = addDepartureStep(onPageHide);
     const off: () => void = eventEmitter.on(CALL_DEPARTED, (payload: unknown): void => {
-      void endForDepartedTab(payload, {
+      const departed: CallDeparted | null = readCallDeparted(payload);
+      if (!departed || !instanceManager.isLeader) return;
+      // The release that follows waits for this goodbye (release-holds.ts).
+      holdRelease(departed.cid, endForDepartedTab(payload, {
         isLeader: (): boolean => instanceManager.isLeader,
         transportFor: (cid: bigint): WebSocketCallTransport => new WebSocketCallTransport({ selfCid: cid, senderConfig }),
         reportFailure: (peerCid: bigint, error: unknown): void =>
           warnLog('Call', `could not end a closed tab's call with ${peerCid}:`, error instanceof Error ? error.message : String(error)),
-      });
+      }));
     });
     return (): void => {
-      window.removeEventListener('pagehide', onPageHide);
+      removeStep();
       off();
     };
   }, [selfCid, senderConfig, managerRef]);

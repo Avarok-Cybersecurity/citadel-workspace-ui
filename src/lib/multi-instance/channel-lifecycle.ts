@@ -21,7 +21,8 @@
 
 import { eventEmitter } from '../event-emitter';
 import { instanceManager } from './instance-manager';
-import { debugLog } from '@/lib/debug-config';
+import { debugLog, errorLog } from '@/lib/debug-config';
+import { runDepartureSteps } from './departure-steps';
 import type { ChannelMessage } from './channel-types';
 import type { InstanceInfo } from '@/lib/multi-instance/instance-manager-types';
 
@@ -53,6 +54,8 @@ export type PageEvents = Pick<Window, 'addEventListener'>;
 
 export function setupPageDepartureHandlers(channel: UnloadChannel, page: PageEvents): void {
   page.addEventListener('pagehide', (event: PageTransitionEvent): void => {
+    // Hand-overs first: the release below takes the session off the leader's connection.
+    runDepartureSteps((error: unknown): void => errorLog('InstanceChannel', 'a departure step failed:', error));
     if (event.persisted) {
       debugLog('InstanceChannel', '[InstanceChannel] Entering the back/forward cache: leaving, keeping the session');
       // Relinquishing broadcasts the goodbye itself; a follower only needs the goodbye.

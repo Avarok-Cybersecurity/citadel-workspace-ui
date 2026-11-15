@@ -8,6 +8,7 @@
 import type { WorkspaceClient } from 'citadel-workspace-client-ts';
 import { eventEmitter } from '../event-emitter';
 import { debugLog } from '../debug-config';
+import { releaseAfterHolds } from '../multi-instance/release-holds';
 
 export interface TeardownHooks {
   /** Drop the cached client handle. */
@@ -76,7 +77,8 @@ export function setupSessionReleaseHandler(hooks: Pick<TeardownHooks, 'releaseSe
 
   eventEmitter.on('session:release-request', ({ cid }: { cid: bigint }) => {
     debugLog('WebSocketInit', `Session release requested for CID ${cid.toString()}`);
-    liveReleaseHooks?.releaseSession(cid);
+    // After any goodbye the leader is still sending as this session; see release-holds.ts.
+    releaseAfterHolds(cid, (): void => liveReleaseHooks?.releaseSession(cid), (ms: number): Promise<void> => new Promise<void>((done): void => { setTimeout(done, ms); }));
   });
 }
 
