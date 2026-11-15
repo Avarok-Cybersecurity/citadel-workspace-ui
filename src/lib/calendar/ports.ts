@@ -8,6 +8,7 @@
  * Storage addresses a store, not a backend: the member's own (`user`), a node's official events
  * (`node`), and what members posted on a node (`authored`, `author` null for every author).
  */
+import type { DispatchClock } from '@/lib/citadel-apps/host/dispatch';
 import type { GlueInstance, StorageChange, Unsubscribe } from '@/lib/citadel-apps/host/glue-instance';
 import type { OpName } from '@/lib/citadel-apps/host/op-args';
 import type { HostReply, InboundIhttpFrame, Refused, TopicArrival } from '@/lib/citadel-apps/host/ports';
@@ -89,6 +90,8 @@ export interface CalendarPorts {
   /** A notification in the page's list, badged with the Calendar's name by the port. */
   readonly notify: (title: string, body: string) => Promise<void>;
   readonly onStorageChanged: (listener: (change: StorageChange) => void) => Unsubscribe;
+  /** The instance's clock: the only "now" the Calendar reads. */
+  readonly clock: DispatchClock;
 }
 
 async function paged<T>(op: OpName, page: (cursor: string | null) => Promise<{ items: readonly T[]; next: string | null }>): Promise<T[]> {
@@ -147,5 +150,6 @@ export function calendarPorts(glue: GlueInstance): CalendarPorts {
     children: async (id) => (await ok('NodeChildren', { node_id: id })).nodes,
     notify: (title, body) => done('Notify', { title, body }),
     onStorageChanged: glue.onStorageChanged,
+    clock: glue.clock,
   };
 }

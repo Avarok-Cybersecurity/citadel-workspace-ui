@@ -30,7 +30,7 @@ const isAnswerOn = (change: StorageChange, node: string): boolean =>
 
 export function useBookings(ports: CalendarPorts, engine: CalendarEngine, node: string, me: string, held: ReadonlySet<Capability>): Bookings {
   const [client, setClient] = useState<IhttpClient | null>(null);
-  const host: BookingHost = useMemo(() => new BookingHost({ ports, engine, node, me, nowMs: (): bigint => BigInt(Date.now()) }), [ports, engine, node, me]);
+  const host: BookingHost = useMemo(() => new BookingHost({ ports, engine, node, me, nowMs: (): bigint => BigInt(Math.floor(ports.clock.now())) }), [ports, engine, node, me]);
   const relay: boolean = held.has('ihttp.serve');
   const p2p: boolean = held.has('ihttp.p2p.serve');
   const calls: boolean = held.has('ihttp.call') || held.has('ihttp.p2p.call');
@@ -56,7 +56,7 @@ export function useBookings(ports: CalendarPorts, engine: CalendarEngine, node: 
     // One take at a time, so an answer arriving during the mount's take is not taken (and told) twice.
     let turn: Promise<void> = Promise.resolve();
     const take = (): void => {
-      turn = turn.then(async (): Promise<void> => { await takeAnswers({ ports, engine, node, me, nowMs: BigInt(Date.now()) }); })
+      turn = turn.then(async (): Promise<void> => { await takeAnswers({ ports, engine, node, me, nowMs: BigInt(Math.floor(ports.clock.now())) }); })
         .catch((e: unknown): void => { console.error('[calendar] answers to your requests could not be read', e); });
     };
     take();

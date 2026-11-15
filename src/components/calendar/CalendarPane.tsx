@@ -54,11 +54,12 @@ type Panel = { kind: 'none' } | { kind: 'new'; date: CivilDate } | { kind: 'edit
   | { kind: 'book'; moving: { id: string; host: string; typeId: string } | null };
 
 const newId = (): string => crypto.randomUUID();
+const nowOf = (ports: CalendarPorts): bigint => BigInt(Math.floor(ports.clock.now()));
 const reasonOf = (e: unknown): string => (e instanceof PortRefused ? refusalCopy(e.refused) : 'something went wrong');
 
 export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZone, held, mayEditNode }: CalendarPaneProps): JSX.Element {
   const { state: ws } = useWorkspace();
-  const now = useMinuteClock(engine, displayZone);
+  const now = useMinuteClock(engine, displayZone, ports.clock);
   const nowMs: bigint = useMemo(() => engine.instantOf(displayZone, now), [engine, displayZone, now]);
   const [state, dispatch] = useReducer(calendarReducer, undefined, (): CalendarState =>
     initialCalendar(window.innerWidth < NARROW_PX ? 'agenda' : 'month', now.date));
@@ -79,7 +80,7 @@ export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZon
     const booking = bookingOf(choice, { id: newId(), node: nodeId, host, me });
     const moving: string | null = panel.kind === 'book' && panel.moving !== null ? panel.moving.id : null;
     if (client === null) return moving === null ? requestBooking(ports, engine, booking, nodeId, me) : Promise.resolve<BookOutcome>({ kind: 'failed', reason: 'a booking can be moved only while its host can be reached' });
-    return claim({ ports, engine, client, node: nodeId, me, title: `${choice.type.name} with ${host}`, nowMs: BigInt(Date.now()) }, booking, moving);
+    return claim({ ports, engine, client, node: nodeId, me, title: `${choice.type.name} with ${host}`, nowMs: nowOf(ports) }, booking, moving);
   };
 
   const openEntry = open === null ? undefined : state.entries.get(open.entryKey);
@@ -95,7 +96,7 @@ export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZon
         return answer.status === 200 ? null : `it could not be cancelled (${answer.status})`;
       }
       if (client === null) return 'bookings cannot be changed from here right now';
-      return await cancelAsBooker({ ports, engine, client, me, nowMs: BigInt(Date.now()) }, openEvent, role.host, role.id, reason);
+      return await cancelAsBooker({ ports, engine, client, me, nowMs: nowOf(ports) }, openEvent, role.host, role.id, reason);
     } catch (e: unknown) {
       return reasonOf(e);
     }
@@ -126,11 +127,11 @@ export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZon
         </Button>
       )}
       {panel.kind === 'new' && (
-        <EventEditor date={panel.date} editing={null} node={node} above={above} nodeName={nodeName} me={me} displayZone={displayZone} engine={engine} newId={newId} nowMs={(): bigint => BigInt(Date.now())} onSave={saveEvent} onClose={close} />
+        <EventEditor date={panel.date} editing={null} node={node} above={above} nodeName={nodeName} me={me} displayZone={displayZone} engine={engine} newId={newId} nowMs={(): bigint => nowOf(ports)} onSave={saveEvent} onClose={close} />
       )}
       {panel.kind === 'edit' && (
         <EventEditor key={panel.entry.key} date={now.date} editing={{ draft: draftOf(panel.entry.event, displayZone, engine, panel.entry.source), kept: panel.entry.source === 'node' ? 'node' : panel.entry.source === 'private' ? 'private' : 'authored' }}
-          node={node} above={above} nodeName={nodeName} me={me} displayZone={displayZone} engine={engine} newId={(): string => panel.entry.event.id} nowMs={(): bigint => BigInt(Date.now())}
+          node={node} above={above} nodeName={nodeName} me={me} displayZone={displayZone} engine={engine} newId={(): string => panel.entry.event.id} nowMs={(): bigint => nowOf(ports)}
           onSave={(checked, progress): Promise<SaveOutcome> => saveRevision(ports, engine, panel.entry, checked, progress)} onClose={(): void => { setOpen(null); close(); }} />
       )}
       {panel.kind === 'setup' && <BookingSetup ports={ports} engine={engine} node={node} me={me} displayZone={displayZone} deviceZone={deviceZone} today={now.date} origin={window.location.origin} newId={newId} />}
@@ -143,7 +144,7 @@ export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZon
           {open !== null && panel.kind !== 'edit' && <EventDetails chip={open} displayZone={displayZone} nodeName={nodeName} onClose={(): void => setOpen(null)} onCancelBooking={role === null ? null : cancelBooking}
             onReschedule={role?.kind === 'booker' && client !== null ? (): void => { const { id, host: bookedWith } = role; reschedule(id, bookedWith).catch((e: unknown): void => { console.error('[calendar] the booking to move could not be read', e); }); } : null}
             onEdit={changeable === null ? null : (): void => setPanel({ kind: 'edit', entry: changeable })}
-            onCancelEvent={changeable === null ? null : (reason: string | null): Promise<string | null> => cancelEvent(ports, engine, changeable, me, reason, BigInt(Date.now()), nodeName)} />}
+            onCancelEvent={changeable === null ? null : (reason: string | null): Promise<string | null> => cancelEvent(ports, engine, changeable, me, reason, nowOf(ports), nodeName)} />}
           <CalendarTab
             state={state} dispatch={dispatch} engine={engine} viewer={me} displayZone={displayZone}
             node={{ ...node, zone }} nodeName={nodeName} now={now} onOpenChip={setOpen}

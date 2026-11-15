@@ -5,6 +5,7 @@
  * The store's keys are left on `window.__calendarKeys` for the checks to read what the controls
  * wrote; it is the harness's, never the app's.
  */
+import { nextHour, pinnedClock } from './pinned-clock.js';
 import { useEffect, useState } from 'react';
 import * as glue from '../../../vendor/calendar/calendar_glue.js';
 import wasmUrl from '../../../public/calendar/calendar_glue_bg.wasm?url';
@@ -21,7 +22,7 @@ import { glueInstance } from '@/lib/citadel-apps/host/glue-instance';
 import { STANDARD_HOST_POLICY } from '@/lib/citadel-apps/host/limits';
 import { treeNodesPort } from '@/lib/citadel-apps/runtime/nodes-port';
 
-const PAGE_CLOCK = { now: () => Date.now(), after: (ms, fire) => { const id = setTimeout(fire, ms); return () => clearTimeout(id); } };
+const PAGE_CLOCK = pinnedClock();
 const TREE = {
   company: { id: 'company', name: 'Company', parent_id: null, children: ['n1'], metadata: [] },
   n1: { id: 'n1', name: 'Platform', parent_id: 'company', children: ['n2'], metadata: [] },
@@ -29,9 +30,9 @@ const TREE = {
 };
 const ZONE = 'America/New_York';
 
-/** The coming hour and the one after, so both fall in whichever view the pane opens on. */
+/** The hour after the pinned one and the next, so both fall on the pinned day in whichever view the pane opens on. */
 function hours() {
-  const hour = BigInt(Math.ceil(Date.now() / 3_600_000) * 3_600_000);
+  const hour = nextHour(PAGE_CLOCK);
   return [{ once: { start_ms: hour + 3_600_000n, end_ms: hour + 7_200_000n } }, { once: { start_ms: hour + 7_200_000n, end_ms: hour + 9_000_000n } }];
 }
 

@@ -85,8 +85,10 @@ export function fakeIhttp(rec: Recorder, frames: Parameters<IhttpPort['respond']
 
 /** A clock the test advances by hand; timers fire in `advance`. */
 export class ManualClock implements DispatchClock {
-  private t: number = 0;
   private timers: { at: number; fire: () => void; live: boolean }[] = [];
+
+  /** `t`: where it starts. 0 for tests that only measure elapsed time; a page's tests start it at their pinned instant. */
+  constructor(private t: number = 0) {}
 
   readonly now = (): number => this.t;
 

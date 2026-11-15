@@ -41,7 +41,7 @@ export function mountRig(me: string, store: MemoryStore = new MemoryStore(me), e
     appId: 'net.avarok.calendar', policy: POLICY,
     ports: extra === null ? { storage: store.port() } : { storage: store.port(), ihttp: extra.ihttp },
     held: new Set<Capability>([...HELD, ...(extra?.held ?? [])]),
-    limits: { topics: null, p2p: null }, clock: new ManualClock(), pageUrl: 'https://w.example/n1',
+    limits: { topics: null, p2p: null }, clock: new ManualClock(Date.now()), pageUrl: 'https://w.example/n1',
     storageChanges: (l) => { listeners.add(l); return () => listeners.delete(l); },
   });
   return { store, glue, change: (c: StorageChange): void => { for (const l of listeners) l(c); } };

@@ -3,6 +3,7 @@
  * binary, over the browser's Intl), fed the placement fixture: every kind of entry a node shows.
  * The harness serves no public/ directory, so the binary is handed to the glue's own init by URL.
  */
+import { nextHour, pinnedClock } from './pinned-clock.js';
 import { useEffect, useReducer, useState } from 'react';
 import * as glue from '../../../vendor/calendar/calendar_glue.js';
 import wasmUrl from '../../../public/calendar/calendar_glue_bg.wasm?url';
@@ -49,7 +50,7 @@ function Calendar({ view, zone }) {
 }
 
 /** The page's own clock, as the glue instance of a mounted tab is given it (glue-steps.ts). */
-const PAGE_CLOCK = { now: () => Date.now(), after: (ms, fire) => { const id = setTimeout(fire, ms); return () => clearTimeout(id); } };
+const PAGE_CLOCK = pinnedClock();
 const NODE = { id: 'n1', name: 'Platform', parent_id: 'company', children: [], metadata: [...new TextEncoder().encode(JSON.stringify({ time_zone: 'America/New_York' }))] };
 const COMPANY = { id: 'company', name: 'Company', parent_id: null, children: ['n1'], metadata: [] };
 const TREE = { company: COMPANY, n1: NODE };
@@ -69,7 +70,7 @@ function MountedCalendar({ engine }) {
     store.values.set(store.where(ana, 'cal/availability', false), engine.encodeAvailability(WORKING_HOURS));
     // Company's all-hands in the coming hour, which goes down: its origin, and the projection its publisher wrote here.
     const p = inherited.projection;
-    const hour = BigInt(Math.ceil(Date.now() / 3_600_000) * 3_600_000);
+    const hour = nextHour(PAGE_CLOCK);
     const when = { once: { start_ms: hour + 3_600_000n, end_ms: hour + 7_200_000n } };
     const allHands = event({ id: 'allhands', origin_node: 'company', rev: p.origin_rev, title: p.title, when, zone: p.zone, propagate: { down: true, up_to: null } });
     store.put({ node: { node_id: 'company' } }, 'cal/event/allhands', engine.encodeEvent(allHands));

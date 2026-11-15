@@ -20,6 +20,23 @@ async function opened(page, url, viewport, title) {
   return width;
 }
 
+/**
+ * The scenario runs on its pinned clock (pinned-clock.js), whatever the hour: the pane opens on
+ * July 2024 with both of its entries in view. On the wall clock, a run late in the evening put
+ * them on the next day, outside the month the pane opened on.
+ */
+async function theScenarioRunsOnItsPinnedDay({ page, url, viewport }) {
+  await opened(page, url, viewport, 'Quarterly review');
+  assert.equal(await page.getByTestId('calendar-heading').textContent(), 'July 2024', 'the pane did not open on the pinned month');
+  for (const title of ['Quarterly review', 'Intro with ana']) {
+    const where = await page.getByRole('button', { name: new RegExp(title) }).first().evaluate((n) => {
+      const day = n.closest('[data-date], [data-agenda-day]');
+      return day?.getAttribute('data-date') ?? day?.getAttribute('data-agenda-day') ?? 'no day';
+    });
+    assert.equal(where, '2024-07-16', `${title} is on ${where}, not the pinned day`);
+  }
+}
+
 async function theEventControlsFit({ page, url, viewport }) {
   const width = await opened(page, url, viewport, 'Quarterly review');
   await page.getByRole('button', { name: 'Edit event' }).waitFor({ state: 'visible' });
@@ -49,4 +66,4 @@ async function theHostCancelsABookingFromTheUi({ page, url, viewport }) {
   assert.deepEqual(status, { cancelled: { by: 'alice', reason: 'travelling' } });
 }
 
-export const CALENDAR_CHANGE_CHECKS = { theEventControlsFit, cancellingAnEventTakesItOffThePagesBelow, theHostCancelsABookingFromTheUi };
+export const CALENDAR_CHANGE_CHECKS = { theScenarioRunsOnItsPinnedDay, theEventControlsFit, cancellingAnEventTakesItOffThePagesBelow, theHostCancelsABookingFromTheUi };

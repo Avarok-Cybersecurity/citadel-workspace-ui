@@ -77,7 +77,7 @@ export function member(me: string, values: Map<string, Uint8Array>, tree: Record
     ports: { storage: store.port(), nodes: treeNodesPort('Workspace', () => tree), topic: group.port(me) },
     held: new Set<Capability>(HELD), policy: POLICY,
     limits: { topics: { max_msg_bytes: 1024, max_msgs_per_s: 2 }, p2p: null },
-    clock: new ManualClock(), pageUrl: 'https://w.example/n1', storageChanges: () => () => {},
+    clock: new ManualClock(Date.now()), pageUrl: 'https://w.example/n1', storageChanges: () => () => {},
   }));
   return { store, ports };
 }
