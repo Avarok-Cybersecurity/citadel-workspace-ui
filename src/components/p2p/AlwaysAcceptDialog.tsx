@@ -8,7 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Settings } from 'lucide-react';
 import type { AlwaysAcceptPrompt } from './hooks/useAlwaysAcceptPrompt';
 
-const ANSWER: string = 'min-h-11 h-auto whitespace-normal text-center [overflow-wrap:anywhere]';
+// h-auto: the shared footer lets a long label wrap (ui/footer-layout.ts), and min-h-11, a 44px
+// target, would otherwise hold a two-line label to one line's height.
+const ANSWER: string = 'min-h-11 h-auto';
 
 export function AlwaysAcceptDialog({ prompt, peerName }: { prompt: AlwaysAcceptPrompt; peerName: string }): JSX.Element {
   const { offer } = prompt;
@@ -30,10 +32,6 @@ export function AlwaysAcceptDialog({ prompt, peerName }: { prompt: AlwaysAcceptP
             <strong className="text-foreground">Auto-accept files from {peerName}</strong>.
           </span>
         </p>
-        {/* The answers wrap. A peer's name is often one unbreakable username, and on one line
-            "Always accept from <it>" outgrew the dialog; the footer is justify-end, so the overflow
-            went out of its LEFT edge, which cannot be scrolled to, taking "Ask me each time" with it:
-            a click there landed on the overlay. */}
         <DialogFooter className="flex-col-reverse gap-2 sm:flex-row">
           <Button variant="outline" className={ANSWER} onClick={(): void => { void prompt.answer(false); }} data-testid="always-accept-no">
             Ask me each time

@@ -5,6 +5,7 @@ import { X } from "lucide-react"
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+import { FOOTER_LAYOUT } from "./footer-layout"
 
 const Sheet: typeof SheetPrimitive.Root = SheetPrimitive.Root
 
@@ -98,8 +99,9 @@ const SheetFooter = ({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>): JSX.Element => (
   <div
+    data-dialog-footer=""
     className={cn(
-      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
+      FOOTER_LAYOUT,
       className
     )}
     {...props}

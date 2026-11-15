@@ -3,6 +3,7 @@ import * as React from "react"
 import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog"
 
 import { cn } from "@/lib/utils"
+import { FOOTER_LAYOUT } from "./footer-layout"
 import { buttonVariants } from "@/components/ui/button"
 
 const AlertDialog: typeof AlertDialogPrimitive.Root = AlertDialogPrimitive.Root
@@ -63,8 +64,9 @@ const AlertDialogFooter = ({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>): JSX.Element => (
   <div
+    data-dialog-footer=""
     className={cn(
-      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
+      FOOTER_LAYOUT,
       className
     )}
     {...props}

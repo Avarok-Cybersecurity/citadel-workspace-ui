@@ -484,6 +484,19 @@ h1, h2, h3, h4, h5, h6 {
   animation: none !important;
 }
 
+/* A footer's answers stay inside their dialog (ui/footer-layout.ts). After the utilities, so it
+ * outranks the Button primitive's whitespace-nowrap; the min-height sits in :where() so a button's
+ * own min-h-* still wins, and only lets a wrapped label grow the button past its fixed h-*. */
+[data-dialog-footer] > * {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
+  max-width: 100%;
+}
+:where([data-dialog-footer] > *) {
+  min-height: fit-content;
+}
+
 /* The Show Avatars switch. One rule, because every avatar in the app goes
  * through the same primitive and now carries `data-avatar`. */
 [data-avatars='off'] [data-avatar] {
