@@ -3,11 +3,12 @@
  * "always accept?" question. Real components; the pictures are this tab's own sends (held in
  * memory as the app holds them) and a sender's inline thumbnail, so no agent is needed.
  */
-import { useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { FileTransferBubble } from '@/components/p2p/bubbles/FileTransferBubble';
 import { PictureViewer } from '@/components/p2p/PictureViewer';
 import { AlwaysAcceptDialog } from '@/components/p2p/AlwaysAcceptDialog';
 import { rememberSentPicture } from '@/lib/received-files/sent-pictures';
+import { browserSentPictureStore } from '@/lib/received-files/sent-picture-store';
 
 // 2x1 PNG, wider than tall, so fit-to-screen has an aspect ratio to keep.
 const PNG_B64 = 'iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAAEUlEQVR4nGOQi1rw/8Mqm/8AE18E7d5tOQ0AAAAASUVORK5CYII=';
@@ -19,12 +20,13 @@ const sent = (id, at) => ({
 });
 
 function Viewer() {
-  const pictures = useMemo(() => {
+  const [pictures, setPictures] = useState(null);
+  useEffect(() => {
     const list = [sent('harbour-at-dusk', 1), sent('lighthouse', 2), sent('pier', 3)];
-    for (const t of list) rememberSentPicture(t.id, pngFile(t.fileName));
-    return list;
+    const keep = (t) => rememberSentPicture(browserSentPictureStore, { own: t.senderCid, peer: t.recipientCid, transferId: t.id }, pngFile(t.fileName), t.createdAt);
+    void Promise.all(list.map(keep)).then(() => setPictures(list));
   }, []);
-  return <PictureViewer pictures={pictures} startIndex={1} onClose={() => {}} />;
+  return pictures === null ? null : <PictureViewer pictures={pictures} startIndex={1} onClose={() => {}} />;
 }
 
 function PictureBubble() {

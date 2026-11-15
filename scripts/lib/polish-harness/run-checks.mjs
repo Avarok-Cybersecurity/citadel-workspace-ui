@@ -16,18 +16,28 @@ const ENGINES = Object.fromEntries(
 );
 const VIEWPORTS = [{ width: 1280, height: 800 }, { width: 390, height: 844 }];
 const THEMES = ['light', 'dark'];
+/** Reduced motion only: what every geometry gate measured before motions were a dimension. */
+const REDUCED_ONLY = [{ name: 'reduced', reducedMotion: 'reduce', tier: 'full' }];
 
-export async function runChecks(CHECKS, port) {
+export function runChecks(CHECKS, port) {
+  return runMatrix(CHECKS, port, { viewports: VIEWPORTS, motions: REDUCED_ONLY });
+}
+
+/**
+ * The same run over chosen viewports and motions. A motion is the media preference the context
+ * reports and the app's own tier (`lite` sets the class the app's Lite motion sets).
+ */
+export async function runMatrix(CHECKS, port, { viewports, motions }) {
   assertParity();
   const harness = await serveHarness(port);
   let failures = 0;
   try {
     for (const [engineName, engine] of Object.entries(ENGINES)) {
       const browser = await engine.launch();
-      for (const viewport of VIEWPORTS) {
-        for (const theme of THEMES) {
-          const context = await newParityContext(browser, { viewport, reducedMotion: 'reduce' });
-          const origin = (scenario) => `${harness.origin}/?s=${scenario}&theme=${theme}`;
+      for (const viewport of viewports) {
+        for (const theme of THEMES) for (const motion of motions) {
+          const context = await newParityContext(browser, { viewport, reducedMotion: motion.reducedMotion });
+          const origin = (scenario) => `${harness.origin}/?s=${scenario}&theme=${theme}&motion=${motion.tier}`;
           const open = async () => {
             const page = await context.newPage();
             // The dev server transforms modules on first request, and WebKit waits on all of them before `load`.
@@ -47,7 +57,7 @@ export async function runChecks(CHECKS, port) {
           };
           let page = await open();
           for (const [name, check] of Object.entries(CHECKS)) {
-            const label = `${name} [${engineName} ${viewport.width}px ${theme}]`;
+            const label = `${name} [${engineName} ${viewport.width}px ${theme}${motions === REDUCED_ONLY ? '' : ` ${motion.name}`}]`;
             const problem = await attempt(page, check);
             if (problem === null) console.log(`  ok    ${label}`);
             else { failures += 1; console.error(`  FAIL  ${label}\n        ${problem}`); }

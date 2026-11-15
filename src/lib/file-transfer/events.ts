@@ -16,6 +16,8 @@ export const FILE_TRANSFER_EVENTS = {
   PROGRESS_UPDATED: 'file-transfer:progress-updated',
   COMPLETED: 'file-transfer:completed',
   CANCELLED: 'file-transfer:cancelled',
+  /** A send began with this File in hand; payload: `FileSent`. */
+  FILE_SENT: 'file-transfer:file-sent',
 } as const;
 
 export type FileTransferEventType = typeof FILE_TRANSFER_EVENTS[keyof typeof FILE_TRANSFER_EVENTS];
@@ -24,4 +26,10 @@ export type FileTransferEventType = typeof FILE_TRANSFER_EVENTS[keyof typeof FIL
 export interface OfferAnnounced {
   announcement: P2PMessagingLayerPayload;
   transferState: FileTransferState;
+}
+
+/** Raised as a send begins, while the picked File is still in hand. */
+export interface FileSent {
+  transfer: { id: string; senderCid: bigint; recipientCid: bigint };
+  file: File;
 }

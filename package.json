@@ -28,6 +28,7 @@
     "check:reduced-motion": "node scripts/check-reduced-motion.mjs",
     "check:mobile": "node scripts/check-mobile-layout.mjs",
     "check:chat-polish": "node scripts/check-chat-polish-geometry.mjs",
+    "check:chat-files": "node scripts/check-chat-files-geometry.mjs",
     "check:docs-crispness": "node scripts/check-docs-crispness.mjs",
     "check:docs-pane-states": "node scripts/check-docs-pane-states.mjs",
     "check:app-zone": "node scripts/check-app-zone-geometry.mjs",

@@ -24,6 +24,5 @@ import { RIBBON_CHECKS } from './lib/polish-harness/checks-ribbons.mjs';
 import { MIGRATION_CHECKS } from './lib/polish-harness/checks-migration.mjs';
 import { APP_TOOLBAR_CHECKS } from './lib/polish-harness/checks-app-toolbar.mjs';
 import { PEER_CONSENT_CHECKS } from './lib/polish-harness/checks-peer-consent.mjs';
-import { CHAT_FILE_CHECKS } from './lib/polish-harness/checks-chat-files.mjs';
 
-process.exit(await runChecks({ ...PEOPLE_CHECKS, ...OVERLAY_CHECKS, ...CONTROL_CHECKS, ...SPACING_CHECKS, ...SIDEBAR_CHECKS, ...PERMISSION_CHECKS, ...FILE_MANAGER_CHECKS, ...BREADCRUMB_CHECKS, ...SHARE_CHECKS, ...RIBBON_CHECKS, ...MIGRATION_CHECKS, ...APP_TOOLBAR_CHECKS, ...PEER_CONSENT_CHECKS, ...CHAT_FILE_CHECKS }, Number(process.env.SWEEP_PORT ?? 4198)));
+process.exit(await runChecks({ ...PEOPLE_CHECKS, ...OVERLAY_CHECKS, ...CONTROL_CHECKS, ...SPACING_CHECKS, ...SIDEBAR_CHECKS, ...PERMISSION_CHECKS, ...FILE_MANAGER_CHECKS, ...BREADCRUMB_CHECKS, ...SHARE_CHECKS, ...RIBBON_CHECKS, ...MIGRATION_CHECKS, ...APP_TOOLBAR_CHECKS, ...PEER_CONSENT_CHECKS }, Number(process.env.SWEEP_PORT ?? 4198)));

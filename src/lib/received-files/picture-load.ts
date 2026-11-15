@@ -19,15 +19,15 @@ export type PictureLoad = ShownPicture | { readonly unavailable: string };
 
 export interface PictureIO {
   readonly received: ReceivedFileIO;
-  readonly sent: (transferId: string) => Blob | undefined;
+  readonly sent: (transfer: FileTransfer) => Promise<Blob | undefined>;
   readonly objectUrl: (blob: Blob) => string;
   readonly release: (url: string) => void;
 }
 
 async function bytesOf(transfer: FileTransfer, io: PictureIO): Promise<Uint8Array | string> {
   if (!transfer.isIncoming) {
-    const blob: Blob | undefined = io.sent(transfer.id);
-    return blob ? new Uint8Array(await blob.arrayBuffer()) : 'the full picture stays with the device that sent it';
+    const blob: Blob | undefined = await io.sent(transfer);
+    return blob ? new Uint8Array(await blob.arrayBuffer()) : 'the full picture was not kept on this device';
   }
   if (transfer.state !== 'complete') return 'it has not arrived yet';
   const read: ReceivedFileRead = await readReceivedFile(transfer, io.received, MAX_PREVIEW_BYTES);
