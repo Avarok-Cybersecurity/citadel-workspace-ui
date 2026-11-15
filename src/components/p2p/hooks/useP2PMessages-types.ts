@@ -29,6 +29,13 @@ export interface UseP2PMessagesReturn {
    */
   isLoadingHistory: boolean;
   hasMorePages: boolean;
+  /** Why the last older page could not be read; null when it could, or before any was asked for. */
+  olderPagesError: string | null;
+  /**
+   * Reads the next older page. Not only from a scroll near the top: a newest page too short
+   * to overflow the view gives no scroll event, and nothing else reached the older pages.
+   */
+  loadOlderMessages: () => Promise<void>;
   handleScroll: (event: React.UIEvent<HTMLDivElement>) => void;
   handleRetryMessage: (message: P2PMessage) => Promise<void>;
   handleEditMessage: (messageId: string, content: string) => Promise<void>;
