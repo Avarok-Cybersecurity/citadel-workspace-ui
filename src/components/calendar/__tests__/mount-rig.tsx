@@ -14,6 +14,12 @@ import { ManualClock } from '@/lib/citadel-apps/host/__tests__/fakes';
 import { MemoryStore } from '@/lib/calendar/__tests__/memory-store';
 import { CalendarMount } from '../CalendarMount';
 
+/**
+ * The page's server-call pace is proven in a-glue-app-never-outruns-the-one-server-rate.test.ts; on
+ * this rig's clock, which no one advances, it would leave a call waiting for good once a mounted tab
+ * makes more calls than one second's budget, so it is lifted, as tree-rig.ts lifts it.
+ */
+const POLICY = { ...STANDARD_HOST_POLICY, serverCallsPerSecond: 100_000 };
 const HELD: Capability[] = ['storage.user', 'storage.node', 'storage.node.authored'];
 const NODE = { id: 'n1', name: 'Platform', parent_id: null, children: [], metadata: [...new TextEncoder().encode(JSON.stringify({ time_zone: 'America/New_York' }))] };
 
@@ -32,7 +38,7 @@ export interface RigExtra {
 export function mountRig(me: string, store: MemoryStore = new MemoryStore(me), extra: RigExtra | null = null): MountRig {
   const listeners: Set<(c: StorageChange) => void> = new Set();
   const glue: GlueInstance = glueInstance({
-    appId: 'net.avarok.calendar', policy: STANDARD_HOST_POLICY,
+    appId: 'net.avarok.calendar', policy: POLICY,
     ports: extra === null ? { storage: store.port() } : { storage: store.port(), ihttp: extra.ihttp },
     held: new Set<Capability>([...HELD, ...(extra?.held ?? [])]),
     limits: { topics: null, p2p: null }, clock: new ManualClock(), pageUrl: 'https://w.example/n1',

@@ -18,12 +18,14 @@ interface EventDetailsProps {
   onClose: () => void;
   /** Null unless the reader hosts or booked this booking and it is not cancelled. */
   onCancelBooking: ((reason: string | null) => Promise<string | null>) | null;
+  /** Null unless the reader booked this booking and can reach its host to move it. */
+  onReschedule: (() => void) | null;
   /** Both null unless the reader may change this event (`changeableBy`). */
   onEdit: (() => void) | null;
   onCancelEvent: ((reason: string | null) => Promise<string | null>) | null;
 }
 
-export function EventDetails({ chip, displayZone, nodeName, onClose, onCancelBooking, onEdit, onCancelEvent }: EventDetailsProps): JSX.Element {
+export function EventDetails({ chip, displayZone, nodeName, onClose, onCancelBooking, onReschedule, onEdit, onCancelEvent }: EventDetailsProps): JSX.Element {
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => { heading.current?.focus(); }, [chip.id]);
   const words: ChipWords = chipWords(chip, displayZone, nodeName);
@@ -36,6 +38,7 @@ export function EventDetails({ chip, displayZone, nodeName, onClose, onCancelBoo
         <p className="text-sm text-muted-foreground">{when}{words.badge !== null ? ` (made in ${words.badge})` : ''}</p>
         {words.from !== null && <p className="text-sm text-muted-foreground">{words.from}</p>}
         {words.cancelled && <p className="text-sm font-medium text-foreground">Cancelled</p>}
+        {onReschedule !== null && <Button type="button" variant="outline" className="mt-2 h-[44px]" onClick={onReschedule}>Reschedule</Button>}
         {onCancelBooking !== null && <CancelBooking key={chip.id} noun="booking" onCancel={onCancelBooking} />}
         {onEdit !== null && <Button type="button" variant="outline" className="mt-2 h-[44px]" onClick={onEdit}>Edit event</Button>}
         {onCancelEvent !== null && <CancelBooking key={`${chip.id}-event`} noun="event" onCancel={onCancelEvent} />}

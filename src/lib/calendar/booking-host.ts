@@ -5,15 +5,20 @@
  * two racing bookers is told the time is taken and offered others.
  *
  * What the host writes is its own: the booking's event (busy-only) and its acknowledgement
- * (`cal/booking-ack/<id>`), both in the host's authored namespace on the node.
+ * (`cal/booking-ack/<id>`), both in the host's authored namespace on the node. A confirmed or
+ * cancelled booking's event is announced on the `cal` topic as an event save is (cal-topic.ts):
+ * the kernel's StorageChanged reaches only a workspace-, node- or tree-scoped install's windows,
+ * and the topic reaches every instance of the install whatever its scope. The ack is not
+ * announced: no pane shows it.
  */
 import { ihttpEndpoint, type IhttpEndpoint } from '@/lib/citadel-apps/glue-sdk/ihttp-endpoint';
 import type { IhttpMessage } from '@/lib/citadel-apps/glue-sdk/ihttp-io';
 import type { ServeOn } from '@/lib/citadel-apps/sdk/generated/ServeOn';
 import type { IhttpRequest } from '@/lib/citadel-apps/glue-sdk/ihttp-server';
-import { BOOKING_ACK_PREFIX, BOOKING_PREFIX } from './booking';
+import { BOOKING_ACK_PREFIX, BOOKING_PREFIX, bookingAckOf } from './booking';
 import { decideClaim, type ClaimVerdict } from './booking-claim';
 import { busyOf, readBookingPage } from './booking-pages';
+import { announce } from './cal-topic';
 import { BOOKING_ROUTES, decodeCancel, encodeAlternatives, encodeReason, routeOf } from './booking-wire';
 import type { CalendarEngine } from './engine/calendar-engine';
 import type { Booking } from './generated/Booking';
@@ -104,14 +109,14 @@ export class BookingHost {
       { key: `${EVENT_PREFIX}${booking.id}`, value: engine.encodeEvent(event) },
       { key: `${BOOKING_ACK_PREFIX}${booking.id}`, value: engine.encodeBooking(booking) },
     ]);
+    await announce(ports, engine, { node: this.d.node, key: `${EVENT_PREFIX}${booking.id}` });
     // The booking is made once it is written; telling the host is not part of it, so a refused
     // notification (an install without `notifications`) is reported, never the booking failed.
     await ports.notify('New booking', event.title).catch((e: unknown): void => { console.error('[calendar] the host was not notified of a booking', e); });
   }
 
-  private async ack(id: string): Promise<Booking | null> {
-    const bytes: Uint8Array | null = await this.d.ports.storage.get(this.mine, `${BOOKING_ACK_PREFIX}${id}`);
-    return bytes === null ? null : this.d.engine.decodeBooking(bytes);
+  private ack(id: string): Promise<Booking | null> {
+    return bookingAckOf(this.d.ports, this.d.engine, this.d.node, this.d.me, id);
   }
 
   private mayChange(booking: Booking, who: string): boolean {
@@ -132,6 +137,7 @@ export class BookingHost {
       writes.push({ key: `${EVENT_PREFIX}${id}`, value: engine.encodeEvent({ ...event, status: { cancelled: { by, reason: said } }, rev: event.rev + 1, updated_ms: this.d.nowMs() }) });
     }
     await ports.storage.setMany(this.mine, writes);
+    if (bytes !== null) await announce(ports, engine, { node: this.d.node, key: `${EVENT_PREFIX}${id}` });
     return reply(200, engine.encodeBooking(cancelled));
   }
 

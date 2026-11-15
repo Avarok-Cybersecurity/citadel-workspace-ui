@@ -45,6 +45,12 @@ export async function requestBooking(ports: CalendarPorts, engine: CalendarEngin
   }
 }
 
+/** The host's answer to booking `id` (`cal/booking-ack/<id>` in the host's namespace), or null. */
+export async function bookingAckOf(ports: CalendarPorts, engine: CalendarEngine, node: string, host: string, id: string): Promise<Booking | null> {
+  const bytes: Uint8Array | null = await ports.storage.get({ kind: 'authored', node, author: host }, `${BOOKING_ACK_PREFIX}${id}`);
+  return bytes === null ? null : engine.decodeBooking(bytes);
+}
+
 export interface BookerDeps {
   readonly ports: CalendarPorts;
   readonly engine: CalendarEngine;
@@ -64,7 +70,8 @@ function answered(host: string, r: IhttpResponse): string {
   return reason === null ? `${host} answered ${r.status}` : `${host} refused it: ${reason}`;
 }
 
-function ownCopy(booking: Booking, d: BookerDeps): Event {
+/** The booker's own copy of a confirmed booking, private to them (design §3.6.1 step 4). */
+export function ownCopy(booking: Booking, d: Pick<BookerDeps, 'node' | 'me' | 'title' | 'nowMs'>): Event {
   return {
     id: booking.id, rev: 1, origin_node: d.node, author: d.me, title: d.title, body: null, kind: { booking: { booking_id: booking.id } },
     status: 'confirmed', when: { once: { start_ms: booking.start_ms, end_ms: booking.end_ms } }, zone: booking.zone, location: 'in_app',
@@ -73,7 +80,10 @@ function ownCopy(booking: Booking, d: BookerDeps): Event {
   };
 }
 
-/** Books `booking`; with `replacing`, moves that booking of the same host to this one instead. */
+/**
+ * Books `booking`; with `replacing`, moves that booking of the same host to this one instead. The
+ * answer is the host's: the client takes none from anyone else (ihttp-client.ts).
+ */
 export async function book(d: BookerDeps, booking: Booking, replacing: string | null): Promise<BookOutcome> {
   let r: IhttpResponse;
   try {
@@ -86,7 +96,6 @@ export async function book(d: BookerDeps, booking: Booking, replacing: string | 
     if (e instanceof IhttpCancelled) return { kind: 'failed', reason: `the booking was cut off (${e.reason})` };
     throw e;
   }
-  if (r.from.username !== booking.host) return { kind: 'failed', reason: `${r.from.username} answered for ${booking.host}` };
   if (r.status === 409) return { kind: 'taken', alternatives: decodeAlternatives(r.body) ?? [] };
   if (r.status !== 201) return { kind: 'failed', reason: answered(booking.host, r) };
   const confirmed: Booking = d.engine.decodeBooking(r.body);

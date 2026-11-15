@@ -2,7 +2,9 @@
  * A glue app's internal-HTTP calls (R4.4), as the Rust SDK's `ihttp/client.rs` makes them: the
  * request under the server's credit, the response assembled whole, each body chunk reported read
  * so the host grants the server more. A refused frame or the server's Cancel fails the call; who
- * answered is the session's word (`Caller`), never the body's.
+ * answered is the session's word (`Caller`), never the body's. A call to a member is answered only
+ * by that member's instance of the app: a frame on its stream from anyone else is not the call's,
+ * so no caller of the client has to check who answered.
  */
 import type { Address } from '../sdk/generated/Address';
 import type { Caller } from '../sdk/generated/Caller';
@@ -38,6 +40,9 @@ interface Open {
 const appOf = (to: Address): string => ('user' in to ? to.user.app_id : to.scope.app_id);
 const keyOf = (appId: string, stream: bigint): string => `${appId}\n${stream}`;
 
+/** Whether `from` is who `to` names. A scope's server is not a member, so the app is all a scope call can match. */
+const answersFor = (to: Address, from: Caller): boolean => ('user' in to ? from.username === to.user.username && from.app_id === to.user.app_id : from.app_id === to.scope.app_id);
+
 export class IhttpClient {
   private last: bigint = 0n;
   private readonly open: Map<string, Open> = new Map();
@@ -57,12 +62,17 @@ export class IhttpClient {
 
   /** Whether an inbound frame belongs to one of this client's calls. */
   owns(from: Caller, f: IhttpFrame): boolean {
-    return this.open.has(keyOf(from.app_id, f.stream));
+    return this.callAnsweredBy(from, f) !== undefined;
+  }
+
+  private callAnsweredBy(from: Caller, f: IhttpFrame): Open | undefined {
+    const o: Open | undefined = this.open.get(keyOf(from.app_id, f.stream));
+    return o !== undefined && answersFor(o.to, from) ? o : undefined;
   }
 
   take(from: Caller, f: IhttpFrame): void {
     const key: string = keyOf(from.app_id, f.stream);
-    const o: Open | undefined = this.open.get(key);
+    const o: Open | undefined = this.callAnsweredBy(from, f);
     if (o === undefined) return;
     const kind: FrameKind = f.kind;
     if (kind === 'End') {

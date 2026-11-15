@@ -3,7 +3,8 @@
  * left while the host was away is answered when the host's Calendar next mounts; and while it is
  * mounted, a member booking the host is confirmed live and keeps their own copy. The host's install
  * holds no `notifications` here, so the live booking also shows that a refused notification does
- * not fail a booking already made. A booking is cancelled from its event, by its booker (with the
+ * not fail a booking already made. The booker's Calendar takes the host's answers to its requests,
+ * when it mounts and when an answer is written while it is mounted. A booking is cancelled from its event, by its booker (with the
  * host, then their own copy) or by its host, and the host records who cancelled.
  */
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
@@ -71,6 +72,27 @@ describe("the host's Calendar", () => {
     expect(engine.decodeEvent(shared.get('authored:n1:ana|cal/event/r1') as Uint8Array).visibility).toBe('busy_only');
   });
 
+  it("takes the host's answers to the booker's requests: one given before it mounted, one while it is mounted", async () => {
+    const shared: Map<string, Uint8Array> = new Map();
+    anaOffersIntro(shared);
+    const ana: MemoryStore = new MemoryStore('ana', shared);
+    const bob: MemoryStore = new MemoryStore('bob', shared);
+    const hour = (n: number) => ({ start_ms: utc('2024-07-17T13:00:00Z') + BigInt(n * 3_600_000), end_ms: utc('2024-07-17T13:30:00Z') + BigInt(n * 3_600_000) });
+    const request = (id: string, n: number): Booking => bookingOf({ type: INTRO, durationMin: 30, slot: hour(n), zone: 'America/New_York', answers: [] }, { id, node: 'n1', host: 'ana', me: 'bob' });
+    const answer = (id: string, n: number): void => ana.put(authored('ana'), `${BOOKING_ACK_PREFIX}${id}`, engine.encodeBooking({ ...request(id, n), state: 'confirmed' }));
+    for (const [id, n] of [['r1', 0], ['r2', 1]] as const) bob.put(authored('bob'), `${BOOKING_PREFIX}${id}`, engine.encodeBooking(request(id, n)));
+    answer('r1', 0);
+    bob.put('user', SETTINGS_KEY, encodeSettings({ displayZone: { kind: 'fixed', zone: 'America/New_York' } }));
+    const rig = mountRig('bob', bob, { ihttp: new IhttpRelay().port('bob'), held: IHTTP });
+    mountCalendar(rig.glue, 'bob', false);
+    await waitFor(() => expect(shared.has('user:bob|cal/private/r1')).toBe(true));
+    expect(shared.has(`authored:n1:bob|${BOOKING_PREFIX}r1`)).toBe(false);
+    answer('r2', 1);
+    expect(shared.has('user:bob|cal/private/r2')).toBe(false);
+    rig.change({ backend: { node_authored: { node_id: 'n1', author: 'ana' } }, key: `${BOOKING_ACK_PREFIX}r2` });
+    await waitFor(() => expect(shared.has('user:bob|cal/private/r2')).toBe(true));
+  });
+
   it('confirms a member booking it live, and the booker keeps their own copy', async () => {
     const shared: Map<string, Uint8Array> = new Map();
     const relay: IhttpRelay = new IhttpRelay();
@@ -90,6 +112,38 @@ describe("the host's Calendar", () => {
     await waitFor(() => expect(page.getByTestId('calendar-booking-said')).toHaveTextContent(/^Booked: Intro call with ana/));
     expect([...shared.keys()].filter((k) => k.startsWith('user:bob|cal/private/'))).toHaveLength(1);
     expect([...shared.keys()].filter((k) => k.startsWith(`authored:n1:ana|${BOOKING_ACK_PREFIX}`))).toHaveLength(1);
+  });
+
+  it("moves a booking from its event: the booker picks a new time on the host's page, and the old one is cancelled", async () => {
+    const shared: Map<string, Uint8Array> = new Map();
+    const relay: IhttpRelay = new IhttpRelay();
+    anaOffersIntro(shared);
+    signedIn('ana', shared, relay);
+    await screen.findByTestId('calendar-tab');
+    const slot = { start_ms: utc('2024-07-17T13:00:00Z'), end_ms: utc('2024-07-17T13:30:00Z') };
+    const made: Booking = bookingOf({ type: INTRO, durationMin: 30, slot, zone: 'America/New_York', answers: [{ question_id: 'q-topic', value: 'x' }] }, { id: 'm1', node: 'n1', host: 'ana', me: 'bob' });
+    const anaHost = new BookingHost({ ports: calendarPorts(mountRig('ana', new MemoryStore('ana', shared)).glue), engine, node: 'n1', me: 'ana', nowMs: () => utc('2024-07-16T15:00:00Z') });
+    const verdict = await anaHost.decide(made, 'bob', null);
+    if (verdict.kind !== 'confirm') throw new Error('the fixture booking should be free');
+    const ana = new MemoryStore('ana', shared);
+    ana.put(authored('ana'), 'cal/event/m1', engine.encodeEvent(verdict.event));
+    ana.put(authored('ana'), `${BOOKING_ACK_PREFIX}m1`, engine.encodeBooking(verdict.booking));
+    const bob: MemoryStore = new MemoryStore('bob', shared);
+    bob.put('user', SETTINGS_KEY, encodeSettings({ displayZone: { kind: 'fixed', zone: 'America/New_York' } }));
+    bob.put('user', 'cal/private/m1', engine.encodeEvent({ ...verdict.event, author: 'bob', hosts: ['ana'], visibility: 'private', title: 'Intro call with ana' }));
+    mountCalendar(mountRig('bob', bob, { ihttp: relay.port('bob'), held: IHTTP }).glue, 'bob', false);
+    fireEvent.click((await screen.findAllByRole('button', { name: /^Intro call with ana/ }))[0] as HTMLElement);
+    fireEvent.click(await screen.findByRole('button', { name: 'Reschedule' }));
+    const page = within(await screen.findByTestId('calendar-booking-page'));
+    fireEvent.click(page.getByRole('button', { name: new RegExp(`^${formatDayLong({ y: 2024, m: 7, d: 18 })},`) }));
+    fireEvent.click(page.getAllByTestId('calendar-slot')[0] as HTMLElement);
+    fireEvent.change(page.getByLabelText(/What should we cover\?/), { target: { value: 'Roadmap' } });
+    await act(async () => { fireEvent.click(page.getByTestId('calendar-confirm-booking')); });
+    await waitFor(() => expect(page.getByTestId('calendar-booking-said')).toHaveTextContent(/^Booked: Intro call with ana/));
+    expect(engine.decodeBooking(shared.get(`authored:n1:ana|${BOOKING_ACK_PREFIX}m1`) as Uint8Array).state).toEqual({ cancelled: { by: 'bob', reason: 'rescheduled' } });
+    const copies: string[] = [...shared.keys()].filter((k) => k.startsWith('user:bob|cal/private/'));
+    expect(copies).toHaveLength(1);
+    expect(copies[0]).not.toBe('user:bob|cal/private/m1');
   });
 
   it('cancels a booking from its event: the booker with the host, and the host on their own', async () => {

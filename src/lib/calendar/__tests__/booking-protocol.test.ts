@@ -2,7 +2,7 @@
  * The booking protocol between members' instances (design §3.6.1), over the real glue gate and
  * iHTTP router, a fake relay and one shared store that answers on a later turn, as the kernel does: two bookers racing for one slot get one 201 and
  * one 409 with other times; a booking for someone other than its caller is refused; an offline host
- * is left a request, which their next instance answers; a cancellation says who made it; and a
+ * is left a request, which their next instance answers and the booker then takes, told either way; a cancellation says who made it; and a
  * reschedule moves a booking to a new time, the old one cancelled and the booker's copy moved.
  */
 import { describe, expect, it } from 'vitest';
@@ -11,7 +11,8 @@ import { glueInstance } from '@/lib/citadel-apps/host/glue-instance';
 import { STANDARD_HOST_POLICY } from '@/lib/citadel-apps/host/limits';
 import { ManualClock } from '@/lib/citadel-apps/host/__tests__/fakes';
 import type { IhttpEndpoint } from '@/lib/citadel-apps/glue-sdk/ihttp-endpoint';
-import { book, bookingOf, BOOKING_ACK_PREFIX, cancelBooking } from '../booking';
+import { book, bookingOf, BOOKING_ACK_PREFIX, BOOKING_PREFIX, cancelBooking } from '../booking';
+import { takeAnswers } from '../booking-answers';
 import { BookingHost, serveBookings } from '../booking-host';
 import { saveAvailability, saveEventType } from '../booking-pages';
 import type { BookingChoice } from '../booking-form';
@@ -23,6 +24,12 @@ import { IhttpRelay } from './ihttp-relay';
 import { MemoryStore } from './memory-store';
 
 const engine = realEngine();
+/**
+ * The page's server-call pace is proven in a-glue-app-never-outruns-the-one-server-rate.test.ts; on
+ * this rig's clock, which no one advances, it would leave a call waiting for good once a test makes
+ * more calls than one second's budget, so it is lifted, as tree-rig.ts lifts it.
+ */
+const POLICY = { ...STANDARD_HOST_POLICY, serverCallsPerSecond: 100_000 };
 const HELD: Capability[] = ['storage.user', 'storage.node', 'storage.node.authored', 'ihttp.serve', 'ihttp.call', 'notifications'];
 const NOW: bigint = utc('2024-07-15T12:00:00Z');
 const SLOT = { start_ms: utc('2024-07-16T13:00:00Z'), end_ms: utc('2024-07-16T13:30:00Z') };
@@ -40,7 +47,7 @@ async function member(name: string, relay: IhttpRelay, shared: Map<string, Uint8
   const notes: string[] = [];
   const store: MemoryStore = new MemoryStore(name, shared);
   const glue = glueInstance({
-    appId: 'net.avarok.calendar', held: new Set<Capability>(HELD), policy: STANDARD_HOST_POLICY, limits: { topics: null, p2p: null },
+    appId: 'net.avarok.calendar', held: new Set<Capability>(HELD), policy: POLICY, limits: { topics: null, p2p: null },
     ports: { storage: store.slowPort(), ihttp: relay.port(name), notify: { Notify: ({ title, body }) => { notes.push(`${title}: ${body}`); return { ok: null }; } } },
     clock: new ManualClock(), pageUrl: 'https://w.example/n1', storageChanges: () => () => {},
   });
@@ -98,6 +105,40 @@ describe('the booking protocol', () => {
     const ack = shared.get(`authored:n1:ana|${BOOKING_ACK_PREFIX}b2`);
     expect(ack === undefined ? null : engine.decodeBooking(ack).state).toBe('confirmed');
     expect(await ana.host.answerRequests()).toBe(0);
+  });
+
+  it("gives the booker their copy and tells them once the host's next instance answers their request", async () => {
+    const relay = new IhttpRelay();
+    const shared: Map<string, Uint8Array> = new Map();
+    const setup = await member('ana', relay, shared);
+    await anaOpensBookings(setup);
+    setup.endpoint.close();
+    relay.offline('ana');
+    const bob = await member('bob', relay, shared);
+    await bookAs(bob, booking('bob', 'b2'));
+    expect(await takeAnswers({ ports: bob.ports, engine, node: 'n1', me: 'bob', nowMs: NOW })).toBe(0);
+    await (await member('ana', relay, shared)).host.answerRequests();
+    expect(await takeAnswers({ ports: bob.ports, engine, node: 'n1', me: 'bob', nowMs: NOW })).toBe(1);
+    const copy = shared.get('user:bob|cal/private/b2');
+    expect(copy === undefined ? null : engine.decodeEvent(copy)).toMatchObject({ title: 'Intro call with ana', hosts: ['ana'], visibility: 'private', when: { once: SLOT } });
+    expect(bob.notes).toEqual(['Booking confirmed: Intro call with ana is booked.']);
+    expect(shared.has(`authored:n1:bob|${BOOKING_PREFIX}b2`)).toBe(false);
+    expect(await takeAnswers({ ports: bob.ports, engine, node: 'n1', me: 'bob', nowMs: NOW })).toBe(0);
+  });
+
+  it("takes no answer that names another booker, and tells the booker when the host could not take it", async () => {
+    const relay = new IhttpRelay();
+    const shared: Map<string, Uint8Array> = new Map();
+    await anaOpensBookings(await member('ana', relay, shared));
+    relay.offline('ana');
+    const bob = await member('bob', relay, shared);
+    await bookAs(bob, booking('bob', 'b4'));
+    const ack = `authored:n1:ana|${BOOKING_ACK_PREFIX}b4`;
+    shared.set(ack, engine.encodeBooking({ ...booking('cy', 'b4'), state: 'confirmed' }));
+    expect(await takeAnswers({ ports: bob.ports, engine, node: 'n1', me: 'bob', nowMs: NOW })).toBe(0);
+    shared.set(ack, engine.encodeBooking({ ...booking('bob', 'b4'), state: 'declined' }));
+    expect(await takeAnswers({ ports: bob.ports, engine, node: 'n1', me: 'bob', nowMs: NOW })).toBe(1);
+    expect([shared.has('user:bob|cal/private/b4'), bob.notes]).toEqual([false, ['Booking not made: Intro call with ana was not booked; pick another time.']]);
   });
 
   it('cancels a booking for its booker, saying who cancelled, and refuses anyone else', async () => {
