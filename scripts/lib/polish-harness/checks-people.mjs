@@ -1,4 +1,5 @@
 import { strict as assert } from 'node:assert';
+import { MEMBERS_FILTER_CHECKS } from './checks-members-filter.mjs';
 
 /**
  * Every person is drawn the same way: the shared avatar, with the roster's picture when there is one,
@@ -39,4 +40,4 @@ async function thePresenceDotIsWhole({ page, url }) {
   }
 }
 
-export const PEOPLE_CHECKS = { everyPersonKeepsTheirPicture, thePresenceDotIsWhole };
+export const PEOPLE_CHECKS = { everyPersonKeepsTheirPicture, thePresenceDotIsWhole, ...MEMBERS_FILTER_CHECKS };

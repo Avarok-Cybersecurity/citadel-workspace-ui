@@ -46,6 +46,11 @@ export interface MembersPayload {
    * predates the field, which lists direct members only.
    */
   inheritedFrom: Readonly<Record<string, string>>;
+  /**
+   * Listed members a live booking link names as guests. The server sends them only to callers
+   * who can manage roles; empty for everyone else, and from a server that predates the field.
+   */
+  guests: readonly string[];
 }
 
 export interface WorkspacesPayload {

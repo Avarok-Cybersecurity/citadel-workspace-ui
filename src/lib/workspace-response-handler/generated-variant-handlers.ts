@@ -68,13 +68,14 @@ export function handleGeneratedVariants(
     //
     // Tolerates the old shape (a bare array) so a client running against a
     // server that predates the field still works, with the domain unknown.
-    const payload: { domain_id?: string | null; members: Record<string, unknown>[]; inherited_from?: Record<string, string>; } | Record<string, unknown>[] = response.Members as
-      | { domain_id?: string | null; members: Record<string, unknown>[]; inherited_from?: Record<string, string> }
-      | Record<string, unknown>[];
+    type MembersWire = { domain_id?: string | null; members: Record<string, unknown>[]; inherited_from?: Record<string, string>; guests?: string[] };
+    const payload: MembersWire | Record<string, unknown>[] = response.Members as MembersWire | Record<string, unknown>[];
     const rawMembers: Record<string, unknown>[] = Array.isArray(payload) ? payload : payload.members;
     const domainId: string | undefined = Array.isArray(payload) ? undefined : payload.domain_id ?? undefined;
     // Absent from a server that predates it, which lists direct members only.
     const inheritedFrom: Readonly<Record<string, string>> = Array.isArray(payload) ? {} : payload.inherited_from ?? {};
+    // Absent from a server that predates booking guests, which has none.
+    const guests: readonly string[] = Array.isArray(payload) ? [] : payload.guests ?? [];
 
     const mappedMembers: MappedMember[] = rawMembers.map((m) => mapWasmMember(m));
     recordMemberNames(mappedMembers);
@@ -84,6 +85,7 @@ export function handleGeneratedVariants(
       members: mappedMembers,
       domainId,
       inheritedFrom,
+      guests,
       connection: connectionInfo,
     });
     return true;
