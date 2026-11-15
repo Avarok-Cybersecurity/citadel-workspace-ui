@@ -11,24 +11,19 @@ import type { DateRange } from './generated/DateRange';
 import type { EventType } from './generated/EventType';
 import type { Question } from './generated/Question';
 import type { TypeKind } from './generated/TypeKind';
+import { checkKind, kindDraftOf, U16, whole, type KindDraft } from './event-type-kind';
 
 /** `MIN_INCREMENT_MIN` in `slots.rs`. */
 export const MIN_INCREMENT_MIN: number = 5;
 const U8: number = 255;
-const U16: number = 65_535;
 const U32: number = 4_294_967_295;
 
 export const COLOR_TOKENS: readonly ColorToken[] = ['primary', 'success', 'warning', 'destructive_emphasis', 'accent', 'secondary'];
 
-/** The kinds this editor makes; collective, round robin and polls come with their flows (C8). */
-export type EditableKind = 'one_on_one' | 'group';
-
 export type RangeDraft = { kind: 'rolling'; days: string } | { kind: 'fixed'; from: CivilDate; to: CivilDate } | { kind: 'indefinite' };
 
-export interface EventTypeDraft {
+export interface EventTypeDraft extends KindDraft {
   name: string;
-  kind: EditableKind;
-  seats: string;
   /** Comma-separated minutes: "30, 60". */
   durations: string;
   bufferBefore: string;
@@ -46,12 +41,6 @@ export interface EventTypeDraft {
 }
 
 export type EventTypeCheck = { ok: true; type: EventType } | { ok: false; errors: ReadonlyMap<string, string> };
-
-function whole(text: string, min: number, max: number): number | null {
-  if (!/^\d+$/.test(text.trim())) return null;
-  const n: number = Number(text.trim());
-  return n >= min && n <= max ? n : null;
-}
 
 function rangeOf(draft: RangeDraft, errors: Map<string, string>): DateRange {
   if (draft.kind === 'indefinite') return 'indefinite';
@@ -81,16 +70,11 @@ function checkQuestions(typed: readonly Question[], errors: Map<string, string>)
   return questions;
 }
 
-/** Error keys: name, seats, durations, bufferBefore, bufferAfter, minNotice, maxPerDay, increment, range, question-<i>, zoneLock. */
+/** Error keys: name, seats, hosts, weights, durations, bufferBefore, bufferAfter, minNotice, maxPerDay, increment, range, question-<i>, zoneLock. */
 export function checkEventType(id: string, draft: EventTypeDraft, knownZone: (zone: string) => boolean): EventTypeCheck {
   const errors: Map<string, string> = new Map();
   if (draft.name.trim() === '') errors.set('name', 'Give the event type a name.');
-  let kind: TypeKind = 'one_on_one';
-  if (draft.kind === 'group') {
-    const seats: number | null = whole(draft.seats, 2, U16);
-    if (seats === null) errors.set('seats', 'A group event seats 2 or more.');
-    kind = { group: { seats: seats ?? 2 } };
-  }
+  const kind: TypeKind = checkKind(draft, errors);
   const durations: (number | null)[] = draft.durations.split(',').filter((d: string) => d.trim() !== '').map((d: string) => whole(d, 5, U16));
   if (durations.length === 0 || durations.some((d) => d === null)) errors.set('durations', 'List one or more lengths in minutes, 5 or more, separated by commas.');
   const field = (key: string, text: string, min: number, max: number, message: string): number => {
@@ -118,15 +102,13 @@ export function checkEventType(id: string, draft: EventTypeDraft, knownZone: (zo
   };
 }
 
-/** The form for an existing type; a kind this editor does not make is refused, not flattened. */
+/** The form for an existing type, of any kind. */
 export function eventTypeDraft(type: EventType): EventTypeDraft {
-  if (type.kind !== 'one_on_one' && !(typeof type.kind === 'object' && 'group' in type.kind)) throw new Error(`${type.name} is not a one-on-one or group type`);
   const r: BookingRules = type.rules;
   const range: RangeDraft = r.range === 'indefinite' ? { kind: 'indefinite' } : 'fixed' in r.range ? { kind: 'fixed', ...r.range.fixed } : { kind: 'rolling', days: String(r.range.rolling.days) };
   return {
+    ...kindDraftOf(type.kind),
     name: type.name,
-    kind: type.kind === 'one_on_one' ? 'one_on_one' : 'group',
-    seats: typeof type.kind === 'object' && 'group' in type.kind ? String(type.kind.group.seats) : '',
     durations: type.durations_min.join(', '),
     bufferBefore: String(r.buffer_before_min),
     bufferAfter: String(r.buffer_after_min),

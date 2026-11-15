@@ -30,6 +30,31 @@ export async function readPoll(ports: CalendarPorts, engine: CalendarEngine, nod
   return bytes === null ? null : engine.team.decodePoll(bytes);
 }
 
+/** Every poll on `node`, by every host, by title; a value that will not decode is counted, not shown. */
+export async function listPolls(ports: CalendarPorts, engine: CalendarEngine, node: string): Promise<{ polls: Poll[]; unreadable: number }> {
+  const keys = await ports.storage.authoredKeys(node, POLL_PREFIX);
+  const polls: Poll[] = [];
+  let unreadable: number = 0;
+  for (const k of keys) {
+    const bytes: Uint8Array | null = await ports.storage.get(authored(node, k.author), k.key);
+    if (bytes === null) continue;
+    try {
+      const poll: Poll = engine.team.decodePoll(bytes);
+      if (poll.host === k.author) polls.push(poll);
+      else unreadable += 1;
+    } catch {
+      unreadable += 1;
+    }
+  }
+  return { polls: polls.sort((a: Poll, b: Poll): number => a.title.localeCompare(b.title)), unreadable };
+}
+
+/** `me`'s own vote on poll `id`, or null before they voted. */
+export async function readVote(ports: CalendarPorts, engine: CalendarEngine, node: string, me: string, id: string): Promise<PollVote | null> {
+  const bytes: Uint8Array | null = await ports.storage.get(authored(node, me), `${VOTE_PREFIX}${id}`);
+  return bytes === null ? null : engine.team.decodePollVote(bytes);
+}
+
 /** Casts `me`'s vote, replacing any earlier one, once the core accepts it for this poll. */
 export async function castVote(ports: CalendarPorts, engine: CalendarEngine, node: string, me: string, poll: Poll, vote: PollVote): Promise<void> {
   engine.team.checkVote(poll, vote);

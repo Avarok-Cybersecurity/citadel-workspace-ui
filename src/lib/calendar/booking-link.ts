@@ -23,6 +23,9 @@ export function bookingLink(origin: string, target: BookingTarget): string {
   return `${origin}/workspace?${params.toString()}`;
 }
 
+/** A node's Calendar tab, where its team types and members' pages are chosen from. */
+export const calendarTabLink = (origin: string, node: string): string => `${origin}/workspace?${new URLSearchParams({ nodeId: node, tab: TAB }).toString()}`;
+
 /** The booking a page address names for `node`'s Calendar tab, or null. */
 export function bookingTargetOf(search: string, node: string): BookingTarget | null {
   const params: URLSearchParams = new URLSearchParams(search);

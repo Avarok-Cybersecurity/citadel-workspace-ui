@@ -17,6 +17,15 @@ import type { Booking } from './generated/Booking';
 import type { CollectiveOutcome } from './generated/CollectiveOutcome';
 import type { HostAnswer } from './generated/HostAnswer';
 
+/**
+ * Whom a booking page's Confirm claims: one member; a round robin's free hosts in the order the
+ * core ranked them (team-slots.ts `rankedFor`); or every host of a collective.
+ */
+export type BookTarget =
+  | { readonly kind: 'member'; readonly host: string }
+  | { readonly kind: 'round_robin'; readonly ranked: readonly string[] }
+  | { readonly kind: 'collective'; readonly hosts: readonly string[] };
+
 /** `COLLECTIVE_INCOMPLETE` in the core's team.rs. */
 export const COLLECTIVE_INCOMPLETE: string = 'collective_incomplete';
 

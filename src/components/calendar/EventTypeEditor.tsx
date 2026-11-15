@@ -1,5 +1,7 @@
 /**
- * The event-type editor (design §3.1, §3.9): what a member offers to be booked for, its lengths,
+ * The event-type editor (design §3.1, §3.6.2, §3.9): what a member, or a team on the node, offers
+ * to be booked for: who books a slot (one person, a group, a poll; or one of a team's hosts, or all
+ * of them together, TeamKindFields), its lengths,
  * its booking rules (buffers, notice, a daily limit, how often slots start, how far ahead) and its
  * questions, checked by `checkEventType` (event-type-form.ts) before `onSave`. Each rule's field
  * says its unit in its label; each error sits under its field.
@@ -8,17 +10,19 @@ import { useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { isTeamKind, type EditableKind, type KindChoice } from '@/lib/calendar/event-type-kind';
 import { checkEventType, COLOR_TOKENS, eventTypeDraft, type EventTypeDraft, type RangeDraft } from '@/lib/calendar/event-type-form';
 import type { CivilDate } from '@/lib/calendar/generated/CivilDate';
 import type { ColorToken } from '@/lib/calendar/generated/ColorToken';
 import type { EventType } from '@/lib/calendar/generated/EventType';
 import { isKnownZone } from '@/lib/calendar/known-zones';
 import { QuestionsEditor } from './QuestionsEditor';
+import { TeamKindFields } from './TeamKindFields';
 import { ZoneSelect } from './ZoneSelect';
 
-/** What a new type starts as, shown to the member to edit. */
-export const starterType = (): EventTypeDraft => ({
-  name: '', kind: 'one_on_one', seats: '', durations: '30', bufferBefore: '0', bufferAfter: '0', minNoticeHours: '4', maxPerDay: '',
+/** What a new type of `kind` starts as, shown to the member to edit. */
+export const starterType = (kind: EditableKind): EventTypeDraft => ({
+  name: '', kind, seats: '', hosts: [], strategy: 'equal', weights: {}, durations: '30', bufferBefore: '0', bufferAfter: '0', minNoticeHours: '4', maxPerDay: '',
   increment: '30', range: { kind: 'rolling', days: '30' }, cancelPolicy: '', questions: [], color: 'primary', zoneLock: null,
 });
 
@@ -29,9 +33,18 @@ const SWATCH: Record<ColorToken, string> = {
   primary: 'bg-primary', success: 'bg-success', warning: 'bg-warning', destructive_emphasis: 'bg-destructive-emphasis', accent: 'bg-accent', secondary: 'bg-secondary',
 };
 
+const KIND_LABEL: Record<EditableKind, string> = {
+  one_on_one: 'One person', group: 'A group', poll: 'A poll of times you propose',
+  round_robin: 'One of several hosts, in turn', collective: 'All the hosts together',
+};
+
 interface EventTypeEditorProps {
   id: string;
   saved: EventType | null;
+  /** The kinds offered: a member's own, or a team's; a new type starts as the first. */
+  kinds: KindChoice;
+  /** Who may host a team's type: the node's members. */
+  members: readonly string[];
   deviceZone: string;
   /** Where a range between two dates starts. */
   today: CivilDate;
@@ -42,9 +55,9 @@ interface EventTypeEditorProps {
 
 type TextKey = 'name' | 'seats' | 'durations' | 'bufferBefore' | 'bufferAfter' | 'minNoticeHours' | 'maxPerDay' | 'increment';
 
-export function EventTypeEditor({ id, saved, deviceZone, today, newId, onSave, onCancel }: EventTypeEditorProps): JSX.Element {
+export function EventTypeEditor({ id, saved, kinds, members, deviceZone, today, newId, onSave, onCancel }: EventTypeEditorProps): JSX.Element {
   const base: string = useId();
-  const [draft, setDraft] = useState<EventTypeDraft>(saved === null ? starterType() : eventTypeDraft(saved));
+  const [draft, setDraft] = useState<EventTypeDraft>(saved === null ? starterType(kinds[0]) : eventTypeDraft(saved));
   const [errors, setErrors] = useState<ReadonlyMap<string, string>>(new Map());
   const [saving, setSaving] = useState<boolean>(false);
   const [said, setSaid] = useState<string>('');
@@ -85,13 +98,14 @@ export function EventTypeEditor({ id, saved, deviceZone, today, newId, onSave, o
       {text('name', 'Name', 'text')}
       <fieldset className="flex min-w-0 flex-wrap gap-2">
         <legend className="mb-1 text-sm font-semibold text-foreground">Who books a slot</legend>
-        {(['one_on_one', 'group'] as const).map((k) => (
+        {kinds.map((k: EditableKind) => (
           <label key={k} className="flex min-h-[44px] items-center gap-2 rounded-md border border-border px-3 text-sm text-foreground has-[:checked]:border-primary has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring">
             <input type="radio" name={`${base}-kind`} className="h-4 w-4 accent-primary" checked={draft.kind === k} onChange={(): void => setDraft({ ...draft, kind: k, seats: k === 'group' && draft.seats === '' ? '10' : draft.seats })} />
-            {k === 'one_on_one' ? 'One person' : 'A group'}
+            {KIND_LABEL[k]}
           </label>
         ))}
       </fieldset>
+      {isTeamKind(draft.kind) && <TeamKindFields draft={draft} members={members} errors={errors} onChange={(kind): void => setDraft({ ...draft, ...kind })} />}
       <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
         {draft.kind === 'group' && text('seats', 'Seats per slot')}
         {text('durations', 'Lengths, in minutes (for example 30, 60)', 'text')}

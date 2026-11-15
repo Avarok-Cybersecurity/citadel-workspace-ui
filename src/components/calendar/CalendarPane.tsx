@@ -21,10 +21,13 @@ import type { CivilDate } from '@/lib/calendar/generated/CivilDate';
 import type { Chip } from '@/lib/calendar/placement';
 import { PortRefused, refusalCopy, type CalendarPorts } from '@/lib/calendar/ports';
 import { calendarReducer, initialCalendar, type CalendarState, type EventEntry } from '@/lib/calendar/store';
+import { bookCollective, bookRoundRobin, type BookTarget } from '@/lib/calendar/team-booking';
 import { useCalendarSources } from '@/lib/calendar/use-calendar-sources';
 import { nodeZone } from '@/lib/calendar/zones';
+import { dateKey } from '@/lib/calendar/grid-keyboard';
 import { BookingSetup } from './BookingSetup';
 import { BookWith } from './BookWith';
+import { PollsPanel } from './PollsPanel';
 import { CalendarTab } from './CalendarTab';
 import { EventDetails } from './EventDetails';
 import { EventEditor } from './EventEditor';
@@ -49,7 +52,7 @@ export interface CalendarPaneProps {
   mayEditNode: boolean;
 }
 
-type Panel = { kind: 'none' } | { kind: 'new'; date: CivilDate } | { kind: 'edit'; entry: EventEntry } | { kind: 'setup' }
+type Panel = { kind: 'none' } | { kind: 'new'; date: CivilDate } | { kind: 'edit'; entry: EventEntry } | { kind: 'setup' } | { kind: 'polls' }
   /** `moving`: the booking this one replaces, with the host and type it was made with. */
   | { kind: 'book'; moving: { id: string; host: string; typeId: string } | null };
 
@@ -76,11 +79,19 @@ export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZon
   const above = useAbove(ports, nodeId, nodeName);
   const saveEvent = (checked: Extract<EventCheck, { ok: true }>, progress: (done: number, of: number) => void): Promise<SaveOutcome> =>
     save(ports, engine, checked, null, progress);
-  const book = (host: string, choice: BookingChoice): Promise<BookOutcome> => {
-    const booking = bookingOf(choice, { id: newId(), node: nodeId, host, me });
+  const book = (target: BookTarget, choice: BookingChoice): Promise<BookOutcome> => {
+    const first: string = target.kind === 'member' ? target.host : (target.kind === 'round_robin' ? target.ranked : target.hosts)[0] ?? '';
+    const booking = bookingOf(choice, { id: newId(), node: nodeId, host: first, me });
     const moving: string | null = panel.kind === 'book' && panel.moving !== null ? panel.moving.id : null;
-    if (client === null) return moving === null ? requestBooking(ports, engine, booking, nodeId, me) : Promise.resolve<BookOutcome>({ kind: 'failed', reason: 'a booking can be moved only while its host can be reached' });
-    return claim({ ports, engine, client, node: nodeId, me, title: `${choice.type.name} with ${host}`, nowMs: nowOf(ports) }, booking, moving);
+    if (client === null) {
+      if (moving !== null) return Promise.resolve<BookOutcome>({ kind: 'failed', reason: 'a booking can be moved only while its host can be reached' });
+      if (target.kind === 'collective') return Promise.resolve<BookOutcome>({ kind: 'failed', reason: 'a booking with every host at once can be made only while they can be reached' });
+      return first === '' ? Promise.resolve<BookOutcome>({ kind: 'failed', reason: 'no host is free at that time' }) : requestBooking(ports, engine, booking, nodeId, me);
+    }
+    const deps = { ports, engine, client, node: nodeId, me, title: target.kind === 'member' ? `${choice.type.name} with ${target.host}` : choice.type.name, nowMs: nowOf(ports) };
+    if (target.kind === 'round_robin') return bookRoundRobin(deps, booking, target.ranked);
+    if (target.kind === 'collective') return bookCollective(deps, booking, target.hosts);
+    return claim(deps, booking, moving);
   };
 
   const openEntry = open === null ? undefined : state.entries.get(open.entryKey);
@@ -118,6 +129,7 @@ export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZon
         <div className="flex min-w-0 flex-wrap gap-2">
           <Button variant="outline" className="h-[44px]" onClick={(): void => setPanel({ kind: 'book', moving: null })}>Book with someone</Button>
           <Button variant="outline" className="h-[44px]" onClick={(): void => setPanel({ kind: 'setup' })}>Your booking page</Button>
+          <Button variant="outline" className="h-[44px]" onClick={(): void => setPanel({ kind: 'polls' })}>Polls</Button>
         </div>
       )}
       {panel.kind !== 'none' && panel.kind !== 'new' && panel.kind !== 'edit' && (
@@ -134,10 +146,11 @@ export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZon
           node={node} above={above} nodeName={nodeName} me={me} displayZone={displayZone} engine={engine} newId={(): string => panel.entry.event.id} nowMs={(): bigint => nowOf(ports)}
           onSave={(checked, progress): Promise<SaveOutcome> => saveRevision(ports, engine, panel.entry, checked, progress)} onClose={(): void => { setOpen(null); close(); }} />
       )}
-      {panel.kind === 'setup' && <BookingSetup ports={ports} engine={engine} node={node} me={me} displayZone={displayZone} deviceZone={deviceZone} today={now.date} origin={window.location.origin} newId={newId} />}
+      {panel.kind === 'setup' && <BookingSetup ports={ports} engine={engine} node={node} me={me} displayZone={displayZone} deviceZone={deviceZone} today={now.date} origin={window.location.origin} newId={newId} mayEditNode={mayEditNode} />}
+      {panel.kind === 'polls' && <PollsPanel ports={ports} engine={engine} node={node} me={me} displayZone={displayZone} firstDate={dateKey(now.date)} newId={newId} nowMs={(): bigint => nowOf(ports)} />}
       {panel.kind === 'book' && (
         <BookWith ports={ports} engine={engine} node={node} me={me} entries={state.entries} displayZone={displayZone} deviceZone={deviceZone}
-          today={now.date} nowMs={nowMs} initial={panel.moving !== null ? { host: panel.moving.host, typeId: panel.moving.typeId } : linked === null ? null : { host: linked.host, typeId: linked.typeId }} onBook={book} />
+          today={now.date} nowMs={nowMs} origin={window.location.origin} nodeName={nodeName} initial={panel.moving !== null ? { host: panel.moving.host, typeId: panel.moving.typeId } : linked === null ? null : { host: linked.host, typeId: linked.typeId }} onBook={book} />
       )}
       {(panel.kind === 'none' || panel.kind === 'new' || panel.kind === 'edit') && (
         <>

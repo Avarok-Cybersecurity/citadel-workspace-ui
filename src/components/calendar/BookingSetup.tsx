@@ -10,11 +10,13 @@ import { Input } from '@/components/ui/input';
 import { bookingLink } from '@/lib/calendar/booking-link';
 import { readBookingPage, removeEventType, saveAvailability, saveEventType, type BookingPageData } from '@/lib/calendar/booking-pages';
 import type { CalendarEngine } from '@/lib/calendar/engine/calendar-engine';
+import { OWN_KINDS } from '@/lib/calendar/event-type-kind';
 import type { CivilDate } from '@/lib/calendar/generated/CivilDate';
 import type { EventType } from '@/lib/calendar/generated/EventType';
 import { PortRefused, refusalCopy, type CalendarPorts } from '@/lib/calendar/ports';
 import { AvailabilityEditor } from './AvailabilityEditor';
 import { EventTypeEditor } from './EventTypeEditor';
+import { TeamTypesSetup } from './TeamTypesSetup';
 
 interface BookingSetupProps {
   ports: CalendarPorts;
@@ -26,6 +28,8 @@ interface BookingSetupProps {
   today: CivilDate;
   origin: string;
   newId: () => string;
+  /** Whether the member edits this node, and so its team types too. */
+  mayEditNode: boolean;
 }
 
 type Loaded = { kind: 'loading' } | { kind: 'failed'; reason: string } | { kind: 'ready'; page: BookingPageData };
@@ -33,7 +37,7 @@ type Editing = { kind: 'none' } | { kind: 'type'; id: string; type: EventType | 
 
 const reasonOf = (e: unknown): string => (e instanceof PortRefused ? refusalCopy(e.refused) : 'something went wrong');
 
-export function BookingSetup({ ports, engine, node, me, displayZone, deviceZone, today, origin, newId }: BookingSetupProps): JSX.Element {
+export function BookingSetup({ ports, engine, node, me, displayZone, deviceZone, today, origin, newId, mayEditNode }: BookingSetupProps): JSX.Element {
   const linkId: string = useId();
   const [loaded, setLoaded] = useState<Loaded>({ kind: 'loading' });
   const [editing, setEditing] = useState<Editing>({ kind: 'none' });
@@ -95,7 +99,7 @@ export function BookingSetup({ ports, engine, node, me, displayZone, deviceZone,
         </ul>
         {editing.kind === 'type' ? (
           <EventTypeEditor
-            key={editing.id} id={editing.id} saved={editing.type} deviceZone={deviceZone} today={today} newId={newId}
+            key={editing.id} id={editing.id} saved={editing.type} kinds={OWN_KINDS} members={[]} deviceZone={deviceZone} today={today} newId={newId}
             onSave={(type: EventType): Promise<string | null> => saved(() => saveEventType(ports, engine, node.id, me, type))}
             onCancel={(): void => setEditing({ kind: 'none' })}
           />
@@ -113,6 +117,7 @@ export function BookingSetup({ ports, engine, node, me, displayZone, deviceZone,
           onSave={(availability): Promise<string | null> => saved(() => saveAvailability(ports, engine, node.id, me, availability))}
         />
       </section>
+      {mayEditNode && <TeamTypesSetup ports={ports} engine={engine} node={node} deviceZone={deviceZone} today={today} newId={newId} />}
       <p aria-live="polite" role="status" className="text-sm text-foreground">{said}</p>
     </section>
   );

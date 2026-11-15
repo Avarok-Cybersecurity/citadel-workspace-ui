@@ -13,6 +13,7 @@ import type { HostBusy } from '@/lib/calendar/booking-pages';
 import { formatDayLong, formatTimeIn } from '@/lib/calendar/format';
 import type { Interval } from '@/lib/calendar/generated/Interval';
 import { slotRequest } from '@/lib/calendar/slot-list';
+import { hostSlots } from '@/lib/calendar/team-slots';
 import { BookingPage } from '../BookingPage';
 
 const engine = realEngine();
@@ -23,8 +24,8 @@ const busyFor = (): HostBusy => ({ busy: [BUSY], booked: [] });
 
 function page(onBook: (c: BookingChoice) => Promise<BookOutcome>): void {
   render(
-    <BookingPage page={{ host: 'ana', types: [INTRO], availability: WORKING_HOURS, unreadable: 0 }} hostName="ana" engine={engine} displayZone={NY} deviceZone={NY}
-      today={TODAY} nowMs={NOW} busyFor={busyFor} initialTypeId={null} onBook={onBook} />,
+    <BookingPage hostName="ana" types={[INTRO]} closed={null} engine={engine} displayZone={NY} deviceZone={NY}
+      today={TODAY} nowMs={NOW} slotsFor={(ask) => hostSlots(engine, ask, WORKING_HOURS, busyFor)} initialTypeId={null} onBook={onBook} />,
   );
 }
 

@@ -1,21 +1,21 @@
 /**
- * What an invitee sees on a member's booking page (design §3.9 "Booking page", §3.6.1): the host's
- * types, a length, the zone the times are shown in, the free days and times, the type's questions
- * and one Confirm. Every time is the core's (`slotRequest` from the type's own rules, slot-list.ts),
- * shown in the zone chosen here, or the type's locked zone. It reads no port: the mount hands it
- * the host's page, what the host is busy with, and `onBook` (booking.ts).
+ * What an invitee sees on a booking page (design §3.9 "Booking page", §3.6.1, §3.6.2): a member's
+ * or a team's types, a length, the zone the times are shown in, the free days and times, the type's
+ * questions and one Confirm. Every time is the core's (`slotsFor`: one host's, or a team's,
+ * team-slots.ts), shown in the zone chosen here, or the type's locked zone. It reads no port: the
+ * mount hands it the types, how to work out their times, and `onBook` (booking.ts).
  */
 import { useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { checkAnswers, type BookingChoice, type BookOutcome } from '@/lib/calendar/booking-form';
-import type { BookingPageData, HostBusy } from '@/lib/calendar/booking-pages';
 import { CalendarRefusal, type CalendarEngine } from '@/lib/calendar/engine/calendar-engine';
 import { formatDayLong, formatDayShort } from '@/lib/calendar/format';
 import { dateKey } from '@/lib/calendar/grid-keyboard';
 import type { CivilDate } from '@/lib/calendar/generated/CivilDate';
 import type { EventType } from '@/lib/calendar/generated/EventType';
 import type { Interval } from '@/lib/calendar/generated/Interval';
-import { slotDays, slotRequest, slotZone, type SlotDay } from '@/lib/calendar/slot-list';
+import { slotDays, slotZone, type SlotDay } from '@/lib/calendar/slot-list';
+import type { SlotAsk } from '@/lib/calendar/team-slots';
 import { cn } from '@/lib/utils';
 import { QuestionsForm } from './QuestionsForm';
 import { SlotList, slotName } from './SlotList';
@@ -25,16 +25,20 @@ import { ZoneSelect } from './ZoneSelect';
 export const RANGE_DAYS: number = 14;
 
 export interface BookingPageProps {
-  page: BookingPageData;
+  /** Who is booked: a member's name, or a team type's. */
   hostName: string;
+  /** What can be booked here; none, or `closed`, and the page says so. */
+  types: EventType[];
+  /** Why nothing can be booked yet, or null when the times can be worked out. */
+  closed: string | null;
   engine: CalendarEngine;
   /** The invitee's display zone: where the zone switcher starts. */
   displayZone: string;
   deviceZone: string;
   today: CivilDate;
   nowMs: bigint;
-  /** What the host is busy with over a range (booking-pages.ts `busyOf`, over what the pane read). */
-  busyFor: (fromMs: bigint, toMs: bigint, zone: string) => HostBusy;
+  /** The free times for one type and length over a range of days; a refusal of the core is thrown. */
+  slotsFor: (ask: SlotAsk) => Interval[];
   initialTypeId: string | null;
   onBook: (choice: BookingChoice) => Promise<BookOutcome>;
 }
@@ -44,8 +48,8 @@ type Slots = { kind: 'ok'; days: SlotDay[] } | { kind: 'refused'; reason: string
 const CARD: string = 'flex min-h-[44px] min-w-0 flex-col items-start rounded-md border px-3 py-2 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
 export function BookingPage(p: BookingPageProps): JSX.Element {
-  const { page, engine, busyFor, nowMs } = p;
-  const [type, setType] = useState<EventType | null>(page.types.find((t: EventType) => t.id === p.initialTypeId) ?? page.types[0] ?? null);
+  const { types, engine, slotsFor, nowMs } = p;
+  const [type, setType] = useState<EventType | null>(types.find((t: EventType) => t.id === p.initialTypeId) ?? types[0] ?? null);
   const [duration, setDuration] = useState<number | null>(type?.durations_min[0] ?? null);
   const [chosenZone, setChosenZone] = useState<string>(p.displayZone);
   const [from, setFrom] = useState<CivilDate>(p.today);
@@ -61,18 +65,15 @@ export function BookingPage(p: BookingPageProps): JSX.Element {
   const to: CivilDate = engine.addDays(from, RANGE_DAYS - 1);
 
   const slots: Slots = useMemo((): Slots => {
-    if (type === null || duration === null || page.availability === null) return { kind: 'none' };
-    const fromMs: bigint = engine.instantOf(page.availability.zone, { date: from, minute: 0 });
-    const toMs: bigint = engine.instantOf(page.availability.zone, { date: engine.addDays(to, 1), minute: 0 });
-    const { busy: taken, booked } = busyFor(fromMs, toMs, page.availability.zone);
+    if (type === null || duration === null || p.closed !== null) return { kind: 'none' };
     try {
-      const free: Interval[] = engine.freeSlots(slotRequest({ type, durationMin: duration, availability: page.availability, busy: taken, booked, nowMs, from, to }));
+      const free: Interval[] = slotsFor({ type, durationMin: duration, nowMs, from, to });
       return { kind: 'ok', days: slotDays(free, zone, engine) };
     } catch (e: unknown) {
       if (e instanceof CalendarRefusal) return { kind: 'refused', reason: e.message };
       throw e;
     }
-  }, [type, duration, page.availability, from, to, zone, engine, nowMs, busyFor]);
+  }, [type, duration, p.closed, from, to, zone, engine, nowMs, slotsFor]);
 
   const pickType = (t: EventType): void => {
     setType(t);
@@ -99,7 +100,7 @@ export function BookingPage(p: BookingPageProps): JSX.Element {
     setAlternatives([]);
     const outcome: BookOutcome = await p.onBook({ type, durationMin: duration, slot, zone, answers: checked.answers });
     setBusy(false);
-    if (outcome.kind === 'confirmed') setSaid(`Booked: ${type.name} with ${p.hostName}, ${slotName(slot, zone)}.`);
+    if (outcome.kind === 'confirmed') setSaid(`Booked: ${type.name}${p.hostName === type.name ? '' : ` with ${outcome.booking.host === '' ? p.hostName : outcome.booking.host}`}, ${slotName(slot, zone)}.`);
     else if (outcome.kind === 'requested') setSaid(`Requested: ${p.hostName} is not online and will confirm ${slotName(slot, zone)} when they are.`);
     else if (outcome.kind === 'failed') setSaid(`Not booked: ${outcome.reason}.`);
     else {
@@ -110,14 +111,14 @@ export function BookingPage(p: BookingPageProps): JSX.Element {
     }
   };
 
-  if (page.availability === null || page.types.length === 0) {
-    return <p role="status" className="text-sm text-muted-foreground" data-testid="calendar-booking-page">{p.hostName} has not opened bookings on this page yet.</p>;
+  if (p.closed !== null || types.length === 0) {
+    return <p role="status" className="text-sm text-muted-foreground" data-testid="calendar-booking-page">{p.closed ?? `${p.hostName} has not opened bookings on this page yet.`}</p>;
   }
   return (
     <section aria-label={`Book with ${p.hostName}`} className="flex min-w-0 flex-col gap-4" data-testid="calendar-booking-page">
       <h2 className="text-base font-semibold text-foreground">Book with {p.hostName}</h2>
       <div role="group" aria-label="What to book" className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
-        {page.types.map((t: EventType) => (
+        {types.map((t: EventType) => (
           <button key={t.id} type="button" aria-pressed={type?.id === t.id} onClick={(): void => pickType(t)} className={cn(CARD, type?.id === t.id ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted')}>
             <span className="font-medium text-foreground">{t.name}</span>
             <span className="text-muted-foreground">{t.durations_min.map((d: number) => `${d} min`).join(' or ')}</span>
@@ -155,7 +156,7 @@ export function BookingPage(p: BookingPageProps): JSX.Element {
         {slots.kind === 'ok' && <SlotList days={slots.days} zone={zone} day={day} slot={slot} onDay={(d: CivilDate): void => { setDay(d); setSlot(null); }} onSlot={setSlot} />}
         {slots.kind === 'refused' && <p role="alert" className="text-sm text-destructive-emphasis">These times could not be worked out: {slots.reason}.</p>}
       </div>
-      {type !== null && <QuestionsForm questions={type.questions} values={values} errors={errors} onChange={(id: string, v: string): void => setValues(new Map(values).set(id, v))} />}
+      {type !== null && <QuestionsForm questions={type.questions} values={values} errors={errors} legend="Your details" onChange={(id: string, v: string): void => setValues(new Map(values).set(id, v))} />}
       <div className="sticky bottom-0 flex justify-end border-t border-border bg-background py-2">
         <Button className="h-[44px]" disabled={slot === null || busy} onClick={(): void => { void confirm(); }} data-testid="calendar-confirm-booking">
           {slot === null || day === null ? 'Choose a time' : busy ? 'Booking…' : `Confirm · ${formatDayLong(day)}, ${slotName(slot, zone)}`}

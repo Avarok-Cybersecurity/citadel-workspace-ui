@@ -13,6 +13,8 @@ interface QuestionsFormProps {
   questions: readonly Question[];
   values: ReadonlyMap<string, string>;
   errors: ReadonlyMap<string, string>;
+  /** What the questions are, said once above them: "Your details". */
+  legend: string;
   onChange: (questionId: string, value: string) => void;
 }
 
@@ -30,12 +32,12 @@ function Field({ q, id, value, invalid, describedBy, onChange }: { q: Question; 
   );
 }
 
-export function QuestionsForm({ questions, values, errors, onChange }: QuestionsFormProps): JSX.Element | null {
+export function QuestionsForm({ questions, values, errors, legend, onChange }: QuestionsFormProps): JSX.Element | null {
   const base: string = useId();
   if (questions.length === 0) return null;
   return (
     <fieldset className="flex min-w-0 flex-col gap-3" data-testid="calendar-questions">
-      <legend className="mb-1 text-sm font-semibold text-foreground">Your details</legend>
+      <legend className="mb-1 text-sm font-semibold text-foreground">{legend}</legend>
       {questions.map((q: Question, i: number) => {
         const id: string = `${base}-q${i}`;
         const error: string | undefined = errors.get(q.id);
