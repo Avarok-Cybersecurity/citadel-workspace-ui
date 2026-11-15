@@ -122,7 +122,11 @@ export class FakeAgent {
   private register(body: Req): void {
     const refused: string | null = this.admission.check(body.admission_token);
     if (refused) { this.emit('RegisterFailure', { request_id: body.request_id, message: 'A human check is required', reason_code: refused, ...this.admission.published(refused) }); return; }
+    // One account per username here, as the agent: another server's is refused, typed, not overwritten.
+    const held: FakeAccount | undefined = this.accounts.find((a) => a.username === body.username && a.server !== body.server_addr);
+    if (held) { this.emit('RegisterFailure', { request_id: body.request_id, message: 'held', reason_code: 'username_held_for_another_server', held_for_server: held.server }); return; }
     const account: FakeAccount = this.account(body.username as string, 'Password', 100n + BigInt(this.accounts.length));
+    account.server = body.server_addr as string;
     account.password = this.text(body.proposed_password) ?? '';
     this.emit('RegisterSuccess', { cid: account.cid, request_id: body.request_id, recovery_codes: [...account.recoveryCodes] });
     // connect_after_register has no token left: the Register spent it (agent #112, Register.admission_token).

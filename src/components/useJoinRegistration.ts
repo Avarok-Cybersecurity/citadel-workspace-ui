@@ -1,3 +1,5 @@
+import { useHeldUsername } from './join/use-held-username';
+import { UsernameHeldElsewhere } from '@/lib/sessions/known-accounts';
 import { useState } from "react";
 import { joinFieldErrors } from './join-field-errors';
 import type { JoinRegistration } from './join-registration-shape';
@@ -79,7 +81,8 @@ export function useJoinRegistration(
     setTouched((prev) => ({ ...prev, [e.target.name]: true }));
   };
 
-  const { rawErrors, fieldErrors } = joinFieldErrors(formData, touched, submitAttempted);
+  const held: string | null = useHeldUsername(formData.username, serverAddress);
+  const { rawErrors, fieldErrors } = joinFieldErrors(formData, touched, submitAttempted, held);
 
   // Passed in, not read from the query cache.
   //
@@ -163,7 +166,7 @@ export function useJoinRegistration(
         };
 
         handler = createRegistrationResponseHandler(requestId, resolve, reject, cleanup, {
-          handleConnectSuccess, setShowNotInitializedModal, onRecoveryCodes: setRecoveryCodes,
+          handleConnectSuccess, setShowNotInitializedModal, onRecoveryCodes: setRecoveryCodes, username: formData.username,
         });
         eventEmitter.on('websocket-message', handler);
       });
@@ -193,6 +196,7 @@ export function useJoinRegistration(
       setShowConnectModal(false);
       if (error instanceof RegisteredAwaitingSignIn) { setAwaitingSignIn(error.cid); return; } // Not a failure: see PostRegistrationSteps.
       if (admission.settle(error)) return; // Shown on the human check itself.
+      if (error instanceof UsernameHeldElsewhere) { toast({ title: 'Username already on this device', description: error.message, variant: 'destructive' }); return; }
       const wrongServerPassword: string | null = serverPasswordMismatchMessage(describeFailure(error, ''), Boolean(serverPassword));
       toast({ title: wrongServerPassword ? 'Wrong server password' : getErrorTitle(error), description: wrongServerPassword ?? getUserFriendlyErrorMessage(error), variant: "destructive" });
     } finally {

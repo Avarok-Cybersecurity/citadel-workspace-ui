@@ -17,6 +17,8 @@ import {
 import { debugLog } from '@/lib/debug-config';
 import type { TabSelectionContext } from '@/lib/connection/types';
 import { sessionIsOnServer } from '@/lib/sessions/same-server';
+import { isStoredServerUnknown, storedSessionServer } from './stored-server';
+import { connectionStoredServerIO } from './stored-server-io';
 
 /**
  * Attempt leader connection if conditions are met.
@@ -141,11 +143,12 @@ async function performAutoReconnect(
       );
     }
 
+    const serverAddress: string = await storedSessionServer(session, connectionStoredServerIO(state, io));
     const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
     await io.connect({
       requestId,
       username: session.username,
-      serverAddress: session.serverAddress,
+      serverAddress,
       password: session.password,
       sessionSecuritySettings: session.sessionSecuritySettings,
     });
@@ -170,6 +173,8 @@ async function handleAutoReconnectError(
 ): Promise<void> {
   io.updateConnectionService({ cid: null, isConnected: false });
   io.broadcastConnectionStatus({ isConnected: false });
+  // No server to name: a retry would fail the same way. A sign-in was asked for.
+  if (isStoredServerUnknown(error)) return;
 
   const errorMessage: string = (error instanceof Error ? error.message : String(error)).toLowerCase();
   if (isConnectAlreadyInProgress(errorMessage)) {

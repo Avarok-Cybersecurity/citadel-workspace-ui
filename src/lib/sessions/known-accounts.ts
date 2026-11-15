@@ -89,3 +89,27 @@ export function offeredRows(
   const all: KnownAccount[] = dedupe(rows);
   return server === null ? all : accountsOnServer(all, server);
 }
+
+/**
+ * This device's account named `typed` on another server than `server`, or null. One device
+ * holds one account per username (the agent stores accounts by username), so registering it
+ * on `server` would overwrite that account; the agent refuses it too.
+ */
+export function heldForAnotherServer(accounts: readonly KnownAccount[], typed: string, server: string): KnownAccount | null {
+  const username: string = typed.trim();
+  if (username === '' || server.trim() === '') return null;
+  return accounts.find((a: KnownAccount) => a.username === username && a.server !== null && !sameAddress(a.server, server)) ?? null;
+}
+
+export function heldUsernameCopy(username: string, server: string): string {
+  return `This device already has an account named ${username} on ${server}. One device can hold one account per username: ` +
+    `choose another username, or sign in to ${username} on ${server} instead.`;
+}
+
+/** The agent refused a registration: this device holds the name for another server. */
+export class UsernameHeldElsewhere extends Error {
+  constructor(username: string, server: string) {
+    super(heldUsernameCopy(username, server));
+    this.name = 'UsernameHeldElsewhere';
+  }
+}

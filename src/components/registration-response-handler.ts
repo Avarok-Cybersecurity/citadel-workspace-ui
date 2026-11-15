@@ -8,6 +8,7 @@ import { narrowWebSocketMessage, hasVariant, getVariant } from '@/lib/ws-message
 import { debugLog } from '@/lib/debug-config';
 import { AdmissionRefusal, RegisteredAwaitingSignIn, admissionChallengeOf, admissionReasonOf, type AdmissionReason } from '@/lib/admission/refusal';
 import type { WebSocketMessage } from '@/types/ws-message-types';
+import { UsernameHeldElsewhere } from '@/lib/sessions/known-accounts';
 
 export interface RegistrationHandlerDeps {
   handleConnectSuccess: (
@@ -21,6 +22,8 @@ export interface RegistrationHandlerDeps {
    * answer, under the same request id. It is not an outcome: the wait goes on.
    */
   onRecoveryCodes: (codes: readonly string[]) => void;
+  /** Who is registering: named in the refusal when this device holds that name for another server. */
+  username: string;
 }
 
 export function createRegistrationResponseHandler(
@@ -42,6 +45,10 @@ export function createRegistrationResponseHandler(
   const rejectWith = (v: Record<string, unknown>, fallback: string): void => {
     cleanup();
     const message: string = (v.message as string) || fallback;
+    // The agent's typed refusal: this device holds the name for another server (one per username).
+    if (v.reason_code === 'username_held_for_another_server' && typeof v.held_for_server === 'string') {
+      reject(new UsernameHeldElsewhere(deps.username.trim(), v.held_for_server)); return;
+    }
     // A human check the workspace asked for, missing or failed: the form shows or resets it.
     const admission: AdmissionReason | null = admissionReasonOf(v);
     // After RegisterSuccess, an admission refusal is the follow-up Connect's: the register token was spent.

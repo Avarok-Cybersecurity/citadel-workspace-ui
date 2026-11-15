@@ -26,7 +26,7 @@ import { sessionLabel, type SessionLabel } from '@/lib/sessions/session-label';
 import type { SecuritySettingsState } from './useLoginHandler';
 import { watchKeyChallenges } from '@/lib/sign-in/challenge-watch';
 import type { SignInFactors } from '@/lib/sign-in/types';
-import { readAccountHosts, type AccountHost } from '@/lib/admission/account-servers';
+import { readAgentAccounts, type AgentAccount } from '@/lib/admission/account-servers';
 import { askStoredAccounts } from '@/lib/stored-accounts';
 import { requireSignInServer } from '@/lib/sessions/sign-in-server';
 import { connectRefusal } from '@/lib/connection/connect-refusal';
@@ -55,12 +55,12 @@ const CONNECT_TIMEOUT_MS: 30000 = 30000;
 export async function loginWithPassword(
   ctx: LoginContext, username: string, factors: SignInFactors, securitySettings: SecuritySettingsState, scope: string | null,
 ): Promise<LoginResult> {
-  const agentAccounts: AccountHost[] = await askStoredAccounts(readAccountHosts);
-  const server: string = requireSignInServer(agentAccounts, username, scope);
-  // Metadata only: labels the stored session. The label comes from the agent
-  // once it has answered (see session-label).
+  const agentAccounts: AgentAccount[] = await askStoredAccounts(readAgentAccounts);
+  // Labels the stored session (the label comes from the agent once it has answered, see
+  // session-label), and names the server when an older agent reports none.
   const storedSessions: StoredSessions = connectionManager.getStoredSessions();
   const storedSession: StoredSession | undefined = storedSessions.sessions.find(s => s.username === username.trim());
+  const server: string = requireSignInServer(agentAccounts, username, scope, storedSession?.serverAddress.trim() || null);
   const labelFor = async (cid: bigint): Promise<SessionLabel> => {
     connectionManager.invalidateSessionCache();
     const live: ActiveSession[] = await connectionManager.getActiveSessions();

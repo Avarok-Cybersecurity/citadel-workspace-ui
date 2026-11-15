@@ -10,6 +10,7 @@ import type { SessionSecuritySettings } from '../p2p-registration-service';
 import type { ConnectionIntent, TabSelectionContext, PendingRequest } from './types';
 import { ConnectionIOWebSocket } from './io-websocket';
 import { ConnectionIOServices } from './io-services';
+import type { AccountHost } from '@/lib/admission/account-servers';
 
 export class ConnectionIO {
   private ws: ConnectionIOWebSocket = new ConnectionIOWebSocket();
@@ -55,6 +56,11 @@ export class ConnectionIO {
   async waitForWebSocketInit(): Promise<void> { return this.ws.waitForWebSocketInit(); }
   async connect(params: { requestId: string; username: string; serverAddress: string; password: string; sessionSecuritySettings?: SessionSecuritySettings }): Promise<void> { return this.ws.connect(params); }
   async disconnect(cid: bigint): Promise<void> { return this.ws.disconnect(cid); }
+  /** The agent's accounts with the server each is on (GetAccountInformation); loaded when asked. */
+  async agentAccounts(): Promise<AccountHost[]> {
+    const [{ askStoredAccounts }, { readAccountHosts }] = await Promise.all([import('@/lib/stored-accounts'), import('@/lib/admission/account-servers')]);
+    return askStoredAccounts(readAccountHosts);
+  }
   // Loaded on sign-out only: the landing page's critical path does not carry it.
   async forgetAccountDocuments(cid: bigint): Promise<void> { return (await import('@/lib/document-replica-cache')).forgetAccountDocuments(cid); }
   async forgetAtRestRoot(cid: bigint): Promise<void> { return (await import('@/lib/document-replica-cache')).forgetAtRestRoot(cid); }

@@ -227,11 +227,13 @@ const dist = join(root, 'dist');
  * taken-elsewhere notices (550 + 683, 455 + 335 B), and the follower's media-frame relay (693 B).
  *
  * 340 -> 341 (2026-11-15), for a Connect that names its server (fix/chat-files-calls-switch):
- * the base measured 339.9, this 340.0, over by less than 0.05 KB. Resolving which server a sign-in
- * names, and the typed refusals, load with the sign-in form (sign-in-server.ts, connect-refusal.ts),
- * off the path. What remains is the request itself, which the reconnect paths send from boot:
- * `server_address` on the Connect with its refusal to send an empty one (auth-operations.ts), and
- * the stored session's server passed through io, lifecycle, reconnect and reconnect-logic.
+ * the base measured 339.9, this 340.6. Resolving which server a sign-in names, the typed refusals
+ * and the registration form's held-username check load with their forms (sign-in-server.ts,
+ * connect-refusal.ts, join/use-held-username.ts), and the agent's account list loads when asked
+ * (io.ts agentAccounts), all off the path. What remains is what the reconnect paths need from
+ * boot: `server_address` on the Connect with its refusal to send an empty one (auth-operations.ts),
+ * and the stored record's server, taken from the agent and backfilled when the record has none,
+ * with the hand-off to a sign-in when nobody can say (connection/stored-server.ts, +0.5 KB).
  */
 const BUDGET_KB = 341;
 
