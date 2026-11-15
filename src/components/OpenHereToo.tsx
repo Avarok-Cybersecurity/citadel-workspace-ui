@@ -51,7 +51,7 @@ export function OpenHereToo({ username, onClose, onMoveInstead }: OpenHereTooPro
     setBusy(true);
     setError(null);
     try {
-      await attempt(browserOpenHereToo({ navigate, toast, confirm, signInAs: onMoveInstead }));
+      await attempt(browserOpenHereToo({ navigate, toast, confirm, signInAs: onMoveInstead, signInAgain: onMoveInstead }));
       onClose();
     } catch (e: unknown) {
       setError(passkeyAttempt && failureOf(e) !== 'failed' ? failureCopy(failureOf(e)) : describeFailure(e, 'This window could not join the session.'));

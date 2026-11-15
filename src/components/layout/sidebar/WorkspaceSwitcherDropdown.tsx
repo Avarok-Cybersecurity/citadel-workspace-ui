@@ -1,4 +1,4 @@
-import { Plus, Server, Settings, Shield } from "lucide-react";
+import { LogIn, Plus, Server, Settings, Shield } from "lucide-react";
 import {
   DropdownMenuContent,
   DropdownMenuItem,
@@ -54,16 +54,19 @@ export function WorkspaceSwitcherDropdown({
             <DropdownMenuItem
               key={workspace.id}
               onClick={() => onWorkspaceChange(workspace)}
-              className="flex items-center gap-3 py-2.5 cursor-pointer text-foreground w-full pl-3 group bg-transparent workspace-item-hover focus:bg-primary-accent/15 focus:text-foreground"
+              className="flex items-center gap-3 py-2.5 min-h-[44px] cursor-pointer text-foreground w-full pl-3 group bg-transparent workspace-item-hover focus:bg-primary-accent/15 focus:text-foreground"
               disabled={isSwitching}
+              // Not a one-click switch: the agent holds no session for it, so the click opens sign-in.
+              aria-label={workspace.signedIn === false ? `Sign in to ${workspace.username} on ${workspace.serverAddress} (signed out)` : undefined}
+              data-testid={workspace.signedIn === false ? 'switcher-account-signed-out' : undefined}
             >
-              <MemberAvatar username={workspace.username} name={workspace.fullName || workspace.username} className="h-8 w-8 text-sm" />
+              <MemberAvatar username={workspace.username} name={workspace.fullName || workspace.username} className={workspace.signedIn === false ? "h-8 w-8 text-sm opacity-60" : "h-8 w-8 text-sm"} />
               <div className="flex-1 min-w-0">
                 <span className="font-semibold block text-sm truncate">
                   {workspace.fullName || workspace.username}
                 </span>
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  @{workspace.username}{workspace.role ? ` · ${workspace.role}` : ''}
+                <span className="text-xs text-muted-foreground flex items-center gap-1 min-w-0">
+                  <span className="truncate" data-testid="switcher-account-handle">@{workspace.username}{workspace.role ? ` · ${workspace.role}` : ''}</span>
                   {/* Persisted from the ManageRoles answer (use-persist-own-standing): another
                       account's permissions cannot be asked from here. */}
                   {workspace.administers && (
@@ -71,6 +74,7 @@ export function WorkspaceSwitcherDropdown({
                   )}
                 </span>
               </div>
+              {workspace.signedIn === false && <SignedOutTag />}
               {workspace.isActive && (
                 <div className="w-2 h-2 bg-success rounded-full animate-pulse-glow flex-shrink-0" />
               )}
@@ -108,5 +112,15 @@ export function WorkspaceSwitcherDropdown({
         )}
       </div>
     </DropdownMenuContent>
+  );
+}
+
+/** What a signed-out row offers instead of a switch, always visible (no hover-only control). */
+function SignedOutTag(): JSX.Element {
+  return (
+    <span className="flex flex-shrink-0 flex-col items-end text-xs leading-tight" data-testid="switcher-account-signed-out-tag">
+      <span className="text-muted-foreground">Signed out</span>
+      <span className="flex items-center gap-1 font-medium text-primary-accent"><LogIn className="h-3 w-3" aria-hidden="true" />Sign in</span>
+    </span>
   );
 }

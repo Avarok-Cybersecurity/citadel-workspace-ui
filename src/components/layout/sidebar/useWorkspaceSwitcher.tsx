@@ -3,8 +3,8 @@ import type { UseWorkspaceSwitcherResult } from './useWorkspaceSwitcher-types';
 import { mayLeaveEditor } from '@/lib/leave-editor';
 import { useConfirm } from '@/components/shared/confirm-dialog';
 import { switchToSession } from '@/lib/sessions/switch-to-session';
-import { liveSessionCid } from '@/lib/sessions/live-session-cid';
-import { switcherWorkspaces, pickCurrentWorkspace , type StoredWorkspace } from './stored-workspace-list';
+import { heldElsewhereSignIn, signedOutSignIn, type SignInRequest } from '@/lib/sessions/sign-in-request';
+import { switcherWorkspaces, pickCurrentWorkspace, planSwitch, type StoredWorkspace, type SwitchPlan } from './stored-workspace-list';
 import { describeFailure } from '@/lib/failure-message';
 import { useNavigate } from "react-router-dom";
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -28,7 +28,7 @@ import type { StoredSessions, StoredSession } from '@/types/session-types';
 
 export type WorkflowStep = "connect" | "security" | "join";
 
-export function useWorkspaceSwitcher(workspaceName: string | undefined, signInAs: (username: string) => void): UseWorkspaceSwitcherResult {
+export function useWorkspaceSwitcher(workspaceName: string | undefined, signIn: (request: SignInRequest) => void): UseWorkspaceSwitcherResult {
   const [availableWorkspaces, setAvailableWorkspaces] = useState<StoredWorkspace[]>([]);
   const [currentWorkspace, setCurrentWorkspace] = useState<StoredWorkspace | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -64,7 +64,7 @@ export function useWorkspaceSwitcher(workspaceName: string | undefined, signInAs
     // switcher is how you reach another org (see switcherWorkspaces).
     const { ok, sessions: live } = await connectionManager.getActiveSessionsResult();
     const workspaces: StoredWorkspace[] = switcherWorkspaces(
-      storedSessions?.sessions ?? [], ok ? live : [], state.workspace?.name, currentCid,
+      storedSessions?.sessions ?? [], ok ? live : null, state.workspace?.name, currentCid,
     );
     if (workspaces.length === 0) { setAvailableWorkspaces([]); return; }
     setAvailableWorkspaces(workspaces);
@@ -118,11 +118,13 @@ export function useWorkspaceSwitcher(workspaceName: string | undefined, signInAs
         (s) => s.username === workspace.username && s.serverAddress === workspace.serverAddress
       );
 
-      // No saved copy is fine: live-only rows come from the agent and carry their CID.
-      // The agent's live list first, as the landing page resumes: the stored copy can be stale or empty.
+      // The agent's list at the click decides: the row may have been read before a sign-out,
+      // and a saved CID the agent does not hold is only ever refused ("Session <cid> not found").
       const { ok, sessions: live } = await connectionManager.getActiveSessionsResult();
-      const cid: bigint | undefined = (ok ? liveSessionCid(live, workspace) : undefined) ?? targetSession?.cid ?? workspace.cid;
-      if (!cid) throw new Error('Session CID not available');
+      const plan: SwitchPlan = planSwitch(workspace, ok ? live : null, targetSession?.cid);
+      if (plan.kind === 'sign-in') { signIn(signedOutSignIn(workspace.username, workspace.serverAddress)); return; }
+      if (plan.kind === 'no-cid') throw new Error('Session CID not available');
+      const cid: bigint = plan.cid;
 
       // The one switch sequence (lib/sessions/switch-to-session.ts). This hook
       // carried its own copy, which never set the instance CID nor announced
@@ -135,7 +137,7 @@ export function useWorkspaceSwitcher(workspaceName: string | undefined, signInAs
         server_address: workspace.serverAddress,
         workspaceName: workspace.workspaceName ?? workspace.username,
         storedSessionIndex: targetSession ? storedSessions.sessions.indexOf(targetSession) : -1,
-      }, { navigate, toast, confirm, signInAs });
+      }, { navigate, toast, confirm, signInAs: (u: string) => signIn(heldElsewhereSignIn(u)), signInAgain: signIn });
     } catch (error) {
       debugLog('WorkspaceSwitcher', 'Failed to switch workspace:', error);
       toastError(toast, "Switch Failed", describeFailure(error, "Could not switch to the selected workspace"));

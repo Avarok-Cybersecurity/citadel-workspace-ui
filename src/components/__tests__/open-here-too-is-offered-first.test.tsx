@@ -11,6 +11,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ConfirmDialogProvider } from '@/components/shared/confirm-dialog';
 import { TakeoverSignIn } from '../TakeoverSignIn';
+import { heldElsewhereSignIn } from '@/lib/sessions/sign-in-request';
 import { greetAs } from '@/lib/agent-conversations/__tests__/agent-greeting';
 import { forgetCapabilities, leaderSocketFailedToOpen, registerCapabilityRoute } from '@/lib/agent-conversations/capabilities';
 
@@ -18,7 +19,7 @@ function show(): void {
   render(
     <MemoryRouter>
       <ConfirmDialogProvider>
-        <TakeoverSignIn username="alice0924" onClose={(): void => {}} />
+        <TakeoverSignIn request={heldElsewhereSignIn('alice0924')} onClose={(): void => {}} />
       </ConfirmDialogProvider>
     </MemoryRouter>,
   );

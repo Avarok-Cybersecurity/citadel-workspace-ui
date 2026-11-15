@@ -19,7 +19,7 @@ export const OrphanSessionsNavbar: () => JSX.Element | null = (): JSX.Element | 
     handleDisconnect,
     handleConfirmDisconnect,
     handleLoadingComplete,
-    takeoverUsername,
+    signInRequest,
     clearTakeover,
   } = useOrphanSessions();
 
@@ -108,7 +108,7 @@ export const OrphanSessionsNavbar: () => JSX.Element | null = (): JSX.Element | 
         </div>
       </div>
 
-      <TakeoverSignIn username={takeoverUsername} onClose={clearTakeover} />
+      <TakeoverSignIn request={signInRequest} onClose={clearTakeover} />
 
       <DisconnectConfirmModal
         open={disconnectTarget !== null}
