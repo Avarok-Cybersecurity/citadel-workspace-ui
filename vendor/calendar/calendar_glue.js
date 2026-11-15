@@ -35,6 +35,28 @@ export class CalendarEngine {
         }
     }
     /**
+     * The span a round robin's `Equal` counts bookings over for a slot at `atMs`: the calendar
+     * month in the type's locked zone (`zoneLock`, or null for UTC).
+     * @param {any} zone_lock
+     * @param {any} at_ms
+     * @returns {any}
+     */
+    equalPeriod(zone_lock, at_ms) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.calendarengine_equalPeriod(retptr, this.__wbg_ptr, addHeapObject(zone_lock), addHeapObject(at_ms));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return takeObject(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
      * The occurrences of a recurrence, its wall times in `zone`, that overlap `[fromMs, toMs)`.
      * @param {any} recurrence
      * @param {any} zone

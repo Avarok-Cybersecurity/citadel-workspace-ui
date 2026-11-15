@@ -51,7 +51,7 @@ describe('what a host is busy with', () => {
       id: 'w1', author: 'ana',
       when: { recurring: { start: { date: { y: 2024, m: 7, d: 1 }, minute: 600 }, duration_min: 30, rule: { freq: 'weekly', interval: 1, by_day: [], by_month_day: [], count: null }, exdates: [], until_ms: null } },
     }));
-    const got = busyOf([booking, hosted, cancelled, others, allDay, weekly], 'ana', NY, range, engine);
+    const got = busyOf([booking, hosted, cancelled, others, allDay, weekly], 'ana', NY, range, new Set(), engine);
     expect(got.busy.map((b) => new Date(Number(b.start_ms)).toISOString()).sort()).toEqual(['2024-07-15T13:00:00.000Z', '2024-07-15T14:00:00.000Z', '2024-07-16T15:00:00.000Z']);
     expect(got.booked).toEqual([{ date: { y: 2024, m: 7, d: 15 }, count: 1 }]);
   });

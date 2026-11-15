@@ -17,7 +17,7 @@ import type { ServeOn } from '@/lib/citadel-apps/sdk/generated/ServeOn';
 import type { IhttpRequest } from '@/lib/citadel-apps/glue-sdk/ihttp-server';
 import { BOOKING_ACK_PREFIX, BOOKING_PREFIX, bookingAckOf } from './booking';
 import { decideClaim, type ClaimVerdict } from './booking-claim';
-import { sharedSeats } from './group-seats';
+import { readAcks, sharedSeats } from './group-seats';
 import { busyOf, readBookingPage } from './booking-pages';
 import { announce } from './cal-topic';
 import { BOOKING_ROUTES, decodeCancel, encodeAlternatives, encodeReason, routeOf } from './booking-wire';
@@ -84,25 +84,17 @@ export class BookingHost {
     return read.flatMap((r) => r.entries).filter((e: CalendarEntry) => e.source === 'inherited' || e.event.id !== except);
   }
 
-  /** The host's own acknowledgements: every booking it has answered on this node. */
-  private async acks(): Promise<Booking[]> {
-    const keys: string[] = await this.d.ports.storage.keys(this.mine, BOOKING_ACK_PREFIX);
-    const values = await Promise.all(keys.map((key: string) => this.d.ports.storage.get(this.mine, key)));
-    return values.filter((b): b is Uint8Array => b !== null).map((b: Uint8Array) => this.d.engine.decodeBooking(b));
-  }
-
   /**
    * The host's verdict on `booking`, against its own page and the node's team types it hosts, and
    * what it is busy with now: less the bookings sharing a group slot that still has a seat.
    */
   async decide(booking: Booking, caller: string, except: string | null): Promise<ClaimVerdict> {
     const { ports, engine, node, me } = this.d;
-    const [own, team, entries, acks] = await Promise.all([readBookingPage(ports, engine, node, me), readTeamTypes(ports, engine, node), this.entries(except), this.acks()]);
+    const [own, team, entries, acks] = await Promise.all([readBookingPage(ports, engine, node, me), readTeamTypes(ports, engine, node), this.entries(except), readAcks(ports, engine, node, me)]);
     const page = { ...own, types: [...own.types, ...typesHostedBy(team, me)] };
     const type = page.types.find((t) => t.id === booking.type_id);
     const seated: Set<string> = new Set(type === undefined ? [] : sharedSeats(type, booking, acks, engine));
-    const open: CalendarEntry[] = entries.filter((e: CalendarEntry) => e.source === 'inherited' || !seated.has(e.event.id));
-    const busy = (fromMs: bigint, toMs: bigint, zone: string) => busyOf(open, me, zone, { fromMs, toMs }, engine);
+    const busy = (fromMs: bigint, toMs: bigint, zone: string) => busyOf(entries, me, zone, { fromMs, toMs }, seated, engine);
     return decideClaim({ booking, caller, host: me, node, page, busy, nowMs: this.d.nowMs() }, engine);
   }
 

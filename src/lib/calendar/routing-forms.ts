@@ -20,6 +20,9 @@ export async function saveRoutingForm(ports: CalendarPorts, engine: CalendarEngi
   await ports.storage.set(nodeStore(node), `${ROUTING_PREFIX}${form.id}`, engine.team.encodeRoutingForm(form));
 }
 
+export const removeRoutingForm = (ports: CalendarPorts, node: string, id: string): Promise<void> =>
+  ports.storage.remove(nodeStore(node), `${ROUTING_PREFIX}${id}`);
+
 export async function readRoutingForms(ports: CalendarPorts, engine: CalendarEngine, node: string): Promise<{ forms: RoutingForm[]; unreadable: number }> {
   const keys: string[] = await ports.storage.keys(nodeStore(node), ROUTING_PREFIX);
   const forms: RoutingForm[] = [];

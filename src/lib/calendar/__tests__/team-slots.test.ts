@@ -59,8 +59,16 @@ describe('a team booking page', () => {
 
   it('gives an equal round robin to the host with fewer bookings that month, not the first by name', () => {
     const entries = [booked('a1', 'ana', '2024-07-02T14:00:00Z'), booked('a2', 'ana', '2024-07-09T14:00:00Z'), booked('b1', 'bo', '2024-06-10T14:00:00Z'), booked('b2', 'bo', '2024-06-11T14:00:00Z'), booked('b3', 'bo', '2024-06-12T14:00:00Z')];
-    expect(rankedFor(engine, RR, TEN, ['ana', 'bo'], entries, NY)).toEqual(['bo', 'ana']);
-    expect(rankedFor(engine, RR, TEN, ['ana', 'bo'], [], NY)).toEqual(['ana', 'bo']);
-    expect(rankedFor(engine, RR, NINE, ['bo'], entries, NY)).toEqual(['bo']);
+    expect(rankedFor(engine, RR, TEN, ['ana', 'bo'], entries)).toEqual(['bo', 'ana']);
+    expect(rankedFor(engine, RR, TEN, ['ana', 'bo'], [])).toEqual(['ana', 'bo']);
+    expect(rankedFor(engine, RR, NINE, ['bo'], entries)).toEqual(['bo']);
+  });
+
+  it("counts over the core's Equal period: the month in the type's locked zone, or in UTC, whoever books", () => {
+    // 23:30 on 31 July in New York is 1 August in UTC: July's in a New York-locked type, August's otherwise.
+    const late = [booked('a1', 'ana', '2024-08-01T03:30:00Z')];
+    expect(rankedFor(engine, RR, TEN, ['ana', 'bo'], late)).toEqual(['ana', 'bo']);
+    expect(rankedFor(engine, { ...RR, zone_lock: NY }, TEN, ['ana', 'bo'], late)).toEqual(['bo', 'ana']);
+    expect(engine.equalPeriod(null, TEN.start_ms)).toEqual({ start_ms: utc('2024-07-01T00:00:00Z'), end_ms: utc('2024-08-01T00:00:00Z') });
   });
 });

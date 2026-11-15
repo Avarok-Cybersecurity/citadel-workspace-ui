@@ -66,6 +66,10 @@ export class CalendarEngine {
   offers(request: SlotRequest, slot: Interval): boolean {
     return call((): unknown => this.zoned.offers(request, slot));
   }
+  /** The span `Equal` counts each host's bookings over for a slot at `atMs`: the calendar month in `zoneLock`, or in UTC (the core's `equal_period`). */
+  equalPeriod(zoneLock: string | null, atMs: bigint): Interval {
+    return call((): unknown => this.zoned.equalPeriod(zoneLock, atMs));
+  }
   importIcs(text: string, floatingZone: string): Imported {
     return call((): unknown => this.zoned.importIcs(text, floatingZone));
   }

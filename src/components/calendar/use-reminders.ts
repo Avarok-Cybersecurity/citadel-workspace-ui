@@ -39,6 +39,7 @@ export function useReminders({ ports, engine, leader, displayZone, nodeName, rev
   useEffect(() => {
     const made: ReminderRunner = new ReminderRunner({
       ...reminderStore(ports, engine),
+      engine,
       clock: ports.clock,
       isLeader: (): boolean => leading.current,
       fire: (due: Due): Promise<void> => ports.notify(due.title, `Starts at ${formatTimeIn(due.fire.start_ms, zone.current)} · ${named.current(due.node)}`),

@@ -5,7 +5,7 @@ import { fitsAndReads } from './checks-calendar-panels.mjs';
  * Team bookings, polls and routing forms from the UI (scenario `calendar-teams`). Each screen fits
  * at 375px and on a desktop with 44px targets and axe clean: the team-type editor, a round robin's
  * and a collective's booking page, the routing form, the polls and a new poll. And what the
- * controls write: a team type saved on the node; a round-robin booking left for bo, who has fewer
+ * controls write: a team type and a routing form saved on the node; a round-robin booking left for bo, who has fewer
  * bookings this month than ana (the first by name); a vote in the voter's own namespace; the host's
  * pick turning their poll into an event; and a routing answer opening the page it routes to.
  */
@@ -80,6 +80,37 @@ async function aRoutingAnswerOpensThePageItRoutesTo({ page, url, viewport }) {
   await page.getByRole('heading', { name: 'Book with Support rota' }).waitFor({ state: 'visible', timeout: 5000 });
 }
 
+/** A routing form made in its editor, a rule moved above another, is saved as it was left. */
+async function aRoutingFormIsMadeInItsEditor({ page, url, viewport }) {
+  const width = await opened(page, url, viewport, 'Your booking page');
+  const editor = page.getByTestId('calendar-routing-forms');
+  await editor.getByRole('button', { name: 'New routing form' }).click();
+  await editor.getByLabel('Form name').fill('Triage');
+  await editor.getByRole('button', { name: 'Add a question' }).click();
+  await editor.getByLabel('Question 1', { exact: true }).fill('Which team?');
+  await editor.getByLabel('Question 1 answer').selectOption('choice');
+  await editor.getByLabel('Question 1 options, one per line').fill('Sales\nSupport');
+  await editor.getByRole('button', { name: 'Add a rule' }).click();
+  await editor.getByRole('button', { name: 'Add a rule' }).click();
+  const rules = editor.getByTestId('calendar-routing-rule');
+  await rules.nth(0).getByLabel('Sales', { exact: true }).check();
+  await rules.nth(0).getByLabel('Rule 1 sends the booker to: member').selectOption('bo');
+  await rules.nth(1).getByLabel('Support', { exact: true }).check();
+  await rules.nth(1).getByLabel('Rule 2 sends the booker to: kind').selectOption('team_type');
+  await rules.nth(1).getByLabel('Rule 2 sends the booker to: team type').selectOption('rr');
+  await rules.nth(1).getByRole('button', { name: 'Move rule 2 up' }).click();
+  await editor.getByLabel('Anyone else goes to: kind').selectOption('node');
+  await editor.getByLabel('Anyone else goes to: node id').fill('company');
+  await fitsAndReads(page, width, 'the routing-form editor');
+  await editor.getByRole('button', { name: 'Save routing form' }).click();
+  await editor.getByText('Saved Triage.').waitFor({ state: 'visible', timeout: 5000 });
+  const forms = [];
+  for (const key of await keysLike(page, 'node:n1|cal/routing/')) forms.push(await page.evaluate((k) => window.__calendarTeam('decodeRoutingForm', k), key));
+  const made = forms.find((f) => f.name === 'Triage');
+  assert.deepEqual(made?.rules.map((r) => r.target), [{ team_type: { node_id: 'n1', type_id: 'rr' } }, { member: { username: 'bo', slug: 'n1' } }]);
+  assert.deepEqual(made?.fallback, { node: { node_id: 'company' } });
+}
+
 async function aVoteAndAPickAreSavedFromThePolls({ page, url, viewport }) {
   const width = await opened(page, url, viewport, 'Polls');
   const offsite = page.getByTestId('calendar-poll').filter({ hasText: 'Offsite planning' });
@@ -123,5 +154,5 @@ async function aMissedReminderIsShownOnce({ page, url, viewport }) {
 export const CALENDAR_TEAM_CHECKS = {
   aMissedReminderIsShownOnce,
   theTeamTypeEditorFitsAndSaves, aRoundRobinGoesToTheHostWithFewerBookings, aCollectiveBookingPageFits,
-  aRoutingAnswerOpensThePageItRoutesTo, aVoteAndAPickAreSavedFromThePolls, aNewPollFits,
+  aRoutingAnswerOpensThePageItRoutesTo, aRoutingFormIsMadeInItsEditor, aVoteAndAPickAreSavedFromThePolls, aNewPollFits,
 };

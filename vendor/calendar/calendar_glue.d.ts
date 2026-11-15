@@ -9,6 +9,11 @@ export class CalendarEngine {
     [Symbol.dispose](): void;
     civilOf(zone: any, utc_ms: any): any;
     /**
+     * The span a round robin's `Equal` counts bookings over for a slot at `atMs`: the calendar
+     * month in the type's locked zone (`zoneLock`, or null for UTC).
+     */
+    equalPeriod(zone_lock: any, at_ms: any): any;
+    /**
      * The occurrences of a recurrence, its wall times in `zone`, that overlap `[fromMs, toMs)`.
      */
     expand(recurrence: any, zone: any, from_ms: any, to_ms: any): any;
@@ -151,6 +156,7 @@ export interface InitOutput {
     readonly addDays: (a: number, b: number, c: number) => void;
     readonly addMonths: (a: number, b: number, c: number) => void;
     readonly calendarengine_civilOf: (a: number, b: number, c: number, d: number) => void;
+    readonly calendarengine_equalPeriod: (a: number, b: number, c: number, d: number) => void;
     readonly calendarengine_expand: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly calendarengine_freeSlots: (a: number, b: number, c: number) => void;
     readonly calendarengine_importIcs: (a: number, b: number, c: number, d: number, e: number) => void;

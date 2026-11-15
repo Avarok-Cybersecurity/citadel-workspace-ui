@@ -4,13 +4,20 @@
  * next. Only the leader tab fires and moves that instant on (one WebSocket, one leader), so two
  * windows never fire one reminder twice; every window shows what was missed while none was open.
  *
+ * A plan is the saver's, but the event is everyone's who may edit it: before anything is fired or
+ * shown, each plan is checked against its event as it is now (reminder-reconcile.ts), so a
+ * reminder never fires for an event someone else cancelled, deleted or moved.
+ *
  * A reminder fires only while some window has the Calendar open: the limitation is said where
  * reminders are chosen, until Signals timers and the durable inbox replace this.
  */
 import type { DispatchClock } from '@/lib/citadel-apps/host/dispatch';
 import type { CalendarEngine } from './engine/calendar-engine';
+import type { Event } from './generated/Event';
 import type { ReminderPlan } from './generated/ReminderPlan';
 import type { CalendarPorts, CalendarStore } from './ports';
+import { EVENT_PREFIX, PRIVATE_PREFIX } from './read-sources';
+import { checkPlan, type PlanCheck } from './reminder-reconcile';
 import { nextDue, REMINDER_PREFIX, type Due, type Schedule } from './reminder-scheduler';
 
 const USER: CalendarStore = { kind: 'user' };
@@ -36,12 +43,20 @@ export interface ReminderDeps {
   /** Null before reminders were ever handled: nothing counts as missed. */
   readonly handled: () => Promise<bigint | null>;
   readonly setHandled: (ms: bigint) => Promise<void>;
+  /** The plan's event as it is now, wherever it is kept; null when it is gone. */
+  readonly current: (plan: ReminderPlan) => Promise<Event | null>;
+  readonly replace: (plan: ReminderPlan) => Promise<void>;
+  readonly drop: (eventId: string) => Promise<void>;
+  readonly engine: Pick<CalendarEngine, 'expand' | 'instantOf'>;
   readonly fire: (due: Due) => Promise<void>;
 }
 
 /** The runner's deps over the Calendar's own ports; `isLeader` and `fire` are the mount's. */
-export function reminderStore(ports: CalendarPorts, engine: Pick<CalendarEngine, 'decodeReminderPlan'>): Pick<ReminderDeps, 'plans' | 'handled' | 'setHandled'> {
+export function reminderStore(ports: CalendarPorts, engine: Pick<CalendarEngine, 'decodeReminderPlan' | 'encodeReminderPlan' | 'decodeEvent'>): Pick<ReminderDeps, 'plans' | 'handled' | 'setHandled' | 'current' | 'replace' | 'drop'> {
   return {
+    current: (plan: ReminderPlan): Promise<Event | null> => eventNow(ports, engine, plan),
+    replace: (plan: ReminderPlan): Promise<void> => ports.storage.set(USER, `${REMINDER_PREFIX}${plan.event_id}`, engine.encodeReminderPlan(plan)),
+    drop: (eventId: string): Promise<void> => ports.storage.remove(USER, `${REMINDER_PREFIX}${eventId}`),
     plans: async (): Promise<ReminderPlan[]> => {
       const keys: string[] = await ports.storage.keys(USER, REMINDER_PREFIX);
       const values = await Promise.all(keys.map((k: string) => ports.storage.get(USER, k)));
@@ -77,7 +92,8 @@ export class ReminderRunner {
     this.cancel?.();
     this.cancel = null;
     const now: bigint = BigInt(Math.floor(this.deps.clock.now()));
-    const [plans, since] = await Promise.all([this.deps.plans(), this.deps.handled()]);
+    const [stored, since] = await Promise.all([this.deps.plans(), this.deps.handled()]);
+    const plans: ReminderPlan[] = await this.checked(stored, since ?? now);
     const schedule: Schedule = nextDue(plans, now, since ?? now);
     if (this.deps.isLeader()) {
       for (const due of schedule.due) await this.deps.fire(due);
@@ -91,9 +107,47 @@ export class ReminderRunner {
     return schedule.missed;
   }
 
+  /**
+   * The plans as their events are now. Only the leader writes what changed; a plan whose event
+   * cannot be read is neither fired nor shown this time, and is said.
+   */
+  private async checked(stored: readonly ReminderPlan[], sinceMs: bigint): Promise<ReminderPlan[]> {
+    const kept: ReminderPlan[] = [];
+    for (const plan of stored) {
+      let check: PlanCheck;
+      try {
+        check = checkPlan(plan, await this.deps.current(plan), sinceMs, this.deps.engine);
+      } catch (e: unknown) {
+        console.error('[calendar] a reminder\'s event could not be read, so it was not fired', e);
+        continue;
+      }
+      if (check.kind === 'keep') kept.push(plan);
+      if (check.kind === 'replace') kept.push(check.plan);
+      if (!this.deps.isLeader()) continue;
+      if (check.kind === 'replace') await this.deps.replace(check.plan);
+      if (check.kind === 'drop') await this.deps.drop(plan.event_id);
+    }
+    return kept;
+  }
+
   stop(): void {
     this.stopped = true;
     this.cancel?.();
     this.cancel = null;
   }
+}
+
+/** Where an event is kept, in the order a member's own copy wins: theirs, the node's, an author's on the node. */
+async function eventNow(ports: CalendarPorts, engine: Pick<CalendarEngine, 'decodeEvent'>, plan: ReminderPlan): Promise<Event | null> {
+  const own: Uint8Array | null = await ports.storage.get(USER, `${PRIVATE_PREFIX}${plan.event_id}`);
+  if (own !== null) return engine.decodeEvent(own);
+  const key: string = `${EVENT_PREFIX}${plan.event_id}`;
+  const onNode: Uint8Array | null = await ports.storage.get({ kind: 'node', node: plan.node }, key);
+  if (onNode !== null) return engine.decodeEvent(onNode);
+  for (const k of await ports.storage.authoredKeys(plan.node, key)) {
+    if (k.key !== key) continue;
+    const bytes: Uint8Array | null = await ports.storage.get({ kind: 'authored', node: plan.node, author: k.author }, key);
+    if (bytes !== null) return engine.decodeEvent(bytes);
+  }
+  return null;
 }

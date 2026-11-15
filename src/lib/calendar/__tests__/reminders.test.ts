@@ -61,6 +61,7 @@ async function rig(handled: string): Promise<{ store: ReturnType<typeof reminder
   const plan = planOf(meeting, at('2024-07-16T00:00:00Z'), engine);
   if (plan === null) throw new Error('the meeting has no plan');
   await ports.storage.set(USER, `${REMINDER_PREFIX}m1`, engine.encodeReminderPlan(plan));
+  await ports.storage.set({ kind: 'node', node: meeting.origin_node }, 'cal/event/m1', engine.encodeEvent(meeting));
   await ports.storage.set(USER, HANDLED_KEY, encodeHandled(at(handled)));
   return { store: reminderStore(ports, engine), ports };
 }
@@ -69,7 +70,7 @@ describe('the reminder runner', () => {
   it('fires a due reminder once across two windows, from the leader only', async () => {
     const { store } = await rig('2024-07-16T12:30:00Z');
     const fired: Due[] = [];
-    const tab = (leader: boolean): ReminderRunner => new ReminderRunner({ ...store, clock: clockAt('2024-07-16T13:05:00Z'), isLeader: () => leader, fire: async (d: Due) => { fired.push(d); } });
+    const tab = (leader: boolean): ReminderRunner => new ReminderRunner({ ...store, engine, clock: clockAt('2024-07-16T13:05:00Z'), isLeader: () => leader, fire: async (d: Due) => { fired.push(d); } });
     await Promise.all([tab(true).tick(), tab(false).tick()]);
     expect(fired.map((d: Due) => d.fire.at_ms)).toEqual([at('2024-07-16T13:00:00Z')]);
   });
@@ -78,7 +79,7 @@ describe('the reminder runner', () => {
     const { store } = await rig('2024-07-16T12:30:00Z');
     const fired: Due[] = [];
     const clock = clockAt('2024-07-16T15:00:00Z');
-    const runner = new ReminderRunner({ ...store, clock, isLeader: () => true, fire: async (d: Due) => { fired.push(d); } });
+    const runner = new ReminderRunner({ ...store, engine, clock, isLeader: () => true, fire: async (d: Due) => { fired.push(d); } });
     expect((await runner.tick()).map((d: Due) => d.fire.at_ms)).toEqual([at('2024-07-16T13:00:00Z'), at('2024-07-16T13:50:00Z')]);
     expect(await runner.tick()).toEqual([]);
     expect(fired).toEqual([]);

@@ -78,19 +78,19 @@ export interface HostBusy {
 const eventOf = (entry: CalendarEntry): Event | null => (entry.source === 'inherited' ? null : entry.event);
 
 /**
- * What `host` is busy with between `fromMs` and `toMs` among the entries read: every confirmed
- * timed event they host or wrote (a recurring one by the core's expansion in its own zone; an
+ * What `host` is busy with between `fromMs` and `toMs` among the entries read, less the events
+ * named in `except` (a group slot's seated bookings, group-seats.ts): every confirmed timed event they host or wrote (a recurring one by the core's expansion in its own zone; an
  * all-day event does not block hours), and per day, in `zone` (the schedule's), how many of
  * those are bookings. An occurrence the core cannot place is left out here; the pane already
  * lists it as one it could not place.
  */
-export function busyOf(entries: Iterable<CalendarEntry>, host: string, zone: string, range: { fromMs: bigint; toMs: bigint }, engine: Pick<CalendarEngine, 'civilOf' | 'expand'>): HostBusy {
+export function busyOf(entries: Iterable<CalendarEntry>, host: string, zone: string, range: { fromMs: bigint; toMs: bigint }, except: ReadonlySet<string>, engine: Pick<CalendarEngine, 'civilOf' | 'expand'>): HostBusy {
   const busy: Interval[] = [];
   const perDay: Map<string, BookedDay> = new Map();
   const seen: Set<string> = new Set();
   for (const entry of entries) {
     const event: Event | null = eventOf(entry);
-    if (event === null || event.status !== 'confirmed' || seen.has(event.id)) continue;
+    if (event === null || event.status !== 'confirmed' || seen.has(event.id) || except.has(event.id)) continue;
     if (event.author !== host && !event.hosts.includes(host)) continue;
     seen.add(event.id);
     if ('once' in event.when) {

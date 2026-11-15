@@ -34,6 +34,8 @@ interface TeamBookingProps {
 
 type Hours = { kind: 'loading' } | { kind: 'failed'; reason: string } | { kind: 'ready'; byHost: ReadonlyMap<string, Availability | null> };
 
+/** A team's type is a round robin or a collective: neither has seats (group-seats.ts). */
+const NO_SEATS: ReadonlySet<string> = new Set();
 const reasonOf = (e: unknown): string => (e instanceof PortRefused ? refusalCopy(e.refused) : 'something went wrong');
 
 function closedCopy(type: EventType, byHost: ReadonlyMap<string, Availability | null>): string | null {
@@ -56,7 +58,7 @@ export function TeamBooking(p: TeamBookingProps): JSX.Element {
   }, [ports, engine, node.id, hosts]);
   const source: HostSource = useMemo(() => (host: string) => ({
     availability: hours.kind === 'ready' ? hours.byHost.get(host) ?? null : null,
-    busyFor: (fromMs: bigint, toMs: bigint, zone: string): HostBusy => busyOf(entries.values(), host, zone, { fromMs, toMs }, engine),
+    busyFor: (fromMs: bigint, toMs: bigint, zone: string): HostBusy => busyOf(entries.values(), host, zone, { fromMs, toMs }, NO_SEATS, engine),
   }), [hours, entries, engine]);
   const slotsFor = useMemo(() => (ask: SlotAsk): Interval[] => teamSlots(engine, ask, source).slots, [engine, source]);
 
@@ -67,7 +69,7 @@ export function TeamBooking(p: TeamBookingProps): JSX.Element {
     const day: CivilDate = engine.civilOf(choice.zone, choice.slot.start_ms).date;
     const around: SlotAsk = { type, durationMin: choice.durationMin, nowMs: p.nowMs, from: engine.addDays(day, -1), to: engine.addDays(day, 1) };
     const free: readonly string[] = freeAt(teamSlots(engine, around, source), choice.slot);
-    return p.onBook({ kind: 'round_robin', ranked: rankedFor(engine, type, choice.slot, free, entries.values(), choice.zone) }, choice);
+    return p.onBook({ kind: 'round_robin', ranked: rankedFor(engine, type, choice.slot, free, entries.values()) }, choice);
   };
   return (
     <BookingPage

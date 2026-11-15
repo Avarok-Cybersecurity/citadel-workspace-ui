@@ -54,6 +54,8 @@ function seed(engine, store) {
   set(as(VIEWER), 'cal/poll/pv', engine.team.encodePoll(poll('pv', VIEWER, 'Retro', [at('2024-07-24T15:00:00Z', 30), at('2024-07-25T15:00:00Z', 30)])));
   set(as('bo'), 'cal/poll-vote/pv', engine.team.encodePollVote({ poll_id: 'pv', yes: [1], maybe: [] }));
   // A reminder that fell due while no window was open: shown once under "While you were away".
+  // Its event is still on the node as planned, which the runner reads before it shows anything.
+  set(as(VIEWER), 'cal/event/m1', engine.encodeEvent(event({ id: 'm1', origin_node: 'n1', author: VIEWER, title: 'Design review', reminders: [{ minutes_before: 60 }], when: { once: at('2024-07-16T13:00:00Z', 30) }, zone: ZONE })));
   store.put('user', 'cal/reminders/m1', engine.encodeReminderPlan({ event_id: 'm1', node: 'n1', title: 'Design review', fires: [{ at_ms: at('2024-07-16T12:00:00Z', 0).start_ms, start_ms: at('2024-07-16T13:00:00Z', 0).start_ms }] }));
   store.put('user', 'cal/reminders-handled', encodeHandled(at('2024-07-16T10:00:00Z', 0).start_ms));
   const topic = { id: 'q-topic', label: 'What is it about?', kind: { choice: { options: ['Sales', 'Support'] } }, required: true };

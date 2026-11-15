@@ -7,19 +7,21 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { busyOf, hostsOn, readBookingPage, type BookingPageData, type HostBusy } from '@/lib/calendar/booking-pages';
+import { busyOf, hostsOn, readBookingPage, type BookingPageData } from '@/lib/calendar/booking-pages';
 import type { BookingChoice, BookOutcome } from '@/lib/calendar/booking-form';
 import type { CalendarEngine } from '@/lib/calendar/engine/calendar-engine';
+import type { Booking } from '@/lib/calendar/generated/Booking';
 import type { CivilDate } from '@/lib/calendar/generated/CivilDate';
 import type { EventType } from '@/lib/calendar/generated/EventType';
 import type { RoutingForm } from '@/lib/calendar/generated/RoutingForm';
 import type { RoutingTarget } from '@/lib/calendar/generated/RoutingTarget';
+import { bookerSlots, readAcks } from '@/lib/calendar/group-seats';
 import { PortRefused, refusalCopy, type CalendarPorts } from '@/lib/calendar/ports';
 import { readRoutingForms } from '@/lib/calendar/routing-forms';
 import { routedTo, type Routed } from '@/lib/calendar/routing-target';
 import type { CalendarEntry } from '@/lib/calendar/store';
 import type { BookTarget } from '@/lib/calendar/team-booking';
-import { hostSlots, type SlotAsk } from '@/lib/calendar/team-slots';
+import type { SlotAsk } from '@/lib/calendar/team-slots';
 import { readTeamTypes } from '@/lib/calendar/team-types';
 import { BookingPage } from './BookingPage';
 import { RoutingAnswer } from './RoutingAnswer';
@@ -42,7 +44,7 @@ interface BookWithProps {
 }
 
 type Choices = { kind: 'loading' } | { kind: 'failed'; reason: string } | { kind: 'ready'; hosts: string[]; teams: EventType[]; forms: RoutingForm[] };
-type Page = { kind: 'none' } | { kind: 'loading'; host: string } | { kind: 'failed'; host: string; reason: string } | { kind: 'ready'; page: BookingPageData } | { kind: 'team'; type: EventType };
+type Page = { kind: 'none' } | { kind: 'loading'; host: string } | { kind: 'failed'; host: string; reason: string } | { kind: 'ready'; page: BookingPageData; acks: Booking[] } | { kind: 'team'; type: EventType };
 
 const reasonOf = (e: unknown): string => (e instanceof PortRefused ? refusalCopy(e.refused) : 'something went wrong');
 /** A poll is voted on, not booked as a slot. */
@@ -57,7 +59,10 @@ export function BookWith(p: BookWithProps): JSX.Element {
   const open = useCallback((host: string): void => {
     setAway(null);
     setPage({ kind: 'loading', host });
-    readBookingPage(ports, engine, node.id, host).then((data: BookingPageData): void => setPage({ kind: 'ready', page: data }), (e: unknown): void => setPage({ kind: 'failed', host, reason: reasonOf(e) }));
+    Promise.all([readBookingPage(ports, engine, node.id, host), readAcks(ports, engine, node.id, host)]).then(
+      ([data, acks]): void => setPage({ kind: 'ready', page: data, acks }),
+      (e: unknown): void => setPage({ kind: 'failed', host, reason: reasonOf(e) }),
+    );
   }, [ports, engine, node.id]);
   const openTeam = (type: EventType): void => {
     setAway(null);
@@ -71,9 +76,9 @@ export function BookWith(p: BookWithProps): JSX.Element {
   }, [ports, engine, node.id, me]);
   const initialHost: string | null = p.initial?.host ?? null;
   useEffect(() => { if (initialHost !== null) open(initialHost); }, [initialHost, open]);
-  const shown: BookingPageData | null = page.kind === 'ready' ? page.page : null;
-  const slotsFor = useMemo(() => (ask: SlotAsk) => hostSlots(engine, ask, shown?.availability ?? null,
-    (fromMs: bigint, toMs: bigint, zone: string): HostBusy => busyOf(entries.values(), shown?.host ?? '', zone, { fromMs, toMs }, engine)), [entries, engine, shown]);
+  const shown: Extract<Page, { kind: 'ready' }> | null = page.kind === 'ready' ? page : null;
+  const slotsFor = useMemo(() => (ask: SlotAsk) => bookerSlots(engine, ask, shown?.page.availability ?? null,
+    (fromMs: bigint, toMs: bigint, zone: string, except: ReadonlySet<string>) => busyOf(entries.values(), shown?.page.host ?? '', zone, { fromMs, toMs }, except, engine), shown?.acks ?? []), [entries, engine, shown]);
   const routed = (target: RoutingTarget, teams: readonly EventType[]): void => {
     const to: Routed = routedTo(target, { node: node.id, teams, origin: p.origin, nodeName: p.nodeName });
     if (to.kind === 'member') open(to.host);

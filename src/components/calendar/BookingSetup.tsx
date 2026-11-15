@@ -16,6 +16,7 @@ import type { EventType } from '@/lib/calendar/generated/EventType';
 import { PortRefused, refusalCopy, type CalendarPorts } from '@/lib/calendar/ports';
 import { AvailabilityEditor } from './AvailabilityEditor';
 import { EventTypeEditor } from './EventTypeEditor';
+import { RoutingFormsSetup } from './RoutingFormsSetup';
 import { TeamTypesSetup } from './TeamTypesSetup';
 
 interface BookingSetupProps {
@@ -118,6 +119,7 @@ export function BookingSetup({ ports, engine, node, me, displayZone, deviceZone,
         />
       </section>
       {mayEditNode && <TeamTypesSetup ports={ports} engine={engine} node={node} deviceZone={deviceZone} today={today} newId={newId} />}
+      {mayEditNode && <RoutingFormsSetup ports={ports} engine={engine} node={node} newId={newId} />}
       <p aria-live="polite" role="status" className="text-sm text-foreground">{said}</p>
     </section>
   );
