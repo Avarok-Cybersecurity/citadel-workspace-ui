@@ -10,7 +10,7 @@ import { debugLog } from '@/lib/debug-config';
 import { browserReceivedFileIO } from './received-file-io';
 import { PictureCache } from './picture-load';
 import { looksLikePicture } from './image-preview';
-import { rememberSentPicture, sentPicture } from './sent-pictures';
+import { rememberSentPicture, sentPicture, type SentPictureOf } from './sent-pictures';
 import { browserSentPictureStore } from './sent-picture-store';
 
 export const pictureCache: PictureCache = new PictureCache({
@@ -23,7 +23,7 @@ export const pictureCache: PictureCache = new PictureCache({
 
 eventEmitter.on<FileSent>(FILE_TRANSFER_EVENTS.FILE_SENT, ({ transfer, file }: FileSent): void => {
   if (!looksLikePicture(file.name, file.type, file.size)) return;
-  const of = { own: transfer.senderCid.toString(), peer: transfer.recipientCid.toString(), transferId: transfer.id };
+  const of: SentPictureOf = { own: transfer.senderCid.toString(), peer: transfer.recipientCid.toString(), transferId: transfer.id };
   rememberSentPicture(browserSentPictureStore, of, file, Date.now())
     .then((refused: string | null): void => { if (refused !== null) debugLog('SentPictures', `${file.name}: ${refused}`); })
     .catch((error: unknown): void => { console.warn(`[SentPictures] ${file.name} is shown as its thumbnail after a reload: storage refused it`, error); });

@@ -25,7 +25,7 @@ vi.mock('@/lib/websocket-service', async () => {
       sendP2PMessageReliable: async (): Promise<void> => undefined,
       canSendRequests: (): boolean => true,
       sendMessage: async (message: Record<string, unknown>): Promise<void> => {
-        const read = message.ReadPulledFileChunk as { request_id: string; offset: bigint };
+        const read: { request_id: string; offset: bigint } = message.ReadPulledFileChunk as { request_id: string; offset: bigint };
         queueMicrotask((): void => {
           eventEmitter.emit('websocket-message', {
             ReadPulledFileChunkSuccess: { cid: 7n, request_id: read.request_id, total_size: BigInt(PNG_1X1.length), offset: read.offset, data: PNG_1X1 },

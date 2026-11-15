@@ -34,6 +34,7 @@ vi.mock('@/lib/websocket-service', () => ({
 import '@/lib/peer-registration-store';
 import { autoRegisterPeer } from '../messenger-compatibility';
 import { peerRegistrationStore } from '@/lib/peer-registration-store';
+import type { OutgoingPeerRequest } from '@/lib/peer-registration-store/types';
 import { eventEmitter } from '@/lib/event-emitter';
 import { getDefaultSecuritySettings } from '@/lib/security-utils';
 
@@ -68,7 +69,7 @@ describe('a request from the Available list', () => {
 
     expect(peerRegistrationStore.hasOutgoingRequestTo(RECORDED, ME)).toBe(true);
     const sentId: unknown = (h.sent[0].PeerRegister as Record<string, unknown>).request_id;
-    const mine = (await peerRegistrationStore.getOutgoingRequests()).find((r) => r.toCid === RECORDED);
+    const mine: OutgoingPeerRequest | undefined = (await peerRegistrationStore.getOutgoingRequests()).find((r) => r.toCid === RECORDED);
     expect(mine).toMatchObject({ id: sentId, fromCid: ME, peerUsername: 'bob' });
   });
 

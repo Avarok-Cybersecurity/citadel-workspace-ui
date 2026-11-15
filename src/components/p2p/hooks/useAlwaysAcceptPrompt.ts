@@ -31,14 +31,14 @@ export function useAlwaysAcceptPrompt(peerCid: bigint, accept: (transferId: stri
   useEffect(reread, [reread]);
   useEventListener(FILE_TRANSFER_EVENTS.STATE_CHANGED, reread);
 
-  const answer = useCallback(async (always: boolean): Promise<void> => {
+  const answer: (always: boolean) => Promise<void> = useCallback(async (always: boolean): Promise<void> => {
     const asked: FileTransfer | null = offer;
     setOffer(null);
     await fileTransferService.setAutoAccept(peer, always);
     if (always && asked !== null) await accept(asked.id);
   }, [offer, peer, accept]);
 
-  const dismiss = useCallback((): void => {
+  const dismiss: () => void = useCallback((): void => {
     if (offer !== null) setDismissed(offer.id);
     setOffer(null);
   }, [offer]);

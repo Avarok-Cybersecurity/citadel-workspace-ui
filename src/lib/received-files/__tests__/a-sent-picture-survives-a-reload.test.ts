@@ -9,11 +9,13 @@
 import { describe, it, expect } from 'vitest';
 // Node's Blob: jsdom's has no arrayBuffer(), which every browser the app runs in has.
 import { Blob as NodeBlob } from 'node:buffer';
-import { rememberSentPicture, sentPicture, overBudget, SENT_PICTURE_BUDGET_BYTES, type SentPictureEntry, type SentPictureStore } from '../sent-pictures';
+import { rememberSentPicture, sentPicture, overBudget, SENT_PICTURE_BUDGET_BYTES, type SentPictureEntry, type SentPictureOf, type SentPictureStore } from '../sent-pictures';
 
 const PNG: Uint8Array = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='), (c: string): number => c.charCodeAt(0));
 
-function mapStore(): SentPictureStore & { data: Map<string, SentPictureEntry> } {
+type MapStore = SentPictureStore & { data: Map<string, SentPictureEntry> };
+
+function mapStore(): MapStore {
   const data: Map<string, SentPictureEntry> = new Map();
   return {
     data,
@@ -24,11 +26,11 @@ function mapStore(): SentPictureStore & { data: Map<string, SentPictureEntry> } 
   };
 }
 
-const of = (transferId: string, peer: string = '42', own: string = '7') => ({ own, peer, transferId });
+const of = (transferId: string, peer: string = '42', own: string = '7'): SentPictureOf => ({ own, peer, transferId });
 
 describe('a sent picture', () => {
   it('is read back after a reload, for its own conversation and account only', async () => {
-    const store = mapStore();
+    const store: MapStore = mapStore();
     expect(await rememberSentPicture(store, of('t1'), new NodeBlob([PNG.slice().buffer], { type: 'image/png' }) as unknown as Blob, 1)).toBeNull();
     const back: Blob | undefined = await sentPicture(store, of('t1'));
     expect(back && new Uint8Array(await back.arrayBuffer())).toEqual(PNG);
@@ -37,7 +39,7 @@ describe('a sent picture', () => {
   });
 
   it('is kept only when it is a raster picture within the decode limits', async () => {
-    const store = mapStore();
+    const store: MapStore = mapStore();
     const svg: Blob = new NodeBlob(['<svg xmlns="http://www.w3.org/2000/svg"/>'], { type: 'image/svg+xml' }) as unknown as Blob;
     expect(await rememberSentPicture(store, of('s'), svg, 1)).toMatch(/not kept/);
     expect(store.data.size).toBe(0);
@@ -45,7 +47,7 @@ describe('a sent picture', () => {
 
   it("keeps a conversation within its budget, dropping that conversation's oldest first", () => {
     const half: number = SENT_PICTURE_BUDGET_BYTES / 2;
-    const entries = [{ key: 'c', size: half, at: 3 }, { key: 'a', size: half, at: 1 }, { key: 'b', size: half, at: 2 }];
+    const entries: { key: string; size: number; at: number }[] = [{ key: 'c', size: half, at: 3 }, { key: 'a', size: half, at: 1 }, { key: 'b', size: half, at: 2 }];
     expect(overBudget(entries, SENT_PICTURE_BUDGET_BYTES)).toEqual(['a']);
     expect(overBudget(entries.slice(0, 2), SENT_PICTURE_BUDGET_BYTES)).toEqual([]);
   });

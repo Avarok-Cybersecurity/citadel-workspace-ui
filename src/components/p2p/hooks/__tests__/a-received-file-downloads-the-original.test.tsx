@@ -26,7 +26,7 @@ vi.mock('@/lib/websocket-service', async () => {
       canSendRequests: (): boolean => true,
       sendMessage: async (message: Record<string, unknown>): Promise<void> => {
         asked.push(message);
-        const read = message.ReadPulledFileChunk as { request_id: string; offset: bigint };
+        const read: { request_id: string; offset: bigint } = message.ReadPulledFileChunk as { request_id: string; offset: bigint };
         queueMicrotask((): void => {
           eventEmitter.emit('websocket-message', {
             ReadPulledFileChunkSuccess: { cid: 7n, request_id: read.request_id, total_size: BigInt(PNG.length), offset: read.offset, data: PNG },

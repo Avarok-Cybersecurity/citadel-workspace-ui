@@ -26,6 +26,7 @@ vi.mock('@/lib/websocket-service', () => ({
 import '../index';
 import { executeAcceptRequest } from '../lifecycle';
 import { resendPeerRegistration } from '@/lib/p2p/send-peer-registration';
+import type { OutgoingPeerRequest } from '../types';
 import { eventEmitter } from '@/lib/event-emitter';
 import { p2pAutoConnectService } from '@/lib/p2p-auto-connect-service';
 import { getDefaultSecuritySettings } from '@/lib/security-utils';
@@ -85,7 +86,7 @@ describe('accepting a request', () => {
 });
 
 describe('resending an unanswered request', () => {
-  const outgoing = { id: 'req-9', fromCid: ME, toCid: PEER, peerUsername: 'bob', timestamp: 0, timeLastSent: 0 };
+  const outgoing: OutgoingPeerRequest = { id: 'req-9', fromCid: ME, toCid: PEER, peerUsername: 'bob', timestamp: 0, timeLastSent: 0 };
 
   it('claims the sending session and resends under the SAME request id, straight to the client', async () => {
     await resendPeerRegistration(outgoing);
