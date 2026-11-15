@@ -56,11 +56,12 @@ describe('a username this device holds for another server', () => {
   });
 
   it('the same username on the same server is the server’s to decide: no notice', async () => {
-    h.w.agent.account('alice').server = HERE;
+    // A bare host is the default port in both the comparison and the Register (one default).
+    h.w.agent.account('alice').server = 'citadel.example.com:12400';
     render(<MemoryRouter><Join onNext={vi.fn()} onBack={vi.fn()} serverAddress="citadel.example.com" serverPassword="" /></MemoryRouter>);
     fill('alice');
     await new Promise<void>((r) => setTimeout(r, 20));
-    expect(screen.queryByText(heldUsernameCopy('alice', HERE))).toBeNull();
+    expect(screen.queryByText(heldUsernameCopy('alice', 'citadel.example.com:12400'))).toBeNull();
   });
 
   it('a refusal the form did not see coming is the same answer', async () => {

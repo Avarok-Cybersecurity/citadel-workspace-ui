@@ -227,7 +227,7 @@ const dist = join(root, 'dist');
  * taken-elsewhere notices (550 + 683, 455 + 335 B), and the follower's media-frame relay (693 B).
  *
  * 340 -> 341 (2026-11-15), for a Connect that names its server (fix/chat-files-calls-switch):
- * the base measured 339.9, this 340.6. Resolving which server a sign-in names, the typed refusals
+ * the base measured 339.9, this 340.5. Resolving which server a sign-in names, the typed refusals
  * and the registration form's held-username check load with their forms (sign-in-server.ts,
  * connect-refusal.ts, join/use-held-username.ts), and the agent's account list loads when asked
  * (io.ts agentAccounts), all off the path. What remains is what the reconnect paths need from

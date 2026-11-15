@@ -11,6 +11,10 @@ import { Login } from '@/components/Login';
 import { PasskeySignIn } from '@/components/passkey/PasskeySignIn';
 import { connectionManager } from '@/lib/connection';
 import { signedOutSignIn } from '@/lib/sessions/sign-in-request';
+import { Join } from '@/components/Join';
+import { BLANK_JOIN_FORM } from '@/components/join-form-blank';
+import { websocketService } from '@/lib/websocket-service';
+import { eventEmitter } from '@/lib/event-emitter';
 
 const row = (username, fullName, signedIn, cid) => ({
   id: `bench.work.avarok.net-${username}`, username, serverAddress: 'bench.work.avarok.net', workspaceName: 'Bench',
@@ -70,7 +74,27 @@ function PasskeyRows() {
   return <div style={{ padding: 16, maxWidth: 400 }}><PasskeySignIn accounts={rows} onUse={() => {}} disabled={false} /></div>;
 }
 
+/**
+ * The join form with a username this device holds for another server: the agent's account
+ * list (GetAccountInformation) is answered here, as the agent would, so the real hook reads it.
+ */
+function JoinHeldUsername() {
+  websocketService.sendMessage = async (request) => {
+    const id = request.GetAccountInformation?.request_id;
+    if (!id) return;
+    const accounts = { 3: { username: 'margaret.hamilton.apollo', full_name: 'Margaret Hamilton', peers: {}, server_host: ACME } };
+    setTimeout(() => eventEmitter.emit('websocket-message', { GetAccountInformationResponse: { request_id: id, accounts } }), 0);
+  };
+  const initial = { ...BLANK_JOIN_FORM, fullName: 'Margaret Hamilton', username: 'margaret.hamilton.apollo' };
+  return (
+    <MemoryRouter>
+      <Join onNext={() => {}} onBack={() => {}} serverAddress={BENCH} serverPassword="" profileDraft={{ initial, onChange: () => {} }} />
+    </MemoryRouter>
+  );
+}
+
 export const ACCOUNT_SWITCH_SCENARIOS = {
+  'join-held-username': JoinHeldUsername,
   'switcher-signed-out': SwitcherSignedOut, 'sign-in-signed-out': SignInSignedOut,
   'sign-in-scoped': SignInScoped, 'sign-in-scope-empty': SignInScopeEmpty, 'passkey-rows': PasskeyRows,
 };

@@ -10,7 +10,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { startVersionWatch, type VersionWatchIO } from '../version-watch';
 import { KILL_SWITCH_KEY, runKillSwitch, type KillSwitchIO } from '../kill-switch';
-import { minSeqFromEnv } from '../version-manifest';
+import { checkedMinSeq, manifestForBuild } from '../version-manifest';
+import { MIN_BUILD_SEQ } from '../min-build-seq';
 import { DRAFT_HANDOFF_KEY, takeStashedDrafts } from '@/lib/chat/draft-handoff';
 import { clearAllDraftsForTests, saveDraft } from '@/lib/chat/draft-store';
 
@@ -121,11 +122,19 @@ describe('the kill switch', () => {
 });
 
 describe('the minimum a build is deployed with', () => {
-  it('is absent unless set, and refused when it is not seconds or is above the build itself', () => {
-    expect(minSeqFromEnv(undefined, RUNNING_SEQ)).toBeNull();
-    expect(minSeqFromEnv('', RUNNING_SEQ)).toBeNull();
-    expect(minSeqFromEnv(String(RUNNING_SEQ - 10), RUNNING_SEQ)).toBe(RUNNING_SEQ - 10);
-    expect(() => minSeqFromEnv('soon', RUNNING_SEQ)).toThrow(/unix seconds/);
-    expect(() => minSeqFromEnv(String(RUNNING_SEQ + 1), RUNNING_SEQ)).toThrow(/above this build/);
+  it('is refused when it is not seconds or is above the build itself', () => {
+    expect(checkedMinSeq(RUNNING_SEQ - 10, RUNNING_SEQ)).toBe(RUNNING_SEQ - 10);
+    expect(() => checkedMinSeq(1.5, RUNNING_SEQ)).toThrow(/unix seconds/);
+    expect(() => checkedMinSeq(RUNNING_SEQ + 1, RUNNING_SEQ)).toThrow(/above this build/);
+  });
+
+  it('this release ships one: a build made now carries it, so every older page reloads', () => {
+    const now: number = Math.floor(Date.now() / 1000);
+    expect(MIN_BUILD_SEQ).toBeGreaterThanOrEqual(1_794_768_948);
+    const manifest: { minSeq?: number; seq: number } = JSON.parse(manifestForBuild(
+      { 'index.js': { type: 'chunk', isEntry: true, facadeModuleId: '/src/index.html', fileName: 'assets/index-x.js' } } as never,
+      '/', { seq: now, minSeq: checkedMinSeq(MIN_BUILD_SEQ, now) },
+    )) as { minSeq?: number; seq: number };
+    expect(manifest.minSeq).toBe(MIN_BUILD_SEQ);
   });
 });

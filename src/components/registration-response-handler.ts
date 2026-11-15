@@ -9,6 +9,7 @@ import { debugLog } from '@/lib/debug-config';
 import { AdmissionRefusal, RegisteredAwaitingSignIn, admissionChallengeOf, admissionReasonOf, type AdmissionReason } from '@/lib/admission/refusal';
 import type { WebSocketMessage } from '@/types/ws-message-types';
 import { UsernameHeldElsewhere } from '@/lib/sessions/known-accounts';
+import { UNKNOWN_REASON_COPY } from '@/lib/connection/connect-refusal';
 
 export interface RegistrationHandlerDeps {
   handleConnectSuccess: (
@@ -45,6 +46,7 @@ export function createRegistrationResponseHandler(
   const rejectWith = (v: Record<string, unknown>, fallback: string): void => {
     cleanup();
     const message: string = (v.message as string) || fallback;
+    if (v.reason_code === 'unknown') { reject(new Error(UNKNOWN_REASON_COPY)); return; }
     // The agent's typed refusal: this device holds the name for another server (one per username).
     if (v.reason_code === 'username_held_for_another_server' && typeof v.held_for_server === 'string') {
       reject(new UsernameHeldElsewhere(deps.username.trim(), v.held_for_server)); return;

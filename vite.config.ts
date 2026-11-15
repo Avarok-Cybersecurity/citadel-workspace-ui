@@ -6,7 +6,8 @@ import react from "@vitejs/plugin-react-swc";
 import { VitePWA } from 'vite-plugin-pwa';
 import path from "path";
 import { stripWsPrefix } from "./src/lib/websocket-service/proxy-path";
-import { manifestForBuild, minSeqFromEnv } from "./src/lib/pwa/version-manifest";
+import { manifestForBuild, checkedMinSeq } from "./src/lib/pwa/version-manifest";
+import { MIN_BUILD_SEQ } from "./src/lib/pwa/min-build-seq";
 import { VERSION_MANIFEST_PATH } from "./src/lib/pwa/deployed-version";
 import { KIT_MANIFEST } from "./src/pwa/kit-manifest.generated";
 import { serviceChunkFor, sharedServiceDependencyChunkFor } from "./src/build/service-chunks";
@@ -113,7 +114,7 @@ function versionManifestPlugin(): Plugin {
     generateBundle(_options: unknown, bundle: Record<string, OutputAsset | OutputChunk>): void {
       if (base === null) this.error('version.json: the config was never resolved');
       try {
-        const minSeq: number | null = minSeqFromEnv(process.env.CITADEL_MIN_BUILD_SEQ, BUILD_SEQ);
+        const minSeq: number = checkedMinSeq(MIN_BUILD_SEQ, BUILD_SEQ);
         this.emitFile({ type: 'asset', fileName: VERSION_MANIFEST_PATH.slice(1), source: manifestForBuild(bundle, base, { seq: BUILD_SEQ, minSeq }) });
       } catch (error: unknown) {
         this.error(error instanceof Error ? error.message : String(error));

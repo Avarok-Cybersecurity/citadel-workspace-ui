@@ -128,6 +128,31 @@ async function everyRowNamesItsServer({ page, url }) {
   assert.equal(new Set(servers).size, servers.length, `rows share a server label: ${servers}`);
 }
 
+/**
+ * The join form's held-username message: on the username field at once, wrapped (never clipped
+ * or scrolling sideways), inside the form and the viewport once scrolled to, clear of the next
+ * field, and tied to the input it is about.
+ */
+async function aHeldUsernameIsSaidOnTheField({ page, url, viewport }) {
+  await page.goto(url('join-held-username'));
+  const message = page.locator('#username-error');
+  await message.waitFor({ state: 'visible', timeout: 5000 });
+  await settled(page);
+  await message.scrollIntoViewIfNeeded();
+  assert.match(await message.textContent(), new RegExp(`already has an account named margaret\\.hamilton\\.apollo on ${ACME.replace(/\./g, '\\.')}`));
+  const box = await message.boundingBox();
+  within(box, { x: 0, y: 0, ...viewport }, 'the message');
+  within(box, await page.locator('form').boundingBox(), 'the message');
+  const fits = await message.evaluate((el) => el.scrollWidth <= el.clientWidth + 1 && el.scrollHeight <= el.clientHeight + 1);
+  assert.ok(fits, 'the message is clipped or scrolls');
+  const next = await page.locator('label[for="password"]').boundingBox();
+  assert.ok(box.y + box.height <= next.y + 0.5, `the message ${JSON.stringify(box)} runs into the next field ${JSON.stringify(next)}`);
+  const input = page.locator('#username');
+  assert.equal(await input.getAttribute('aria-invalid'), 'true');
+  assert.match(await input.getAttribute('aria-describedby') ?? '', /\busername-error\b/);
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, 'the page scrolls sideways');
+}
+
 export const ACCOUNT_SWITCH_CHECKS = {
-  aSignedOutRowSaysSo, theSignInSaysWhy, aScopedSignInSaysWhere, anEmptyScopeSaysSo, theWrongServerIsCaught, everyRowNamesItsServer,
+  aHeldUsernameIsSaidOnTheField, aSignedOutRowSaysSo, theSignInSaysWhy, aScopedSignInSaysWhere, anEmptyScopeSaysSo, theWrongServerIsCaught, everyRowNamesItsServer,
 };
