@@ -53,7 +53,7 @@ export class ConnectionIO {
   async sendWebSocketMessage(message: unknown): Promise<void> { return this.ws.sendWebSocketMessage(message); }
   canSendRequests(): boolean { return this.ws.canSendRequests(); }
   async waitForWebSocketInit(): Promise<void> { return this.ws.waitForWebSocketInit(); }
-  async connect(params: { requestId: string; username: string; password: string; sessionSecuritySettings?: SessionSecuritySettings }): Promise<void> { return this.ws.connect(params); }
+  async connect(params: { requestId: string; username: string; serverAddress: string; password: string; sessionSecuritySettings?: SessionSecuritySettings }): Promise<void> { return this.ws.connect(params); }
   async disconnect(cid: bigint): Promise<void> { return this.ws.disconnect(cid); }
   // Loaded on sign-out only: the landing page's critical path does not carry it.
   async forgetAccountDocuments(cid: bigint): Promise<void> { return (await import('@/lib/document-replica-cache')).forgetAccountDocuments(cid); }

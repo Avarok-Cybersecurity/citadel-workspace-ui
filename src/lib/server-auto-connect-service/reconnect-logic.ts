@@ -134,6 +134,7 @@ export async function attemptReconnect(
     await websocketService.connect(
       uuidv4(),
       session.username,
+      session.serverAddress,
       // Unattended: no window is there to touch a key, so none is offered.
       passwordOnly(session.password),
       session.sessionSecuritySettings

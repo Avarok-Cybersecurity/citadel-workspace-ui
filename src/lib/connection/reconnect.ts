@@ -145,6 +145,7 @@ async function performAutoReconnect(
     await io.connect({
       requestId,
       username: session.username,
+      serverAddress: session.serverAddress,
       password: session.password,
       sessionSecuritySettings: session.sessionSecuritySettings,
     });

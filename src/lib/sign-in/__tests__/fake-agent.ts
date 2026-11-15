@@ -18,10 +18,14 @@ import type { SignInCredential, SignInPolicy } from '../types';
 type Req = Record<string, unknown>;
 const PRF_SALT: number[] = Array.from({ length: 32 }, (_v: unknown, i: number) => i + 1);
 const TOUCH_WINDOW_MS: 60000 = 60000;
+/** Where a fake account is registered unless a test says otherwise. */
+export const FAKE_SERVER: string = 'bench.work.avarok.net';
 
 export interface FakeAccount {
   username: string;
   cid: bigint;
+  /** The server it is registered to; a Connect naming another is refused, as the agent refuses it. */
+  server: string;
   password: string;
   policy: SignInPolicy;
   keys: Array<{ id: number; credentialId: number[]; label: string; prf: string }>;
@@ -44,7 +48,7 @@ export class FakeAgent {
 
   account(username: string, policy: SignInPolicy = 'Password', cid: bigint = 7n): FakeAccount {
     const account: FakeAccount = {
-      username, cid, password: 'correct horse battery', policy, keys: [], recoveryCodes: this.codes(), consumed: [],
+      username, cid, server: FAKE_SERVER, password: 'correct horse battery', policy, keys: [], recoveryCodes: this.codes(), consumed: [],
     };
     this.accounts.push(account);
     return account;
@@ -95,6 +99,8 @@ export class FakeAgent {
     if (variant === 'SecurityKeyAnswer' || variant === 'SecurityKeyDecline') return this.answer(variant, body);
     if (variant === 'Register') return this.register(body);
     if (variant === 'Connect') return this.connect(body);
+    if (variant === 'GetAccountInformation') return this.emit('GetAccountInformationResponse', { request_id: requestId, accounts: Object.fromEntries(
+      this.accounts.map((a) => [a.cid.toString(), { username: a.username, full_name: a.username, peers: {}, server_host: a.server }])) });
     if (variant === 'SignInManagement') return this.manage(body);
     if (variant === 'Disconnect') { this.recoverySessions.delete(body.cid as bigint); this.emit('DisconnectSuccess', { cid: body.cid, request_id: requestId }); }
   }
@@ -130,7 +136,9 @@ export class FakeAgent {
     const admission: string | null = this.admission.check(body.admission_token);
     if (admission) { this.emit('ConnectFailure', { cid: 0n, request_id: requestId, message: 'A human check is required', reason_code: admission, ...this.admission.published(admission) }); return; }
     const account: FakeAccount | undefined = this.accounts.find((a) => a.username === body.username);
-    if (!account) { fail(); return; }
+    const refuse = (reason: string): void => this.emit('ConnectFailure', { cid: 0n, request_id: requestId, message: reason, reason_code: reason });
+    if (!account) { refuse('no_such_account'); return; }
+    if (account.server !== body.server_address) { refuse('account_on_another_server'); return; }
     const code: string | null = this.text(body.recovery_code);
     if (code !== null) {
       if (!account.recoveryCodes.includes(code) || account.consumed.includes(code)) { fail(); return; }

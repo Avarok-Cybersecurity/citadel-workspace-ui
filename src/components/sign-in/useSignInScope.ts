@@ -25,10 +25,11 @@ export interface SignInScope {
   typed: TypedAccountCheck;
 }
 
+/** `server`/`choose`: the scope, held by the login handler, which names it on the Connect. */
 export function useSignInScope(
-  initial: string | undefined, username: string, offered: readonly string[], hints: readonly SignInHint[], legacy: readonly string[],
+  server: string | null, choose: (server: string) => void,
+  username: string, offered: readonly string[], hints: readonly SignInHint[], legacy: readonly string[],
 ): SignInScope {
-  const [server, setServer] = useState<string | null>(initial ?? null);
   const [agent, setAgent] = useState<AccountHost[]>([]);
   useEffect((): (() => void) => {
     let live: boolean = true;
@@ -40,7 +41,7 @@ export function useSignInScope(
   }), [agent, hints, legacy]);
   return {
     server,
-    choose: setServer,
+    choose,
     rows: offeredRows(offered, hints, legacy, known, server),
     onServer: server === null ? 0 : accountsOnServer(known, server).length,
     typed: checkTypedAccount(known, username, server),

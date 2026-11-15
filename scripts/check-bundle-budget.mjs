@@ -225,8 +225,15 @@ const dist = join(root, 'dist');
  * remains has to run in every tab from boot, because a call may now ring, be answered or end in
  * any of them: the ringing hand-off (1,037 + 652 B raw by source map), the departure and
  * taken-elsewhere notices (550 + 683, 455 + 335 B), and the follower's media-frame relay (693 B).
+ *
+ * 340 -> 341 (2026-11-15), for a Connect that names its server (fix/chat-files-calls-switch):
+ * the base measured 339.9, this 340.0, over by less than 0.05 KB. Resolving which server a sign-in
+ * names, and the typed refusals, load with the sign-in form (sign-in-server.ts, connect-refusal.ts),
+ * off the path. What remains is the request itself, which the reconnect paths send from boot:
+ * `server_address` on the Connect with its refusal to send an empty one (auth-operations.ts), and
+ * the stored session's server passed through io, lifecycle, reconnect and reconnect-logic.
  */
-const BUDGET_KB = 340;
+const BUDGET_KB = 341;
 
 /**
  * Modules that must stay OFF the critical path, checked against the source

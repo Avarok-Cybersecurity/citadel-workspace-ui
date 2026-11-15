@@ -26,7 +26,10 @@ import { sessionLabel, type SessionLabel } from '@/lib/sessions/session-label';
 import type { SecuritySettingsState } from './useLoginHandler';
 import { watchKeyChallenges } from '@/lib/sign-in/challenge-watch';
 import type { SignInFactors } from '@/lib/sign-in/types';
-import { AdmissionRefusal } from '@/lib/admission/refusal';
+import { readAccountHosts, type AccountHost } from '@/lib/admission/account-servers';
+import { askStoredAccounts } from '@/lib/stored-accounts';
+import { requireSignInServer } from '@/lib/sessions/sign-in-server';
+import { connectRefusal } from '@/lib/connection/connect-refusal';
 
 export type LoginResult =
   | { kind: 'signed-in'; cid: bigint; messagingReady: boolean; serverAddress: string }
@@ -44,13 +47,18 @@ export interface LoginContext {
 
 const CONNECT_TIMEOUT_MS: 30000 = 30000;
 
+/**
+ * `scope`: the server the form is scoped to, or null. The Connect names the server the
+ * agent's account of this username is on, and only when that is the scoped one; otherwise
+ * it is refused here, typed, before anything is sent (sign-in-server.ts).
+ */
 export async function loginWithPassword(
-  ctx: LoginContext, username: string, factors: SignInFactors, securitySettings: SecuritySettingsState,
+  ctx: LoginContext, username: string, factors: SignInFactors, securitySettings: SecuritySettingsState, scope: string | null,
 ): Promise<LoginResult> {
-  // Metadata only. `connect` takes no server address -- the SDK pinned the
-  // account's server in its CNAC at registration and dials that -- so this
-  // exists to label the stored session, not to reach anything. The label comes
-  // from the agent once it has answered (see session-label).
+  const agentAccounts: AccountHost[] = await askStoredAccounts(readAccountHosts);
+  const server: string = requireSignInServer(agentAccounts, username, scope);
+  // Metadata only: labels the stored session. The label comes from the agent
+  // once it has answered (see session-label).
   const storedSessions: StoredSessions = connectionManager.getStoredSessions();
   const storedSession: StoredSession | undefined = storedSessions.sessions.find(s => s.username === username.trim());
   const labelFor = async (cid: bigint): Promise<SessionLabel> => {
@@ -71,7 +79,7 @@ export async function loginWithPassword(
   let outcome: ConnectOutcome;
   try {
     try {
-      await websocketService.connect(requestId, username, factors, chosenSettings);
+      await websocketService.connect(requestId, username, server, factors, chosenSettings);
     } catch (error) {
       // Nothing will answer a request that was never sent; its timeout must not
       // surface later as an unhandled rejection.
@@ -91,7 +99,7 @@ export async function loginWithPassword(
     return { kind: 'redirected' };
   }
   if (outcome.kind === 'failed') {
-    if (outcome.reasonCode !== null) throw new AdmissionRefusal(outcome.reasonCode, outcome.message, outcome.challenge);
+    if (outcome.reasonCode !== null) throw connectRefusal(outcome, username);
     if (!isConnectAlreadyInProgress(outcome.message)) throw new Error(outcome.message);
     if (outcome.cid && outcome.cid !== 0n) {
       const { serverAddress } = await labelFor(outcome.cid);

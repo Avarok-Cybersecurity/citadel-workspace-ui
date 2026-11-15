@@ -35,12 +35,14 @@ export class AuthOperations {
   async connect(
     requestId: string,
     username: string,
+    /** The server the account is on; the agent refuses a Connect whose account is on another. */
+    serverAddress: string,
     factors: SignInFactors,
     sessionSecuritySettings?: SessionSecuritySettings
   ): Promise<void> {
+    if (serverAddress.trim() === '') throw new Error(`No server is recorded for ${username}; sign in again from the sign-in form`);
     await this.config.init();
 
-    // Server address is NOT needed for login - the Citadel protocol stores it from registration
     debugLog('AuthOperations', `[Connect] Connecting user: ${username}`);
 
     // No session lookup before authenticating. Connect goes to the server with
@@ -72,9 +74,10 @@ export class AuthOperations {
     // Use provided settings or defaults (snake_case from SessionSecuritySettings)
     const settings: SessionSecuritySettings = sessionSecuritySettings ?? getDefaultSecuritySettings();
 
-    const connectOptions: ConnectFactorFields & { request_id: string; username: string; connect_mode: { Standard: { force_login: boolean; }; }; udp_mode: string; keep_alive_timeout: null; session_security_settings: { security_level: string; secrecy_mode: string; header_obfuscator_settings: HeaderObfuscatorSettings; crypto_params: { encryption_algorithm: string; kem_algorithm: string; sig_algorithm: string; }; }; } = {
+    const connectOptions: ConnectFactorFields & { request_id: string; username: string; server_address: string; connect_mode: { Standard: { force_login: boolean; }; }; udp_mode: string; keep_alive_timeout: null; session_security_settings: { security_level: string; secrecy_mode: string; header_obfuscator_settings: HeaderObfuscatorSettings; crypto_params: { encryption_algorithm: string; kem_algorithm: string; sig_algorithm: string; }; }; } = {
       request_id: requestId,
       username,
+      server_address: serverAddress.trim(),
       // Which factors this window offers; the server's policy decides which it needs.
       ...connectFactorFields(factors),
       connect_mode: { Standard: { force_login: true } },
@@ -88,7 +91,7 @@ export class AuthOperations {
       },
     };
 
-    const connectRequest: { Connect: ConnectFactorFields & { request_id: string; username: string; connect_mode: { Standard: { force_login: boolean; }; }; udp_mode: string; keep_alive_timeout: null; session_security_settings: { security_level: string; secrecy_mode: string; header_obfuscator_settings: HeaderObfuscatorSettings; crypto_params: { encryption_algorithm: string; kem_algorithm: string; sig_algorithm: string; }; }; }; } = { Connect: connectOptions };
+    const connectRequest: { Connect: ConnectFactorFields & { request_id: string; username: string; server_address: string; connect_mode: { Standard: { force_login: boolean; }; }; udp_mode: string; keep_alive_timeout: null; session_security_settings: { security_level: string; secrecy_mode: string; header_obfuscator_settings: HeaderObfuscatorSettings; crypto_params: { encryption_algorithm: string; kem_algorithm: string; sig_algorithm: string; }; }; }; } = { Connect: connectOptions };
 
     debugLog('AuthOperations', `[Connect] Sending Connect request with request_id: ${requestId}`);
     debugLog('AuthOperations', `[Connect] isLeader: ${instanceManager.isLeader}`);

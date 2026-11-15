@@ -228,7 +228,7 @@ export function useJoinRegistration(
     recoveryCodes,
     awaitingSignIn,
     finishSignIn: async (admissionToken: string): Promise<bigint> => {
-      const cid: bigint = await connectAfterRegistration(formData.username, formData.password, admissionToken, mapSecuritySettings(securitySettings));
+      const cid: bigint = await connectAfterRegistration(formData.username, serverAddress, formData.password, admissionToken, mapSecuritySettings(securitySettings));
       await new Promise<void>((done, fail) => { void handleConnectSuccess({ cid }, (): void => done(), fail); });
       startSignupFollowUps({ ...formData, termsAccepted: terms.required || formData.termsAccepted });
       return cid;

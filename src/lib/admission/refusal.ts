@@ -8,8 +8,8 @@
  */
 import type { FailureReason } from 'citadel-workspace-client-ts';
 
-/** The generated `FailureReason` (agent #112): the only two reason codes there are. */
-export type AdmissionReason = FailureReason;
+/** The generated `FailureReason`'s admission codes (agent #112); its others are not about the check. */
+export type AdmissionReason = Extract<FailureReason, 'admission_required' | 'admission_failed'>;
 
 const REASONS: ReadonlySet<string> = new Set<string>(['admission_required', 'admission_failed'] satisfies AdmissionReason[]);
 

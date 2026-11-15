@@ -51,7 +51,7 @@ export function Login({ onNext, onCancel, initialUsername, notice, scope: scoped
   const admission: AdmissionGate = useAdmissionGate(ADMISSION_ACTION.signIn, {
     serverAddress: accountServer, reauth: signedOut.some((a) => a.username === typed), accountNamed: typed !== '',
   });
-  const h: LoginHandler = useLoginHandler({ onNext, initialUsername, admission });
+  const h: LoginHandler = useLoginHandler({ onNext, initialUsername, initialServer: scopedTo ?? null, admission });
   const hints: SignInHint[] = useSignInHints();
   const knownServer: string | undefined = useAccountServer(h.username, hints);
   const signInLevel: number | undefined = useSignInLevel(h.username);
@@ -63,7 +63,7 @@ export function Login({ onNext, onCancel, initialUsername, notice, scope: scoped
   // Offered before a username is typed: option-A passkeys and this device's sign-in hints (passkey-offer.ts).
   const legacyAccounts: string[] = usePasskeyAccounts();
   const passkeyAccounts: string[] = passkeyOffer(username, mode, passkey.hasKeys, legacyAccounts, hints);
-  const scope: SignInScope = useSignInScope(scopedTo, username, passkeyAccounts, hints, legacyAccounts);
+  const scope: SignInScope = useSignInScope(h.server, h.setServer, username, passkeyAccounts, hints, legacyAccounts);
   // A known server is the one the check binds to; a scoped sign-in is for that server.
   useEffect((): void => { setAccountServer(scope.server ?? knownServer); setTyped(h.username.trim()); }, [scope.server, knownServer, h.username]);
   const elsewhere: boolean = scope.typed.kind === 'elsewhere';

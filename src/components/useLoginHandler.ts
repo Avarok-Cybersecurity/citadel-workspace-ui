@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getUserFriendlyErrorMessage, getErrorTitle } from "@/lib/error-messages";
 import { redirectToExistingSession } from './login-session-redirect';
 import { loginWithPassword, type LoginResult } from './login-with-password';
+import { SignInServerRefusal } from '@/lib/sessions/sign-in-server';
 import { usePasskeyAccount, type PasskeyAccount } from './passkey/usePasskeyAccount';
 import { browserPasskeyDeps, failureOf, passkeysAvailableHere, signInWithPasskey } from '@/lib/passkey';
 import { failureCopy } from '@/lib/passkey/copy';
@@ -39,6 +40,8 @@ interface UseLoginHandlerParams {
   onNext: (connectionId: string) => void;
   /** The username the form starts with; undefined starts it empty. */
   initialUsername: string | undefined;
+  /** The server the way in is scoped to, or null: the Connect names the server this resolves to. */
+  initialServer: string | null;
   /** The workspace's human check, if it asks for one: a fresh token per attempt. */
   admission: AdmissionGate;
 }
@@ -53,8 +56,9 @@ export interface LoginHandler {
   setRecoveryCode: React.Dispatch<React.SetStateAction<string>>;
   mode: SignInMode;
   setMode: (mode: SignInMode) => void;
-  server: string;
-  setServer: React.Dispatch<React.SetStateAction<string>>;
+  /** The server this sign-in is scoped to, or null (useSignInScope chooses it). */
+  server: string | null;
+  setServer: React.Dispatch<React.SetStateAction<string | null>>;
   error: string | null;
   loading: boolean;
   securitySettings: SecuritySettingsState;
@@ -79,14 +83,12 @@ export interface LoginHandler {
   endRecoverySession: () => void;
 }
 
-export function useLoginHandler({ onNext, initialUsername, admission }: UseLoginHandlerParams): LoginHandler {
+export function useLoginHandler({ onNext, initialUsername, initialServer, admission }: UseLoginHandlerParams): LoginHandler {
   const [username, setUsername] = useState(initialUsername ?? "");
   const [password, setPassword] = useState("");
   const [recoveryCode, setRecoveryCode] = useState("");
   const [mode, setModeState] = useState<SignInMode>('password');
-  // Registration still needs one; signing in does not. Kept so the hook's
-  // shape is unchanged for the join flow that shares it.
-  const [server, setServer] = useState("");
+  const [server, setServer] = useState<string | null>(initialServer);
   const [error, setError] = useState<string | null>(null);
   /** The field a refused submit pointed at, so the form can mark it invalid. */
   const [invalidField, setInvalidField] = useState<LoginField | null>(null);
@@ -112,7 +114,7 @@ export function useLoginHandler({ onNext, initialUsername, admission }: UseLogin
    */
   const completeLogin = async (user: string, factors: SignInFactors, opts: { offerKey: boolean; legacy: boolean }): Promise<void> => {
     const login = (name: string, f: SignInFactors): Promise<LoginResult> =>
-      loginWithPassword({ redirect: doRedirect }, name, f, securitySettings);
+      loginWithPassword({ redirect: doRedirect }, name, f, securitySettings, server);
     const done: Completed = await completeSignIn({ login, offerKey, signIn: browserSignInDeps() }, user, factors, opts);
     if (done.kind === 'redirected') return;
     if (done.kind === 'recovery') { setRecoverySession(done.account); return; }
@@ -133,6 +135,7 @@ export function useLoginHandler({ onNext, initialUsername, admission }: UseLogin
   const reportFailure = (err: unknown): void => {
     // A human check that was missing or failed is shown on the check itself.
     if (admission.settle(err)) return;
+    if (err instanceof SignInServerRefusal) { setInvalidField('username'); setError(err.message); return; }
     setError(getUserFriendlyErrorMessage(err));
     toast({ variant: "destructive", title: getErrorTitle(err), description: getUserFriendlyErrorMessage(err) });
   };

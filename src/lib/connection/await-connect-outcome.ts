@@ -12,16 +12,18 @@
 import { isResponseType, type InternalServiceResponse } from 'citadel-workspace-client-ts';
 import { eventEmitter } from '@/lib/event-emitter';
 import { extensionFor } from '@/lib/sign-in/challenge-watch';
-import { admissionChallengeOf, type AdmissionChallenge, type AdmissionReason } from '@/lib/admission/refusal';
+import type { FailureReason } from 'citadel-workspace-client-ts';
+import { admissionChallengeOf, type AdmissionChallenge } from '@/lib/admission/refusal';
 
 export type ConnectOutcome =
   | { kind: 'connected'; cid: bigint }
   | { kind: 'already-active'; cid: bigint; username: string; message: string }
   /**
-   * reasonCode: the server's admission refusal (a human check was required or failed), if that
-   * is why; challenge: the check it published to show (refusal.ts admissionChallengeOf).
+   * reasonCode: why, when the refusal says: the server's admission refusal (a human check was
+   * required or failed) or the agent's wrong-server refusal; challenge: the check it published to
+   * show (refusal.ts admissionChallengeOf).
    */
-  | { kind: 'failed'; cid: bigint; message: string; reasonCode: AdmissionReason | null; challenge: AdmissionChallenge | null };
+  | { kind: 'failed'; cid: bigint; message: string; reasonCode: FailureReason | null; challenge: AdmissionChallenge | null };
 
 /**
  * A sign-in that asks for a security key answers only after the touch, so a

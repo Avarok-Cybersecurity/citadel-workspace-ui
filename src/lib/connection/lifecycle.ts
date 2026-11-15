@@ -176,6 +176,7 @@ export async function switchAccount(
     await io.connect({
       requestId,
       username: session.username,
+      serverAddress: session.serverAddress,
       password: session.password,
       sessionSecuritySettings: session.sessionSecuritySettings,
     });
