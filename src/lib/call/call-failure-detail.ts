@@ -39,6 +39,21 @@ const NO_MEDIA_PATH: RegExp = /no UDP channel|UdpMode disabled|udp channel ended
 /** The peer's client answered but could not agree on a codec. */
 const NO_CODEC: RegExp = /no (?:shared |common )?codec|codec mismatch/i;
 
+/**
+ * A call whose media could not follow the browser's connection to a new tab.
+ *
+ * One browser holds one connection to the agent, in whichever Citadel tab
+ * leads. When that tab closes and another takes over, the call's media
+ * sessions are opened again on the new connection; this is the call's state
+ * when that fails (media-session-lifecycle.ts).
+ */
+export const LOST_ON_TAKEOVER: string = "Lost the call's connection when another Citadel tab took over.";
+
+/** The heading over a failed call: one cut off mid-call did start. */
+export function failedCallTitle(reason: string | null): string {
+  return reason === LOST_ON_TAKEOVER ? 'The call was cut off' : 'The call could not start';
+}
+
 export function callFailureDetail(reason: string | null): CallFailureDetail {
   const raw: string = reason ?? '';
 

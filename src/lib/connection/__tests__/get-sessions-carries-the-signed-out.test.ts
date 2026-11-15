@@ -11,6 +11,9 @@ import { getActiveSessionsResult, type ActiveSessionsResult } from '../queries';
 import { ConnectionState } from '../state-cache';
 import type { SignedOutAccount } from '@/types/session-types';
 
+/** Leadership plays no part in what these tests check; a follower's answer keeps it inert. */
+const NOT_LEADING: () => boolean = (): boolean => false;
+
 const alice: SignedOutAccount = { cid: 7n, username: 'alice', reason: 'CID not registered to this node' };
 
 function agentAnswering(state: ConnectionState, body: Record<string, unknown>): { io: never; asked: () => number } {
@@ -28,7 +31,7 @@ function agentAnswering(state: ConnectionState, body: Record<string, unknown>): 
 
 describe('GetSessions’ signed-out accounts', () => {
   it('are read off the answer, and served again from the cache', async (): Promise<void> => {
-    const state: ConnectionState = new ConnectionState();
+    const state: ConnectionState = new ConnectionState(NOT_LEADING);
     const agent: ReturnType<typeof agentAnswering> = agentAnswering(state, { sessions: [], signed_out: [alice] });
 
     const first: ActiveSessionsResult = await getActiveSessionsResult(state, agent.io);
@@ -40,7 +43,7 @@ describe('GetSessions’ signed-out accounts', () => {
   });
 
   it('are none from an agent that predates them', async (): Promise<void> => {
-    const state: ConnectionState = new ConnectionState();
+    const state: ConnectionState = new ConnectionState(NOT_LEADING);
     const result: ActiveSessionsResult = await getActiveSessionsResult(state, agentAnswering(state, { sessions: [] }).io);
     expect(result).toEqual({ ok: true, sessions: [], signedOut: [] });
   });

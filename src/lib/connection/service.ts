@@ -26,8 +26,8 @@ export class ConnectionManager {
   private io: ConnectionIO;
 
   private constructor() {
-    this.state = new ConnectionState();
     this.io = connectionIO;
+    this.state = new ConnectionState((): boolean => this.io.getIsLeaderFromBroadcast());
     this.setupEventListeners();
     this.setupLeaderElection();
   }
@@ -109,7 +109,6 @@ export class ConnectionManager {
       'leader-changed',
       async ({ isLeader, leaderId }) => {
         debugLog('ConnectionService', `ConnectionManager: Leader changed - isLeader: ${isLeader}, leaderId: ${leaderId}`);
-        this.state.setLeader(isLeader);
         if (isLeader) {
           debugLog('ConnectionService', 'ConnectionManager: Became leader, attempting to establish connection');
           await attemptLeaderConnection(

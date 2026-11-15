@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState , type MutableRefObject } from 'react';
+import { useEffect, useRef, useState , type MutableRefObject } from 'react';
 import { toast } from 'sonner';
 import { callOutcomeMessage, callOutcomePeerName } from '@/lib/call/call-outcome-message';
 import type { CallState } from '@/lib/call/call-state';
@@ -13,10 +13,8 @@ import type { CallState } from '@/lib/call/call-state';
  */
 export function useCallCapability({
   call,
-  isLeaderTab,
 }: {
   call: CallState | null;
-  isLeaderTab: boolean;
 }): { capability: { supported: boolean; reason?: string } } {
   // Once per call: the terminal state survives teardown, so this would
   // otherwise re-fire on every later render.
@@ -33,26 +31,13 @@ export function useCallCapability({
     toast(message);
   }, [call]);
 
-  const [browserCapability, setBrowserCapability] = useState<{ supported: boolean; reason?: string }>({
+  // Whether THIS browser can call, and nothing about which tab this is: a call
+  // lives in the tab whose session is in it, and a tab without the socket
+  // relays its frames to the one with it (media-frame-relay.ts).
+  const [capability, setBrowserCapability] = useState<{ supported: boolean; reason?: string }>({
     supported: false,
     reason: 'Checking whether this browser supports calls…',
   });
-
-  // A follower tab has no WebSocket client, so MediaOpen threw, MediaClose did
-  // nothing and every frame was dropped on the floor — a call that looked
-  // placed and carried no audio. Reported as a capability so the existing
-  // disabled-with-a-reason treatment covers it: the buttons stay visible and
-  // explain themselves rather than vanishing or lying.
-  const capability: { supported: boolean; reason?: string; } = useMemo((): { supported: boolean; reason?: string; } => {
-    if (!browserCapability.supported) return browserCapability;
-    if (!isLeaderTab) {
-      return {
-        supported: false,
-        reason: 'Calls run in whichever Citadel tab you opened first. Switch to it to call.',
-      };
-    }
-    return browserCapability;
-  }, [browserCapability, isLeaderTab]);
 
   useEffect(() => {
     let cancelled: boolean = false;

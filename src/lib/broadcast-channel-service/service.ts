@@ -7,11 +7,11 @@
 
 import type { InternalServiceResponse } from 'citadel-workspace-client-ts';
 import type { P2PNotificationData } from '@/types/ws-message-types';
-import { eventEmitter } from '@/lib/event-emitter';
 import { PollingService } from '@/lib/utils/polling-service';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { getSelectedUser } from '@/lib/tab-context';
 import { debugLog } from '@/lib/debug-config';
+import { instanceManager } from '@/lib/multi-instance/instance-manager';
 import type { BroadcastMessage, PendingRequest } from './types';
 import { CHANNEL_NAME, CLEANUP_INTERVAL_MS, REQUEST_EXPIRY_MS } from './types';
 import type { TabUserContext } from '@/lib/tab-context';
@@ -35,15 +35,12 @@ export class BroadcastChannelService extends PollingService {
   private static instance: BroadcastChannelService;
   private channel: BroadcastChannel | null = null;
   private tabId: string;
-  private isLeader: boolean = false;
-  private lastLeaderHeartbeat: number = 0;
   private pendingRequests: Map<string, PendingRequest> = new Map<string, PendingRequest>();
 
   private constructor() {
     super();
     this.tabId = `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     this.initialize();
-    this.setupLeaderSync();
   }
 
   protected getPollingIntervalMs(): number {
@@ -60,12 +57,12 @@ export class BroadcastChannelService extends PollingService {
     }
   }
 
-  private setupLeaderSync(): void {
-    eventEmitter.on('leader-changed', ({ isLeader, leaderId }: { isLeader: boolean; leaderId: string }) => {
-      debugLog('BroadcastChannelService', `Syncing leader state from instance-channel - isLeader: ${isLeader}, leaderId: ${leaderId}`);
-      this.isLeader = isLeader;
-      this.lastLeaderHeartbeat = Date.now();
-    });
+  /**
+   * Read from instanceManager, not copied from 'leader-changed': that event follows
+   * 'instance:leader-changed', so every listener of the first saw the previous leadership here.
+   */
+  private get isLeader(): boolean {
+    return instanceManager.isLeader;
   }
 
   public static getInstance(): BroadcastChannelService {

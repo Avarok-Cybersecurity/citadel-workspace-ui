@@ -7,7 +7,6 @@ import { adoptPeerCodecs, syncNegotiatedCodecs } from '@/lib/call/codec-sync';
 import type { CallHome, CallState } from '@/lib/call/call-state';
 import type { CaptureFailure } from '@/lib/call/media-capture';
 import { useCallRuntime } from './use-call-runtime';
-import { useIsLeaderTab } from './use-leader-tab';
 import type { CallMediaKinds, CallSignalPayload } from '@/types/p2p-commands';
 import { useInboundMedia } from './use-inbound-media';
 import type { MessageSenderConfig } from '@/lib/p2p/message-sender-types';
@@ -18,6 +17,10 @@ import { startCall as runStartCall } from './start-call';
 import { useCallInterest } from './use-call-interest';
 import { useCallHoldsReload } from './use-call-holds-reload';
 import { useCallCapability } from './use-call-capability';
+import { useCallTakenElsewhere } from './use-call-taken-elsewhere';
+import { useRingingHandOff } from './use-ringing-hand-off';
+import { useCallDeparture } from './use-call-departure';
+import { useMediaFollowsTheConnection } from './use-media-follows-the-connection';
 import { CAMERA_UNAVAILABLE, MIC_UNAVAILABLE, SCREEN_SHARE_STOPPED } from './media-unavailable';
 import { useLiveVideoQuality } from './use-live-video-quality';
 import { buildCallContext } from './build-call-context';
@@ -64,7 +67,7 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
   }, [captureFailure]);
   useCallInterest(selfCid, call);
   useCallHoldsReload(call);
-  const { capability } = useCallCapability({ call, isLeaderTab: useIsLeaderTab() });
+  const { capability } = useCallCapability({ call });
 
   const { managerRef, sessionRef, teardown, ensureManager, ensureSession } = useCallRuntime({
     selfCid,
@@ -95,6 +98,11 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
   }, [ensureManager, sessionRef]);
 
   useInboundMedia(sessionRef);
+  // Between this account's tabs, and between this tab and the leader; see each hook.
+  const announceTaken: (callId: string, answered: boolean) => void = useCallTakenElsewhere(selfCid, managerRef);
+  useRingingHandOff(selfCid, call);
+  useCallDeparture(selfCid, senderConfig, managerRef);
+  useMediaFollowsTheConnection(selfCid, managerRef);
 
   // The camera must not survive the provider unmounting — and the peer must be
   // told, or they sit in a call that is over until their ring timeout fires.
@@ -138,15 +146,19 @@ export function CallProvider({ selfCid, senderConfig, children }: CallProviderPr
       // Negotiated BEFORE the accept goes out, so the accept carries the codec
       // we will actually send — see codec-sync for why no announcement here.
       adoptPeerCodecs(manager, session);
+      const callId: string | undefined = manager.getState()?.callId;
       await manager.accept(got, session.getCodec());
+      if (callId !== undefined) announceTaken(callId, true);
     },
-    [ensureSession, teardown, managerRef],
+    [ensureSession, teardown, managerRef, announceTaken],
   );
 
   const decline: () => Promise<void> = useCallback(async (): Promise<void> => {
+    const callId: string | undefined = managerRef.current?.getState()?.callId;
     await managerRef.current?.decline('rejected');
+    if (callId !== undefined) announceTaken(callId, false);
     teardown();
-  }, [teardown, managerRef]);
+  }, [teardown, managerRef, announceTaken]);
 
   const leave: () => Promise<void> = useCallback(async (): Promise<void> => {
     const manager: CallManager | null = managerRef.current;

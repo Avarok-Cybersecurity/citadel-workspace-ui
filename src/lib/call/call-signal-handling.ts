@@ -54,7 +54,7 @@ export async function handleInboundSignal(
       // accept() opens the session for every already-accepted peer instead.
       const after: CallState | null = m.getState();
       if (after && (after.status === 'connecting' || after.status === 'active')) {
-        await openSessionFor(m, from);
+        await openSessionFor(m, from, null);
       }
       return;
     }

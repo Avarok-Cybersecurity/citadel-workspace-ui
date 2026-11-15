@@ -106,6 +106,20 @@ describe('CallSoundEffects', () => {
     expect(player.chime).not.toHaveBeenCalled();
   });
 
+  it('stops ringing without the ended chime in a tab that stands down', async () => {
+    // Another tab of the same account answered (use-call-taken-elsewhere): this
+    // tab's call goes from ringing straight to ended. Nothing was hung up here,
+    // and an ended chime would tell the user a call they just took had dropped.
+    const view: ReturnType<typeof mount> = mount(callState('ringing-in'));
+    await waitFor(() => expect(player.startRing).toHaveBeenCalled());
+
+    update(view, callState('ended'));
+    await waitFor(() => expect(player.stopRing).toHaveBeenCalled());
+    update(view, null);
+    await waitFor(() => expect(player.stopRing).toHaveBeenCalledTimes(2));
+    expect(player.chime).not.toHaveBeenCalled();
+  });
+
   it('chimes the lower tone when an active call ends', async () => {
     const view: ReturnType<typeof mount> = mount(callState('active'));
     await waitFor(() => expect(player.chime).toHaveBeenCalledWith('connected'));

@@ -52,7 +52,7 @@ export async function autoReconnect(
 ): Promise<void> {
   if (state.storedSessions.sessions.length === 0) return;
 
-  if (!state.isLeader && !io.getIsLeaderFromBroadcast()) {
+  if (!state.isLeader) {
     debugLog('ConnectionService', 'ConnectionManager: Not the leader, skipping auto-reconnect');
     return;
   }

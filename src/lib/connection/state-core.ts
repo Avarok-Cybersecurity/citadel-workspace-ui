@@ -25,7 +25,6 @@ export class ConnectionStateCore {
   protected _isInitialized: boolean = false;
   protected _storedSessions: StoredSessions = { sessions: [] };
   protected _currentConnectionInfo: CurrentConnectionInfo | null = null;
-  protected _isLeader: boolean = false;
   protected _reconnectAttempts: number = 0;
 
   // Ready promise for initialization
@@ -35,7 +34,11 @@ export class ConnectionStateCore {
   // Cleanup functions for event listeners
   protected _cleanupFunctions: (() => void)[] = [];
 
-  constructor() {
+  /**
+   * Leadership is read from its one source when asked. A copy set from 'leader-changed' lagged
+   * 'instance:leader-changed', so a reader in any of that event's listeners saw the old answer.
+   */
+  constructor(private readonly readLeadership: () => boolean) {
     this._readyPromise = new Promise<void>((resolve) => {
       this._readyResolve = resolve;
     });
@@ -69,11 +72,7 @@ export class ConnectionStateCore {
   // ============================================================================
 
   get isLeader(): boolean {
-    return this._isLeader;
-  }
-
-  setLeader(value: boolean): void {
-    this._isLeader = value;
+    return this.readLeadership();
   }
 
   // ============================================================================
