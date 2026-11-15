@@ -9,9 +9,9 @@ import { eventEmitter } from '../event-emitter';
 import { websocketService } from '../websocket-service';
 import { notificationService, NotificationPriority } from '../notification-service';
 import { describeError } from '../describe-error';
-import { p2pAutoConnectService } from '../p2p-auto-connect-service';
 import { p2pRegistrationService } from '../p2p-registration-service';
 import { sendPeerRegisterRequest, resendPeerRegistration } from '@/lib/p2p/send-peer-registration';
+import { afterPeerAccepted } from '@/lib/p2p/after-peer-accepted';
 import { debugLog } from '@/lib/debug-config';
 import { OUTGOING_RESEND_THRESHOLD_MS } from './constants';
 import { hasRequestFromPeer } from './state';
@@ -159,9 +159,7 @@ export async function executeAcceptRequest(request: PendingPeerRequest): Promise
   await sendPeerRegisterRequest(registerRequestId, currentCid, request.peer_cid);
   await responsePromise;
 
-  p2pAutoConnectService.connectToPeer(request.peer_cid).catch((err) => {
-    debugLog('PeerRegistrationStore', 'Auto-connect after accept failed:', err);
-  });
+  afterPeerAccepted(request.peer_cid, request.peer_username);
 }
 
 /**
