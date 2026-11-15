@@ -81,6 +81,19 @@ describe('registerPeer on the wire', () => {
     await expect(done).rejects.toThrow('no such peer');
   });
 
+  it('rejects when the agent could not tell whether the peer is registered', async () => {
+    // The agent's refusal to guess (requests/peer/register.rs) contains the phrase
+    // "is already registered". A substring test read it as success: the peer was
+    // marked registered and broadcast to every tab, with no registration made.
+    const pending: Map<string, PendingRequestEntry> = new Map<string, PendingRequestEntry>();
+    const done: Promise<void> = registerPeer(PEER, pending);
+    const sent: Record<string, unknown> = await frame();
+    const refusal: string = 'Could not determine whether 42 is already registered: timed out. Nothing was changed; try again.';
+
+    handleWebSocketMessage({ PeerRegisterFailure: { request_id: sent.request_id, cid: ME, message: refusal } } as never, context(pending));
+    await expect(done).rejects.toThrow(refusal);
+  });
+
   it('sends nothing for a request to itself', async () => {
     await expect(registerPeer(ME, new Map<string, PendingRequestEntry>())).rejects.toThrow('Cannot register with self');
     expect(h.sent).toEqual([]);

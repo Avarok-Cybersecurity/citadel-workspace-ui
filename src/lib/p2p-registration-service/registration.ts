@@ -18,6 +18,7 @@ import { CONCURRENT_REGISTRATIONS, PEER_REGISTER_TIMEOUT_MS } from './constants'
 import { getCurrentCid } from './discovery';
 import { consumeWasDecline } from './decline-correlation';
 import { broadcastPeerUpdate } from './broadcast-peer-update';
+import { isAlreadyRegistered } from '../peer-registration-store/already-registered';
 
 /** Context passed from the service so the message handler can read/write shared state. */
 export interface RegistrationContext {
@@ -106,7 +107,7 @@ function handlePeerRegisterFailure(data: Record<string, unknown>, ctx: Registrat
   const errorMsg: string = (data.message as string) || 'Failed to register peer';
   const peerCid: bigint | undefined = data.peer_cid as bigint | undefined;
 
-  if (errorMsg.includes('already registered')) {
+  if (isAlreadyRegistered(errorMsg)) {
     debugLog('P2PRegistrationService', `[P2P] Peer ${peerCid?.toString()} already registered - treating as success`);
     if (peerCid !== undefined) {
       ctx.outgoingRegistrations.add(peerCid);
