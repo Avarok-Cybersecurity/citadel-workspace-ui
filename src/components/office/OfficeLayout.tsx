@@ -63,6 +63,7 @@ export const OfficeLayout = ({
               className="text-foreground/80 hover:bg-primary-accent/15 hover:text-foreground"
               onClick={() => void navigate('/messages')}
               title="Messages"
+              data-testid="office-messages"
             >
               <MessageSquare className="h-4 w-4" />
             </Button>

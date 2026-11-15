@@ -64,7 +64,7 @@ export function SettingsModal({ open, onOpenChange, tab }: SettingsModalProps): 
                 <Palette className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Theme</span>
               </TabsTrigger>
-              <TabsTrigger value="privacy" aria-label="Privacy" className={tabTriggerClass}>
+              <TabsTrigger value="privacy" aria-label="Privacy" className={tabTriggerClass} data-testid="settings-tab-privacy">
                 <Shield className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Privacy</span>
               </TabsTrigger>

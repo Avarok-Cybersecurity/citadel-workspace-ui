@@ -104,6 +104,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
             variant="ghost"
             size="sm"
             onClick={() => setShowAvailablePeers(!showAvailablePeers)}
+            data-testid="messages-available-toggle"
             className="h-7 text-muted-foreground hover:text-foreground text-xs gap-1"
           >
             <Users className="h-3.5 w-3.5" />
@@ -146,6 +147,8 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
                     return (
                     <Button
                       key={peerCidStr}
+                      data-testid="messages-available-peer"
+                      data-peer-username={peerHandleName({ cid: peer.cid, username: peer.username })}
                       variant="ghost"
                       className="w-full justify-start h-auto py-2 px-3"
                       onClick={() => {
