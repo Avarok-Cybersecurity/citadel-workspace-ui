@@ -30,7 +30,7 @@ const { attemptReconnect } = await import('../reconnect-logic');
 const { signInNeededFor } = await import('@/lib/sessions/sign-in-needed');
 
 const KEY: string = 'alice@';
-const record = (): StoredSession => ({ username: 'alice', serverAddress: '', password: 'p' }) as unknown as StoredSession;
+const record: () => StoredSession = (): StoredSession => ({ username: 'alice', serverAddress: '', password: 'p' }) as unknown as StoredSession;
 let attempts: Map<string, ConnectionAttempt>;
 
 beforeEach(() => {
@@ -45,7 +45,7 @@ afterEach(() => {
 
 describe('a background reconnect of a record with no server', () => {
   it('names the server the agent reports, and backfills the record', async () => {
-    h.agent = async () => [{ username: 'alice', server: 'bench.work.avarok.net' }];
+    h.agent = async (): Promise<AccountHost[]> => [{ username: 'alice', server: 'bench.work.avarok.net' }];
     await attemptReconnect(attempts, KEY, record());
     expect(h.connects).toEqual(['bench.work.avarok.net']);
     expect(h.stored.map((s) => s.serverAddress)).toEqual(['bench.work.avarok.net']);
@@ -53,7 +53,7 @@ describe('a background reconnect of a record with no server', () => {
   });
 
   it('when the agent cannot say: no Connect, no retry, and a sign-in for the account', async () => {
-    h.agent = async () => { throw new Error('GetAccountInformation timed out'); };
+    h.agent = async (): Promise<AccountHost[]> => { throw new Error('GetAccountInformation timed out'); };
     await attemptReconnect(attempts, KEY, record());
     expect(h.connects).toEqual([]);
     expect(attempts.get(KEY)?.timeout).toBeNull();

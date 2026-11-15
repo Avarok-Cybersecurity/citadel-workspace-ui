@@ -59,7 +59,7 @@ describe('a typed username against the server being signed in to', () => {
 });
 
 describe('the passkey rows under the username', () => {
-  const hints = [{ username: 'alice', tenant: A }, { username: 'dave', tenant: A }];
+  const hints: { username: string; tenant: string }[] = [{ username: 'alice', tenant: A }, { username: 'dave', tenant: A }];
   it('name each account by its server', () => {
     expect(offeredRows(['alice', 'dave', 'erin'], hints, ['erin'], known, null)).toEqual([
       { username: 'alice', server: A }, { username: 'dave', server: A }, { username: 'erin', server: null },

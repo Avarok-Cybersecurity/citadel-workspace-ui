@@ -33,7 +33,7 @@ const io: ConnectionIO = {
   emitEvent: (): void => undefined,
 } as unknown as ConnectionIO;
 
-const legacy = (): StoredSession => ({ username: 'alice', serverAddress: '', fullName: 'Alice' }) as unknown as StoredSession;
+const legacy: () => StoredSession = (): StoredSession => ({ username: 'alice', serverAddress: '', fullName: 'Alice' }) as unknown as StoredSession;
 
 function stateWith(session: StoredSession): ConnectionState {
   const state: ConnectionState = new ConnectionState((): boolean => true);
@@ -47,7 +47,7 @@ afterEach(() => { signInNeededFor.set(null); });
 
 describe('a stored session without a server', () => {
   it('names the agent’s server for the account, and the record keeps it', async () => {
-    agent = async () => [{ username: 'bob', server: 'acme.work.avarok.net' }, { username: 'alice', server: BENCH }];
+    agent = async (): Promise<AccountHost[]> => [{ username: 'bob', server: 'acme.work.avarok.net' }, { username: 'alice', server: BENCH }];
     const session: StoredSession = legacy();
     const state: ConnectionState = stateWith(session);
 
@@ -61,14 +61,14 @@ describe('a stored session without a server', () => {
   });
 
   it('a record that has a server is not looked up', async () => {
-    agent = async () => [{ username: 'alice', server: 'acme.work.avarok.net' }];
+    agent = async (): Promise<AccountHost[]> => [{ username: 'alice', server: 'acme.work.avarok.net' }];
     const session: StoredSession = { ...legacy(), serverAddress: BENCH } as StoredSession;
     expect(await storedSessionServer(session, connectionStoredServerIO(stateWith(session), io))).toBe(BENCH);
     expect(asked).toBe(0);
   });
 
   it('when the agent cannot answer: a sign-in for the account, no guess, no backfill', async () => {
-    agent = async () => { throw new Error('GetAccountInformation timed out'); };
+    agent = async (): Promise<AccountHost[]> => { throw new Error('GetAccountInformation timed out'); };
     const session: StoredSession = legacy();
     const state: ConnectionState = stateWith(session);
 
@@ -78,7 +78,7 @@ describe('a stored session without a server', () => {
   });
 
   it('when the agent holds no such account: the same', async () => {
-    agent = async () => [{ username: 'bob', server: BENCH }];
+    agent = async (): Promise<AccountHost[]> => [{ username: 'bob', server: BENCH }];
     const session: StoredSession = legacy();
     await expect(storedSessionServer(session, connectionStoredServerIO(stateWith(session), io))).rejects.toBeInstanceOf(StoredServerUnknown);
     expect(signInNeededFor.get()).toBe('alice');

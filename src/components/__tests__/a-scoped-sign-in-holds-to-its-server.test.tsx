@@ -12,6 +12,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import type { AccountHost } from '@/lib/admission/account-servers';
 import { testDeps } from '@/lib/passkey/__tests__/fakes';
 import { enrolCredential } from '@/lib/passkey/__tests__/legacy-enrol';
 
@@ -26,12 +27,12 @@ vi.mock('@/lib/passkey', async (importOriginal: () => Promise<Record<string, unk
 }));
 vi.mock('@/lib/admission', async (importOriginal: () => Promise<Record<string, unknown>>) => ({
   ...(await importOriginal()),
-  browserAccountHosts: async () => [{ username: 'alice', server: A }, { username: 'bob', server: B }],
-  browserAccountServers: async () => new Map<string, string>(),
-  browserDiscoverAdmission: async () => null,
+  browserAccountHosts: async (): Promise<AccountHost[]> => [{ username: 'alice', server: A }, { username: 'bob', server: B }],
+  browserAccountServers: async (): Promise<Map<string, string>> => new Map<string, string>(),
+  browserDiscoverAdmission: async (): Promise<null> => null,
 }));
 vi.mock('@/lib/websocket-service', async (importOriginal: () => Promise<Record<string, unknown>>) => {
-  const real = (await importOriginal()) as typeof import('@/lib/websocket-service');
+  const real: typeof import('@/lib/websocket-service') = (await importOriginal()) as typeof import('@/lib/websocket-service');
   const { doubleOf } = await import('@/test/singleton-double');
   return {
     ...real,
@@ -46,7 +47,7 @@ import { Login } from '../Login';
 function renderLogin(scope: string | undefined): void {
   render(<MemoryRouter><Login onNext={() => {}} onCancel={() => {}} initialUsername={undefined} scope={scope} /></MemoryRouter>);
 }
-const typeUsername = (value: string): void => { fireEvent.change(screen.getByLabelText(/^username$/i), { target: { value } }); };
+const typeUsername: (value: string) => void = (value: string): void => { fireEvent.change(screen.getByLabelText(/^username$/i), { target: { value } }); };
 
 beforeEach(async () => {
   h.deps = testDeps();
