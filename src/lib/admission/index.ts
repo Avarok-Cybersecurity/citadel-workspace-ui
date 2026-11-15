@@ -3,7 +3,7 @@ import { readControlPlaneBase } from '@/lib/onboarding/control-plane-config';
 import { hostedWorkspaceSlug } from '@/lib/onboarding/billing-portal';
 import { isTenantHost } from '@/lib/workspace-address';
 import { discoverAdmission, type Admission } from './discovery';
-import { readAccountServers } from './account-servers';
+import { readAccountHosts, readAccountServers, type AccountHost } from './account-servers';
 import { askStoredAccounts } from '@/lib/stored-accounts';
 import { debugLog } from '@/lib/debug-config';
 
@@ -32,6 +32,17 @@ export async function browserAccountServers(): Promise<ReadonlyMap<string, strin
   }
 }
 
+/** The agent's accounts with their hosts; none when it cannot be asked (nothing is then scoped out). */
+export async function browserAccountHosts(): Promise<AccountHost[]> {
+  try {
+    return await askStoredAccounts(readAccountHosts);
+  } catch (error: unknown) {
+    debugLog('Admission', 'the agent could not list its accounts', error);
+    return [];
+  }
+}
+
+export type { AccountHost } from './account-servers';
 export type { Admission } from './discovery';
 export {
   AdmissionRefusal, admissionChallengeOf, admissionReasonOf, isAdmissionRefusal, type AdmissionChallenge, type AdmissionReason,

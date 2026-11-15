@@ -91,7 +91,7 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
 
   // Both buttons on this screen need the agent; see use-agent-gate.ts.
   const startLogin: () => void = useAgentGatedStep(setCurrentStep, 'login', 'none');
-  const { linkedUsername, startPlainLogin } = useLinkedLogin(startLogin, currentStep === 'login');
+  const { linkedUsername, linkedServer, startPlainLogin } = useLinkedLogin(startLogin, currentStep === 'login');
   const handleLoginNext: (cid: string) => Promise<void> = finishAuth("Login Setup Failed", "Failed to load workspace after login");
   // A secure link opened signed out: sign-in first, its server ready for a join.
   usePendingRedirectSignIn(startLogin, setServerAddress);
@@ -233,6 +233,7 @@ export const Landing: () => JSX.Element = (): JSX.Element => {
         handleJoinBack={handleJoinBack}
         handleLoginNext={handleLoginNext}
         loginUsername={linkedUsername}
+        loginScope={linkedServer}
       />
 
       {/* Settings modal */}

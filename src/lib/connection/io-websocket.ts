@@ -87,12 +87,14 @@ export class ConnectionIOWebSocket {
   async connect(params: {
     requestId: string;
     username: string;
+    serverAddress: string;
     password: string;
     sessionSecuritySettings?: SessionSecuritySettings;
   }): Promise<void> {
     await wsModule.websocketService.connect(
       params.requestId,
       params.username,
+      params.serverAddress,
       passwordOnly(params.password),
       params.sessionSecuritySettings
     );

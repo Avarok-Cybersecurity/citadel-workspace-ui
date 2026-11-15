@@ -141,10 +141,13 @@ async function performAutoReconnect(
       );
     }
 
+    // Never empty here: autoReconnect only reaches a session the tab selected by a non-empty
+    // server (a record without one is never selected; stored-server.ts is for paths that can).
     const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
     await io.connect({
       requestId,
       username: session.username,
+      serverAddress: session.serverAddress,
       password: session.password,
       sessionSecuritySettings: session.sessionSecuritySettings,
     });

@@ -88,8 +88,8 @@ export class WebSocketServiceCore {
 
   // ============== Auth ==============
 
-  async connect(requestId: string, username: string, factors: SignInFactors, sessionSecuritySettings?: SessionSecuritySettings,
-  ): Promise<void> { return this.modules.authOps.connect(requestId, username, factors, sessionSecuritySettings) }
+  async connect(requestId: string, username: string, serverAddress: string, factors: SignInFactors, sessionSecuritySettings?: SessionSecuritySettings,
+  ): Promise<void> { return this.modules.authOps.connect(requestId, username, serverAddress, factors, sessionSecuritySettings) }
 
   async register(
     requestId: string, username: string, password: string,

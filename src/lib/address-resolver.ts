@@ -1,16 +1,17 @@
 import { debugLog } from '@/lib/debug-config';
-import { NETWORK } from './timeout-constants';
-import { isTenantHost, isWebSocketUrl } from './workspace-address';
+import { DEFAULT_WORKSPACE_PORT, isTenantHost, isWebSocketUrl } from './workspace-address';
 /**
  * Address Resolver
  *
  * Resolves server addresses for Connect/Register commands.
  * - If address is already IPv4 or IPv6, returns as-is
  * - If address is a hostname, resolves via DNS
- * - Default port is 12349 if not specified
+ * - Default port is DEFAULT_WORKSPACE_PORT (workspace-address.ts) if not specified: the one
+ *   default, so an address compares (same-server.ts) as Register sends it. This file used to
+ *   assume 12349 while the address field assumed 12400.
  */
 
-const DEFAULT_PORT: number = NETWORK.WORKSPACE_SERVER_PORT;
+const DEFAULT_PORT: number = DEFAULT_WORKSPACE_PORT;
 
 // IPv4 regex: matches 0-255 in each octet
 const IPV4_REGEX: RegExp = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
@@ -131,9 +132,9 @@ function parseAddress(address: string): { host: string; port: number | null } {
  * @throws Error if DNS resolution fails
  *
  * Examples:
- *   "example.com" -> "93.184.216.34:12349"
+ *   "example.com" -> "example.com:12400"
  *   "example.com:8080" -> "93.184.216.34:8080"
- *   "192.168.1.1" -> "192.168.1.1:12349"
+ *   "192.168.1.1" -> "192.168.1.1:12400"
  *   "192.168.1.1:8080" -> "192.168.1.1:8080"
  *   "localhost:12349" -> DNS resolved IP:12349
  */

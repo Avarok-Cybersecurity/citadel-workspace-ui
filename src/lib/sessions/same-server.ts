@@ -22,7 +22,8 @@ export function sessionIsOnServer(session: SessionServer, address: string): bool
   return sameAddress(session.server_host ?? session.server_address, address);
 }
 
-function sameAddress(a: string, b: string): boolean {
+/** Whether two addresses, as typed or as dialled, name the same workspace server. */
+export function sameAddress(a: string, b: string): boolean {
   return canonical(a) === canonical(b);
 }
 

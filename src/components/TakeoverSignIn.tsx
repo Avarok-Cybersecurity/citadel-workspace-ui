@@ -71,6 +71,7 @@ export function TakeoverSignIn({ request, onClose }: TakeoverSignInProps): JSX.E
     <Login
       initialUsername={request.username}
       notice={request.kind === 'signed-out' ? request.notice : undefined}
+      scope={request.kind === 'signed-out' ? request.server ?? undefined : undefined}
       onNext={(cid: string) => { void finish(cid); }}
       onCancel={onClose}
     />

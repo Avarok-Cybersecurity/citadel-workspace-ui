@@ -14,20 +14,23 @@ interface Recorder {
   io: AccountLinkIO<Session>;
   switched: Session[];
   loginFor: string[];
+  scopes: (string | null)[];
 }
 
 function record(ok: boolean, sessions: Session[]): Recorder {
   const switched: Session[] = [];
   const loginFor: string[] = [];
+  const scopes: (string | null)[] = [];
   return {
     switched,
     loginFor,
+    scopes,
     io: {
       listSessions: async () => ({ ok, sessions }),
       // These cases are about the answer, which is immediate; the deadline never passes.
       signInDeadline: (): Promise<void> => new Promise<void>(() => undefined),
       switchTo: async (session: Session): Promise<void> => { switched.push(session); },
-      login: (username: string): void => { loginFor.push(username); },
+      login: (username: string, server: string | null): void => { loginFor.push(username); scopes.push(server); },
     },
   };
 }
@@ -41,6 +44,15 @@ async function open(link: AccountLink, rec: Recorder): Promise<void> {
 }
 
 describe('opening an account link', () => {
+  it("scopes its sign-in to the link's server, and to none when the link names none", async () => {
+    const named: Recorder = record(true, [bob]);
+    await open({ username: 'alice', server: 'acme.work.avarok.net' }, named);
+    expect(named.scopes).toEqual(['acme.work.avarok.net']);
+    const bare: Recorder = record(true, [bob]);
+    await open({ username: 'alice' }, bare);
+    expect(bare.scopes).toEqual([null]);
+  });
+
   it('switches to the live session the link names', async () => {
     const rec: Recorder = record(true, [bob, alice]);
     await open({ username: 'alice' }, rec);

@@ -4,7 +4,7 @@
  * GetAccountInformation answer: what a sign-in's human check is bound to.
  */
 import { describe, expect, it } from 'vitest';
-import { readAccountServers } from '../account-servers';
+import { readAccountHosts, readAccountServers } from '../account-servers';
 
 const answer = (requestId: string, accounts: unknown): unknown => ({ GetAccountInformationResponse: { cid: 0n, request_id: requestId, accounts } });
 
@@ -23,5 +23,15 @@ describe('the agent\'s account servers', () => {
     expect(readAccountServers(answer('other', {}), 'r1')).toBeNull();
     expect(readAccountServers({ ConnectSuccess: {} }, 'r1')).toBeNull();
     expect(readAccountServers(null, 'r1')).toBeNull();
+  });
+
+  it('keeps the same username on two workspaces as two accounts', () => {
+    const two: Map<bigint, unknown> = new Map<bigint, unknown>([
+      [1n, { username: 'alice', server_host: 'bench.work.avarok.net' }],
+      [2n, { username: 'alice', server_host: 'acme.work.avarok.net' }],
+    ]);
+    expect(readAccountHosts(answer('r3', two), 'r3')).toEqual([
+      { username: 'alice', server: 'bench.work.avarok.net' }, { username: 'alice', server: 'acme.work.avarok.net' },
+    ]);
   });
 });

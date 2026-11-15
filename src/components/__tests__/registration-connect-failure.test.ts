@@ -7,6 +7,8 @@
  * "Registration timed out". The user then retried and was told the username
  * already exists, for an account they did not know they owned.
  */
+import { UNKNOWN_REASON_COPY } from '@/lib/connection/connect-refusal';
+import { UsernameHeldElsewhere } from '@/lib/sessions/known-accounts';
 import { describe, it, expect, vi   } from 'vitest';
 import { createRegistrationResponseHandler } from '../registration-response-handler';
 
@@ -19,7 +21,7 @@ function harness(): { handler: (raw: unknown) => void; resolve: ReturnType<typeo
   const handler: (raw: unknown) => void = createRegistrationResponseHandler(REQ, resolve, reject, cleanup, {
     handleConnectSuccess: async (_p, res) => res({ cid: '42' }),
     setShowNotInitializedModal: vi.fn(),
-    onRecoveryCodes: vi.fn(),
+    onRecoveryCodes: vi.fn(), username: 'alice',
   });
   return { handler, resolve, reject, cleanup };
 }
@@ -43,6 +45,22 @@ describe('the registration response handler', () => {
     // Silence here previously became "Registration timed out", which is the
     // opposite of what happened: the account was created.
     expect((reject.mock.calls[0][0] as Error).message).toMatch(/account was created/i);
+  });
+
+  it('a RegisterFailure for a reason newer than this page says to reload it', () => {
+    const { handler, reject } = harness();
+
+    handler({ RegisterFailure: { request_id: REQ, message: 'raw', reason_code: 'unknown' } });
+
+    expect((reject.mock.calls[0][0] as Error).message).toBe(UNKNOWN_REASON_COPY);
+  });
+
+  it('a held username is the typed refusal, naming the server', () => {
+    const { handler, reject } = harness();
+
+    handler({ RegisterFailure: { request_id: REQ, message: 'raw', reason_code: 'username_held_for_another_server', held_for_server: 'bench.work.avarok.net' } });
+
+    expect(reject.mock.calls[0][0]).toBeInstanceOf(UsernameHeldElsewhere);
   });
 
   it('still settles on the Response-wrapped ConnectFailure', () => {

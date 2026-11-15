@@ -21,8 +21,8 @@ describe('resolveServerAddress', () => {
   });
 
   it('still gives a self-hosted server its socket port', async () => {
-    expect(await resolveServerAddress('example.com')).toBe('example.com:12349');
-    expect(await resolveServerAddress('work.avarok.net')).toBe('work.avarok.net:12349');
-    expect(await resolveServerAddress('a.b.work.avarok.net')).toBe('a.b.work.avarok.net:12349');
+    expect(await resolveServerAddress('example.com')).toBe('example.com:12400');
+    expect(await resolveServerAddress('work.avarok.net')).toBe('work.avarok.net:12400');
+    expect(await resolveServerAddress('a.b.work.avarok.net')).toBe('a.b.work.avarok.net:12400');
   });
 });

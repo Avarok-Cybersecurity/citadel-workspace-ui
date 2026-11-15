@@ -14,7 +14,11 @@ export type SignInRequest =
   /** Live on another localhost connection: join it here, or move it with the password. */
   | { readonly kind: 'held-elsewhere'; readonly username: string }
   /** The agent holds no session for it: only a sign-in brings it back. */
-  | { readonly kind: 'signed-out'; readonly username: string; readonly notice: string };
+  | {
+    readonly kind: 'signed-out'; readonly username: string; readonly notice: string;
+    /** The server it is on, from the stored record or the agent; null when neither says. The sign-in is scoped to it. */
+    readonly server: string | null;
+  };
 
 export type SignedOutSignIn = Extract<SignInRequest, { kind: 'signed-out' }>;
 
@@ -28,11 +32,12 @@ export function heldElsewhereSignIn(username: string): SignInRequest {
  * of the notice rather than filled in.
  */
 export function signedOutSignIn(username: string, serverAddress: string): SignedOutSignIn {
-  const host: string = serverAddress.trim() === '' ? '' : dialledHost(serverAddress);
-  const where: string = host === '' ? '' : ` on ${host}`;
+  const server: string | null = serverAddress.trim() === '' ? null : dialledHost(serverAddress);
+  const where: string = server === null ? '' : ` on ${server}`;
   return {
     kind: 'signed-out',
     username,
+    server,
     notice: `${username}${where} is signed out. Enter the password to sign in again.`,
   };
 }

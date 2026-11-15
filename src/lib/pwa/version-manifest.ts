@@ -26,14 +26,12 @@ export function manifestForBuild(bundle: BuildOutput, base: string, seqs: { seq:
 }
 
 /**
- * The kill switch from the build's environment (`CITADEL_MIN_BUILD_SEQ`), or null when it is
- * not set. Refused when it is not a whole number of seconds, or when it is above this build's
- * own seq: the build being deployed would then reload itself for ever.
+ * The kill switch a build ships (min-build-seq.ts). Refused when it is not a whole number of
+ * seconds, or when it is above this build's own seq: the build being deployed would then
+ * reload itself for ever.
  */
-export function minSeqFromEnv(raw: string | undefined, seq: number): number | null {
-  if (raw === undefined || raw === '') return null;
-  const value: number = Number(raw);
-  if (!Number.isSafeInteger(value) || value < 0) throw new Error(`CITADEL_MIN_BUILD_SEQ must be unix seconds, not "${raw}"`);
-  if (value > seq) throw new Error(`CITADEL_MIN_BUILD_SEQ ${value} is above this build's own seq ${seq}`);
+export function checkedMinSeq(value: number, seq: number): number {
+  if (!Number.isSafeInteger(value) || value < 0) throw new Error(`MIN_BUILD_SEQ must be unix seconds, not ${value}`);
+  if (value > seq) throw new Error(`MIN_BUILD_SEQ ${value} is above this build's own seq ${seq}`);
   return value;
 }

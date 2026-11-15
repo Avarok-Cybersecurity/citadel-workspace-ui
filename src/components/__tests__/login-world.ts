@@ -51,11 +51,12 @@ export async function websocketServiceDouble(orig: () => Promise<Record<string, 
   return {
     ...real,
     websocketService: doubleOf(real.websocketService, {
-      connect: ((id: string, user: string, f: SignInFactors): Promise<void> => ops().connect(id, user, f)) as never,
+      connect: ((id: string, user: string, server: string, f: SignInFactors): Promise<void> => ops().connect(id, user, server, f)) as never,
       register: ((id: string, user: string, pw: string, name: string, addr: string, token: string | null): Promise<void> =>
         ops().register(id, user, pw, name, addr, token)) as never,
       disconnect: ((cid: bigint): Promise<void> => loginWorld.w.agent.send({ Disconnect: { request_id: 'bye', cid } })) as never,
       sendRequest: ((r: Record<string, unknown>): Promise<void> => loginWorld.w.agent.send(r)) as never,
+      sendMessage: ((r: Record<string, unknown>): Promise<void> => loginWorld.w.agent.send(r)) as never,
     }),
   };
 }
