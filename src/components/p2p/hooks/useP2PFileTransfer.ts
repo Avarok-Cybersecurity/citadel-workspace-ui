@@ -11,6 +11,7 @@ import { failureDescription } from '@/lib/p2p/peer-failure-detail';
 import type { FilePort, FileSendReceipt } from '@/lib/chat/transport/chat-transport';
 import { useToast } from '@/hooks/use-toast';
 import { debugLog } from '@/lib/debug-config';
+import { useServerUpload, type ServerUploadControl, type ServerUploadView } from '@/components/chat/attachments/use-server-upload';
 
 interface UseP2PFileTransferProps {
   /** Null where the conversation carries no files; every action then says so. */
@@ -30,6 +31,8 @@ interface UseP2PFileTransferReturn {
   /** The received file whose details are showing, or null. */
   openedFile: FileDetails | null;
   closeOpenedFile: () => void;
+  /** A file going to the server (a node channel), which has no bubble of its own. */
+  upload: ServerUploadView;
 }
 
 export function useP2PFileTransfer({
@@ -37,18 +40,29 @@ export function useP2PFileTransfer({
   recipient,
 }: UseP2PFileTransferProps): UseP2PFileTransferReturn {
   const { toast } = useToast();
+  const { view: upload, move }: ServerUploadControl = useServerUpload();
 
   const handleSendFile: (file: File) => Promise<void> = useCallback(async (file: File): Promise<void> => {
+    // Once the port reports progress, the upload strip carries this send to its end, refusal included.
+    let strip: boolean = false;
     try {
       if (files === null) throw NO_FILES;
-      // The bubble now carries the send: preparing, then offered. "File Sent" said it was
+      // A bubble carries a peer send: preparing, then offered. "File Sent" said it was
       // done while it was still uploading from this tab, and said nothing of a held send.
-      const { held }: FileSendReceipt = await files.send(file);
-      toast(held
+      const { outcome }: FileSendReceipt = await files.send(file, (storedBytes: number, totalBytes: number): void => {
+        strip = true;
+        move({ kind: 'uploading', name: file.name, storedBytes, totalBytes });
+      });
+      if (outcome === 'shared') { move({ kind: 'shared', name: file.name }); return; }
+      toast(outcome === 'held'
         ? { title: `Will send ${file.name} when ${recipient} is online`, description: 'Keep this browser open; it goes by itself.' }
         : { title: `Preparing to send ${file.name}`, description: `Keep this tab open until ${recipient} is offered it.` });
     } catch (error) {
       debugLog('UseP2PFileTransfer', 'Failed to send file:', error);
+      if (strip) {
+        move({ kind: 'refused', name: file.name, reason: failureDescription(error, 'The workspace server did not keep the file.') });
+        throw error;
+      }
       toast({
         variant: 'destructive',
         title: 'Failed to send file',
@@ -56,7 +70,7 @@ export function useP2PFileTransfer({
       });
       throw error;
     }
-  }, [files, recipient, toast]);
+  }, [files, recipient, toast, move]);
 
   const handleAcceptTransfer: (transferId: string) => Promise<void> = useCallback(async (transferId: string): Promise<void> => {
     try {
@@ -124,5 +138,6 @@ export function useP2PFileTransfer({
     handleOpenFile,
     openedFile,
     closeOpenedFile: (): void => setOpenedFile(null),
+    upload,
   };
 }

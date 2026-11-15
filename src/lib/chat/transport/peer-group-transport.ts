@@ -42,7 +42,7 @@ function peerGroupFiles(io: PeerGroupChatIO, groupName: string): FilePort {
     modes: ['members'],
     destination: `Offered to each member of ${groupName} directly, encrypted end to end.`,
     dialogKey: null,
-    send: async (file: File): Promise<FileSendReceipt> => { await io.share(file); return { held: false }; },
+    send: async (file: File): Promise<FileSendReceipt> => { await io.share(file); return { outcome: 'offered' }; },
     // A member's copy arrives as an ordinary offer in their chat with the sender.
     accept: (transferId: string): Promise<void> => io.transfers.acceptTransfer(transferId),
     decline: (transferId: string): Promise<void> => io.transfers.declineTransfer(transferId),

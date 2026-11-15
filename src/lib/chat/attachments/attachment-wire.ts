@@ -73,8 +73,11 @@ function exchange(wire: AttachmentWire, nodeId: string, id: string, request: Cha
   });
 }
 
-/** Uploads `bytes` (whose SHA-256 is `id`) to `nodeId`'s chat, a chunk at a time. */
-export async function uploadAttachment(wire: AttachmentWire, nodeId: string, bytes: Uint8Array, id: string): Promise<void> {
+/**
+ * Uploads `bytes` (whose SHA-256 is `id`) to `nodeId`'s chat, a chunk at a time. `onStored` hears
+ * how many bytes the server has said it stored, after each chunk's answer, never on sending one.
+ */
+export async function uploadAttachment(wire: AttachmentWire, nodeId: string, bytes: Uint8Array, id: string, onStored: (storedBytes: number) => void): Promise<void> {
   const total: number = Math.ceil(bytes.length / CHAT_ATTACHMENT_CHUNK_BYTES);
   for (let index: number = 0; index < total; index++) {
     const part: Uint8Array = bytes.subarray(index * CHAT_ATTACHMENT_CHUNK_BYTES, (index + 1) * CHAT_ATTACHMENT_CHUNK_BYTES);
@@ -85,6 +88,7 @@ export async function uploadAttachment(wire: AttachmentWire, nodeId: string, byt
     if (index + 1 === total && !('ChunkStored' in answer && answer.ChunkStored.stored)) {
       throw new Error('The workspace server took every chunk but did not keep the file.');
     }
+    onStored(Math.min((index + 1) * CHAT_ATTACHMENT_CHUNK_BYTES, bytes.length));
   }
 }
 

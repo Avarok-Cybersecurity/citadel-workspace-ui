@@ -60,7 +60,7 @@ export function fakeTransport(options: FakeOptions): { transport: ChatTransport;
     modes: ['server'],
     destination: 'Stored on the workspace server.',
     dialogKey: '2',
-    send: async (file: File): Promise<FileSendReceipt> => { call(`files.send:${file.name}`); return { held: false }; },
+    send: async (file: File): Promise<FileSendReceipt> => { call(`files.send:${file.name}`); return { outcome: 'offered' }; },
     accept: async (id: string): Promise<void> => call(`files.accept:${id}`),
     decline: async (id: string): Promise<void> => call(`files.decline:${id}`),
     cancel: async (id: string): Promise<void> => call(`files.cancel:${id}`),

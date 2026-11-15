@@ -44,7 +44,7 @@ function peerFiles(peer: ChatPeer): FilePort {
     dialogKey: key,
     send: async (file: File): Promise<FileSendReceipt> => {
       const id: string = await fileTransferService.sendFile(key, file);
-      return { held: fileTransferService.getTransfer(id)?.state === 'queued' };
+      return { outcome: fileTransferService.getTransfer(id)?.state === 'queued' ? 'held' : 'offered' };
     },
     accept: (transferId: string): Promise<void> => fileTransferService.acceptTransfer(transferId),
     decline: (transferId: string): Promise<void> => fileTransferService.declineTransfer(transferId),

@@ -5,6 +5,7 @@ import { debugLog } from '@/lib/debug-config';
 import { getFileIcon, formatBytes, getStatusContent } from './file-transfer-helpers';
 import type { StatusContent } from '@/components/p2p/bubbles/file-transfer-helpers';
 import { useTransferView } from '../hooks/useTransferView';
+import { TransferProgressBar } from './TransferProgressBar';
 import type { TransferView } from '@/lib/file-transfer/transfer-view';
 
 /**
@@ -136,26 +137,7 @@ export function FileTransferBubble({
 
         {/* Progress bar */}
         {status.showProgress && (
-          <div className="mb-2">
-            <div
-            role="progressbar"
-            aria-valuenow={Math.round(progress)}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-label={`Transfer of ${fileName}`}
-            aria-valuetext={`${Math.round(progress)} percent`}
-            className={`h-1.5 rounded-full overflow-hidden ${isOwn ? 'bg-primary-foreground/25' : 'bg-foreground/10'}`}
-          >
-              <div
-                className={`h-full rounded-full transition-all duration-300 ${isOwn ? 'bg-primary-foreground' : 'bg-primary-accent'}`}
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <div className="flex justify-between text-xs mt-1">
-              <span>{progress}%</span>
-              <span>{formatBytes(fileSize * progress / 100)} / {formatBytes(fileSize)}</span>
-            </div>
-          </div>
+          <TransferProgressBar percent={progress} doneBytes={fileSize * progress / 100} totalBytes={fileSize} label={`Transfer of ${fileName}`} onPrimary={isOwn} />
         )}
 
         {/* Action buttons */}

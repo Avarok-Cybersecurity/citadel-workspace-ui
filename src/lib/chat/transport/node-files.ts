@@ -8,7 +8,7 @@
 import { readAttachment, sha256Hex, uploadAttachment } from '@/lib/chat/attachments/attachment-wire';
 import { declaredMime, type SharedFile } from '@/lib/chat/attachments/shared-file';
 import type { NodeChatIO } from './node-chat-io';
-import type { FilePort, FileSendReceipt } from './chat-transport';
+import type { FilePort, FileSendReceipt, SendProgress } from './chat-transport';
 
 /** Said beside the attach control: where the file goes, and who can read it. */
 export const NODE_FILES_DESTINATION: string = "Stored on the workspace server, readable by this channel's members";
@@ -21,12 +21,15 @@ export function nodeFiles(io: Pick<NodeChatIO, 'attachments' | 'shareFile' | 're
     modes: ['server'],
     destination: NODE_FILES_DESTINATION,
     dialogKey: null,
-    send: async (file: File): Promise<FileSendReceipt> => {
+    // No bubble follows the upload, so its progress goes to the caller: nothing stored while it
+    // is hashed, then each chunk the server acknowledges.
+    send: async (file: File, onProgress: SendProgress): Promise<FileSendReceipt> => {
       const bytes: Uint8Array = await io.readFile(file);
+      onProgress(0, bytes.length);
       const id: string = await sha256Hex(bytes);
-      await uploadAttachment(io.attachments, nodeId, bytes, id);
+      await uploadAttachment(io.attachments, nodeId, bytes, id, (stored: number): void => onProgress(stored, bytes.length));
       await io.shareFile({ id, name: file.name, size: bytes.length, mime: declaredMime(file.type) });
-      return { held: false };
+      return { outcome: 'shared' };
     },
     accept: refuse,
     decline: refuse,

@@ -47,17 +47,23 @@ describe('a node channel\'s files', () => {
     expect(port.modes).toEqual(['server']);
   });
 
-  it('uploads to the node, then shares what it uploaded', async () => {
+  it('uploads to the node, then shares what it uploaded, reporting what the server stored', async () => {
     const wire = io(false);
-    await nodeFiles(wire, 'room-1').send(picked);
+    const progress: number[][] = [];
+    const receipt = await nodeFiles(wire, 'room-1').send(picked, (done: number, total: number): void => { progress.push([done, total]); });
+    expect(receipt).toEqual({ outcome: 'shared' });
+    expect(progress).toEqual([[0, 4], [4, 4]]);
     expect(wire.uploads).toEqual(['room-1']);
     expect(wire.shared).toEqual([{ id: await sha256Hex(new Uint8Array([1, 2, 3, 4])), name: 'plan.pdf', size: 4, mime: 'application/pdf' }]);
   });
 
   it('shares nothing when the server refuses the upload, and says why', async () => {
     const wire = io(true);
-    await expect(nodeFiles(wire, 'room-1').send(picked)).rejects.toThrow('You cannot share or open files in this channel.');
+    const progress: number[][] = [];
+    await expect(nodeFiles(wire, 'room-1').send(picked, (done: number, total: number): void => { progress.push([done, total]); }))
+      .rejects.toThrow('You cannot share or open files in this channel.');
     expect(wire.shared).toEqual([]);
+    expect(progress).toEqual([[0, 4]]);
   });
 
   it('shows a FileShare message as the file it shares', () => {

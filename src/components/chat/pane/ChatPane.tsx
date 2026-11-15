@@ -25,6 +25,7 @@ import { MessageList } from './MessageList';
 import { AttachmentIOContext, type AttachmentIO } from '@/components/chat/attachments/attachment-io';
 import type { SharedFile } from '@/lib/chat/attachments/shared-file';
 import { browserDocumentFiles } from '@/lib/document-files';
+import { ServerUploadStatus } from '@/components/chat/attachments/ServerUploadStatus';
 import { MessageInput } from './MessageInput';
 import { paneTestIds, type PaneTestIds } from './pane-test-ids';
 import { useChatPane, type ChatPaneModel } from './use-chat-pane';
@@ -100,6 +101,7 @@ export function ChatPane({ transport, header, pause }: ChatPaneProps): JSX.Eleme
             />
             <NewMessagesPill count={pane.stick.unseen} onView={pane.stick.reveal} />
             </div>
+            <ServerUploadStatus view={fileSend.fileTransfer.upload} />
             <ComposeContextBanner replyingTo={compose.replyingTo} editingMessage={compose.editingMessage} onCancel={compose.cancelComposeContext} />
             {restricted !== null ? (
               // A role without the permission gets the reason, not a box that silently refuses.

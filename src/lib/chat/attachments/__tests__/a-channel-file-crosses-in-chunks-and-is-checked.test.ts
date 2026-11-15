@@ -10,6 +10,8 @@ import type { ChatAttachmentRefusal, ChatAttachmentsRequest, ChatAttachmentsResp
 import { AttachmentRefused, CHAT_ATTACHMENT_CHUNK_BYTES, readAttachment, sha256Hex, uploadAttachment, type AttachmentWire } from '../attachment-wire';
 
 const NODE: string = 'room-1';
+/** Progress is its own test's subject (an-upload-reports-what-the-server-has-stored). */
+const IGNORE_PROGRESS = (): void => undefined;
 
 /** A server that keeps what it is sent and answers as the kernel does; `tamper` changes what it reads back. */
 function server(options: { refuse?: ChatAttachmentRefusal; tamper?: boolean } = {}): AttachmentWire & { sent: ChatAttachmentsRequest[] } {
@@ -46,7 +48,7 @@ describe('a channel file on the server', () => {
   it('goes up in chunks of the server\'s size and comes back whole', async () => {
     const wire = server();
     const id: string = await sha256Hex(file);
-    await uploadAttachment(wire, NODE, file, id);
+    await uploadAttachment(wire, NODE, file, id, IGNORE_PROGRESS);
     const chunks: number[] = wire.sent.map((r: ChatAttachmentsRequest): number => ('UploadChunk' in r ? r.UploadChunk.bytes.length : -1));
     expect(chunks).toEqual([CHAT_ATTACHMENT_CHUNK_BYTES, CHAT_ATTACHMENT_CHUNK_BYTES, 5]);
     expect(await readAttachment(wire, NODE, id)).toEqual(file);
@@ -55,13 +57,13 @@ describe('a channel file on the server', () => {
   it('is never handed on when the bytes are not the shared file', async () => {
     const wire = server({ tamper: true });
     const id: string = await sha256Hex(file);
-    await uploadAttachment(wire, NODE, file, id);
+    await uploadAttachment(wire, NODE, file, id, IGNORE_PROGRESS);
     await expect(readAttachment(wire, NODE, id)).rejects.toThrow('not the one shared');
   });
 
   it('says the server\'s reason when it refuses the upload', async () => {
     const wire = server({ refuse: 'Denied' });
-    const refused: unknown = await uploadAttachment(wire, NODE, file, await sha256Hex(file)).catch((e: unknown): unknown => e);
+    const refused: unknown = await uploadAttachment(wire, NODE, file, await sha256Hex(file), IGNORE_PROGRESS).catch((e: unknown): unknown => e);
     expect(refused).toBeInstanceOf(AttachmentRefused);
     expect((refused as AttachmentRefused).message).toBe('You cannot share or open files in this channel.');
     expect(wire.sent).toHaveLength(1);
