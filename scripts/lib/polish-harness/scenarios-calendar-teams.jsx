@@ -4,7 +4,7 @@
  * cy keep working hours here; Platform has a round robin of ana and bo (ana already has two
  * bookings this month, bo none) and a collective of both; ana asks a poll and so does the viewer
  * (bo said yes to its second time); and a routing form sends Sales to bo and anything else to the
- * round robin. The install holds no iHTTP, so a booking is left as a request to the first host
+ * round robin; and a reminder fell due while no window was open. The install holds no iHTTP, so a booking is left as a request to the first host
  * ranked, which is what the checks read. The store's keys and a decoder are left on `window` for
  * the checks; they are the harness's, never the app's.
  */
@@ -25,6 +25,7 @@ import { glueInstance } from '@/lib/citadel-apps/host/glue-instance';
 import { STANDARD_HOST_POLICY } from '@/lib/citadel-apps/host/limits';
 import { treeNodesPort } from '@/lib/citadel-apps/runtime/nodes-port';
 import { rosterMembersPort } from '@/lib/citadel-apps/runtime/first-party-ports';
+import { decodeHandled, encodeHandled } from '@/lib/calendar/reminder-runner';
 
 const PAGE_CLOCK = pinnedClock();
 const TREE = {
@@ -52,6 +53,9 @@ function seed(engine, store) {
   set(as('ana'), 'cal/poll/pa', engine.team.encodePoll(poll('pa', 'ana', 'Offsite planning', [at('2024-07-22T14:00:00Z', 60), at('2024-07-23T14:00:00Z', 60)])));
   set(as(VIEWER), 'cal/poll/pv', engine.team.encodePoll(poll('pv', VIEWER, 'Retro', [at('2024-07-24T15:00:00Z', 30), at('2024-07-25T15:00:00Z', 30)])));
   set(as('bo'), 'cal/poll-vote/pv', engine.team.encodePollVote({ poll_id: 'pv', yes: [1], maybe: [] }));
+  // A reminder that fell due while no window was open: shown once under "While you were away".
+  store.put('user', 'cal/reminders/m1', engine.encodeReminderPlan({ event_id: 'm1', node: 'n1', title: 'Design review', fires: [{ at_ms: at('2024-07-16T12:00:00Z', 0).start_ms, start_ms: at('2024-07-16T13:00:00Z', 0).start_ms }] }));
+  store.put('user', 'cal/reminders-handled', encodeHandled(at('2024-07-16T10:00:00Z', 0).start_ms));
   const topic = { id: 'q-topic', label: 'What is it about?', kind: { choice: { options: ['Sales', 'Support'] } }, required: true };
   set({ node: { node_id: 'n1' } }, 'cal/routing/f1', engine.team.encodeRoutingForm({
     id: 'f1', name: 'Talk to the right person', questions: [topic],
@@ -71,6 +75,7 @@ function build(engine) {
   window.__calendarKeys = () => [...store.values.keys()];
   window.__calendarRead = (codec, key) => engine[codec](store.values.get(key));
   window.__calendarTeam = (codec, key) => engine.team[codec](store.values.get(key));
+  window.__calendarHandled = () => Number(decodeHandled(store.values.get(store.where('user', 'cal/reminders-handled', false))));
   return ports;
 }
 
@@ -87,7 +92,7 @@ function Teams() {
   return (
     <WorkspaceContext.Provider value={{ state }}>
       <main className="mx-auto max-w-6xl">
-        <CalendarPane ports={ready.ports} engine={ready.engine} nodeId="n1" me={VIEWER} displayZone={ZONE} deviceZone={ZONE} held={new Set()} mayEditNode />
+        <CalendarPane ports={ready.ports} engine={ready.engine} nodeId="n1" me={VIEWER} displayZone={ZONE} deviceZone={ZONE} held={new Set()} mayEditNode leader />
       </main>
     </WorkspaceContext.Provider>
   );

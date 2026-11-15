@@ -62,6 +62,8 @@ export function decodePollVote(bytes: Uint8Array): any;
 
 export function decodeProjection(bytes: Uint8Array): any;
 
+export function decodeReminderPlan(bytes: Uint8Array): any;
+
 export function decodeRoutingForm(bytes: Uint8Array): any;
 
 export function encodeAvailability(value: any): Uint8Array;
@@ -85,6 +87,8 @@ export function encodePoll(value: any): Uint8Array;
 export function encodePollVote(value: any): Uint8Array;
 
 export function encodeProjection(value: any): Uint8Array;
+
+export function encodeReminderPlan(value: any): Uint8Array;
 
 export function encodeRoutingForm(value: any): Uint8Array;
 
@@ -167,6 +171,7 @@ export interface InitOutput {
     readonly decodePoll: (a: number, b: number, c: number) => void;
     readonly decodePollVote: (a: number, b: number, c: number) => void;
     readonly decodeProjection: (a: number, b: number, c: number) => void;
+    readonly decodeReminderPlan: (a: number, b: number, c: number) => void;
     readonly decodeRoutingForm: (a: number, b: number, c: number) => void;
     readonly encodeAvailability: (a: number, b: number) => void;
     readonly encodeBooking: (a: number, b: number) => void;
@@ -176,6 +181,7 @@ export interface InitOutput {
     readonly encodePoll: (a: number, b: number) => void;
     readonly encodePollVote: (a: number, b: number) => void;
     readonly encodeProjection: (a: number, b: number) => void;
+    readonly encodeReminderPlan: (a: number, b: number) => void;
     readonly encodeRoutingForm: (a: number, b: number) => void;
     readonly exportIcs: (a: number, b: number) => void;
     readonly fanOutPlan: (a: number, b: number, c: number) => void;

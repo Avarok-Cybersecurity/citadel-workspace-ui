@@ -6,6 +6,7 @@
  */
 import type { Availability } from '../generated/Availability';
 import type { Booking } from '../generated/Booking';
+import type { ReminderPlan } from '../generated/ReminderPlan';
 import type { CalChange } from '../generated/CalChange';
 import type { CivilDate } from '../generated/CivilDate';
 import type { CivilDateTime } from '../generated/CivilDateTime';
@@ -143,6 +144,12 @@ export class CalendarEngine {
   }
   decodeProjection(bytes: Uint8Array): Projection {
     return call((): unknown => this.glue.decodeProjection(bytes));
+  }
+  encodeReminderPlan(value: ReminderPlan): Uint8Array {
+    return call((): unknown => this.glue.encodeReminderPlan(value));
+  }
+  decodeReminderPlan(bytes: Uint8Array): ReminderPlan {
+    return call((): unknown => this.glue.decodeReminderPlan(bytes));
   }
   encodeChange(change: CalChange): Uint8Array {
     return call((): unknown => this.glue.encodeChange(change));

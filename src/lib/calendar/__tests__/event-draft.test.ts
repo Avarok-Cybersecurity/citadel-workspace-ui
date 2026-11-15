@@ -12,7 +12,7 @@ const engine = realEngine();
 const ctx: DraftContext = { id: 'e9', node: 'n1', me: 'amy', zone: NY, nowMs: 5n };
 const draft: EventDraft = {
   title: 'Planning', notes: '', date: { y: 2024, m: 7, d: 15 }, allDay: false, start: '09:00', end: '10:30',
-  location: { kind: 'in_app' }, visibility: 'public', destination: 'authored', down: false, upTo: null,
+  location: { kind: 'in_app' }, visibility: 'public', destination: 'authored', down: false, upTo: null, reminders: [],
 };
 
 describe('the event editor', () => {

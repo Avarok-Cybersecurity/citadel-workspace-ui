@@ -2,7 +2,8 @@
  * The Calendar's tab as the first-party registry mounts it (first-party/registry.ts): the core
  * loaded for the page, its ports over the glue instance the tab was bound with, the member's
  * display zone (asked once, ZoneQuestion), and the store kept read from storage and refreshed on
- * StorageChanged (use-calendar-sources.ts), in CalendarPane.
+ * StorageChanged (use-calendar-sources.ts), in CalendarPane; and whether this tab is the leader,
+ * the one whose reminders fire (use-reminders.ts).
  */
 import { useEffect, useMemo, useState } from 'react';
 import type { GlueTabProps } from '@/lib/citadel-apps/first-party/registry';
@@ -12,6 +13,7 @@ import { loadCalendarWasm } from '@/lib/calendar/engine/load-calendar-wasm';
 import { calendarPorts, type CalendarPorts } from '@/lib/calendar/ports';
 import { displayZoneOf, type DisplayZoneChoice } from '@/lib/calendar/zones';
 import { CalendarPane } from './CalendarPane';
+import { useIsLeaderTab } from '@/components/call/use-leader-tab';
 import { useCalendarSettings, type SettingsState } from './use-calendar-settings';
 import { ZoneQuestion } from './ZoneQuestion';
 
@@ -34,6 +36,7 @@ export function CalendarMount({ glue, nodeId, me, mayEditNode }: GlueTabProps): 
   }, []);
   const settings: SettingsState = useCalendarSettings(ports);
   const deviceZone: string = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const leader: boolean = useIsLeaderTab();
 
   if (loaded.kind === 'failed') return <Status alert>The Calendar could not be loaded. Reload the page to try again.</Status>;
   if (settings.kind === 'failed') return <Status alert>Your Calendar settings could not be read: {settings.reason}.</Status>;
@@ -41,5 +44,5 @@ export function CalendarMount({ glue, nodeId, me, mayEditNode }: GlueTabProps): 
   if (settings.kind === 'absent') {
     return <ZoneQuestion deviceZone={deviceZone} saving={settings.saving} error={settings.error} onChoose={(choice: DisplayZoneChoice): void => settings.choose(choice)} />;
   }
-  return <CalendarPane ports={ports} engine={loaded.engine} nodeId={nodeId} me={me} displayZone={displayZoneOf(settings.settings.displayZone, deviceZone)} deviceZone={deviceZone} held={glue.held} mayEditNode={mayEditNode} />;
+  return <CalendarPane ports={ports} engine={loaded.engine} nodeId={nodeId} me={me} displayZone={displayZoneOf(settings.settings.displayZone, deviceZone)} deviceZone={deviceZone} held={glue.held} mayEditNode={mayEditNode} leader={leader} />;
 }

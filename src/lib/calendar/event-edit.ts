@@ -58,6 +58,7 @@ export function draftOf(event: Event, zone: string, engine: Pick<CalendarEngine,
   const base = {
     title: event.title, notes: event.body ?? '', location, visibility: event.visibility,
     destination: source === 'node' ? 'node' as const : 'authored' as const, down: event.propagate.down, upTo: event.propagate.up_to,
+    reminders: event.reminders.map((r) => r.minutes_before),
   };
   if ('all_day' in when) return { ...base, date: when.all_day.date, allDay: true, start: '09:00', end: '10:00' };
   const start = engine.civilOf(zone, when.once.start_ms);

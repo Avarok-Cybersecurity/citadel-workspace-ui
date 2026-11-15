@@ -1,8 +1,8 @@
 {
   "source": "apps/first-party/calendar/glue",
   "wasm_bindgen_version": "0.2.129",
-  "wasm_sha256": "9f6beae2a5774217312606b60a2f7daa0c3f9b082102e16e361f2a293ff107e8",
-  "wasm_bytes": 864337,
-  "glue_sha256": "c5832967f6e59067a7197c8f0f26433b209c6276b2faf76ffc8200b73819d82c",
-  "dts_sha256": "03a43bfc53afadaa7e083d92bef89e235bcc4ce30c6df1f25b4d363d408a43ec"
+  "wasm_sha256": "e472f344d5ad2530c65a9f3d8230795bd5fbfa79dafd76612456b055ab9a70e4",
+  "wasm_bytes": 879618,
+  "glue_sha256": "25c179aaadc314afde7b811056d62aecc245c7f7cdf6575127425db5a81ce51b",
+  "dts_sha256": "e97de26113f163645cd20233bd20343eda4f192fd2f6c24e9855fc8fa1ac34c9"
 }

@@ -106,7 +106,22 @@ async function aNewPollFits({ page, url, viewport }) {
   await fitsAndReads(page, width, 'a new poll');
 }
 
+/** A reminder missed while no window was open is listed once, fits, and goes when dismissed. */
+async function aMissedReminderIsShownOnce({ page, url, viewport }) {
+  const width = viewport.width < 600 ? 375 : viewport.width;
+  await page.setViewportSize({ width, height: viewport.height });
+  await page.goto(url('calendar-teams'));
+  const away = page.getByTestId('calendar-reminders-away');
+  await away.getByText('Design review').waitFor({ state: 'visible', timeout: 5000 });
+  await fitsAndReads(page, width, 'while you were away');
+  await away.getByRole('button', { name: 'Dismiss' }).click();
+  await away.waitFor({ state: 'detached', timeout: 5000 });
+  const handled = await page.evaluate(() => window.__calendarHandled());
+  assert.ok(handled >= Date.UTC(2024, 6, 16, 15, 0), `the leader did not move the handled instant on: ${new Date(handled).toISOString()}`);
+}
+
 export const CALENDAR_TEAM_CHECKS = {
+  aMissedReminderIsShownOnce,
   theTeamTypeEditorFitsAndSaves, aRoundRobinGoesToTheHostWithFewerBookings, aCollectiveBookingPageFits,
   aRoutingAnswerOpensThePageItRoutesTo, aVoteAndAPickAreSavedFromThePolls, aNewPollFits,
 };

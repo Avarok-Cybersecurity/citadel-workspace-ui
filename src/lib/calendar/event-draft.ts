@@ -38,6 +38,8 @@ export interface EventDraft {
   down: boolean;
   /** Also shown on this ancestor and every page between it and here; null for here only. */
   upTo: string | null;
+  /** Minutes before the start a reminder fires, each once. */
+  reminders: readonly number[];
 }
 
 export interface DraftContext {
@@ -82,7 +84,7 @@ export function checkEvent(draft: EventDraft, ctx: DraftContext, engine: Pick<Ca
   const event: Event = {
     id: ctx.id, rev: 1, origin_node: ctx.node, author: ctx.me, title, body: draft.notes.trim() === '' ? null : draft.notes.trim(),
     kind: 'plain', status: 'confirmed', when, zone: ctx.zone, location, hosts: [ctx.me], invitees: [], visibility: draft.visibility,
-    propagate: draft.visibility === 'private' ? { down: false, up_to: null } : { down: draft.down && draft.destination === 'node', up_to: draft.upTo }, reminders: [], notes_doc: null, source: null, created_ms: ctx.nowMs, updated_ms: ctx.nowMs,
+    propagate: draft.visibility === 'private' ? { down: false, up_to: null } : { down: draft.down && draft.destination === 'node', up_to: draft.upTo }, reminders: [...new Set(draft.reminders)].sort((a: number, b: number) => a - b).map((m: number) => ({ minutes_before: m })), notes_doc: null, source: null, created_ms: ctx.nowMs, updated_ms: ctx.nowMs,
   };
   if (draft.visibility === 'private') return { ok: true, event, store: { kind: 'user' }, key: `${PRIVATE_PREFIX}${ctx.id}` };
   const store: CalendarStore = draft.destination === 'node' ? { kind: 'node', node: ctx.node } : { kind: 'authored', node: ctx.node, author: ctx.me };

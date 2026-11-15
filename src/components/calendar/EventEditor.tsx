@@ -17,6 +17,7 @@ import type { SaveOutcome } from '@/lib/calendar/event-save';
 import type { FanOutFailure } from '@/lib/calendar/fan-out';
 import { NativeSelect } from './NativeSelect';
 import { PropagationFields, type NamedNode } from './PropagationFields';
+import { ReminderPicker } from './ReminderPicker';
 
 /** An event being changed: its form read back (event-edit.ts) and the store it stays in. */
 export interface Editing {
@@ -68,7 +69,7 @@ export function EventEditor({ date, editing, node, above, nodeName, me, displayZ
   const base: string = useId();
   const title = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState<EventDraft>(editing?.draft ?? {
-    title: '', notes: '', date, allDay: false, start: '09:00', end: '10:00', location: { kind: 'in_app' }, visibility: 'public', destination: 'authored', down: false, upTo: null,
+    title: '', notes: '', date, allDay: false, start: '09:00', end: '10:00', location: { kind: 'in_app' }, visibility: 'public', destination: 'authored', down: false, upTo: null, reminders: [],
   });
   // An edit keeps the event where it is stored: a private event stays private, a shared one shared.
   const choices = editing === null ? VISIBILITY : editing.kept === 'private' ? [] : VISIBILITY.filter((v) => v.value !== 'private');
@@ -169,6 +170,7 @@ export function EventEditor({ date, editing, node, above, nodeName, me, displayZ
         </fieldset>
       )}
       {draft.visibility !== 'private' && <PropagationFields draft={draft} nodeName={node.name} above={above} onChange={set} />}
+      <ReminderPicker chosen={draft.reminders} onChange={(reminders: readonly number[]): void => set({ reminders })} />
       <div className="flex min-w-0 flex-col gap-1">
         <label htmlFor={`${base}-notes`} className="text-sm font-medium text-foreground">Notes (optional)</label>
         <Textarea id={`${base}-notes`} rows={2} value={draft.notes} onChange={(e): void => set({ notes: e.target.value })} />

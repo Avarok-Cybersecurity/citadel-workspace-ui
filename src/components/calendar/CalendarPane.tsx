@@ -28,6 +28,8 @@ import { dateKey } from '@/lib/calendar/grid-keyboard';
 import { BookingSetup } from './BookingSetup';
 import { BookWith } from './BookWith';
 import { PollsPanel } from './PollsPanel';
+import { RemindersAway } from './RemindersAway';
+import { useReminders } from './use-reminders';
 import { CalendarTab } from './CalendarTab';
 import { EventDetails } from './EventDetails';
 import { EventEditor } from './EventEditor';
@@ -50,6 +52,8 @@ export interface CalendarPaneProps {
   held: ReadonlySet<Capability>;
   /** Whether the member holds `EditMdx` on this node: who may change its own events. */
   mayEditNode: boolean;
+  /** Whether this tab holds the WebSocket: the one whose reminders fire. */
+  leader: boolean;
 }
 
 type Panel = { kind: 'none' } | { kind: 'new'; date: CivilDate } | { kind: 'edit'; entry: EventEntry } | { kind: 'setup' } | { kind: 'polls' }
@@ -60,7 +64,7 @@ const newId = (): string => crypto.randomUUID();
 const nowOf = (ports: CalendarPorts): bigint => BigInt(Math.floor(ports.clock.now()));
 const reasonOf = (e: unknown): string => (e instanceof PortRefused ? refusalCopy(e.refused) : 'something went wrong');
 
-export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZone, held, mayEditNode }: CalendarPaneProps): JSX.Element {
+export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZone, held, mayEditNode, leader }: CalendarPaneProps): JSX.Element {
   const { state: ws } = useWorkspace();
   const now = useMinuteClock(engine, displayZone, ports.clock);
   const nowMs: bigint = useMemo(() => engine.instantOf(displayZone, now), [engine, displayZone, now]);
@@ -75,6 +79,7 @@ export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZon
   const zone: string | null = useMemo(() => nodeZone(ws.nodes, nodeId, ws.workspace?.metadata), [ws.nodes, nodeId, ws.workspace?.metadata]);
   const node = { id: nodeId, name: ws.nodes[nodeId]?.name ?? 'This page' };
   const close = (): void => setPanel({ kind: 'none' });
+  const reminders = useReminders({ ports, engine, leader, displayZone, nodeName, revision: state.entries });
 
   const above = useAbove(ports, nodeId, nodeName);
   const saveEvent = (checked: Extract<EventCheck, { ok: true }>, progress: (done: number, of: number) => void): Promise<SaveOutcome> =>
@@ -125,6 +130,7 @@ export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZon
 
   return (
     <div className="flex min-w-0 flex-col gap-3 p-[16px]" data-testid="calendar-pane">
+      <RemindersAway missed={reminders.missed} engine={engine} displayZone={displayZone} nodeName={nodeName} onDismiss={reminders.dismiss} />
       {panel.kind === 'none' && (
         <div className="flex min-w-0 flex-wrap gap-2">
           <Button variant="outline" className="h-[44px]" onClick={(): void => setPanel({ kind: 'book', moving: null })}>Book with someone</Button>

@@ -74,7 +74,7 @@ function Changes() {
   return (
     <WorkspaceContext.Provider value={{ state }}>
       <main className="mx-auto max-w-6xl">
-        <CalendarPane ports={ready.ports} engine={ready.engine} nodeId="n1" me={VIEWER} displayZone={ZONE} deviceZone={ZONE} held={new Set(['ihttp.call'])} mayEditNode />
+        <CalendarPane ports={ready.ports} engine={ready.engine} nodeId="n1" me={VIEWER} displayZone={ZONE} deviceZone={ZONE} held={new Set(['ihttp.call'])} mayEditNode leader={false} />
       </main>
     </WorkspaceContext.Provider>
   );

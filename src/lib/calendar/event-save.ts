@@ -3,6 +3,8 @@
  * implies (design 3.5): the other windows are told on the `cal` topic, and an official event that
  * propagates down (or did, and no longer does) is fanned out to the pages below.
  *
+ * The saver's reminders for it are resolved and kept, or dropped once it has none (reminder-plans.ts).
+ *
  * The fan-out is planned before the event is written, so an event the core will not propagate
  * (more pages below than its bound) is refused whole rather than saved half-shown. After the
  * write, each page the kernel refuses is reported; the event itself stays saved, and saving it
@@ -15,6 +17,7 @@ import { applyFanOut, planFanOut, type FanOutFailure, type Progress } from './fa
 import type { Event } from './generated/Event';
 import type { Write } from './generated/Write';
 import { PortRefused, refusalCopy, type CalendarPorts } from './ports';
+import { keepPlan } from './reminder-plans';
 
 export type SaveOutcome =
   | { readonly kind: 'saved' }
@@ -41,6 +44,11 @@ export async function saveEvent(ports: CalendarPorts, engine: CalendarEngine, sa
     await ports.storage.set(store, key, engine.encodeEvent(event));
   } catch (error: unknown) {
     return { kind: 'refused', reason: refusedCopy(error) };
+  }
+  try {
+    await keepPlan(ports, engine, event, before);
+  } catch (error: unknown) {
+    return { kind: 'refused', reason: `it was saved, but its reminders were not: ${refusedCopy(error)}` };
   }
   if (store.kind !== 'user') await announce(ports, engine, { node: event.origin_node, key });
   if (plan.length === 0) return { kind: 'saved' };
