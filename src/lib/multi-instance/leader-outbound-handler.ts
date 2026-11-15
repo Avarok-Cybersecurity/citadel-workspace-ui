@@ -18,6 +18,7 @@
 import { eventEmitter } from '../event-emitter';
 import { waitForSocket } from './wait-for-socket';
 import { instanceChannel } from './instance-channel';
+import { instanceManager } from './instance-manager';
 import type { ProxyResponseData } from './outbound-queue-types';
 import {
   handleWorkspaceRequestProxy,
@@ -41,7 +42,6 @@ interface OutboundRequest {
 class LeaderOutboundHandler {
   private static instance: LeaderOutboundHandler;
 
-  private isActive: boolean = false;
   private websocketSendFn: ((message: Record<string, unknown>) => Promise<void>) | null = null;
 
   private constructor() {
@@ -62,10 +62,8 @@ class LeaderOutboundHandler {
 
     onNewerTab((): void => this.handover.request());
     eventEmitter.on('instance:leader-changed', (data: { isLeader: boolean; leaderId: string }) => {
-      this.isActive = data.isLeader;
       this.handover.cancel();
-
-      if (this.isActive) {
+      if (data.isLeader) {
         debugLog('LeaderOutboundHandler', '[LeaderOutboundHandler] Activated as leader');
       } else {
         debugLog('LeaderOutboundHandler', '[LeaderOutboundHandler] Deactivated (no longer leader)');
@@ -90,7 +88,7 @@ class LeaderOutboundHandler {
   private readonly inFlight: Set<string> = new Set<string>();
 
   private readonly handover: StaleLeaderHandover = new StaleLeaderHandover({
-    isLeading: (): boolean => this.isActive,
+    isLeading: (): boolean => instanceManager.isLeader,
     busy: (): boolean => this.inFlight.size > 0,
     newerTabIsOpen,
     relinquish: (): void => instanceChannel.relinquishLeadership(),
@@ -125,7 +123,9 @@ class LeaderOutboundHandler {
       debugLog('LeaderOutboundHandler', `Not starting ${request.requestId}: handing over to a newer build`);
       return;
     }
-    if (!this.isActive) {
+    // The manager's flag, not a copy set by our own listener: the queue's leader-change replay runs
+    // in an earlier listener, so the copy said "follower" and a promoted tab refused its own queue.
+    if (!instanceManager.isLeader) {
       debugLog('LeaderOutboundHandler', 'Received request but not active (not leader)');
       this.sendAck(request.senderInstanceId, request.requestId, 'error', 'Not leader');
       return;
@@ -239,7 +239,7 @@ class LeaderOutboundHandler {
   }
 
   isHandlerActive(): boolean {
-    return this.isActive;
+    return instanceManager.isLeader;
   }
 }
 

@@ -15,13 +15,16 @@
  *   greets as an agent does and answers ClaimSession;
  * - IndexedDB, which jsdom lacks: storage-utils over a Map (the connection service reads the
  *   tab's selected user from it on every ConnectionManagement answer);
- * - the election's timers (fake setInterval): another tab is not there to send heartbeats,
- *   so this tab's leadership changes only when the test emits the election's own event.
+ * - every timer (fake setInterval AND setTimeout, so `vi.waitFor` moves time): another tab is
+ *   not there to send heartbeats, so this tab's leadership changes only when the test emits
+ *   the election's own event. With real timeouts, a loaded machine that took over 2.5s to load
+ *   these modules let the election's initial wait fire first, and the tab led before the test
+ *   made it a follower -- the cause of the "Not leader" claim failures seen only under load.
  */
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 
 const socket: { sent: Array<Record<string, unknown>>; opened: number } = vi.hoisted(() => {
-  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] });
   return { sent: [], opened: 0 };
 });
 const deviceStore: Map<string, unknown> = vi.hoisted((): Map<string, unknown> => new Map<string, unknown>());
@@ -61,6 +64,7 @@ vi.mock('citadel-workspace-client-ts', async (importOriginal: () => Promise<type
 import { websocketService } from '@/lib/websocket-service';
 import { instanceManager } from '@/lib/multi-instance/instance-manager';
 import { eventEmitter } from '@/lib/event-emitter';
+import { outboundQueue } from '@/lib/multi-instance/outbound-queue';
 
 const OWN_CID: bigint = 901n;
 const OTHER_CID: bigint = 902n;
@@ -138,9 +142,31 @@ describe('a follower promoted to leader', () => {
 
     eventEmitter.emit('instance:leader-changed', { isLeader: true, leaderId: instanceManager.instanceId });
     const requestId: string = crypto.randomUUID();
-    await websocketService.sendRequest({ GetSessions: { request_id: requestId } });
+    const sending: Promise<void> = websocketService.sendRequest({ GetSessions: { request_id: requestId } });
+    await vi.advanceTimersByTimeAsync(OPEN_TAKES_MS);
+    await sending;
 
     expect(socket.sent).toContainEqual({ GetSessions: { request_id: requestId } });
     expect(socket.opened).toBe(4);
+  });
+
+  it('sends a request it proxied to a leader that went away, once it is promoted itself', async () => {
+    eventEmitter.emit('instance:leader-changed', { isLeader: false, leaderId: 'other-tab' });
+    await vi.waitFor((): void => { expect(websocketService.client).toBeNull(); });
+    await websocketService.init();
+    socket.sent.length = 0;
+
+    // Proxied to 'other-tab', which closed before answering: the request waits in the queue.
+    const requestId: string = crypto.randomUUID();
+    let outcome: string = 'pending';
+    websocketService.sendRequest({ GetSessions: { request_id: requestId } })
+      .then((): void => { outcome = 'sent'; }, (error: unknown): void => { outcome = String(error); });
+    await vi.waitFor((): void => { expect(outboundQueue.getStats().size).toBe(1); });
+
+    // The election promotes this tab, and the queue replays the request to its new leader.
+    eventEmitter.emit('instance:leader-changed', { isLeader: true, leaderId: instanceManager.instanceId });
+
+    await vi.waitFor((): void => { expect(outcome).toBe('sent'); });
+    expect(socket.sent).toContainEqual({ GetSessions: { request_id: requestId } });
   });
 });
