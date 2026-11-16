@@ -13,17 +13,10 @@ import { tmpdir } from 'node:os';
 import react from '@vitejs/plugin-react-swc';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { stubWasmClient } from '../stub-wasm-client.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const APP_ROOT = resolve(HERE, '..', '..', '..');
-
-/** The WASM client is built by wasm-pack and absent from a clean checkout; nothing here calls it. */
-const WASM_STUB = '\0wasm-stub';
-const stubWasmClient = () => ({
-  name: 'stub-wasm-client',
-  resolveId: (id) => (/citadel[-_]internal[-_]service[-_]wasm[-_]client/.test(id) ? { id: WASM_STUB, moduleSideEffects: false } : undefined),
-  load: (id) => (id === WASM_STUB ? 'export default {}' : undefined),
-});
 
 /**
  * Built once, then served as static files. A dev server transforms modules on first request and keeps an HMR
