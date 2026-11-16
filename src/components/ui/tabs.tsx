@@ -47,7 +47,11 @@ const TabsContent: React.ForwardRefExoticComponent<React.ComponentPropsWithoutRe
   <TabsPrimitive.Content
     ref={ref}
     className={cn(
-      "mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+      // Radix hides an unselected panel with the `hidden` attribute, and any display class a
+      // caller gives the panel (`flex`) outranks that attribute: the panel stays laid out. A node's
+      // unselected app tabs each took a share of the column and left the chat transcript 0px tall
+      // on a phone. The variant is emitted after every plain utility, so it wins here for all callers.
+      "mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 data-[state=inactive]:hidden",
       className
     )}
     {...props}

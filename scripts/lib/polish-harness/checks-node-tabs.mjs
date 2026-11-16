@@ -72,4 +72,32 @@ const theTabViewFits = async ({ page, url, viewport }) => {
   }
 };
 
-export const NODE_TAB_CHECKS = { theNodeTabRowFits, theTabViewFits };
+/**
+ * Only the selected tab's panel is laid out, and it takes the pane's height below the row. Radix
+ * hides an unselected panel with the `hidden` attribute, which a display class outranks: an app
+ * tab's panel is `flex`, so every unselected app tab kept an equal share of the column, and at
+ * 375x667 the office chat's transcript was left 0px tall -- a message's actions could not be
+ * tapped, because the scroll area's padding sat over them.
+ */
+const onlyTheSelectedPanelTakesTheHeight = async ({ page, url }) => {
+  await page.goto(url('node-tabs-full'));
+  const list = page.getByRole('tablist', { name: 'Page tabs' });
+  await list.waitFor({ state: 'visible' });
+  for (const name of ['Page', 'Chat', 'Calendar']) {
+    const tab = list.getByRole('tab', { name, exact: true });
+    await tab.click();
+    await page.waitForFunction((label) => [...document.querySelectorAll('[role="tab"][aria-selected="true"]')].some((t) => t.textContent === label), name);
+    const laidOut = await page.locator('[role="tabpanel"]').evaluateAll((nodes) => nodes
+      .filter((n) => n.getClientRects().length > 0)
+      .map((n) => ({ id: n.id, state: n.getAttribute('data-state'), top: n.getBoundingClientRect().top, bottom: n.getBoundingClientRect().bottom })));
+    assert.equal(laidOut.length, 1, `with "${name}" selected, ${laidOut.length} panels are laid out: ${JSON.stringify(laidOut)}`);
+    assert.equal(laidOut[0].state, 'active', `with "${name}" selected, the panel laid out is ${laidOut[0].id}`);
+    const pane = await page.getByTestId('node-tabs-pane').boundingBox();
+    const row = await list.boundingBox();
+    const panel = laidOut[0];
+    assert.ok(panel.top >= row.y + row.height - 0.5 && Math.abs(panel.bottom - (pane.y + pane.height)) <= 1.5,
+      `with "${name}" selected, its panel spans ${panel.top}-${panel.bottom}, not the pane's ${row.y + row.height}-${pane.y + pane.height} below the row`);
+  }
+};
+
+export const NODE_TAB_CHECKS = { theNodeTabRowFits, theTabViewFits, onlyTheSelectedPanelTakesTheHeight };

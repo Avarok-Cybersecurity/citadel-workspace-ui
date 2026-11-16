@@ -25,7 +25,7 @@ function Pane({ apps, workspace }) {
   const model = { list, active, select: setActive, canConfigure: true, canSetDefault: true, busy: false, change: async () => true };
   return (
     <Shell>
-    <div style={{ height: 480 }} className="flex w-full min-w-0 flex-col border border-border">
+    <div style={{ height: 480 }} className="flex w-full min-w-0 flex-col border border-border" data-testid="node-tabs-pane">
       <NodeTabs
         model={model}
         contentView={<div data-testid="node-tabs-page" className="p-[16px]">The page</div>}
