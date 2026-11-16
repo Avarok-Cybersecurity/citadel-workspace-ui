@@ -45,13 +45,23 @@ function Mark({ role, permission, granted }: { role: RoleDefinition; permission:
   );
 }
 
+// The permission column stays put (sticky) while the role columns scroll under it. The scroller
+// keeps that column's width, and the header row's height, clear of whatever is scrolled into view:
+// without it, a role's checkbox focused by Tab, or scrolled to, could stop under the permission
+// column, focused and invisible (WCAG 2.4.11). Seen at 390px once the table had been scrolled to
+// its last column: every Member checkbox then sat behind the permission names; and at any width a
+// row scrolled up into view stopped under the header. The column renders at or under its width
+// (106px of 132 at 390px), and the header measures 48 to 51px, so the clearances cover both.
+const PERMISSION_COLUMN: string = 'w-[132px] sm:w-[200px]';
+const PERMISSION_COLUMN_CLEARANCE: string = 'scroll-pl-[132px] sm:scroll-pl-[200px] scroll-pt-[56px]';
+
 export function PermissionMatrixTable({ allPermissions, roles, cell, lockOf, onToggle }: PermissionMatrixTableProps): JSX.Element {
   return (
-    <div className="flex-1 overflow-auto min-h-0">
+    <div className={`flex-1 overflow-auto min-h-0 ${PERMISSION_COLUMN_CLEARANCE}`}>
       <table className="w-full border-collapse">
         <thead className="sticky top-0 z-10 bg-background">
           <tr>
-            <th scope="col" className="sticky left-0 z-20 bg-background text-left text-xs font-semibold tracking-wider uppercase text-muted-foreground px-3 sm:px-6 py-3 w-[132px] sm:w-[200px] border-b border-border">
+            <th scope="col" className={`sticky left-0 z-20 bg-background text-left text-xs font-semibold tracking-wider uppercase text-muted-foreground px-3 sm:px-6 py-3 ${PERMISSION_COLUMN} border-b border-border`}>
               Permission
             </th>
             {roles.map((role: RoleDefinition) => {
