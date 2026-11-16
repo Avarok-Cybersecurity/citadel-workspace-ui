@@ -10,6 +10,7 @@ import React, { forwardRef, useMemo } from 'react';
 import { groupMessagesByDate, quoteP2PReply } from '@/components/chat/shared';
 import { DateSeparator } from '@/components/chat/shared/DateSeparator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
 import { MessageBubble } from '@/components/p2p/bubbles';
 import { AwaitingAcceptContext } from '@/components/p2p/bubbles/awaiting-accept';
 import { reactionChips } from '@/lib/reactions/reaction-state';
@@ -31,6 +32,10 @@ interface MessageListProps {
   /** True until the stored history has been read; see useP2PMessages. */
   isLoadingHistory: boolean;
   hasMorePages: boolean;
+  /** Reads the next older page; see useP2PMessages. */
+  onLoadOlder: () => void;
+  /** Why the last older page could not be read, or null. */
+  olderPagesError: string | null;
   onScroll: (event: React.UIEvent<HTMLDivElement>) => void;
   onRetryMessage: (message: ChatMessage) => void;
   onOpenDocument: (link: ChatDocumentLink) => void;
@@ -56,7 +61,7 @@ export const MessageList: React.ForwardRefExoticComponent<MessageListProps & Rea
   function MessageList(
     {
       messages, greeting, namesSenders, selfCid, reactorName,
-      isLoadingMore, isLoadingHistory, hasMorePages,
+      isLoadingMore, isLoadingHistory, hasMorePages, onLoadOlder, olderPagesError,
       onScroll, onRetryMessage, onOpenDocument,
       onAcceptTransfer, onDeclineTransfer, onCancelTransfer, onOpenFile,
       onEditMessage, onDeleteMessage, onReplyMessage, focusComposer, onReactMessage,
@@ -94,9 +99,14 @@ export const MessageList: React.ForwardRefExoticComponent<MessageListProps & Rea
               <div className="text-sm text-muted-foreground">Loading older messages...</div>
             </div>
           )}
+          {/* A control, not only "scroll up": a newest page too short to overflow the view
+              cannot be scrolled, and older pages were then out of reach. */}
           {hasMorePages && !isLoadingMore && (
-            <div className="flex justify-center py-2">
-              <div className="text-xs text-muted-foreground">↑ Scroll up for older messages</div>
+            <div className="flex flex-col items-center gap-1 py-2">
+              <Button variant="ghost" size="sm" className="min-h-[44px]" onClick={onLoadOlder}>
+                Load older messages
+              </Button>
+              {olderPagesError && <p className="text-xs text-destructive" role="alert">{olderPagesError}</p>}
             </div>
           )}
           {messages.length === 0 && !isLoadingMore && !isLoadingHistory && (

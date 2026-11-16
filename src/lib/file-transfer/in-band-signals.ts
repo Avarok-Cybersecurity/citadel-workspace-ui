@@ -20,6 +20,8 @@ import { sendAllowingForAConcurrentOpen } from '../p2p/message-send-operations';
 import {
   createFileTransferResponse,
   createFileTransferCancel,
+  MessagingLayerType,
+  type MessagingLayer,
 } from '@/types/messaging-layer';
 import type { P2PMessagingLayerPayload } from '@/types/p2p-commands';
 import { P2PCommandType, serializeP2PCommand, type P2PCommand } from '@/types/p2p-types';
@@ -77,4 +79,19 @@ export async function sendTransferCancelSignal(
   await sendLayerPayload(
     buildLayerPayload(createFileTransferCancel(transferId, reason, failed), ownCid, peerCid)
   );
+}
+
+/**
+ * Tell the peer this transfer finished on this side.
+ *
+ * The protocol reports completion only to the page attached when the last tick
+ * goes out (tick_updater.rs drops ticks nobody is attached for). A page that
+ * reloaded across that moment never heard it, and its bubble waited for ever
+ * on a transfer that had finished (reload-recovery.ts). This message is
+ * delivered by the messaging layer whenever the peer is back, so it reaches a
+ * page the tick missed.
+ */
+export async function sendTransferCompleteSignal(ownCid: bigint, peerCid: bigint, transferId: string): Promise<void> {
+  const layer: MessagingLayer = { type: MessagingLayerType.FileTransferComplete, transfer_id: transferId, success: true, timestamp: Date.now() };
+  await sendLayerPayload(buildLayerPayload(layer, ownCid, peerCid));
 }

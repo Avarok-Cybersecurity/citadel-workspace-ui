@@ -18,9 +18,15 @@ export interface ChatLevelChangeDeps {
   tellAgent(ownCid: bigint): Promise<void>;
   pauseStatus(ownCid: bigint, peerCid: bigint): Promise<PauseStatus>;
   link: Pick<PauseLink, 'isConnected' | 'drop' | 'reconnect'>;
+  /**
+   * Whether the redialled link is up again, within a bound the caller sets. `reconnect`
+   * resolving says nothing: with a supervising agent it only asks the agent to dial.
+   */
+  confirmUp(peerCid: bigint): Promise<boolean>;
 }
 
-export type ChatLevelOutcome = 'reconnected' | 'saved-not-connected' | 'saved-paused';
+/** `reconnect-pending`: saved and redialled, but the link was not back within the bound. */
+export type ChatLevelOutcome = 'reconnected' | 'reconnect-pending' | 'saved-not-connected' | 'saved-paused';
 
 export interface ChatLevelResult {
   settings: ChatAdvancedSettings;
@@ -41,7 +47,7 @@ export async function changeChatLevel(
   if (!deps.link.isConnected(ownCid, peerCid)) return { settings, outcome: 'saved-not-connected' };
   await deps.link.drop(ownCid, peerCid);
   await deps.link.reconnect(peerCid);
-  return { settings, outcome: 'reconnected' };
+  return { settings, outcome: (await deps.confirmUp(peerCid)) ? 'reconnected' : 'reconnect-pending' };
 }
 
 /** What the change did, in the Advanced tab's status line. */
@@ -49,6 +55,7 @@ export function chatLevelStatus(result: ChatLevelResult): string {
   const level: ChatSecurityLevel = result.settings.securityLevel;
   switch (result.outcome) {
     case 'reconnected': return `Saved. Reconnected at ${level}; new messages use it.`;
+    case 'reconnect-pending': return `Saved. Not reconnected yet: the chat reconnects at ${level} as soon as the other side can be reached.`;
     case 'saved-not-connected': return `Saved. The next connection to this chat uses ${level}.`;
     case 'saved-paused': return `Saved. The connection is paused; resuming it connects at ${level}.`;
   }

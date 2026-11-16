@@ -79,7 +79,7 @@ function world(peerOnline: boolean | null): World {
   const queue: SendQueuePort = {
     peerOnlineStatus: (): boolean | null => peerOnline,
     peerName: (): string => 'Alexi',
-    hold: async (id: string, file: File): Promise<void> => { held.set(id, file); },
+    hold: async (id: string, file: File): Promise<boolean> => { held.set(id, file); return true; },
     take: async (id: string): Promise<File | undefined> => held.get(id),
     release: async (id: string): Promise<void> => { held.delete(id); },
   };
@@ -120,13 +120,15 @@ describe('a send to an offline peer', () => {
     expect(w.channelWaits).toBe(0);
   });
 
-  it('goes the ordinary way when the peer is back, offer not shown twice, and its File is dropped', async () => {
+  it('goes the ordinary way when the peer is back, offer not shown twice, and keeps its File until it ends', async () => {
     const w: World = world(false);
     const id: string = await sendFile(w.deps, '42', FILE);
     await releaseHeldSends(w.deps, '7', '42');
     expect(w.intents).toEqual([expect.objectContaining({ type: 'send-transfer-request', offerAlreadyShown: true })]);
     expect(w.deps.state.getTransfer(id)?.state).toBe('pending');
-    expect(w.held.has(id)).toBe(false);
+    // Kept until the transfer ends (send-queue-io drops it then), so a reload
+    // before the agent confirms the send can still send it again.
+    expect(w.held.has(id)).toBe(true);
   });
 
   it('fails plainly, rather than sending nothing, when its File was not kept', async () => {
@@ -134,7 +136,9 @@ describe('a send to an offline peer', () => {
     const id: string = await sendFile(w.deps, '42', FILE);
     w.held.clear();
     await releaseHeldSends(w.deps, '7', '42');
-    expect(w.deps.state.getTransfer(id)).toMatchObject({ state: 'error', errorMessage: expect.stringMatching(/not kept/) });
+    // Says what happened, and offers the sender the one click (reload-recovery.ts).
+    expect(w.deps.state.getTransfer(id)).toMatchObject({ state: 'error', errorMessage: expect.stringMatching(/could not keep a copy/), resendable: true });
+    expect(w.deps.state.getTransfer(id)?.errorMessage).not.toMatch(/ask/i);
     expect(w.intents).toEqual([]);
   });
 

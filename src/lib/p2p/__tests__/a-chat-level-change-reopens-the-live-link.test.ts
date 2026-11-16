@@ -15,7 +15,7 @@ import type { PauseStatus } from '@/lib/p2p-pause/pause-rules';
 
 interface Recorded { calls: string[]; deps: ChatLevelChangeDeps }
 
-function fakes(connected: boolean, pause: PauseStatus): Recorded {
+function fakes(connected: boolean, pause: PauseStatus, comesBack: boolean = true): Recorded {
   const calls: string[] = [];
   let stored: ChatAdvancedSettings = { ...DEFAULT_CHAT_ADVANCED_SETTINGS };
   return {
@@ -33,6 +33,7 @@ function fakes(connected: boolean, pause: PauseStatus): Recorded {
         drop: async (): Promise<void> => { calls.push('drop'); },
         reconnect: async (): Promise<void> => { calls.push('reconnect'); },
       },
+      confirmUp: async (): Promise<boolean> => { calls.push('confirm'); return comesBack; },
     },
   };
 }
@@ -41,9 +42,20 @@ describe('changing a chat encryption level', () => {
   it('saves it, then drops and redials a live link once', async () => {
     const f: Recorded = fakes(true, 'active');
     const result: ChatLevelResult = await changeChatLevel(f.deps, 1n, 2n, 'High');
-    expect(f.calls).toEqual(['save:High', 'tell', 'drop', 'reconnect']);
+    expect(f.calls).toEqual(['save:High', 'tell', 'drop', 'reconnect', 'confirm']);
     expect(result.settings.securityLevel).toBe('High');
     expect(chatLevelStatus(result)).toMatch(/Reconnected at High/);
+  });
+
+  // With a supervising agent `reconnect` only asks the agent to dial, so it resolving said
+  // nothing; the tab read "Reconnected at Extreme" over a chat stuck on "Reconnecting…"
+  // (owner report 2026-11-15).
+  it('does not call a link reconnected until it is back', async () => {
+    const f: Recorded = fakes(true, 'active', false);
+    const result: ChatLevelResult = await changeChatLevel(f.deps, 1n, 2n, 'Extreme');
+    expect(result.outcome).toBe('reconnect-pending');
+    expect(chatLevelStatus(result)).not.toMatch(/Reconnected/);
+    expect(chatLevelStatus(result)).toMatch(/Saved\. Not reconnected yet: .* at Extreme/);
   });
 
   it('only saves when no link is up', async () => {

@@ -13,6 +13,7 @@
  */
 import type { FileTransfer } from './types';
 import { formatBytes } from '../format-bytes';
+import { isTerminalTransferState } from './transfer-outcome';
 
 /** How many files one browser may hold for offline peers at once. */
 export const MAX_QUEUED_FILES: number = 20;
@@ -58,6 +59,18 @@ export function queueRefusal(held: readonly FileTransfer[], size: number): strin
     return `Files waiting for offline peers would exceed what this browser keeps for them (${formatBytes(MAX_QUEUED_BYTES)}); send this one when they are back.`;
   }
   return null;
+}
+
+/**
+ * Whether this browser may also keep the bytes of a send that goes now, so a
+ * reload before it is offered can send it again by itself (reload-recovery.ts).
+ * The same budget as held sends: both live in this browser's storage.
+ */
+export function canKeepBytes(transfers: readonly FileTransfer[], size: number): boolean {
+  const kept: number = transfers
+    .filter((t) => !t.isIncoming && (t.state === 'queued' || (t.bytesKept === true && !isTerminalTransferState(t.state))))
+    .reduce((sum, t) => sum + t.fileSize, 0);
+  return kept + size <= MAX_QUEUED_BYTES;
 }
 
 /** The sends held for `peerCid` by the account `ownCid`, oldest first. */

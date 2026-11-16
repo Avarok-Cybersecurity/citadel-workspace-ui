@@ -150,6 +150,8 @@ export interface TransferProgressEvent {
   totalBytes: number;
   percentage: number;
   status?: TransferProgressStatus;
+  /** Where the agent writes a reception, from its first tick; see tick-events.ts. */
+  downloadPath?: string;
 }
 
 export type TransferProgressStatus =

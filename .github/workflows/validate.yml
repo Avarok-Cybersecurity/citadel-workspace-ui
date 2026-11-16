@@ -1090,6 +1090,8 @@ jobs:
             artifact: reconnect-p2p-one-c2s
           - test: test:reconnect-p2p-only
             artifact: reconnect-p2p-only
+          - test: test:reconnect-chat-level
+            artifact: reconnect-chat-level
           - test: test:file-manager
             artifact: file-manager
           - test: test:native-file-picker

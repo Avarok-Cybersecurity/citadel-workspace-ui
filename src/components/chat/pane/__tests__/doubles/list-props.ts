@@ -26,6 +26,8 @@ export function listProps(messages: ChatMessage[]): ListProps {
     isLoadingMore: false,
     isLoadingHistory: false,
     hasMorePages: false,
+    onLoadOlder: (): void => {},
+    olderPagesError: null,
     onScroll: vi.fn(),
     onRetryMessage: vi.fn(),
     onOpenDocument: vi.fn(),

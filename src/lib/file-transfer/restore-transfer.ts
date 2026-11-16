@@ -8,20 +8,15 @@
  * and the browser had forgotten a record it explicitly persisted. The user
  * could not even dismiss the bubble.
  *
- * Restoring is not resuming. A transfer that was MOVING when the page went away
- * cannot continue — the browser's Blob is gone with the tab, and the bytes were
- * flowing through a stream that no longer has a reader. Bringing one back as
- * `transferring` would give the user a progress bar that never moves again,
- * which is the "Downloading… 40%" forever that this same store produced.
- *
- * So in-flight transfers come back as `error`, which the bubble already renders
- * with a reason and a way out; terminal ones come back as they were, so history
- * survives.
+ * Restoring is not always resuming, and not always failing either: the agent
+ * outlives the page, so a transfer it holds is picked up again rather than
+ * declared dead (reload-recovery.ts decides how). Terminal ones come back as
+ * they were, so history survives.
  */
 
 import type { FileTransfer } from './types';
 import type { FileTransferState } from '@/types/messaging-layer';
-import { STALE_OFFER_REASON } from './transfer-view';
+import { LOST_OFFER_REASON, LOST_RECEPTION_REASON, LOST_SEND_REASON, reloadRecovery, type ReloadRecovery } from './reload-recovery';
 
 /** States that describe a finished transfer. Anything else was moving. */
 const TERMINAL: ReadonlySet<FileTransferState> = new Set<FileTransferState>([
@@ -49,41 +44,68 @@ function isUsable(raw: Partial<FileTransfer>): raw is Partial<FileTransfer> & {
 export function restoreTransfer(raw: Partial<FileTransfer>): FileTransfer | null {
   if (!isUsable(raw)) return null;
 
-  // An offer we never answered was not interrupted — nothing was moving. It
-  // simply cannot be answered any more: accepting names the protocol object_id,
-  // whose join lived in memory, and the agent does not re-announce it.
-  if (raw.state === 'pending' && raw.isIncoming === true) {
-    const expired: FileTransfer | null = restoreTransfer({ ...raw, state: 'expired' });
-    return expired && { ...expired, errorMessage: STALE_OFFER_REASON };
-  }
-
-  // A held send was not moving: it waits for its peer, and its File is kept
-  // (send-queue-io.ts). Releasing it finds out whether the File survived.
-  const interrupted: boolean = !TERMINAL.has(raw.state) && raw.state !== 'queued';
-
-  return {
+  const base: FileTransfer = {
     id: raw.id,
     fileName: raw.fileName,
     fileSize: raw.fileSize ?? 0,
     fileType: raw.fileType ?? '',
-    state: interrupted ? 'error' : raw.state,
-    // A restored transfer has no live progress. Keeping the last number would
-    // leave a bar that looks like it is about to finish and never will.
-    progress: interrupted || raw.state === 'queued' ? 0 : (raw.progress ?? 100),
+    state: raw.state,
+    progress: raw.progress ?? 100,
     senderCid: raw.senderCid ?? '',
     recipientCid: raw.recipientCid ?? '',
     isIncoming: raw.isIncoming ?? false,
     createdAt: raw.createdAt ?? Date.now(),
     updatedAt: raw.updatedAt ?? Date.now(),
-    ...(raw.state === 'queued' && raw.waitingFor !== undefined ? { waitingFor: raw.waitingFor } : {}),
-    // Where the internal service wrote the file on its own filesystem. Dropped
-    // here before, so after a reload the "Click to open file" control rendered
-    // and operated on nothing -- a button that reads as working and does not.
-    // FilesSection surfaces it as `savedTo`. Only meaningful for a transfer
-    // that actually finished, which is what `interrupted` decides.
-    ...(interrupted ? {} : { downloadPath: raw.downloadPath }),
-    ...(interrupted
-      ? { errorMessage: 'Interrupted when the page reloaded. Ask them to send it again.' }
-      : {}),
-  } as FileTransfer;
+    ...(raw.expiresAt !== undefined ? { expiresAt: raw.expiresAt } : {}),
+    ...(raw.tickRequestId !== undefined ? { tickRequestId: raw.tickRequestId } : {}),
+    ...(raw.objectId !== undefined ? { objectId: raw.objectId } : {}),
+    ...(raw.bytesKept !== undefined ? { bytesKept: raw.bytesKept } : {}),
+    ...(raw.offerMessageId !== undefined ? { offerMessageId: raw.offerMessageId } : {}),
+    // Where the internal service writes (or wrote) the file on its own disk.
+    // Dropped here before, so after a reload the "Click to open file" control
+    // rendered and operated on nothing. FilesSection surfaces it as `savedTo`.
+    ...(raw.downloadPath !== undefined ? { downloadPath: raw.downloadPath } : {}),
+  };
+
+  // History, and a send held for an offline peer (its File is kept,
+  // send-queue-io.ts; releasing it finds out whether the File survived).
+  if (TERMINAL.has(raw.state) || raw.state === 'queued') {
+    return {
+      ...base,
+      progress: raw.state === 'queued' ? 0 : base.progress,
+      ...(raw.state === 'queued' && raw.waitingFor !== undefined ? { waitingFor: raw.waitingFor } : {}),
+      ...(raw.errorMessage !== undefined ? { errorMessage: raw.errorMessage } : {}),
+      ...(raw.resendable === true ? { resendable: true } : {}),
+    };
+  }
+
+  const recovery: ReloadRecovery = reloadRecovery({ ...base, state: raw.state });
+  return base.isIncoming ? restoreIncoming(base, recovery) : restoreOutgoing(base, recovery);
+}
+
+function restoreIncoming(t: FileTransfer, recovery: ReloadRecovery): FileTransfer {
+  if (t.state === 'pending') {
+    // The agent still holds the offer and we kept the object_id Accept names.
+    return recovery === 'reattach'
+      ? { ...t, progress: 0 }
+      : { ...t, state: 'expired', progress: 0, errorMessage: LOST_OFFER_REASON };
+  }
+  // Accepted: the agent is still receiving, under the request id we kept.
+  if (recovery === 'reattach') return { ...t, state: 'transferring', resuming: true };
+  // A path for a file that never finished is not one to offer to open.
+  const { downloadPath: _unfinished, ...rest } = t;
+  return { ...rest, state: 'error', progress: 0, errorMessage: LOST_RECEPTION_REASON };
+}
+
+function restoreOutgoing(t: FileTransfer, recovery: ReloadRecovery): FileTransfer {
+  switch (recovery) {
+    case 'reattach':
+      // Still offered, or still moving, in the agent. A pending offer has
+      // nothing to resume -- it is waiting for its answer, as before.
+      return t.state === 'transferring' ? { ...t, resuming: true } : { ...t, progress: 0 };
+    case 'resend':
+      return { ...t, state: 'queued', progress: 0, resuming: true };
+    case 'lost':
+      return { ...t, state: 'error', progress: 0, errorMessage: LOST_SEND_REASON, resendable: true };
+  }
 }

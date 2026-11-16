@@ -9,6 +9,7 @@ import { TransferProgressBar } from './TransferProgressBar';
 import type { TransferView } from '@/lib/file-transfer/transfer-view';
 import { safeThumbnail } from '@/lib/received-files/image-preview';
 import { TransferPicture } from './TransferPicture';
+import { ResendLostFile } from './ResendLostFile';
 
 /**
  * FileTransferBubble - Displays file transfer messages with state-dependent UI
@@ -58,7 +59,7 @@ export function FileTransferBubble({
   const fileSize: number = message.file_size || 0;
   const fileType: string = message.file_type || 'application/octet-stream';
 
-  const status: StatusContent = getStatusContent(state, isOwn, view.reason);
+  const status: StatusContent = getStatusContent(state, isOwn, view.reason, view.resuming);
   // The offer's thumbnail is the sender's string: drawn only when it is an inline raster picture.
   const thumbnail: string | null = safeThumbnail(message.file_thumbnail);
 
@@ -184,6 +185,8 @@ export function FileTransferBubble({
             </button>
           </div>
         )}
+
+        {isOwn && view.resendable && message.transfer_id && <ResendLostFile transferId={message.transfer_id} />}
 
         {/* Click hint for completed downloads */}
         {status.clickable && (

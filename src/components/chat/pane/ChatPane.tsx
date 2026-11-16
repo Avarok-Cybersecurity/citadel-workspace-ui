@@ -87,6 +87,7 @@ export function ChatPane({ transport, header, pause }: ChatPaneProps): JSX.Eleme
               ref={pane.scrollRef} messages={list.messages} greeting={counterpart.greeting} namesSenders={features.namesSenders}
               selfCid={self?.cid ?? null} reactorName={transport.reactorName} awaitingAcceptFrom={awaitingAcceptFrom}
               isLoadingMore={list.isLoadingMore} isLoadingHistory={list.isLoadingHistory} hasMorePages={list.hasMorePages}
+              onLoadOlder={(): void => { void list.loadOlderMessages(); }} olderPagesError={list.olderPagesError}
               onScroll={list.handleScroll} onRetryMessage={list.handleRetryMessage}
               onOpenDocument={tabs.handleOpenDocument}
               onAcceptTransfer={fileSend.fileTransfer.handleAcceptTransfer}

@@ -67,6 +67,8 @@ export async function sendAgentFile(
     });
 
     debugLog('transfer-lifecycle', 'SendFile request submitted', { transferId });
+    // The executor noted the request id the agent's ticks carry; kept for a reload.
+    await deps.saveTransfer(transfer);
     eventEmitter.emit(FILE_TRANSFER_EVENTS.REQUEST_SENT, transfer);
     return transferId;
   } catch (error) {

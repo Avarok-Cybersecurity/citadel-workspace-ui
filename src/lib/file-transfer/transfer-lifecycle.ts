@@ -11,11 +11,12 @@ import type { FileTransferIO } from './io';
 import type { FileTransfer, FileTransferSettings } from './types';
 import { openChannelBeforeSending } from './open-peer-channel';
 import { shouldQueue } from './send-queue';
-import { holdUntilOnline, type SendQueuePort } from './send-queue-hold';
+import { holdUntilOnline, keepForResume, type SendQueuePort } from './send-queue-hold';
 import { deliverSend, stopStaging } from './deliver-send';
 import { buildTransferAnnouncement } from './transfer-announcement';
 import { showOwnOffer } from './send-transfer-request';
 import { browserSendRefusal } from './staged-upload/send-route';
+import { debugLog } from '@/lib/debug-config';
 
 export interface LifecycleDeps {
   state: FileTransferState;
@@ -97,6 +98,8 @@ export async function sendFile(
     updatedAt: Date.now(),
     expiresAt,
     isIncoming: false,
+    // One id for the offer however often it is announced (transfer-announcement.ts).
+    offerMessageId: crypto.randomUUID(),
   };
 
   if (shouldQueue(peerOnline, channelOpened)) return holdUntilOnline(deps, transfer, file);
@@ -110,6 +113,8 @@ export async function sendFile(
   await deps.saveTransfer(transfer);
   showOwnOffer(buildTransferAnnouncement(transfer), transfer);
   deps.emitStateChange(transfer);
+  // Best effort beside the send: not keeping the bytes only means a reload cannot resend them.
+  keepForResume(deps, transfer, file).catch((e: unknown): void => debugLog('transfer-lifecycle', 'could not keep a send for a reload', e));
   void deliverSend(deps, transfer, file);
 
   return transferId;
@@ -169,7 +174,7 @@ export async function acceptTransfer(deps: LifecycleDeps, transferId: string): P
     );
   }
 
-  await deps.io.executeIntent({
+  const tickRequestId: unknown = await deps.io.executeIntent({
     type: 'send-response',
     transferId,
     targetCid: transfer.senderCid,
@@ -177,6 +182,8 @@ export async function acceptTransfer(deps: LifecycleDeps, transferId: string): P
   });
   if (!isStillOpen(deps.state, transfer)) return;
 
+  // The agent keeps receiving across a reload and names the stream by this id.
+  if (typeof tickRequestId === 'string') transfer.tickRequestId = tickRequestId;
   transfer.state = 'transferring';
   transfer.updatedAt = Date.now();
   await deps.saveTransfer(transfer);

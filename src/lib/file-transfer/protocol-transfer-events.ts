@@ -88,7 +88,11 @@ export async function handleProtocolProgress(
   const transfer: FileTransfer | undefined = resolveTransferForProtocolEvent(deps.state, event);
   if (!transfer || isTerminalTransferState(transfer.state)) return;
 
-  if (transfer.state !== 'transferring') {
+  // Heard from: a transfer picked up after a reload is moving again.
+  transfer.resuming = false;
+  const learnedPath: boolean = event.downloadPath !== undefined && transfer.downloadPath === undefined;
+  if (learnedPath) transfer.downloadPath = event.downloadPath;
+  if (transfer.state !== 'transferring' || learnedPath) {
     transfer.state = 'transferring';
     // Persist the state transition, but not every tick — a per-tick save
     // would hammer storage for no recoverable benefit.
@@ -132,6 +136,11 @@ export async function handleProtocolComplete(
   // was never going to arrive.
   if (wasOpen && !event.success && transfer.isIncoming) {
     await tellPeerItFailed(deps, transfer);
+  }
+  // And a success, for a peer page that reloaded across the last tick and so
+  // never heard it (in-band-signals.ts, sendTransferCompleteSignal).
+  if (wasOpen && event.success && transfer.state === 'complete') {
+    await deps.io.executeIntent({ type: 'send-complete', transferId: transfer.id, targetCid: BigInt(peerCidOf(transfer)) });
   }
 }
 
