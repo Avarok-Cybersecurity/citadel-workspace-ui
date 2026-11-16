@@ -234,8 +234,16 @@ const dist = join(root, 'dist');
  * boot: `server_address` on the Connect with its refusal to send an empty one (auth-operations.ts),
  * and the stored record's server, taken from the agent and backfilled when the record has none,
  * with the hand-off to a sign-in when nobody can say (connection/stored-server.ts, +0.5 KB).
+ *
+ * 341 -> 342 (2026-11-16), for the welcome, call-goodbye and dialog-footer fixes merged onto
+ * fix/chat-files-calls: measured 341.1. What each adds runs from boot (raw bytes by source map):
+ * the per-account "welcome shown" check made on every connection, including the reconnect a
+ * returning user boots into (welcome/welcome-once.ts, 343 B); the goodbye a tab sends before it
+ * lets a call's media go, since any tab may be closed mid-call (multi-instance/departure-steps.ts
+ * and release-holds.ts, 122 + 268 B); and the shared footer that wraps a dialog's answers so none
+ * is clipped at 390px (ui/footer-layout.ts, 97 B, used by Dialog and AlertDialog).
  */
-const BUDGET_KB = 341;
+const BUDGET_KB = 342;
 
 /**
  * Modules that must stay OFF the critical path, checked against the source
