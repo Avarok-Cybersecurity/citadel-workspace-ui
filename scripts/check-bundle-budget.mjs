@@ -234,8 +234,17 @@ const dist = join(root, 'dist');
  * boot: `server_address` on the Connect with its refusal to send an empty one (auth-operations.ts),
  * and the stored record's server, taken from the agent and backfilled when the record has none,
  * with the hand-off to a sign-in when nobody can say (connection/stored-server.ts, +0.5 KB).
+ *
+ * 341 -> 344 (2026-11-15), for the Calendar release (fix/chat-files-calls-calendar): the batch
+ * at 341 merged with three lanes that each fit their own lane's headroom under 339, and the sum
+ * measured 343.7. What the lanes put on the path runs from boot in every tab: a node's tabs, read
+ * when any node renders (node-tabs/tab-list.ts 1,072 + tab-memory.ts 535 + tab-keys.ts 62 B raw
+ * by source map, and the service's node-tabs-operations.ts 551); a node channel's reactions,
+ * receipts and typing, which arrive whatever page is open (group-conversations/channel-signals.ts
+ * 580, workspace-service/group-chat-signals.ts 626, response-handler/group-signal-handlers.ts 446,
+ * chat-attachments-event.ts 138); and the Members answer's booking guests (members-event.ts).
  */
-const BUDGET_KB = 341;
+const BUDGET_KB = 344;
 
 /**
  * Modules that must stay OFF the critical path, checked against the source
