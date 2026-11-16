@@ -42,7 +42,7 @@ const pagesAsked: Array<number | null> = [];
 function answerPages(): void {
   registerConversationSender(async (request: Record<string, unknown>): Promise<void> => {
     const [variant, body] = Object.entries(request)[0] as [string, { request_id: string; page?: number | null }];
-    const reply = (message: Record<string, unknown>): void => {
+    const reply: (message: Record<string, unknown>) => void = (message: Record<string, unknown>): void => {
       queueMicrotask(() => eventEmitter.emit('websocket-message', message));
     };
     if (variant === 'ConversationMarkRead') reply({ ConversationUpdated: { request_id: body.request_id, message: null } });
@@ -63,14 +63,14 @@ function answerPages(): void {
   });
 }
 
-const noop = (): void => {};
-const noopAsync = async (): Promise<void> => {};
+const noop: () => void = (): void => {};
+const noopAsync: () => Promise<void> = async (): Promise<void> => {};
 
 function Chat(): JSX.Element {
   const viewport: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
   const tab: MutableRefObject<string> = useRef<string>('messages');
   const pinnedRef: MutableRefObject<boolean> = useRef<boolean>(true);
-  const chat = useP2PMessages({ peerCid: PEER, activeTabIdRef: tab, scrollRef: viewport, pinnedRef, onUnreadMessage: noop });
+  const chat: ReturnType<typeof useP2PMessages> = useP2PMessages({ peerCid: PEER, activeTabIdRef: tab, scrollRef: viewport, pinnedRef, onUnreadMessage: noop });
   return (
     <P2PMessageList
       ref={viewport} messages={chat.messages} currentUserCid={OWN} currentUserName="Me" peerName="Josef"
@@ -92,9 +92,9 @@ async function openChat(): Promise<void> {
   await settle();
 }
 
-const olderControl = (): Promise<HTMLElement> => within(thread()).findByRole('button', { name: /load older messages/i });
+const olderControl: () => Promise<HTMLElement> = (): Promise<HTMLElement> => within(thread()).findByRole('button', { name: /load older messages/i });
 
-const thread = (): HTMLElement => screen.getByRole('log', { name: 'Conversation' });
+const thread: () => HTMLElement = (): HTMLElement => screen.getByRole('log', { name: 'Conversation' });
 
 beforeEach(async () => {
   await installHostingAgent();

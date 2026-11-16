@@ -37,11 +37,11 @@ const harness: {
   failReads: boolean;
 } = vi.hoisted(() => ({ subscriber: null, agentLocalDb: new Map<string, number[]>(), failReads: false }));
 
-const slot = (cid: bigint, key: string): string => `${cid.toString()}/${key}`;
+const slot: (cid: bigint, key: string) => string = (cid: bigint, key: string): string => `${cid.toString()}/${key}`;
 
 vi.mock('@/lib/connection-service', () => ({
   ConnectionService: {
-    getInstance: () => ({
+    getInstance: (): { onConnectionChange: (subscriber: ConnectionSubscriber) => () => void; cleanup: () => void } => ({
       onConnectionChange: (subscriber: ConnectionSubscriber): (() => void) => {
         harness.subscriber = subscriber;
         return (): void => { harness.subscriber = null; };
@@ -53,7 +53,7 @@ vi.mock('@/lib/connection-service', () => ({
 vi.mock('@/lib/connection', () => ({
   connectionManager: {
     initialize: async (): Promise<void> => {},
-    getStoredSessionsArray: () => [ALICE, BOB].map((cid: bigint) => ({
+    getStoredSessionsArray: (): { cid: bigint; username: string; serverAddress: string }[] => [ALICE, BOB].map((cid: bigint) => ({
       cid, username: `user${cid.toString()}`, serverAddress: 'server:12349',
     })),
   },
