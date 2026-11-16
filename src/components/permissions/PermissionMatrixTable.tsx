@@ -18,6 +18,9 @@ import type { Permission as WirePermission, RoleDefinition } from 'citadel-works
 import { Checkbox } from '@/components/ui/checkbox';
 import type { CellState } from '@/lib/workspace-roles/editor-rules';
 import { RoleDot } from './RoleDot';
+import { scrollToShowClear, type Edges } from './sticky-clearance';
+import { documentMotionTier } from '@/lib/motion-state';
+import { motionTier } from '@/lib/motion-tier';
 import type { PermissionDefinition } from './permission-constants';
 
 interface PermissionMatrixTableProps {
@@ -55,9 +58,32 @@ function Mark({ role, permission, granted }: { role: RoleDefinition; permission:
 const PERMISSION_COLUMN: string = 'w-[132px] sm:w-[200px]';
 const PERMISSION_COLUMN_CLEARANCE: string = 'scroll-pl-[132px] sm:scroll-pl-[200px] scroll-pt-[56px]';
 
+/** Focus that landed under the sticky strips or past the edge: the engines' own focus scrolling
+ *  does not keep it clear (sticky-clearance.ts). Measured a frame later, once the engine's own
+ *  focus scroll has run: in WebKit that scroll, landing after the event, cancelled a smooth
+ *  correction started inside it, and the cell stayed out of view. */
+function keepFocusClear(event: React.FocusEvent<HTMLDivElement>): void {
+  const scroller: HTMLDivElement = event.currentTarget;
+  const target: EventTarget = event.target;
+  if (!(target instanceof Element) || target.closest('thead, th') !== null) return;
+  requestAnimationFrame((): void => {
+    const header: Element | null = scroller.querySelector('thead');
+    const column: Element | null = scroller.querySelector('thead th');
+    if (header === null || column === null || document.activeElement !== target) return;
+    const outer: DOMRect = scroller.getBoundingClientRect();
+    const viewLeft: number = outer.left + scroller.clientLeft;
+    const viewTop: number = outer.top + scroller.clientTop;
+    const view: Edges = { left: viewLeft, top: viewTop, right: viewLeft + scroller.clientWidth, bottom: viewTop + scroller.clientHeight };
+    const { left, top } = scrollToShowClear(target.getBoundingClientRect(), column.getBoundingClientRect(), header.getBoundingClientRect(), view);
+    if (left === 0 && top === 0) return;
+    const still: boolean = motionTier(documentMotionTier(), window.matchMedia('(prefers-reduced-motion: reduce)').matches) !== 'full';
+    scroller.scrollBy({ left, top, behavior: still ? 'auto' : 'smooth' });
+  });
+}
+
 export function PermissionMatrixTable({ allPermissions, roles, cell, lockOf, onToggle }: PermissionMatrixTableProps): JSX.Element {
   return (
-    <div className={`flex-1 overflow-auto min-h-0 ${PERMISSION_COLUMN_CLEARANCE}`}>
+    <div className={`flex-1 overflow-auto min-h-0 ${PERMISSION_COLUMN_CLEARANCE}`} onFocus={keepFocusClear}>
       <table className="w-full border-collapse">
         <thead className="sticky top-0 z-10 bg-background">
           <tr>
