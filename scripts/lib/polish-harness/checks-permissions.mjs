@@ -114,7 +114,50 @@ async function aLiteDialogOpensInPlace({ page, url, viewport }) {
   assert.ok(first.left >= -1 && first.right <= viewport.width + 1, `under Lite the dialog opens at ${first.left.toFixed(0)}..${first.right.toFixed(0)}, in ${viewport.width}px`);
 }
 
+/**
+ * Tabbing through the role matrix never leaves the focused checkbox under its sticky permission
+ * column or header (WCAG 2.4.11). Each Tab past a row's last column (Guest) lands on the next row's
+ * Member with the table scrolled right; WebKit ignores the scroller's scroll-padding when focus
+ * moves, and left all 52 Member checkboxes focused under the permission names until the matrix
+ * scrolled them clear itself (PermissionMatrixTable keepFocusClear).
+ */
+async function aTabbedCheckboxIsNeverUnderTheStickyStrips({ page, url }) {
+  await page.goto(url('role-permissions'));
+  const boxes = page.locator('[role="dialog"] button[role="checkbox"]');
+  await boxes.first().waitFor();
+  await settled(page);
+  const covered = [];
+  let members = 0;
+  const count = await boxes.count();
+  // Safari's Tab skips buttons unless the person has turned on keyboard navigation; Option-Tab is
+  // its Tab to every control, and the walk a keyboard user there makes.
+  const tab = page.context().browser().browserType().name() === 'webkit' ? 'Alt+Tab' : 'Tab';
+  await boxes.first().focus();
+  for (let i = 0; i < count; i += 1) {
+    if (i > 0) await page.keyboard.press(tab);
+    const focused = await page.evaluate(async () => {
+      const el = document.activeElement;
+      const scroller = el.closest('.overflow-auto');
+      // The matrix corrects a frame after focus moves, smoothly outside reduced motion: two frames
+      // for it to start, then until the scroll has stopped.
+      for (let still = 0, last = '', frames = 0; (frames < 2 || still < 2) && frames < 180; frames += 1) {
+        await new Promise((done) => requestAnimationFrame(done));
+        const now = `${scroller.scrollLeft},${scroller.scrollTop}`;
+        still = now === last ? still + 1 : 0;
+        last = now;
+      }
+      const box = el.getBoundingClientRect();
+      return { label: el.getAttribute('aria-label') ?? '', reached: el.contains(document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)) };
+    });
+    if (focused.label.startsWith('Member:')) members += 1;
+    if (!focused.reached) covered.push(focused.label);
+  }
+  assert.ok(members >= 10, `only ${members} Member checkboxes took focus: the Tab walk stopped short`);
+  assert.deepEqual(covered, [], 'focused under the sticky permission column or header');
+}
+
 export const PERMISSION_CHECKS = {
+  aTabbedCheckboxIsNeverUnderTheStickyStrips,
   aLiteDialogOpensInPlace,
   roleMatrixFitsThePhone,
   checksCentredInTheMatrix: checksAreCentred('role-permissions', ROLE_MARK),
