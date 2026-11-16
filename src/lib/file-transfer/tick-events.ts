@@ -75,6 +75,8 @@ export interface ParsedTickProgress {
   totalBytes: number;
   percentage: number;
   status: 'uploading' | 'downloading';
+  /** Where the agent is writing a reception (ReceptionBeginning); kept so a reload still knows. */
+  downloadPath?: string;
 }
 
 export interface ParsedTickComplete {
@@ -147,7 +149,7 @@ export function parseTickNotification(
       kind: 'progress', direction: 'incoming', transferId,
       cid, peerCid, bytesTransferred: 0,
       totalBytes: Number(metadata.plaintext_length), percentage: 0,
-      status: 'downloading',
+      status: 'downloading', downloadPath,
     };
   }
 

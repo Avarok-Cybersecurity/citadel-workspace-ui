@@ -18,13 +18,15 @@ import type {
   FileTransferIntent,
   SendResponseIntent,
   SendCancelIntent,
+  SendCompleteIntent,
   PickFileIntent,
+  FileTransfer,
   SendFileViaProtocolIntent,
   FilePickerResult,
 } from './types';
 import { debugLog } from '@/lib/debug-config';
 import { announceTransfer, executeSendTransferRequest } from './send-transfer-request';
-import { sendTransferCancelSignal, sendTransferResponseSignal } from './in-band-signals';
+import { sendTransferCancelSignal, sendTransferCompleteSignal, sendTransferResponseSignal } from './in-band-signals';
 import { awaitSendFileAck } from './server-upload';
 
 /**
@@ -44,6 +46,8 @@ export class FileTransferIO extends RealProtocolIORouter {
         return this.executeSendResponse(intent);
       case 'send-cancel':
         return this.executeSendCancel(intent);
+      case 'send-complete':
+        return this.executeSendComplete(intent);
       case 'pick-file':
         return this.pickFile(intent);
       case 'send-file-via-protocol':
@@ -59,7 +63,35 @@ export class FileTransferIO extends RealProtocolIORouter {
   // Intent Adapters (convert old intent pattern to new interface)
   // ============================================================================
 
-  private async executeSendResponse(intent: SendResponseIntent): Promise<void> {
+  /**
+   * Follow a transfer restored after a reload (reload-recovery.ts): the agent
+   * still holds it and names it by the ids the record kept.
+   */
+  reattach(transfer: FileTransfer): void {
+    if (transfer.tickRequestId !== undefined) this.noteOutgoingStream(transfer.tickRequestId, transfer.id);
+    if (transfer.objectId !== undefined) this.registerTransferMapping(transfer.id, transfer.objectId);
+  }
+
+  /** The object_id an incoming offer joined, which a reload needs to answer it. */
+  objectIdFor(transferId: string): string | undefined {
+    return this.transferIdToObjectId.get(transferId);
+  }
+
+  /** Drop an offer's join, so its next protocol half (a repeated offer) is the one answered. */
+  forgetJoin(transferId: string): void {
+    const objectId: string | undefined = this.transferIdToObjectId.get(transferId);
+    if (objectId !== undefined) this.objectIdToTransferId.delete(objectId);
+    this.transferIdToObjectId.delete(transferId);
+  }
+
+  private async executeSendComplete(intent: SendCompleteIntent): Promise<void> {
+    const ownCid: bigint | null = await this.getCurrentCid();
+    if (ownCid === null) throw new Error('No active session to report this transfer from.');
+    await sendTransferCompleteSignal(ownCid, intent.targetCid, intent.transferId);
+  }
+
+  /** Resolves to the request id an accepted stream's ticks carry, which a reload needs. */
+  private async executeSendResponse(intent: SendResponseIntent): Promise<string> {
     // The protocol names a transfer by its numeric object_id; the in-band
     // announcement names it by a UUID. Accept/decline go back over the PROTOCOL,
     // so the UUID has to be translated. Passing it through reached
@@ -90,7 +122,7 @@ export class FileTransferIO extends RealProtocolIORouter {
     if (ownCid === null) {
       throw new Error('No active session to accept this transfer with.');
     }
-    await this.respondToTransfer({
+    const tickRequestId: string = await this.respondToTransfer({
       protocolId: objectId,
       // Lets the router pre-register the reception tick stream: an accept
       // spawns that stream under the RespondFileTransfer request UUID, and
@@ -124,6 +156,7 @@ export class FileTransferIO extends RealProtocolIORouter {
       intent.accepted,
       intent.accepted ? undefined : intent.reason
     );
+    return tickRequestId;
   }
 
   private async executeSendCancel(intent: SendCancelIntent): Promise<void> {
@@ -204,6 +237,7 @@ export class FileTransferIO extends RealProtocolIORouter {
     // reject unheard at its timeout, leaking the listener for 30s.
     // Before the send: the WebSocket is ordered, so no tick can precede it.
     this.noteOutgoingStream(requestId, intent.transferId);
-    return awaitSendFileAck(requestId, () => websocketService.sendMessage(request));
+    await awaitSendFileAck(requestId, () => websocketService.sendMessage(request));
+    intent.transfer.tickRequestId = requestId;
   }
 }

@@ -79,8 +79,9 @@ export interface IFileTransferIORouter {
    * Sends a RespondFileTransfer InternalServiceRequest.
    *
    * @param params - Response parameters
+   * @returns the request id an accepted stream's ticks carry
    */
-  respondToTransfer(params: RespondTransferParams): Promise<void>;
+  respondToTransfer(params: RespondTransferParams): Promise<string>;
 
   /**
    * Download a file from server/peer virtual storage.

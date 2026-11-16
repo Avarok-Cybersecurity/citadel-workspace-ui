@@ -63,5 +63,8 @@ export function buildTransferAnnouncement(transfer: FileTransfer): P2PMessagingL
     },
   );
 
-  return buildLayerPayload(layer, BigInt(transfer.senderCid), BigInt(transfer.recipientCid));
+  const payload: P2PMessagingLayerPayload = buildLayerPayload(layer, BigInt(transfer.senderCid), BigInt(transfer.recipientCid));
+  // Announced again after a reload (reload-recovery.ts), the offer keeps its
+  // message id, so the recipient's conversation files it once, not twice.
+  return transfer.offerMessageId === undefined ? payload : { ...payload, message_id: transfer.offerMessageId };
 }

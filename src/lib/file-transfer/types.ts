@@ -28,6 +28,19 @@ export interface FileTransfer {
   isIncoming: boolean; // true if we are the recipient
   /** Who a 'queued' send waits for, by name, for "Will send when {name} is online". */
   waitingFor?: string;
+  // What a reload needs to pick the transfer up again (restore-transfer.ts).
+  /** The request id the agent stamps on this transfer's ticks: our SendFile, or our accept. */
+  tickRequestId?: string;
+  /** The protocol object_id an incoming offer joined, which Accept and Decline name. */
+  objectId?: string;
+  /** This browser kept the outgoing file's bytes (send-queue-io.ts), so it can send them again. */
+  bytesKept?: boolean;
+  /** The chat message id of the offer, reused if it is announced again so it shows once. */
+  offerMessageId?: string;
+  /** Picked up again after a reload and not yet heard from: the bubble says "Resuming…". */
+  resuming?: boolean;
+  /** Ended by a reload with nothing kept to send again: the sender's bubble offers to. */
+  resendable?: boolean;
 }
 
 export interface FileTransferSettings {
@@ -133,6 +146,13 @@ export interface SendCancelIntent {
   failed: boolean;
 }
 
+/** Tell the peer this transfer finished here; see in-band-signals.ts. */
+export interface SendCompleteIntent {
+  type: 'send-complete';
+  transferId: string;
+  targetCid: bigint;
+}
+
 export interface PickFileIntent {
   type: 'pick-file';
   cid: bigint;
@@ -162,6 +182,7 @@ export type FileTransferIntent =
   | SendTransferRequestIntent
   | SendResponseIntent
   | SendCancelIntent
+  | SendCompleteIntent
   | PickFileIntent
   | SendFileViaProtocolIntent;
 
