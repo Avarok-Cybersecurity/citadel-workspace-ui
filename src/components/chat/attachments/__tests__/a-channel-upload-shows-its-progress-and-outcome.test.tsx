@@ -23,12 +23,24 @@ import { ServerUploadStatus } from '../ServerUploadStatus';
 
 const FOUR_CHUNKS: Uint8Array = new Uint8Array(CHAT_ATTACHMENT_CHUNK_BYTES * 4);
 
-/** A server that holds each chunk's answer until `answer()` releases it; `refuseAt` refuses that chunk instead. */
-function server(refusal: { at: number; refusal: ChatAttachmentRefusal } | null): { io: Pick<NodeChatIO, 'attachments' | 'shareFile' | 'readFile'>; answer: () => void } {
+interface HeldServer { io: Pick<NodeChatIO, 'attachments' | 'shareFile' | 'readFile'>; asked: () => Promise<void>; answer: () => void }
+
+/**
+ * A server that holds each chunk's answer until `answer()` releases it; `refusal.at` refuses that
+ * chunk instead. `asked()` resolves once a chunk is waiting, so the test answers a request that was
+ * made rather than one it hopes was made: a fixed sleep there let a loaded machine answer nothing.
+ */
+function server(refusal: { at: number; refusal: ChatAttachmentRefusal } | null): HeldServer {
   const listeners: Set<(a: ChatAttachmentsResponse) => void> = new Set();
   const held: ChatAttachmentsResponse[] = [];
+  let wake: (() => void) | null = null;
   return {
-    answer: (): void => { const next: ChatAttachmentsResponse | undefined = held.shift(); if (next) listeners.forEach((l: (a: ChatAttachmentsResponse) => void): void => l(next)); },
+    asked: (): Promise<void> => (held.length > 0 ? Promise.resolve() : new Promise((r: () => void): void => { wake = r; })),
+    answer: (): void => {
+      const next: ChatAttachmentsResponse | undefined = held.shift();
+      if (!next) throw new Error('answered a chunk that was never asked for');
+      listeners.forEach((l: (a: ChatAttachmentsResponse) => void): void => l(next));
+    },
     io: {
       readFile: async (): Promise<Uint8Array> => FOUR_CHUNKS,
       shareFile: async (): Promise<void> => undefined,
@@ -41,6 +53,7 @@ function server(refusal: { at: number; refusal: ChatAttachmentRefusal } | null):
           held.push(refusal?.at === index
             ? { Refused: { node_id, attachment_id: sha256, refusal: refusal.refusal } }
             : { ChunkStored: { node_id, attachment_id: sha256, index, stored: index + 1 === total_chunks } });
+          const woken: (() => void) | null = wake; wake = null; woken?.();
         },
       },
     },
@@ -57,10 +70,10 @@ function Channel({ files }: { files: FilePort }): JSX.Element {
   );
 }
 
-async function answer(wire: { answer: () => void }, times: number): Promise<void> {
+async function answer(wire: HeldServer, times: number): Promise<void> {
   for (let i: number = 0; i < times; i++) {
-    // Each chunk is sent only after the last one's answer, so wait for it to be asked for.
-    await act(async (): Promise<void> => { await new Promise((r: (v: unknown) => void): void => { setTimeout(r, 5); }); wire.answer(); });
+    // Each chunk is sent only after the last one's answer, so wait until it is asked for.
+    await act(async (): Promise<void> => { await wire.asked(); wire.answer(); });
   }
 }
 
@@ -68,7 +81,7 @@ afterEach(cleanup);
 
 describe('a channel upload', () => {
   it('shows what the server has stored, then that the file is shared, and never "Preparing to send"', async () => {
-    const wire: { io: Pick<NodeChatIO, "attachments" | "shareFile" | "readFile">; answer: () => void; } = server(null);
+    const wire: HeldServer = server(null);
     render(<><Toaster /><Channel files={nodeFiles(wire.io, 'room-1')} /></>);
     act((): void => { screen.getByText('send').click(); });
     await waitFor((): void => { expect(screen.getByRole('progressbar', { name: 'Upload of plan.pdf' })).toHaveAttribute('aria-valuenow', '0'); });
@@ -83,7 +96,7 @@ describe('a channel upload', () => {
   });
 
   it('shows the server\'s reason when it refuses, once, and never as shared', async () => {
-    const wire: { io: Pick<NodeChatIO, "attachments" | "shareFile" | "readFile">; answer: () => void; } = server({ at: 1, refusal: { TooLarge: { max_bytes: 10n * 1024n * 1024n } } });
+    const wire: HeldServer = server({ at: 1, refusal: { TooLarge: { max_bytes: 10n * 1024n * 1024n } } });
     render(<><Toaster /><Channel files={nodeFiles(wire.io, 'room-1')} /></>);
     act((): void => { screen.getByText('send').click(); });
     await answer(wire, 2);
