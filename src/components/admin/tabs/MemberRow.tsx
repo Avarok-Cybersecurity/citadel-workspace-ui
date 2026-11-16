@@ -99,6 +99,9 @@ export function MemberRow({
               @{member.username}
             </div>
           )}
+          {member.isGuest && (
+            <span className="text-xs font-medium text-muted-foreground" data-testid={`member-guest-${member.userId}`}>Guest from outside</span>
+          )}
           {member.accessViaName !== undefined && (
             <div className="text-muted-foreground text-xs" data-testid={`member-access-via-${member.userId}`}>
               via {member.accessViaName}

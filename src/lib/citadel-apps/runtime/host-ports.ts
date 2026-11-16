@@ -33,7 +33,7 @@ export interface BoundPorts {
   readonly stop: () => Promise<void>;
 }
 
-/** The ports a zone owns: its input (zone-input.ts) and its toolbar (ui-port.ts). */
+/** The ports a zone owns: its input (zone-input.ts) and its toolbar (ui-port.ts). A glue tab has neither (null). */
 export interface ZonePorts {
   readonly events: EventsPort;
   readonly ui: UiPort;
@@ -41,7 +41,7 @@ export interface ZonePorts {
 
 /** `instance`: this running instance's name, which its advertisement is held under; `seat`: its place on the page. */
 /** `limits`: the release's manifest limits (its topics' sizes and rates). */
-export function hostPortsFor(install: AppInstall, limits: AppLimits, instance: string, scopeKey: string, zone: ZonePorts, seat: PlaneSeat, w: PortWorld): BoundPorts {
+export function hostPortsFor(install: AppInstall, limits: AppLimits, instance: string, scopeKey: string, zone: ZonePorts | null, seat: PlaneSeat, w: PortWorld): BoundPorts {
   const call: HostCaller = (bytes: Uint8Array) => callHost(w.transport, install.id, bytes);
   const session: { readonly cid: bigint } | null = w.agentSession;
   const local: StoragePort | null = session === null ? null : agentKvPort(w.agent, { cid: session.cid, appId: install.app_id, scopeKey, timeoutMs: w.policy.portTimeoutMs });
@@ -58,7 +58,8 @@ export function hostPortsFor(install: AppInstall, limits: AppLimits, instance: s
   const peer: PeerPorts = peerPorts(install, scopeKey, limits, ihttp, seat, w);
   const ports: HostPorts = {
     storage: splitStorage(serverStorage(call), local), blob: serverBlob(call), storeFiles: serverFiles(call),
-    serverNet: serverNet(call), ihttp: peer.ihttp, events: zone.events, ui: zone.ui, log: w.log,
+    serverNet: serverNet(call), ihttp: peer.ihttp, log: w.log,
+    ...(zone === null ? {} : { events: zone.events, ui: zone.ui }),
     ...(hostNet === null ? {} : { hostNet }), ...(peer.topic === null ? {} : { topic: peer.topic }),
   };
   return {

@@ -6,6 +6,9 @@
 import { createContext } from 'react';
 import type { AppInstall, AppManifest } from 'citadel-workspace-client-ts';
 import type { AppLink } from '@/lib/citadel-apps/app-link';
+import type { GlueInstance } from '@/lib/citadel-apps/host/glue-instance';
+import type { NoticeSink, RosterRead } from '@/lib/citadel-apps/runtime/first-party-ports';
+import type { TreeRead } from '@/lib/citadel-apps/runtime/nodes-port';
 import type { CloseReason } from '@/lib/citadel-apps/sdk/generated/CloseReason';
 import type { ListedApp } from '@/lib/citadel-apps/listing-model';
 import type { Tri } from '@/lib/citadel-apps/scope-options';
@@ -33,6 +36,26 @@ export interface AppTabMount {
   me: string;
 }
 
+/** What a first-party glue app's own ports read in the page (nodes-port.ts, first-party-ports.ts). */
+export interface FirstPartyWorld {
+  readonly tree: TreeRead;
+  readonly roster: RosterRead;
+  readonly notices: NoticeSink;
+}
+
+/** A glue app's tab to bind ports for: no canvas, and the page's reads for its first-party ports. */
+export interface GlueTabMount extends AppTabMount {
+  readonly firstParty: FirstPartyWorld;
+}
+
+export type GlueBound = { readonly kind: 'bound'; readonly instance: GlueInstance } | { readonly kind: 'stopped'; readonly why: string };
+
+/** A glue tab's binding: `ready` never rejects; `close` lets its ports and its instance slot go, once. */
+export interface GlueHandle {
+  readonly ready: Promise<GlueBound>;
+  readonly close: () => Promise<void>;
+}
+
 /** A mounted zone or tab: `close` ends it gracefully (zone-close.ts), once; it never rejects. */
 export interface AppZoneHandle {
   close: (reason: CloseReason) => Promise<void>;
@@ -55,6 +78,8 @@ export interface ZoneHost {
 export interface AppZoneRuntime {
   mount: (host: ZoneHost, zone: AppZoneMount) => AppZoneHandle;
   mountPane: (host: ZoneHost, tab: AppTabMount) => AppZoneHandle;
+  /** Binds a first-party glue app's ports for a tab (runtime/glue-steps.ts); nothing is drawn. */
+  bindGlue: (tab: GlueTabMount) => GlueHandle;
 }
 
 /** The apps data a page's zones read, each request made once per page. */

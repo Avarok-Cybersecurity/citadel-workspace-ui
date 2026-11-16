@@ -23,7 +23,7 @@ function rules(over: Partial<MemberRowRules>): MemberRowRules {
 
 function row(roleId: string, given: MemberRowRules, onRoleChange: Mock = vi.fn()): void {
   render(
-    <MemberRow member={{ userId: 'sam', username: 'sam', roleId }} showAdvanced={false} isUpdatingRole={false}
+    <MemberRow member={{ userId: 'sam', username: 'sam', roleId, isGuest: false }} showAdvanced={false} isUpdatingRole={false}
       rules={given} onRoleChange={onRoleChange} onAdvancedPermissions={() => undefined} onRemove={() => undefined} />,
   );
 }

@@ -71,4 +71,4 @@ function OfficeHeader() {
 const settingsTab = (tab) => () => <Shell><SettingsModal open onOpenChange={NOTHING} tab={tab} /></Shell>;
 const SignIn = () => <Shell><Landing /></Shell>;
 
-export const SCREEN_SCENARIOS = { settings: settingsTab('general'), 'settings-connections': settingsTab('connections'), 'settings-appearance': settingsTab('appearance'), 'settings-privacy': settingsTab('privacy'), landing: SignIn, 'office-header': OfficeHeader };
+export const SCREEN_SCENARIOS = { settings: settingsTab('general'), 'settings-connections': settingsTab('connections'), 'settings-appearance': settingsTab('appearance'), 'settings-privacy': settingsTab('privacy'), 'settings-notifications': settingsTab('notifications'), landing: SignIn, 'office-header': OfficeHeader };

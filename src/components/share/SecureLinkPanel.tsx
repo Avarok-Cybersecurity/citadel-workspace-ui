@@ -6,7 +6,7 @@ import { Loader2, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { grantsOf } from '@/lib/share/grant-draft';
+import { bookingIncomplete, grantsOf } from '@/lib/share/grant-draft';
 import { LIMIT_COPY } from '@/lib/share/link-lifetime';
 import type { ShareTarget } from '@/lib/share/share-target';
 import { GrantBuilder, type RoleOption } from './GrantBuilder';
@@ -15,11 +15,13 @@ import { LinkField } from './LinkField';
 import { QuotaMeter } from './QuotaMeter';
 import type { ShareLinkFlow } from './use-share-link-flow';
 
-export const SECURE_COPY: { shownOnce: string; oneTime: string; oneTimeDetail: string; noGrant: string; create: string } = {
+export const SECURE_COPY: { shownOnce: string; oneTime: string; oneTimeDetail: string; oneTimeGuests: string; noGrant: string; guestCount: string; create: string } = {
   shownOnce: 'Shown once — copy it now. Only its fingerprint is kept, so it cannot be shown again; regenerate it from Security settings if you lose it.',
   oneTime: 'One-time',
   oneTimeDetail: 'Stops working after the first person it admits opens it.',
+  oneTimeGuests: 'A link with guests cannot be one-time: their access lasts as long as the link.',
   noGrant: 'Choose at least one person or group.',
+  guestCount: 'Say how many guests it lets in.',
   create: 'Create secure link',
 };
 
@@ -58,6 +60,7 @@ function SecureLinkBody({ flow, target, members, roles, isAdmin, onManageLinks }
   const { phase, quota } = flow;
   const busy: boolean = phase.kind === 'creating';
   const empty: boolean = grantsOf(flow.draft).length === 0;
+  const guestsUnset: boolean = bookingIncomplete(flow.draft);
 
   if (phase.kind === 'created') {
     return (
@@ -79,11 +82,11 @@ function SecureLinkBody({ flow, target, members, roles, isAdmin, onManageLinks }
           <LifetimeSelect id="share-expires" label="Expires after" value={flow.preset} onChange={flow.setPreset} disabled={busy} testId="share-expires" />
         </div>
         <div className="flex min-h-9 items-center gap-2">
-          <Switch id="share-one-time" checked={flow.oneTime} onCheckedChange={flow.setOneTime} disabled={busy} aria-describedby="share-one-time-detail" data-testid="share-one-time" />
+          <Switch id="share-one-time" checked={flow.oneTime} onCheckedChange={flow.setOneTime} disabled={busy || !flow.oneTimeAllowed} aria-describedby="share-one-time-detail" data-testid="share-one-time" />
           <Label htmlFor="share-one-time" className="text-sm font-medium">{SECURE_COPY.oneTime}</Label>
         </div>
       </div>
-      <p id="share-one-time-detail" className="-mt-2 text-xs text-muted-foreground">{SECURE_COPY.oneTimeDetail}</p>
+      <p id="share-one-time-detail" className="-mt-2 text-xs text-muted-foreground">{flow.oneTimeAllowed ? SECURE_COPY.oneTimeDetail : SECURE_COPY.oneTimeGuests}</p>
 
       {quota.kind === 'known' && <QuotaMeter quota={quota.quota} testId="share-quota" />}
       {quota.kind === 'unknown' && <p className="text-xs text-muted-foreground" data-testid="share-quota-unknown">{`How many links you have left could not be read: ${quota.message}`}</p>}
@@ -97,8 +100,9 @@ function SecureLinkBody({ flow, target, members, roles, isAdmin, onManageLinks }
       ) : (
         <div className="space-y-2">
           {phase.kind === 'failed' && <p role="alert" className="text-xs text-destructive-emphasis" data-testid="share-create-failed">{statusOf(flow)}</p>}
-          {empty && <p className="text-xs text-muted-foreground">{SECURE_COPY.noGrant}</p>}
-          <Button type="button" className="w-full sm:w-auto" disabled={busy || empty || quota.kind === 'loading'} onClick={() => void flow.create()} data-testid="share-create-secure">
+          {guestsUnset ? <p className="text-xs text-muted-foreground">{SECURE_COPY.guestCount}</p>
+            : empty && <p className="text-xs text-muted-foreground">{SECURE_COPY.noGrant}</p>}
+          <Button type="button" className="w-full sm:w-auto" disabled={busy || empty || guestsUnset || quota.kind === 'loading'} onClick={() => void flow.create()} data-testid="share-create-secure">
             {busy && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}{SECURE_COPY.create}
           </Button>
         </div>

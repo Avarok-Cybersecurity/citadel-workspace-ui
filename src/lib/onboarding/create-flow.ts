@@ -118,8 +118,9 @@ function withLinkPacks(value: unknown): unknown {
   if (typeof value !== 'object' || value === null) return value;
   const plan: unknown = (value as { plan?: unknown }).plan;
   if (typeof plan !== 'object' || plan === null) return value;
-  const missing: Record<string, number> = Object.fromEntries(PACK_FIELDS.filter((f) => !(f in plan)).map((f) => [f, 0]));
-  return Object.keys(missing).length === 0 ? value : { ...value, plan: { ...plan, ...missing } };
+  const absent: readonly string[] = PACK_FIELDS.filter((f) => !(f in plan));
+  if (absent.length === 0) return value;
+  return { ...value, plan: { ...plan, ...Object.fromEntries(absent.map((f: string): [string, number] => [f, 0])) } };
 }
 
 /**

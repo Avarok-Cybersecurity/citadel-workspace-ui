@@ -12,11 +12,11 @@ import { isVariant , type SignInSettings, type WorkspaceProtocolResponse } from 
 import type { ConnectionInfo } from './workspace-handlers';
 import { mapWasmMember } from './member-mapping';
 import { membershipChanged } from './membership-change';
-import { recordMemberNames } from '@/lib/member-names';
 import { recordPresenceChoices } from '@/lib/published-presence';
 import type { MappedMember } from '@/lib/workspace-response-handler/member-mapping';
 import { DOCUMENTS_EVENT, documentsEventOf, type DocumentsEvent } from './documents-event';
 import { emitChatAttachments } from './chat-attachments-event';
+import { emitMembers } from './members-event';
 
 export function handleGeneratedVariants(
   response: WorkspaceProtocolResponse,
@@ -59,36 +59,7 @@ export function handleGeneratedVariants(
     return true;
   }
 
-  if (isVariant(response, 'Members')) {
-    // The response now says WHICH domain it is about, and the payload carries
-    // it through. Four subscribers each accepted any member list that arrived
-    // and took last-writer-wins -- the sidebar, the admin members tab, the
-    // user-search corpus and the group-call roster -- so a list fetched for one
-    // domain rendered inside another, and the admin tab then sent role changes
-    // naming ITS entity with users taken from somebody else's list.
-    //
-    // Tolerates the old shape (a bare array) so a client running against a
-    // server that predates the field still works, with the domain unknown.
-    const payload: { domain_id?: string | null; members: Record<string, unknown>[]; inherited_from?: Record<string, string>; } | Record<string, unknown>[] = response.Members as
-      | { domain_id?: string | null; members: Record<string, unknown>[]; inherited_from?: Record<string, string> }
-      | Record<string, unknown>[];
-    const rawMembers: Record<string, unknown>[] = Array.isArray(payload) ? payload : payload.members;
-    const domainId: string | undefined = Array.isArray(payload) ? undefined : payload.domain_id ?? undefined;
-    // Absent from a server that predates it, which lists direct members only.
-    const inheritedFrom: Readonly<Record<string, string>> = Array.isArray(payload) ? {} : payload.inherited_from ?? {};
-
-    const mappedMembers: MappedMember[] = rawMembers.map((m) => mapWasmMember(m));
-    recordMemberNames(mappedMembers);
-    // Before the emit: subscribers compute presence from it (useMemberEventSetup).
-    recordPresenceChoices(mappedMembers);
-    eventEmitter.emit('members:loaded', {
-      members: mappedMembers,
-      domainId,
-      inheritedFrom,
-      connection: connectionInfo,
-    });
-    return true;
-  }
+  if (emitMembers(response, connectionInfo)) return true;
 
   // Hidden by an admin ("Members can see each other" off here or above). Its
   // own event: an empty `members:loaded` would render "Nobody else is here yet".

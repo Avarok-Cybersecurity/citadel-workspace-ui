@@ -56,6 +56,7 @@ export const CONTROL_CHECKS = {
   targetsInTheConversation: targetsAreBigEnough('p2p-conversation', '[data-message-id]'),
   targetsInSettings: targetsAreBigEnough('settings', '[role="dialog"]'),
   targetsInPrivacySettings: targetsAreBigEnough('settings-privacy', '[role="dialog"]'),
+  targetsInNotificationSettings: targetsAreBigEnough('settings-notifications', '[data-testid="settings-notifications"]'),
   targetsAmongPeople: targetsAreBigEnough('people', '[data-avatar]'),
   targetsInTheOfficeHeader: targetsAreBigEnough('office-header', '[data-testid="hierarchy-breadcrumbs"]'),
 };

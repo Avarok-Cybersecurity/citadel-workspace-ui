@@ -35,8 +35,8 @@ export type MdPort = Port<'MdReadZone' | 'MdReplaceZone' | 'MdAppend'>;
 export type FilesPort = Port<'FilesList' | 'FilesRead' | 'FilesWrite' | 'FilesDelete'>;
 export type ChatPort = Port<'ChatRecent' | 'ChatSend'>;
 export type MembersPort = Port<'MembersList'>;
-/** storage.user / scope / node / local KV; `args.backend` names which. */
-export type StoragePort = Port<'KvGet' | 'KvSet' | 'KvSetMany' | 'KvDelete' | 'KvList'>;
+/** storage.user / scope / node / node.authored / local KV; `args.backend` names which. `KvListAuthored` lists every author's keys on a node. */
+export type StoragePort = Port<'KvGet' | 'KvSet' | 'KvSetMany' | 'KvDelete' | 'KvList' | 'KvListAuthored'>;
 export type BlobPort = Port<'BlobPut' | 'BlobGet' | 'BlobDelete'>;
 /** storage.files: the server file store under /apps/<app>/<scope>/. */
 export type StoreFilesPort = Port<'StoreFileWrite' | 'StoreFileRead' | 'StoreFileList'>;

@@ -22,6 +22,8 @@ import { useMemberRowRules, type MemberRules } from './use-member-row-rules';
 import { RoleLegend } from './RoleLegend';
 import { useLevelName } from '@/hooks/use-level-name';
 import { MembersVisibilitySwitch } from './MembersVisibilitySwitch';
+import { MembersFilter } from './MembersFilter';
+import { membersShown, type MembersFilterChoice } from './members-filter';
 
 export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTabProps): JSX.Element {
   const { toast } = useToast();
@@ -31,6 +33,7 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [selectedMember, setSelectedMember] = useState<MemberData | null>(null);
   const [memberToRemove, setMemberToRemove] = useState<MemberData | null>(null);
+  const [filter, setFilter] = useState<MembersFilterChoice>('everyone');
   const nameOfLevel: (levelId: string) => string = useLevelName();
 
   useEffect(() => {
@@ -51,6 +54,7 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
       // here -- and the role changes and removals below would then name THIS
       // entity with users taken from that list.
       if (!isForDomain(payload.domainId, entityId)) return;
+      const guests: ReadonlySet<string> = new Set(payload.guests);
       setMembers(
         payload.members.map((m) => ({
           userId: m.id,
@@ -60,6 +64,7 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
           role: m.role,
           roleId: m.roleId,
           accessViaName: payload.inheritedFrom?.[m.id] === undefined ? undefined : nameOfLevel(payload.inheritedFrom[m.id]),
+          isGuest: guests.has(m.id),
         }))
       );
       cancelLoadingDeadline(deadlineKey);
@@ -115,6 +120,7 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
     );
   }
 
+  const shown: MemberData[] = membersShown(members, filter);
   return (
     <div className="space-y-4" data-testid="members-tab-content">
       <MembersVisibilitySwitch entityType={entityType} entityId={entityId} />
@@ -134,15 +140,16 @@ export function MembersTab({ entityType, entityId, onClose: _onClose }: AdminTab
         />
       </div>
 
+      <MembersFilter members={members} value={filter} onChange={setFilter} />
       {/* Members List */}
       <ScrollArea className="h-[300px] pr-4">
-        <div className="space-y-2">
-          {members.length === 0 ? (
+        <div className="space-y-2" id="members-tab-list">
+          {shown.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              No members found
+              {filter === 'guests' ? 'No guests here' : 'No members found'}
             </div>
           ) : (
-            members.map((member) => (
+            shown.map((member) => (
               <MemberRow
                 key={member.userId}
                 member={member}

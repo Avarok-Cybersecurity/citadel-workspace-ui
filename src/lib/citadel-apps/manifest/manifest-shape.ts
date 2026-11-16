@@ -72,6 +72,7 @@ export function hasManifestShape(v: unknown): boolean {
     scopes: (x: unknown) => listOf(x, oneOf(SCOPE_KINDS)),
     capabilities: (x: unknown) => listOf(x, capabilityShape),
     limits: (x: unknown) => fields(x, { memory_pages: isU32, max_call_rate_per_s: isU32, frame_budget_ms: isU32, storage_user_bytes: isU32, storage_scope_bytes: isU32, close_grace_ms: isU32 }, {
+      storage_node_authored_bytes: isU32,
       p2p: (p: unknown) => fields(p, { max_fanout_concurrency: isU32, max_fanout_bytes: isU32, max_fanout_ms: isU32, max_response_bytes: isU32 }),
       topics: (t: unknown) => fields(t, { max_msg_bytes: isU32, max_msgs_per_s: isU32 }),
     }),

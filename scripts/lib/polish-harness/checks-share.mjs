@@ -44,7 +44,37 @@ const theShareDialogFits = (scenario, measured) => async ({ page, url, viewport 
   }
 };
 
+/**
+ * A booking page's guests: the count field and its refusal fit the dialog at 375px and on a
+ * desktop, the field is a 44px target, and one-time is shown off and cannot be switched on.
+ */
+const theGuestCountFits = async (ctx) => {
+  await theShareDialogFits('share-booking-guests', false)(ctx);
+  const { page, url, viewport } = ctx;
+  const width = viewport.width < 600 ? 375 : viewport.width;
+  await page.setViewportSize({ width, height: viewport.height });
+  try {
+    await page.goto(url('share-booking-guests'));
+    const dialog = page.getByTestId('share-link-dialog');
+    await dialog.waitFor({ state: 'visible' });
+    await settled(page);
+    const box = await dialog.boundingBox();
+    const field = await page.getByTestId('share-booking-guests').boundingBox();
+    const count = await page.getByTestId('share-booking-guest-count').boundingBox();
+    assert.ok(field && count, 'the guests field is drawn');
+    assert.ok(field.x >= box.x - 0.5 && field.x + field.width <= box.x + box.width + 0.5, `the guests field ${JSON.stringify(field)} overhangs the dialog ${JSON.stringify(box)}`);
+    assert.ok(count.height >= 44 && count.width >= 44, `the count is a ${count.width}x${count.height} target`);
+    assert.equal(await page.getByTestId('share-booking-guest-count').getAttribute('aria-invalid'), 'true', 'a refused count is marked invalid');
+    const oneTime = page.getByTestId('share-one-time');
+    assert.equal(await oneTime.getAttribute('aria-checked'), 'false', 'one-time is shown off');
+    assert.ok(await oneTime.isDisabled(), 'one-time cannot be switched on with guests');
+  } finally {
+    await page.setViewportSize(viewport);
+  }
+};
+
 export const SHARE_CHECKS = {
+  theGuestCountFitsAndOneTimeIsOff: theGuestCountFits,
   theShareDialogFitsWhileChoosing: theShareDialogFits('share-secure-editing', false),
   theMadeLinkAndItsCopyAreVisible: theShareDialogFits('share-secure-created', true),
 };

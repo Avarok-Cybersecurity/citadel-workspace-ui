@@ -7,6 +7,8 @@
  */
 import type { ComponentType } from 'react';
 import type { AppInstall, AppManifest } from 'citadel-workspace-client-ts';
+import { CALENDAR_APP_ID } from '@/lib/calendar/app-id';
+import type { GlueInstance } from '../host/glue-instance';
 import { ABI_FIRST_PARTY_GLUE, ABI_V1 } from '../manifest/manifest-rules';
 
 export type MountKind = 'worker' | 'glue';
@@ -18,19 +20,27 @@ export function mountFor(abi: string): MountKind | null {
   return null;
 }
 
-/** What a glue app's tab is given: its install and where it is placed. */
+/** What a glue app's tab is given: its install, where it is placed, and its ports, gated (glue-instance.ts). */
 export interface GlueTabProps {
+  readonly glue: GlueInstance;
   readonly install: AppInstall;
   readonly manifest: AppManifest;
   readonly nodeId: string;
   readonly me: string;
   readonly tabId: string;
+  /**
+   * Whether to offer the member changes to what the node itself holds: `EditMdx` on the node, or
+   * not yet known (`permits`), since the kernel refuses a write the member may not make.
+   */
+  readonly mayEditNode: boolean;
 }
 
 export type GlueTabLoader = () => Promise<ComponentType<GlueTabProps>>;
 
 /** App id -> its tab, loaded the first time it is shown. */
-const GLUE_TABS: ReadonlyMap<string, GlueTabLoader> = new Map<string, GlueTabLoader>();
+const GLUE_TABS: ReadonlyMap<string, GlueTabLoader> = new Map<string, GlueTabLoader>([
+  [CALENDAR_APP_ID, () => import('@/components/calendar/CalendarMount').then((m) => m.CalendarMount)],
+]);
 
 export function glueTab(appId: string): GlueTabLoader | null {
   return GLUE_TABS.get(appId) ?? null;

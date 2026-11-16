@@ -9,5 +9,7 @@
 export const APP_TABS_KEY: 'app_tabs' = 'app_tabs';
 /** The workspace's ordered app-tab list for nodes without their own. */
 export const DEFAULT_APP_TABS_KEY: 'default_app_tabs' = 'default_app_tabs';
+/** A node's (or the workspace's) IANA time zone; absent means the nearest ancestor's. */
+export const TIME_ZONE_KEY: 'time_zone' = 'time_zone';
 /** The most app tabs one list may name. */
 export const MAX_APP_TABS: number = 8;
