@@ -32,6 +32,7 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { explainShortfall } from './lighthouse-shortfall.mjs';
+import { bestPerformanceRun } from './lighthouse-best-run.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const APP_ROOT = resolve(__dirname, '..');
@@ -216,10 +217,8 @@ async function main() {
     // The deterministic categories are NOT taken from that run alone -- see
     // below. Picking a single run for everything would let a best-performance
     // run hide an accessibility regression that appeared in another.
-    const bestIndex = perfScores.length
-      ? perfScores.indexOf(Math.max(...perfScores))
-      : 0;
-    const { categories, audits } = runs[bestIndex];
+    const bestIndex = bestPerformanceRun(runs);
+    const { categories, audits } = runs[bestIndex === -1 ? 0 : bestIndex];
 
     console.log(`\n  Lighthouse — ${URL} (mobile, throttled)\n`);
 
