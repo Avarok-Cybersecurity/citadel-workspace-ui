@@ -178,7 +178,8 @@ test('message actions are reachable on a touch device', async ({ browser }) => {
 
         const text = `touch reachability ${Date.now()}`;
         expect(await sendGroupMessage(page, user, text), 'the message should send').toBe(true);
-        await expect(page.getByText(text).first(), 'the message should render').toBeVisible({
+        // In the transcript: the composer's textarea holds the same text until it is sent.
+        await expect(page.getByTestId('group-chat-view').getByText(text).first(), 'the message should render').toBeVisible({
             timeout: 60_000,
         });
 
