@@ -156,3 +156,14 @@ export function descendantCount(nodes: readonly DomainNode[], nodeId: string): n
   }
   return count;
 }
+
+/** The ids of `nodeId`'s ancestors, nearest first; a cycle in the parents stops at its first repeat. */
+export function ancestorIdsOf(nodes: Readonly<Record<string, DomainNode>>, nodeId: string): string[] {
+  const out: string[] = [];
+  let at: string | null = nodes[nodeId]?.parent_id ?? null;
+  while (at !== null && !out.includes(at)) {
+    out.push(at);
+    at = nodes[at]?.parent_id ?? null;
+  }
+  return out;
+}

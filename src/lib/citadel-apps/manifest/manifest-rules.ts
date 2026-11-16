@@ -5,17 +5,17 @@
  * kernel validates on publish and CI on every catalogue change; the marketplace reads with the
  * same rules so that nothing it shows is a manifest the server would refuse.
  */
-import type { AppAudience, AppManifest } from 'citadel-workspace-client-ts';
+import type { AppAudience, AppManifest, ScopeKind } from 'citadel-workspace-client-ts';
 import { isAppId, isScopeId, parseAppVersion, compareVersions, type AppVersion } from '../app-identity';
 import { appIconSrc } from '../icon';
-import { hasManifestShape } from './manifest-shape';
+import { hasManifestShape, NODE_REACHING_SCOPES } from './manifest-shape';
 import { hasDuplicateKeys } from './json-duplicate-keys';
 import { isHttpsUrl } from './net-rules';
 import { artifactProblem, capabilitiesProblem, distinct, limitsProblem, lowerHex, plainText } from './manifest-rules-parts';
 
 export const MAX_MANIFEST_BYTES: number = 192 * 1024;
-const ABI_V1: string = 'citadel-app-abi-1';
-const ABI_FIRST_PARTY_GLUE: string = 'wasm-bindgen-glue-firstparty';
+export const ABI_V1: string = 'citadel-app-abi-1';
+export const ABI_FIRST_PARTY_GLUE: string = 'wasm-bindgen-glue-firstparty';
 
 /** The Rust `ManifestRefusal` variant each refusal corresponds to. */
 export type ManifestField =
@@ -67,6 +67,7 @@ export function validateManifest(m: AppManifest): ManifestReading {
   if (audience !== null) return refuse('Audience', audience);
   if (!distinct(m.surfaces)) return refuse('Surfaces', 'repeated');
   if (m.scopes.length === 0 || !distinct(m.scopes)) return refuse('Scopes', 'empty or repeated');
+  if (m.surfaces.includes('node_tab') && !m.scopes.some((s: ScopeKind): boolean => NODE_REACHING_SCOPES.includes(s))) return refuse('Scopes', 'a node tab needs a workspace, node or node_tree scope');
   const caps: string | null = capabilitiesProblem(m.id, m.capabilities);
   if (caps !== null) return refuse('Capabilities', caps);
   const limits: string | null = limitsProblem(m.limits, m.capabilities);

@@ -23,7 +23,17 @@ export interface AppZoneMount {
   height: number;
 }
 
-/** A mounted zone: `close` ends it gracefully (zone-close.ts), once; it never rejects. */
+/** One app tab the runtime is asked to run: it fills the tab's panel and is resized in both dimensions. */
+export interface AppTabMount {
+  install: AppInstall;
+  manifest: AppManifest;
+  /** The tab's name among the node's tabs (`Surface::NodeTab.tab_id`). */
+  tabId: string;
+  nodeId: string;
+  me: string;
+}
+
+/** A mounted zone or tab: `close` ends it gracefully (zone-close.ts), once; it never rejects. */
 export interface AppZoneHandle {
   close: (reason: CloseReason) => Promise<void>;
 }
@@ -36,13 +46,15 @@ export interface ZoneHost {
 }
 
 /**
- * The runtime's seam (design 2.3): mount the app for `zone` into `host` and return its handle.
+ * The runtime's seam (design 2.3, 2.4): mount the app for `zone` (`mount`) or for an app tab
+ * (`mountPane`) into `host` and return its handle.
  * The app paints only its own canvas: never page DOM, never HTML from the app; its toolbar is
  * the host's buttons with the app's plain-text labels. A page passes lazy-runtime.ts; null
  * (tests) shows the placeholder and executes nothing.
  */
 export interface AppZoneRuntime {
   mount: (host: ZoneHost, zone: AppZoneMount) => AppZoneHandle;
+  mountPane: (host: ZoneHost, tab: AppTabMount) => AppZoneHandle;
 }
 
 /** The apps data a page's zones read, each request made once per page. */

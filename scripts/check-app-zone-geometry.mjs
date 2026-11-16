@@ -13,6 +13,10 @@
  * Refused (a signature that does not verify; this build's own verifier, which has no ML-DSA check
  * yet): the status fills the zone with the host's words, and nothing was painted.
  *
+ * As an app tab (`?mode=tab`): the canvas fills the tab's panel in both dimensions (not a zone's
+ * 240 px), its bitmap is the panel at the device pixel ratio, the app's card covers it, and when
+ * the panel changes size in both dimensions the bitmap follows and the app paints the new size.
+ *
  * Its lifecycle (`?mode=lifecycle`): scrolled out of view, the app is suspended and gets no frames;
  * back in view, frames again; the page hidden, none; and removed from the page, it is closed: its
  * worker terminated, no frame loop left, no canvas left, no frame delivered after, one settled
@@ -100,6 +104,43 @@ async function running(browser, origin, v) {
   await context.close();
 }
 
+/** The canvas fills the panel at `label`, its bitmap is the panel at `dpr`, and the card covers it. */
+async function fillsThePanel(page, label, dpr) {
+  const p = await box(page.getByTestId('app-tab-host'));
+  const canvas = page.getByTestId('app-zone-canvas');
+  const c = await box(canvas);
+  check(near(c.width, p.width) && near(c.height, p.height) && p.height > 240, `${label}: the canvas fills the panel (${c.width.toFixed(0)}x${c.height.toFixed(0)} of ${p.width.toFixed(0)}x${p.height.toFixed(0)})`);
+  // An app is sized in whole CSS px (AppContext.size), so a 506.4 px panel is a 506 px app.
+  const want = [Math.round(p.width) * dpr, Math.round(p.height) * dpr];
+  const bitmap = await page.waitForFunction((w) => {
+    const el = document.querySelector('[data-testid="app-zone-canvas"]');
+    return el !== null && el.width === w[0] && el.height === w[1] ? [el.width, el.height] : null;
+  }, want, { timeout: 5_000 }).then((h) => h.jsonValue()).catch(() => canvas.evaluate((el) => [el.width, el.height]));
+  check(bitmap[0] === want[0] && bitmap[1] === want[1], `${label}: the bitmap is the panel at ${dpr}x (${bitmap.join('x')}, want ${want.join('x')})`);
+  await page.waitForTimeout(300);
+  for (const [where, x, y, colour] of [['near the far corner, inside the inset', c.x + c.width - 14, c.y + c.height - 14, BLUE], ['the margin, outside the inset', c.x + c.width - 4, c.y + c.height - 4, WHITE]]) {
+    const got = await pixel(page, x, y, dpr);
+    check(close(got, colour), `${label}: the app's card at ${where} is ${colour === BLUE ? 'blue' : 'white'} (rgb ${got.join(', ')})`);
+  }
+}
+
+async function tab(browser, origin, v) {
+  const context = await browser.newContext({ viewport: v.viewport, deviceScaleFactor: v.deviceScaleFactor });
+  const page = await context.newPage();
+  await page.goto(`${origin}/?mode=tab`);
+  await page.locator('[data-testid="app-tab-host"][data-app-state="running"]').waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(500);
+  await fillsThePanel(page, `${v.name}, tab`, v.deviceScaleFactor);
+  // Taller only first: a zone is resized in width alone, so a tab told only of width changes stays short.
+  await page.setViewportSize({ width: v.viewport.width, height: v.viewport.height + 200 });
+  await fillsThePanel(page, `${v.name}, tab made taller`, v.deviceScaleFactor);
+  await page.setViewportSize({ width: Math.round(v.viewport.width * 0.8), height: v.viewport.height + 200 });
+  await fillsThePanel(page, `${v.name}, tab made narrower`, v.deviceScaleFactor);
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  check(overflow <= 0, `${v.name}, tab: nothing overflows sideways (${overflow}px)`);
+  await context.close();
+}
+
 async function refused(browser, origin, v, mode, words) {
   const context = await browser.newContext({ viewport: v.viewport, deviceScaleFactor: v.deviceScaleFactor });
   const page = await context.newPage();
@@ -173,6 +214,7 @@ const browser = await chromium.launch();
 try {
   for (const v of VIEWPORTS) {
     await running(browser, harness.origin, v);
+    await tab(browser, harness.origin, v);
     await refused(browser, harness.origin, v, 'bad-signature', 'Kanban did not pass its signature and hash check, so it was not started.');
     await refused(browser, harness.origin, v, 'unchecked', 'Kanban could not be checked on this device, so it was not started.');
   }

@@ -1,13 +1,15 @@
 /**
  * One app, from its listing to installed: detail, scope, consent, the server's work, the answer.
- * The steps are install-flow.ts's; this draws each and sends the install.
+ * The steps are install-flow.ts's; this draws each and sends the install. Reached from a node's
+ * "+" (`forTab`), the scope starts at "this page and the pages below it" when this person may
+ * choose it, and the installed app is then added as the node's tab.
  */
-import { useReducer } from 'react';
+import { useReducer, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import type { AppInstall, InstallScope } from 'citadel-workspace-client-ts';
 import type { ListedApp } from '@/lib/citadel-apps/listing-model';
 import { flowReducer, START, type FlowState } from '@/lib/citadel-apps/install-flow';
-import { installScopeOf, scopeDomain, scopeOptions, type ScopeContext } from '@/lib/citadel-apps/scope-options';
+import { installScopeOf, scopeDomain, scopeOptions, type ScopeChoice, type ScopeContext, type ScopeOption } from '@/lib/citadel-apps/scope-options';
 import { consentRows, grantOf, grantProblem, keyTrust, type ConsentRow } from '@/lib/citadel-apps/consent-model';
 import { scopeSentence } from '@/lib/citadel-apps/scope-sentence';
 import { refusalCopy } from '@/lib/citadel-apps/refusal-copy';
@@ -25,10 +27,18 @@ interface AppFlowProps {
   viewer: MarketplaceViewer;
   onInstalled: (install: AppInstall) => void;
   onDone: () => void;
+  /** Adding a tab to `viewer.nodeId`: the install is then appended to its tabs; null otherwise. */
+  forTab: { add: (appId: string) => Promise<boolean> } | null;
 }
 
-export function AppFlow({ app, installs, deps, viewer, onInstalled, onDone }: AppFlowProps): JSX.Element {
+/** The scope a tab's install starts at: the page and below, when this person may choose it. */
+export function preferredTabScope(options: readonly ScopeOption[]): ScopeChoice | null {
+  return options.some((o: ScopeOption): boolean => o.choice === 'node_tree' && o.enabled) ? 'node_tree' : null;
+}
+
+export function AppFlow({ app, installs, deps, viewer, onInstalled, onDone, forTab }: AppFlowProps): JSX.Element {
   const [state, dispatch] = useReducer(flowReducer, START);
+  const [tabAdded, setTabAdded] = useState<boolean | null>(null);
   const m: ListedApp['manifest'] = app.manifest;
   const mine: AppInstall[] = installs.filter((i: AppInstall) => i.app_id === m.id);
   const sentence = (scope: InstallScope): string => scopeSentence(scope, viewer.reach(scope), viewer.nodeName);
@@ -40,6 +50,7 @@ export function AppFlow({ app, installs, deps, viewer, onInstalled, onDone }: Ap
     });
     if (result.ok) {
       onInstalled(result.value);
+      if (forTab !== null) setTabAdded(await forTab.add(m.id));
       dispatch({ kind: 'installed', install: result.value });
     } else {
       dispatch({ kind: 'refused', refusal: result.refusal });
@@ -47,10 +58,15 @@ export function AppFlow({ app, installs, deps, viewer, onInstalled, onDone }: Ap
   };
 
   const s: FlowState = state;
-  if (s.step === 'detail') return <ListingDetail app={app} installs={mine} onInstall={() => dispatch({ kind: 'choose-scope' })} />;
+  const ctx: ScopeContext = { scopes: m.scopes, audience: m.audience, nodeId: viewer.nodeId, rootId: viewer.rootId, authority: viewer.authority };
+  const chooseScope = (): void => {
+    dispatch({ kind: 'choose-scope' });
+    const preferred: ScopeChoice | null = forTab === null ? null : preferredTabScope(scopeOptions(ctx));
+    if (preferred !== null) dispatch({ kind: 'select', choice: preferred, people: [] });
+  };
+  if (s.step === 'detail') return <ListingDetail app={app} installs={mine} onInstall={chooseScope} />;
 
   if (s.step === 'scope') {
-    const ctx: ScopeContext = { scopes: m.scopes, audience: m.audience, nodeId: viewer.nodeId, rootId: viewer.rootId, authority: viewer.authority };
     const go = (): void => {
       if (s.choice === null) return;
       const scope: InstallScope | null = installScopeOf(s.choice, viewer.me, viewer.nodeId, s.people);
@@ -100,6 +116,11 @@ export function AppFlow({ app, installs, deps, viewer, onInstalled, onDone }: Ap
       <div role="status" className="flex flex-col gap-[12px] py-[12px]" data-testid="apps-install-done">
         <p className="font-medium text-foreground">{m.name} {s.install.version} is installed.</p>
         <p className="text-sm text-muted-foreground">For: {sentence(s.install.scope)}</p>
+        {tabAdded !== null && (
+          <p className="text-sm text-foreground" data-testid="apps-install-tab">
+            {tabAdded ? 'It is now a tab on this page.' : 'It was not added as a tab; you can add it with “+”.'}
+          </p>
+        )}
         <Button className="min-h-[44px] self-start" onClick={onDone}>Done</Button>
       </div>
     );

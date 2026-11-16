@@ -48,6 +48,8 @@ export function harness(world: Partial<FakeKernelWorld>, globalCatalogue: string
 export function viewerHolding(held: ReadonlySet<string>, over: Partial<MarketplaceViewer> = {}): MarketplaceViewer {
   return {
     me: 'alice', rootId: ROOT, nodeId: 'n-1', nodeName: (id: string): string | null => (id === 'n-1' ? 'Engineering' : null),
+    // n-1 sits directly under the workspace root.
+    ancestors: (id: string): readonly string[] => (id === 'n-1' ? [ROOT] : []),
     authority: { holds: (p: string): Tri => (held.has(p) ? 'yes' : 'no') },
     reach: () => ({ people: 7, pagesBelow: 3 }), members: ['alice', 'bob', 'carol'], serverAddress: null, origin: 'https://work.example',
     ...over,

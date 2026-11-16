@@ -20,7 +20,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, renderHook } from '@testing-library/react';
-import { forgetAllTabs, rememberTab } from '../office-tab-memory';
+import { forgetAllTabs, rememberTab } from '@/lib/node-tabs/tab-memory';
 import { ConfirmDialogProvider } from '@/components/shared/confirm-dialog';
 import { chatSurfaceOf, useChatSurface } from '../chat-surface';
 import { permits } from '@/hooks/use-permission-result';
@@ -46,7 +46,7 @@ vi.mock('@/hooks/use-permission', () => ({
   usePermission: (): UsePermissionResult => NOTHING_ANSWERED,
 }));
 
-const { OfficeChatTabs } = await import('../OfficeChatTabs');
+const { ChatTabs } = await import('../tabs/__tests__/doubles/chat-tabs');
 
 const room: DomainNode = { chat_enabled: true, chat_channel_id: 'ch-1' } as unknown as DomainNode;
 
@@ -54,7 +54,7 @@ describe('the office composer, end to end', () => {
   it('is there for a user who opened chat, on a node mid-reload, with no permission answer', () => {
     forgetAllTabs();
     // The user switched to Chat, and BaseOffice remounted underneath them.
-    rememberTab('ch-1', 'chat');
+    rememberTab('n1', 'chat');
 
     // The node is momentarily absent from state.nodes -- what round 373 read as
     // "no chat" -- but this room has answered before.
@@ -65,16 +65,7 @@ describe('the office composer, end to end', () => {
     // a refusal.
     expect(permits(NOTHING_ANSWERED)).toBe(true);
 
-    render(
-      <ConfirmDialogProvider><OfficeChatTabs
-        contentView={<div />}
-        chatChannelId="ch-1"
-        nodeId="n1"
-        roomName="Random"
-        currentUserId="1"
-        currentUserName="alice" currentUserCid={1n} rules={null}
-      /></ConfirmDialogProvider>,
-    );
+    render(<ConfirmDialogProvider><ChatTabs nodeId="n1" chatChannelId="ch-1" contentView={<div />} /></ConfirmDialogProvider>);
 
     expect(screen.queryByTestId('group-message-input')).toBeTruthy();
     expect(screen.queryByTestId('group-send-restricted')).toBeNull();
@@ -84,29 +75,19 @@ describe('the office composer, end to end', () => {
     // The positive control for the whole chain: if every link now says yes
     // unconditionally, the composer is not gated on anything at all.
     forgetAllTabs();
-    rememberTab('ch-1', 'chat');
+    rememberTab('n1', 'chat');
     const refused: UsePermissionResult = { ...NOTHING_ANSWERED, answered: true };
     expect(permits(refused)).toBe(false);
   });
 
   it('keeps the tab through a remount, which is what loses the composer', () => {
     forgetAllTabs();
-    rememberTab('ch-1', 'chat');
-    const { unmount }: ReturnType<typeof render> = render(
-      <ConfirmDialogProvider><OfficeChatTabs
-        contentView={<div />} chatChannelId="ch-1" nodeId="n1"
-        roomName="Random" currentUserId="1" currentUserName="alice" currentUserCid={1n} rules={null}
-      /></ConfirmDialogProvider>,
-    );
+    rememberTab('n1', 'chat');
+    const { unmount }: ReturnType<typeof render> = render(<ConfirmDialogProvider><ChatTabs nodeId="n1" chatChannelId="ch-1" contentView={<div />} /></ConfirmDialogProvider>);
     expect(screen.queryByTestId('group-message-input')).toBeTruthy();
     unmount();
 
-    render(
-      <ConfirmDialogProvider><OfficeChatTabs
-        contentView={<div />} chatChannelId="ch-1" nodeId="n1"
-        roomName="Random" currentUserId="1" currentUserName="alice" currentUserCid={1n} rules={null}
-      /></ConfirmDialogProvider>,
-    );
+    render(<ConfirmDialogProvider><ChatTabs nodeId="n1" chatChannelId="ch-1" contentView={<div />} /></ConfirmDialogProvider>);
     expect(screen.queryByTestId('group-message-input')).toBeTruthy();
   });
 });

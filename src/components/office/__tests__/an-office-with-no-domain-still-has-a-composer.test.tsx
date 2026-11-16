@@ -20,7 +20,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { forgetAllTabs, rememberTab } from '../office-tab-memory';
+import { forgetAllTabs, rememberTab } from '@/lib/node-tabs/tab-memory';
 
 const permission: { allowed: boolean; loading: boolean; unanswered: boolean; answered: boolean } = {
   allowed: false, loading: false, unanswered: false, answered: true,
@@ -43,35 +43,23 @@ vi.mock('@/hooks/use-permission', () => ({
       : permission,
 }));
 
-const { OfficeChatTabs } = await import('../OfficeChatTabs');
+const { ChatTabs } = await import('../tabs/__tests__/doubles/chat-tabs');
 
-function restrictionWith(nodeId: string | undefined): string {
+function restrictionWith(nodeId: string): string {
   forgetAllTabs();
   // Inactive tab panels do not mount, so the chat panel has to be the open one
   // for there to be anything to assert about.
-  const channel: string = `ch-${String(nodeId)}`;
-  rememberTab(channel, 'chat');
-  const { unmount } = render(
-    <OfficeChatTabs
-      contentView={<div />}
-      chatChannelId={channel}
-      nodeId={nodeId}
-      roomName="Random"
-      currentUserId="1"
-      currentUserName="alice"
-      currentUserCid={1n}
-      rules={null}
-    />,
-  );
+  rememberTab(nodeId, 'chat');
+  const { unmount } = render(<ChatTabs nodeId={nodeId} chatChannelId={`ch-${nodeId}`} contentView={<div />} />);
   const value: string = screen.getByTestId('chat-view').getAttribute('data-restriction') ?? '';
   unmount();
   return value;
 }
 
 describe('the office composer', () => {
-  it('is offered when there is no domain to ask about', () => {
-    expect(restrictionWith(undefined)).toBe('allowed');
-  });
+  // "No domain" no longer reaches the composer: the pane is given the workspace root when the
+  // node has none (BaseOffice's `domainId`), and `NodeTabs.nodeId` is a string, so the
+  // definite-looking denial `usePermission(undefined, ...)` gives cannot be asked for.
 
   it('is offered when the permission says yes', () => {
     // The positive control for the test above: a component that always allowed

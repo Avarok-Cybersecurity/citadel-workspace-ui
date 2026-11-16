@@ -9,8 +9,6 @@ import { OfficeLayout } from "./OfficeLayout";
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { OfficeSkeletonLoader } from "../ui/skeleton-office";
 import { OfficeEditorPane } from "./OfficeEditorPane";
-import { AppZonePage } from "./app-zone/AppZonePage";
-import { pageZoneRuntime } from "./app-zone/lazy-runtime";
 import { joinHeader, splitHeader } from "@/lib/citadel-apps/md-header";
 import { templateCategoryFor, type MdxTemplate, type TemplateCategory } from "@/lib/mdx-templates";
 import type { NodeEntityType } from "@/lib/entity-type-registry";
@@ -23,7 +21,7 @@ import { useConfirm } from "@/components/shared/confirm-dialog";
 import { editGate, noPageReason } from "./edit-gate";
 import type { ActionGate } from '@/hooks/use-permission-result';
 import WorkspaceService from "@/lib/workspace-service";
-import { OfficeChatTabs } from "./OfficeChatTabs";
+import { NodePane } from "./tabs/NodePane";
 import { usePermission } from '@/hooks/use-permission';
 import { Permission } from "@/contexts/PermissionsContext";
 import { debugLog } from '@/lib/debug-config';
@@ -172,8 +170,7 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
     // document showed its body copy and its emoji, and nothing else.
     <div className="px-6 lg:px-10 pt-8 pb-4 prose dark:prose-invert prose-sm md:prose-base lg:prose-lg max-w-4xl">
       <MDXProvider components={components}>
-        {/* App zones on this page; the sandbox host loads with the first zone that runs an app. */}
-        <AppZonePage nodeId={domainId} runtime={pageZoneRuntime}>
+        {/* App zones on this page share NodePane's zone environment; the sandbox host loads with the first that runs an app. */}
         {compiledContent ?? (renderError && (
           // Only when there is nothing to show; outside the editor a failed
           // compile clears the render (use-compiled-mdx), so this is reached.
@@ -184,29 +181,10 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
             onReplace={(template: MdxTemplate): void => { setIsEditing(true); handleTemplateSelect(template); }}
           />
         ))}
-        </AppZonePage>
       </MDXProvider>
     </div>
   );
 
-  // If chat is not enabled, just show the content
-  if (!chat || !chat.enabled || !chat.channelId) {
-    return (
-      <OfficeLayout
-        title={entityData?.name || title}
-        nodeId={nodeId ?? null}
-        isEditing={isEditing}
-        onEditToggle={() => { void handleEditToggle(); }}
-        onSave={handleSave}
-        canEdit={gate.enabled}
-        editDeniedReason={gate.reason ?? undefined}
-      >
-        {contentView}
-      </OfficeLayout>
-    );
-  }
-
-  // If chat is enabled, show tabs
   return (
     <OfficeLayout
       title={entityData?.name || title}
@@ -217,15 +195,15 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
       canEdit={gate.enabled}
       editDeniedReason={gate.reason ?? undefined}
     >
-      <OfficeChatTabs
+      {/* Its tabs when it has any (tabs/NodePane.tsx); the page's zones share their environment. */}
+      <NodePane
+        nodeId={domainId}
+        node={entityData}
+        chat={chat}
         contentView={contentView}
-        chatChannelId={chat.channelId}
-        nodeId={nodeId}
         roomName={entityData?.name || title}
-        currentUserId={reader.id}
-        currentUserName={reader.displayName}
-        currentUserCid={tabSession?.cid}
-        rules={entityData?.rules ? entityData.rules : null}
+        reader={reader}
+        readerCid={tabSession?.cid}
       />
     </OfficeLayout>
   );

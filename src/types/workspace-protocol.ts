@@ -6,6 +6,7 @@
  */
 
 import type { AppsRequest, ChatAttachmentsRequest, ChatDocumentsRequest, DocumentsRequest, GroupMessageType, MemberRole, MessagingTrustRequest, RolesRequest, SecureLinksRequest, SignInSettings, TelemetryRequest, WorkspaceLogoChange, WorkspaceProtocolRequest } from 'citadel-workspace-client-ts';
+import type { NodeTabRequestsTS, UpdateNodeRequestTS } from './node-tab-requests';
 
 /** A request variant's body, read from the generated binding rather than restated. */
 type RequestBody<K extends string> = Extract<WorkspaceProtocolRequest, Record<K, unknown>>[K];
@@ -31,7 +32,7 @@ export interface MessageRequestTS {
   contents: Uint8Array;
 }
 
-export interface WorkspaceProtocolRequestTS {
+export interface WorkspaceProtocolRequestTS extends NodeTabRequestsTS {
   Message?: MessageRequestTS;
 
   // GetWorkspace variant - workspace_id defaults to sentinel if null/undefined
@@ -143,15 +144,7 @@ export interface WorkspaceProtocolRequestTS {
     description?: string;
     logo?: WorkspaceLogoChange;
   };
-  UpdateNode?: {
-    node_id: string;
-    name?: string;
-    description?: string;
-    mdx_content?: string;
-    rules?: string;
-    chat_enabled?: boolean;
-    is_default?: boolean;
-  };
+  UpdateNode?: UpdateNodeRequestTS;
   SetMembersVisible?: { node_id: string; visible: boolean };
   Telemetry?: TelemetryRequest; // Terms, consent and the diagnostic-log service.
   MessagingTrust?: MessagingTrustRequest; // Who connects without asking (messaging-trust-operations.ts).

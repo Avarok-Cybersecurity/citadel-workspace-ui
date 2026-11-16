@@ -16,6 +16,8 @@
  *   counting what the lifecycle must release: live workers (spawn wrapped), live frame loops and
  *   frames delivered (the frame loop wrapped), the audit lines, and an `unmount()` that removes
  *   the zone from the page as navigating away from it would.
+ * - `?mode=tab`: the release, listing `node_tab`, as an app tab (AppTabPane, `mountPane`) in a
+ *   panel 60% of the viewport tall, as a node pane's tab panel fills the pane.
  */
 import { createRoot, type Root } from 'react-dom/client';
 import '@/index.css';
@@ -23,6 +25,7 @@ import type { AppInstall, AppListing, AppsRequest } from 'citadel-workspace-clie
 import helloCanvasUrl from '../../../../apps/sdk-fixtures/wasm/hello-canvas.wasm?url';
 import manifestCases from '../../../../apps/catalogue/fixtures/manifest-cases.json';
 import { AppZone } from '@/components/office/app-zone/AppZone';
+import { AppTabPane } from '@/components/office/app-zone/AppTabPane';
 import { AppZoneContext, zoneClaims, type AppZoneEnvironment } from '@/components/office/app-zone/app-zone-environment';
 import { listedApps } from '@/lib/citadel-apps/listing-model';
 import { readAppsAnswer, type AppsAnswer } from '@/lib/citadel-apps/wire/apps-answer';
@@ -85,6 +88,7 @@ const standInCheck: AppSignatureCheck = async (i) => hex(i.signature.slice().buf
 async function start(): Promise<void> {
   const wasm: Uint8Array = new Uint8Array(await (await fetch(helloCanvasUrl)).arrayBuffer());
   const m: Record<string, unknown> = structuredClone((manifestCases as { base: Record<string, unknown> }).base);
+  if (mode === 'tab') m.surfaces = ['node_tab'];
   m.capabilities = ['canvas', 'events', 'log'].map((cap: string) => ({ cap, why: `Needs ${cap}`, optional: false }));
   m.artifact = { ...(m.artifact as Record<string, unknown>), sha256: await sha(wasm), bytes: wasm.byteLength };
   const manifestBytes: Uint8Array = new TextEncoder().encode(JSON.stringify(m));
@@ -133,13 +137,19 @@ async function start(): Promise<void> {
   const root: HTMLElement | null = document.getElementById('root');
   if (root === null) throw new Error('the harness page has no #root');
   const page: Root = createRoot(root);
-  const render = (zone: boolean): void => page.render(
+  const render = (zone: boolean): void => page.render(mode === 'tab' ? (
+    <AppZoneContext.Provider value={env}>
+      <div data-testid="tab-panel" className="flex w-full flex-col" style={{ height: '60vh' }}>
+        <AppTabPane appId={APP_ID} tabId="board" />
+      </div>
+    </AppZoneContext.Provider>
+  ) : (
     <div className="px-6 lg:px-10 pt-8 pb-4 prose dark:prose-invert prose-sm md:prose-base lg:prose-lg max-w-4xl">
       <h1>Board</h1>
       {zone ? <AppZoneContext.Provider value={env}><AppZone app={APP_ID} zone="board" height={240} /></AppZoneContext.Provider> : null}
       {mode === 'lifecycle' ? <div data-testid="below-the-zone" style={{ height: '3000px' }} /> : null}
-    </div>,
-  );
+    </div>
+  ));
   probe.unmount = (): void => render(false);
   render(true);
 }

@@ -14,7 +14,8 @@
  */
 import type { AppInstall } from 'citadel-workspace-client-ts';
 import type { CloseReason } from '@/lib/citadel-apps/sdk/generated/CloseReason';
-import { covers, type ZoneFacts, type ZoneView } from './zone-state';
+import { covers } from '@/lib/citadel-apps/install-covers';
+import type { ZoneFacts, ZoneView } from './zone-state';
 
 /** What the zone shows next, and what it was decided from. */
 export interface ZoneNext {
@@ -37,7 +38,8 @@ function fromView(running: AppInstall, next: ZoneView): CloseReason {
     case 'loading': case 'not-available': return 'unmount';
     case 'install': case 'ask-admin': return 'uninstall';
     case 'disabled': case 'suspended': case 'needs-answer': return 'access_revoked';
-    case 'needs-consent': case 'outdated': return 'version_update';
+    // A release that no longer runs here replaced the one that did.
+    case 'needs-consent': case 'outdated': case 'wrong-surface': return 'version_update';
   }
 }
 
