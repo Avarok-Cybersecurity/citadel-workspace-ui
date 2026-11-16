@@ -42,6 +42,8 @@ const base: Omit<ComponentProps<typeof P2PMessageList>, 'ref'> = {
   isLoadingMore: false,
   isLoadingHistory: false,
   hasMorePages: false,
+  onLoadOlder: (): void => {},
+  olderPagesError: null,
   displaySenderName: false,
   displaySenderAvatar: false,
   onScroll: vi.fn(),

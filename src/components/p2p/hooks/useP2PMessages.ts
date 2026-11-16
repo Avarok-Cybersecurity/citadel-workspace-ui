@@ -42,6 +42,7 @@ export function useP2PMessages({
   const [currentPage, setCurrentPage] = useState<number | null>(null);
   const [hasMorePages, setHasMorePages] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [olderPagesError, setOlderPagesError] = useState<string | null>(null);
   /**
    * True until this conversation's stored history has been read.
    *
@@ -148,6 +149,7 @@ export function useP2PMessages({
     if (isLoadingMore || currentPage === null || currentPage <= 0 || !hasMorePages) return;
 
     setIsLoadingMore(true);
+    setOlderPagesError(null);
     try {
       const olderPage: MessagePage | null = await messenger.loadMessagePage(peerCid, currentPage - 1);
       if (olderPage && olderPage.messages.length > 0) {
@@ -169,7 +171,8 @@ export function useP2PMessages({
         setHasMorePages(false);
       }
     } catch (error) {
-      debugLog('UseP2PMessages', 'Failed to load older messages:', error);
+      // Shown beside the control: swallowed, "Load older messages" stayed and did nothing.
+      setOlderPagesError(`Could not load older messages: ${failureDescription(error, 'please try again.')}`);
     } finally {
       setIsLoadingMore(false);
     }
@@ -236,6 +239,6 @@ export function useP2PMessages({
 
   return {
     messages, peerTyping, peerPresence, isConnected, isRegistered, isLoadingMore, isLoadingHistory, hasMorePages,
-    handleScroll, handleRetryMessage, handleEditMessage, handleDeleteMessage, handleReactMessage,
+    olderPagesError, loadOlderMessages, handleScroll, handleRetryMessage, handleEditMessage, handleDeleteMessage, handleReactMessage,
   };
 }

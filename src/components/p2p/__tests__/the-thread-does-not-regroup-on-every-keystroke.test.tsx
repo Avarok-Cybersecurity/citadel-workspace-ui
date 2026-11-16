@@ -56,6 +56,8 @@ function listProps(msgs: Msg[]): ListProps {
     peerCid: 7n,
     isLoadingMore: false,
     hasMorePages: false,
+    onLoadOlder: (): void => {},
+    olderPagesError: null,
     displaySenderName: false,
     displaySenderAvatar: false,
     onScroll: (): void => {},

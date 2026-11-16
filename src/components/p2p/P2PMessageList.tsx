@@ -8,6 +8,7 @@ import React, { forwardRef, useMemo } from 'react';
 import { groupMessagesByDate, quoteP2PReply } from '@/components/chat/shared';
 import { DateSeparator } from '@/components/chat/shared/DateSeparator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
 import { MessageBubble } from './bubbles';
 import { AwaitingAcceptContext } from './bubbles/awaiting-accept';
 import type { P2PMessage } from '@/lib/p2p';
@@ -27,6 +28,10 @@ interface P2PMessageListProps {
   /** True until the stored history has been read; see useP2PMessages. */
   isLoadingHistory: boolean;
   hasMorePages: boolean;
+  /** Reads the next older page; see useP2PMessages. */
+  onLoadOlder: () => void;
+  /** Why the last older page could not be read, or null. */
+  olderPagesError: string | null;
   displaySenderName: boolean;
   displaySenderAvatar: boolean;
   onScroll: (event: React.UIEvent<HTMLDivElement>) => void;
@@ -58,6 +63,8 @@ export const P2PMessageList: React.ForwardRefExoticComponent<P2PMessageListProps
       isLoadingMore,
       isLoadingHistory,
       hasMorePages,
+      onLoadOlder,
+      olderPagesError,
       displaySenderName,
       displaySenderAvatar,
       onScroll,
@@ -119,9 +126,14 @@ export const P2PMessageList: React.ForwardRefExoticComponent<P2PMessageListProps
               <div className="text-sm text-muted-foreground">Loading older messages...</div>
             </div>
           )}
+          {/* A control, not only "scroll up": a newest page too short to overflow the view
+              cannot be scrolled, and older pages were then out of reach. */}
           {hasMorePages && !isLoadingMore && (
-            <div className="flex justify-center py-2">
-              <div className="text-xs text-muted-foreground">↑ Scroll up for older messages</div>
+            <div className="flex flex-col items-center gap-1 py-2">
+              <Button variant="ghost" size="sm" className="min-h-[44px]" onClick={onLoadOlder}>
+                Load older messages
+              </Button>
+              {olderPagesError && <p className="text-xs text-destructive" role="alert">{olderPagesError}</p>}
             </div>
           )}
           {messages.length === 0 && !isLoadingMore && !isLoadingHistory && (
