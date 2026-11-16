@@ -46,7 +46,7 @@ const STATE: WorkspaceState = {
   workspace: { id: WORKSPACE_ROOT_ID, name: 'Acme' },
   members: { ada: ADA },
   nodes: { hq: node('hq', WORKSPACE_ROOT_ID, 'Office', 'HQ'), standup: node('standup', 'hq', 'Room', 'Standup') },
-  nodesUnavailable: false, treeSchema: null,
+  nodesUnavailable: false, membershipRefused: false, treeSchema: null,
   loading: { workspace: false, members: false, nodes: false },
   messages: { byPeer: {} }, typing: { peerIds: [], lastUpdated: 0 },
 } as WorkspaceState;

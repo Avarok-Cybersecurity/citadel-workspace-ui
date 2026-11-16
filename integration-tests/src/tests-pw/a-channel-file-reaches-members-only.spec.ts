@@ -73,12 +73,13 @@ adminMemberTest('a channel file reaches a member under its own name, and not a r
     await expect(adminDialog(admin.page).getByTestId(`member-remove-${outsider.username}`)).toHaveCount(0, { timeout: 30_000 });
     await admin.page.keyboard.press('Escape');
 
+    // Reloaded on the office it had open. The kernel refuses a removed account the workspace record
+    // and the node list, so the app never opens: the page says the account is not a member, in place
+    // of the workspace. (It used to wait for the record for ever, "taking longer than expected" --
+    // run 43918454602.) The refusal is asserted as what the page shows, then the office's absence.
     await outsider.page.reload();
-    // The kernel refuses a removed account the node list, so its sidebar never offers the tree or
-    // its filter: it says the spaces could not be loaded (after the load deadline). revealNode asks
-    // the filter and, rightly, will not read a missing filter as a missing node, so it threw here
-    // on every run. The refusal is asserted as what the page shows, then the office's absence.
-    await expect(outsider.page.getByTestId('tree-unavailable'), 'a removed account should be refused the hierarchy').toBeVisible({ timeout: 60_000 });
+    await expect(outsider.page.getByTestId('workspace-refused'), 'a removed account should be told it is not a member').toBeVisible({ timeout: 60_000 });
+    await expect(outsider.page.getByTestId('workspace-refused')).toContainText('not a member of this workspace');
     await expect(treeRow(outsider.page, OFFICE)).toHaveCount(0);
     await expect(card(outsider.page)).toHaveCount(0);
     // The second control: the member, still in the workspace, still reaches the office after a reload.

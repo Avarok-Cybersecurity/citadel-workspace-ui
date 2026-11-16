@@ -84,6 +84,8 @@ export function useWorkspaceEventSetup({ setState }: UseWorkspaceEventSetupProps
           },
           loading: { ...prev.loading, workspace: false },
           needsWorkspaceInitialization: !isInitialized,
+          // The workspace answered this account, so any refusal heard before is over.
+          membershipRefused: false,
         }));
 
         // Broadcast workspace state to other tabs

@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { debugLog } from '@/lib/debug-config';
 import { useToast } from '@/hooks/use-toast';
-import { WorkspaceLoaderSpinner } from './workspace-loader-ui';
+import { WorkspaceLoaderSpinner, WorkspaceRefusedNotice } from './workspace-loader-ui';
 import { useHeldElsewhere, type HeldElsewhere } from './use-held-elsewhere';
 import { onThisTabDetached } from '@/lib/sessions/detached';
 import { useLeaveEndedSession, type LeaveEndedSession } from '@/components/use-leave-ended-session';
@@ -119,6 +119,7 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
     reconnectingTo: reconnectingServer,
     keptTree: kept.kind === 'kept',
     keptTreeLocked: kept.kind === 'locked',
+    refused: state.membershipRefused,
   };
   const leaveForConnect: boolean = shouldLeaveForConnect(inputs);
 
@@ -140,6 +141,7 @@ export const WorkspaceLoader: React.FC<WorkspaceLoaderProps> = ({ children }) =>
   }
 
   if (view.kind === 'held-elsewhere') return heldElsewhere.notice;
+  if (view.kind === 'refused') return <WorkspaceRefusedNotice />;
   if (view.kind === 'spinner') {
     return <WorkspaceLoaderSpinner loadingMessage={view.message} showConnectButton={view.showConnectButton} />;
   }

@@ -26,7 +26,7 @@ function renderTab(): void {
       id: 'ada', username: 'ada', name: 'Ada Lovelace', email: 'ada@example.com', title: 'Engineer',
       avatarUrl: STORED_AVATAR,
     },
-    members: {}, nodes: {}, nodesUnavailable: false, treeSchema: null,
+    members: {}, nodes: {}, nodesUnavailable: false, membershipRefused: false, treeSchema: null,
     loading: { workspace: false, members: false, nodes: false },
     messages: { byPeer: {} }, typing: { peerIds: [], lastUpdated: 0 },
   } as WorkspaceState;

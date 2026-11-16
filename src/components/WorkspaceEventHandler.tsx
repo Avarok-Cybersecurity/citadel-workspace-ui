@@ -67,6 +67,7 @@ export const WorkspaceEventHandler: React.FC<{
     members: {},
     loading: { workspace: false, members: false, nodes: false },
     nodesUnavailable: false,
+    membershipRefused: false,
     needsWorkspaceInitialization: false,
     messages: {
       byPeer: {} as Record<string, Array<{
@@ -188,11 +189,12 @@ export const WorkspaceEventHandler: React.FC<{
         <WorkspaceThemeProvider>{children}</WorkspaceThemeProvider>
       </WorkspaceProvider>
       <ClaimLaterBanner
-        visible={state.needsWorkspaceInitialization === true && initModalDismissed && !showInitModal}
+        visible={state.needsWorkspaceInitialization === true && initModalDismissed && !showInitModal && !state.membershipRefused}
         onClaim={(): void => { clearInitPromptSuppression(); setInitModalDismissed(false); }}
       />
       <WorkspaceInitializationModal
-        isOpen={showInitModal}
+        // A removed account is told it was refused, never offered to set the workspace up.
+        isOpen={showInitModal && !state.membershipRefused}
         onClose={handleInitCancelled}
         onSuccess={handleWorkspaceInitialized}
         workspaceName={state.workspace?.name}

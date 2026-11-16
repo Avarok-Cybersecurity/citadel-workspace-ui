@@ -10,6 +10,7 @@ import { workspaceEvents, type ErrorPayload, type ConnectionInfo, type ProtocolW
 import { p2pRegistrationService } from '@/lib/p2p-registration-service';
 import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { debugLog } from '@/lib/debug-config';
+import { isMembershipRefusal } from '@/lib/membership-refusal';
 import type { WorkspaceEventState } from '../WorkspaceEventHandler';
 
 interface UseMessageEventSetupOptions {
@@ -82,7 +83,9 @@ export function useMessageEventSetup({ setState }: UseMessageEventSetupOptions):
         setState(prev => ({
           ...prev,
           error: payload.message,
-          needsWorkspaceInitialization: needsInitialization
+          needsWorkspaceInitialization: needsInitialization,
+          // Kept once said: until the workspace record arrives, nothing else here answers it.
+          membershipRefused: prev.membershipRefused || isMembershipRefusal(payload.message),
         }));
 
         debugLog('WorkspaceEventHandler', 'Operation error:', payload.message);

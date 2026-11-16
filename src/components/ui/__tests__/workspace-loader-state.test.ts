@@ -20,6 +20,7 @@ const TIMED_OUT: LoaderInputs = {
   reconnectingTo: null,
   keptTree: false,
   keptTreeLocked: false,
+  refused: false,
 };
 
 describe('the workspace loader', () => {

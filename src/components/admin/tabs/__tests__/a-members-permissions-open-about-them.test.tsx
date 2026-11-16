@@ -32,7 +32,7 @@ const HQ: DomainNode = {
   created_at: 0n, updated_at: 0n,
 };
 const STATE: WorkspaceState = {
-  workspace: { id: WORKSPACE_ROOT_ID, name: 'Acme' }, members: {}, nodes: { hq: HQ }, nodesUnavailable: false, treeSchema: null,
+  workspace: { id: WORKSPACE_ROOT_ID, name: 'Acme' }, members: {}, nodes: { hq: HQ }, nodesUnavailable: false, membershipRefused: false, treeSchema: null,
   loading: { workspace: false, members: false, nodes: false }, messages: { byPeer: {} }, typing: { peerIds: [], lastUpdated: 0 },
 } as WorkspaceState;
 
