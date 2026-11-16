@@ -75,10 +75,14 @@ export async function sendFile(
   // A peer known to be offline is not waited for: the send is held at once.
   const peerOnline: boolean | null = deps.queue.peerOnlineStatus(BigInt(recipientCid));
   const channelOpened: boolean = peerOnline === false ? false : await openChannelBeforeSending(deps, recipientCid);
-  let thumbnail: string | undefined;
-  if (file.type.startsWith('image/')) {
-    thumbnail = await deps.io.generateThumbnail(file);
-  }
+  // A preview, not a condition of sending: a picture this browser cannot draw (HEIC in Chrome,
+  // a damaged JPEG) is offered without one and its bubble keeps the file icon.
+  const thumbnail: string | undefined = file.type.startsWith('image/')
+    ? await deps.io.generateThumbnail(file).catch((e: unknown): undefined => {
+      debugLog('transfer-lifecycle', `no thumbnail for ${file.name}; sending without one`, e);
+      return undefined;
+    })
+    : undefined;
 
   const transferId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
   eventEmitter.emit(FILE_TRANSFER_EVENTS.FILE_SENT, { transfer: { id: transferId, senderCid, recipientCid: BigInt(recipientCid) }, file });

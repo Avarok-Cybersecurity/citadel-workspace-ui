@@ -18,6 +18,8 @@ import { openConversation, waitForWorkspaceLoaded, closeAnyModals } from '../lib
 import { keepAskingEachTime } from '../lib/always-accept.js';
 import { openChatFromMemberList } from './messaging-trust-helpers.js';
 
+// Typed image/jpeg but not decodable: the send goes without a thumbnail (a-picture-the-browser-
+// cannot-preview-is-still-sent). Before that fix the dialog stopped at "Could not load image".
 const JPEG: Buffer = Buffer.alloc(165_000, 0xab);
 
 async function send(page: Page, name: string, bytes: Buffer): Promise<void> {
