@@ -30,6 +30,8 @@ export interface ConversationSubscriptionParams {
 const appended = (prev: ChatMessage[], message: ChatMessage): ChatMessage[] =>
   prev.some((m: ChatMessage): boolean => m.id === message.id) ? prev : [...prev, message].sort((a, b) => a.timestamp - b.timestamp);
 
+const holds = (prev: readonly ChatMessage[], id: string): boolean => prev.some((m: ChatMessage): boolean => m.id === id);
+
 /** The local copy becomes the transport's; if the transport's copy is already shown, the local one goes. */
 const replaced = (prev: ChatMessage[], localId: string, message: ChatMessage): ChatMessage[] => {
   if (!prev.some((m: ChatMessage): boolean => m.id === localId)) return appended(prev, message);
@@ -69,22 +71,25 @@ export function subscribeToConversationEvents({
           // `prev.map` always allocates, so this changed the array identity for a status
           // transition in ANY conversation -- and the chat's scroll effect keys on `messages`,
           // so every sent/delivered/read anywhere threw a reader who had scrolled up back down.
-          if (!prev.some((m: ChatMessage): boolean => m.id === event.messageId)) return prev;
+          if (!holds(prev, event.messageId)) return prev;
           return prev.map((m: ChatMessage): ChatMessage => (m.id === event.messageId ? { ...m, status: event.status } : m));
         });
         return;
+      // Like 'status': a message this view does not hold changes nothing, so the array is kept.
       case 'updated':
-        setMessages((prev: ChatMessage[]): ChatMessage[] => prev.map((m: ChatMessage): ChatMessage => (m.id === event.message.id ? { ...m, ...event.message } : m)));
+        setMessages((prev: ChatMessage[]): ChatMessage[] => (holds(prev, event.message.id)
+          ? prev.map((m: ChatMessage): ChatMessage => (m.id === event.message.id ? { ...m, ...event.message } : m))
+          : prev));
         return;
       // Deletion removes the message rather than tombstoning it, matching group chat.
       case 'removed':
-        setMessages((prev: ChatMessage[]): ChatMessage[] => prev.filter((m: ChatMessage): boolean => m.id !== event.messageId));
+        setMessages((prev: ChatMessage[]): ChatMessage[] => (holds(prev, event.messageId) ? prev.filter((m: ChatMessage): boolean => m.id !== event.messageId) : prev));
         return;
       case 'replaced':
         setMessages((prev: ChatMessage[]): ChatMessage[] => replaced(prev, event.localId, event.message));
         return;
       case 'cleared':
-        setMessages([]);
+        setMessages((prev: ChatMessage[]): ChatMessage[] => (prev.length === 0 ? prev : []));
         return;
       // Retention removed messages older than the cutoff from storage; the open view drops them too.
       case 'expired':
