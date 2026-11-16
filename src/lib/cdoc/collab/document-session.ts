@@ -9,7 +9,8 @@
  * appended until acknowledged, again after a reconnect), and reporting: every refusal, format
  * mismatch and denied permission is emitted as a `problem`, never dropped.
  */
-import type { DocumentsResponse } from 'citadel-workspace-client-ts';
+import type { DocumentRefusal, DocumentsResponse } from 'citadel-workspace-client-ts';
+import { accessOf, accessOfError, type DeniedAccess } from './denied-access';
 import type { EditorController } from '../editor/controller';
 import type { PeerPresence } from '../editor/peer-overlay';
 import { DocumentPresence, type PresencePorts, type PresenceSettings } from './document-presence';
@@ -75,9 +76,7 @@ export class DocumentSession {
     this.emit('save', this.saveInputs);
     this.unsubscribe.push(
       transport.onResponse((response: DocumentsResponse): void => this.received(response)),
-      transport.onError((message: string): void => {
-        if (message.startsWith('Permission denied')) void this.queue.run((): Promise<void> => this.sync.onPermissionDenied(message));
-      }),
+      transport.onError((message: string): void => this.denied(accessOfError(message), message)),
       transport.onLink((state: LinkState): void => this.linkChanged(state)),
     );
     return this.queue.run((): Promise<void> => this.sync.start());
@@ -165,7 +164,17 @@ export class DocumentSession {
       return;
     }
     if ('AwarenessRelayed' in response) return;
+    // A chat document's channel refused: its answer names the document, so it is this session's.
+    const refused: unknown = 'Refused' in response ? response.Refused : null;
+    if (typeof refused === 'object' && refused !== null && 'ChatDocumentDenied' in refused) {
+      const { permission } = (refused as Extract<DocumentRefusal, { ChatDocumentDenied: unknown }>).ChatDocumentDenied;
+      return this.denied(accessOf(permission), `Permission denied: ${permission} required`);
+    }
     void this.queue.run((): Promise<void> => this.sync.onResponse(response));
+  }
+
+  private denied(access: DeniedAccess | null, message: string): void {
+    if (access !== null) void this.queue.run((): Promise<void> => this.sync.onPermissionDenied(access, message));
   }
 
   private linkChanged(state: LinkState): void {

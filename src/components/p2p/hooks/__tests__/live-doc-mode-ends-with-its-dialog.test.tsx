@@ -12,6 +12,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { clearAllDraftsForTests } from '@/lib/chat/draft-store';
 import { useP2PCompose } from '../useP2PCompose';
+import { peerTransportFor } from '@/components/p2p/__tests__/doubles/peer-transport';
+import type { ChatTransport } from '@/lib/chat/transport/chat-transport';
 import type { ChatDocumentMade } from '../useP2PTabs';
 
 const sendMessage: ReturnType<typeof vi.fn> = vi.fn();
@@ -22,9 +24,12 @@ vi.mock('@/hooks/use-toast', () => ({ useToast: (): { toast: ReturnType<typeof v
 
 type Compose = ReturnType<typeof renderHook<ReturnType<typeof useP2PCompose>, unknown>>;
 
+// The real adapter over the mocked messenger above.
+const transport: ChatTransport = peerTransportFor({ cid: 42n, name: 'Bob' }, null);
+
 function setup(): Compose {
   const createDocument: () => Promise<ChatDocumentMade> = async (): Promise<ChatDocumentMade> => ({ delivered: Promise.resolve() });
-  return renderHook(() => useP2PCompose({ peerCid: 42n, messages: [], editMessage: vi.fn(), createDocument }));
+  return renderHook(() => useP2PCompose({ transport, messages: [], editMessage: vi.fn(), createDocument }));
 }
 
 async function typeAndSend(compose: Compose, text: string): Promise<void> {

@@ -7,7 +7,7 @@
 
 import type {
   WorkspaceProtocolRequestTS,
-  GroupMessageTypeTS,
+  SentGroupMessageType,
 } from '@/types/workspace-protocol';
 import { GroupMessageTypeTS as GroupMessageTypeEnum } from '@/types/workspace-protocol';
 import type { ProtocolSender } from './workspace-operations';
@@ -30,7 +30,7 @@ export async function sendGroupMessage(
   sender: ProtocolSender,
   groupId: string,
   content: string,
-  messageType: GroupMessageTypeTS = GroupMessageTypeEnum.Text,
+  messageType: SentGroupMessageType = GroupMessageTypeEnum.Text,
   replyTo?: string,
   mentions?: string[]
 ): Promise<void> {

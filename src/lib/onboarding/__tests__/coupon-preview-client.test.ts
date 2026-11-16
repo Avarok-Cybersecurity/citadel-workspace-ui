@@ -8,7 +8,7 @@ import { createControlPlane, type ControlPlane, type FetchLike } from '../contro
 import type { CouponPreviewAnswer, CouponPreviewRequest } from '../coupon-preview';
 import { contractFake, type ContractFake } from './contract-fake';
 
-const REQUEST: CouponPreviewRequest = { code: 'LAUNCH10', tier: 'team', interval: 'month', seats: 3, storage_blocks: 1, link_packs: 2 };
+const REQUEST: CouponPreviewRequest = { code: 'LAUNCH10', tier: 'team', interval: 'month', seats: 3, storage_blocks: 1, link_packs: 2, chat_document_packs: 0 };
 
 async function answerTo(status: number, body: unknown): Promise<CouponPreviewAnswer> {
   const fake: ContractFake = contractFake();

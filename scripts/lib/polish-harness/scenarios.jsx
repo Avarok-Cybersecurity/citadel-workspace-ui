@@ -10,7 +10,9 @@ import { ConfirmDialogProvider } from '@/components/shared/confirm-dialog';
 import { ChatDropTarget } from '@/components/p2p/ChatDropTarget';
 import { dropUnavailableReason } from '@/components/p2p/drop-unavailable';
 import { P2PChat } from '@/components/p2p/P2PChat';
-import { P2PMessageList } from '@/components/p2p/P2PMessageList';
+import { MessageList } from '@/components/chat/pane/MessageList';
+import { authored } from '@/lib/chat/transport/peer-history';
+import { NODE_CHAT_SCENARIOS } from './scenarios-node-chat.jsx';
 import { PEOPLE_SCENARIOS } from './scenarios-people.jsx';
 import { OVERLAY_SCENARIOS } from './scenarios-overlays.jsx';
 import { SPACING_SCENARIOS } from './scenarios-spacing.jsx';
@@ -25,6 +27,7 @@ import { APP_TOOLBAR_SCENARIOS } from './scenarios-app-toolbar.jsx';
 import { PEER_CONSENT_SCENARIOS } from './scenarios-peer-consent.jsx';
 import { CHAT_FILE_SCENARIOS } from './scenarios-chat-files.jsx';
 import { ACCOUNT_SWITCH_SCENARIOS } from './scenarios-account-switch.jsx';
+import { SERVER_FILE_SCENARIOS } from './scenarios-server-files.jsx';
 
 const person = (username, role, title) => ({
   id: username, username, displayName: username[0].toUpperCase() + username.slice(1), role, title, isOnline: true,
@@ -77,17 +80,18 @@ function P2PConversation() {
     message(3, ME, { reactions: [{ emoji: '👍', reactorCid: PEER, at: 1, active: true }, { emoji: '🎉', reactorCid: PEER, at: 2, active: true }] }),
     message(4, PEER),
     message(5, ME),
-  ];
+  ].map((m) => authored(m, { cid: ME, username: 'me', displayName: 'Me' }, { cid: PEER, name: 'Ada', username: 'ada' }));
   const nothing = () => {};
   return (
     <TooltipProvider>
       <div style={{ height: 640, display: 'flex', flexDirection: 'column' }}>
-        <P2PMessageList
-          messages={messages} currentUserCid={ME} currentUserName="Me" peerName="Ada" peerCid={PEER}
+        <MessageList
+          messages={messages} greeting="Say hello to Ada." namesSenders={false} selfCid={ME}
+          reactorName={(cid) => (cid === ME ? 'You' : 'Ada')}
           isLoadingMore={false} isLoadingHistory={false} hasMorePages={false}
-          displaySenderName={false} displaySenderAvatar={false}
           onScroll={nothing} onRetryMessage={nothing} onOpenDocument={nothing}
           onAcceptTransfer={nothing} onDeclineTransfer={nothing} onCancelTransfer={nothing} onOpenFile={nothing}
+          onEditMessage={nothing} onDeleteMessage={nothing} onReplyMessage={nothing}
           focusComposer={nothing} onReactMessage={nothing} awaitingAcceptFrom={null}
         />
       </div>
@@ -131,4 +135,4 @@ function DropUnavailable({ state }) {
   );
 }
 
-export const SCENARIOS = { 'document-open': () => <DropUnavailable state={{ viewingDocument: true, paused: false }} />, 'paused-drag': () => <DropUnavailable state={{ viewingDocument: false, paused: true }} />, 'p2p-chat': WholeChat, 'sidebar-members': SidebarMembers, 'p2p-conversation': P2PConversation, ...PEOPLE_SCENARIOS, ...OVERLAY_SCENARIOS, ...SPACING_SCENARIOS, ...SCREEN_SCENARIOS, ...SIDEBAR_SCENARIOS, ...PERMISSION_SCENARIOS, ...FILE_MANAGER_SCENARIOS, ...SHARE_SCENARIOS, ...RIBBON_SCENARIOS, ...MIGRATION_SCENARIOS, ...APP_TOOLBAR_SCENARIOS, ...PEER_CONSENT_SCENARIOS, ...CHAT_FILE_SCENARIOS, ...ACCOUNT_SWITCH_SCENARIOS };
+export const SCENARIOS = { 'document-open': () => <DropUnavailable state={{ carriesFiles: true, viewingDocument: true, paused: false }} />, 'paused-drag': () => <DropUnavailable state={{ carriesFiles: true, viewingDocument: false, paused: true }} />, 'p2p-chat': WholeChat, 'sidebar-members': SidebarMembers, 'p2p-conversation': P2PConversation, ...PEOPLE_SCENARIOS, ...OVERLAY_SCENARIOS, ...SPACING_SCENARIOS, ...SCREEN_SCENARIOS, ...NODE_CHAT_SCENARIOS, ...SIDEBAR_SCENARIOS, ...PERMISSION_SCENARIOS, ...FILE_MANAGER_SCENARIOS, ...SHARE_SCENARIOS, ...RIBBON_SCENARIOS, ...MIGRATION_SCENARIOS, ...APP_TOOLBAR_SCENARIOS, ...PEER_CONSENT_SCENARIOS, ...SERVER_FILE_SCENARIOS, ...CHAT_FILE_SCENARIOS, ...ACCOUNT_SWITCH_SCENARIOS };

@@ -52,7 +52,7 @@ export const targetsAreBigEnough = (scenario, ready) => async ({ page, url }) =>
 
 export const CONTROL_CHECKS = {
   anOffSwitchIsVisible,
-  targetsInGroupChat: targetsAreBigEnough('group-chat', '[data-testid="message-item"]'),
+  targetsInTheNodeChat: targetsAreBigEnough('node-chat', '[data-message-id]'),
   targetsInTheConversation: targetsAreBigEnough('p2p-conversation', '[data-message-id]'),
   targetsInSettings: targetsAreBigEnough('settings', '[role="dialog"]'),
   targetsInPrivacySettings: targetsAreBigEnough('settings-privacy', '[role="dialog"]'),

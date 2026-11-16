@@ -38,6 +38,14 @@ vi.mock('@/lib/websocket-service', async () => {
 });
 
 import { useP2PFileTransfer } from '../useP2PFileTransfer';
+import { createPeerTransport } from '@/lib/chat/transport/peer-transport';
+import { peerOpeningPorts } from '@/components/p2p/chat-document/use-chat-documents';
+import type { ChatPeer } from '@/lib/cdoc/chat/chat-app-ports';
+import type { FilePort } from '@/lib/chat/transport/chat-transport';
+
+// The direct chat's own file port: what P2PChat hands the hook.
+const BOB: ChatPeer = { cid: 42n, name: 'bob', username: 'bob' };
+const files: FilePort | null = createPeerTransport({ peer: BOB, self: null, opening: peerOpeningPorts(BOB) }).files;
 import { fileTransferService } from '@/lib/file-transfer';
 import type { FileTransfer } from '@/lib/file-transfer/types';
 
@@ -68,7 +76,7 @@ afterEach((): void => { cleanup(); vi.restoreAllMocks(); });
 
 describe('clicking a received file', () => {
   it('downloads its bytes under the name it was sent with, typed by what they are', async () => {
-    const { result } = renderHook(() => useP2PFileTransfer({ peerCid: 42n, peerName: 'bob' }));
+    const { result } = renderHook(() => useP2PFileTransfer({ files, recipient: 'bob' }));
     act((): void => { result.current.handleOpenFile('t1'); });
     await waitFor((): void => expect(downloads).toEqual([{ name: 'holiday photo.png', type: 'image/png', size: PNG.length }]));
     expect(asked).toEqual([{ ReadPulledFileChunk: expect.objectContaining({ cid: 7n, peer_cid: 42n, virtual_directory: transfer.downloadPath, offset: 0n }) }]);

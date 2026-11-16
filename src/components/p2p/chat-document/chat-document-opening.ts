@@ -8,7 +8,7 @@
  *
  * Its I/O arrives as ports (the canvas's opener and the migration, both loaded on first use).
  */
-import type { ChatDocument, ChatDocumentRequest, ChatPeer } from '@/components/documents/chat-replica';
+import type { ChatDocument, ChatDocumentRequest } from '@/components/documents/chat-replica';
 import type { AccountMigration, ChatDocumentMigration } from '@/lib/live-doc-migration/boot';
 import type { ConflictRecord } from '@/lib/live-doc-migration/conflict-record';
 import type { CreatorSide } from '@/lib/live-doc-migration/conflict-rule';
@@ -28,7 +28,6 @@ export interface ChatDocumentTarget {
   /** The title the chat message gave it. */
   readonly title: string;
   readonly selfCid: bigint;
-  readonly peer: ChatPeer;
   readonly creator: ChatDocumentCreator;
   /** The creator's typed text, for a document made in this chat just now; null otherwise. */
   readonly seed: string | null;
@@ -46,6 +45,7 @@ export type ChatDocumentOpening =
   | { readonly kind: 'canvas'; readonly document: ChatDocument; readonly moved: { readonly banner: ValueStore<MovedBanner | null>; readonly loadOriginal: OriginalLoader } | null }
   | { readonly kind: 'unmoved'; readonly reason: UnmovedReason; readonly loadOriginal: OriginalLoader | null };
 
+/** Opens a document of one conversation: who it is kept live with is the opener's, not the request's. */
 export type ChatDocumentOpener = (request: ChatDocumentRequest) => ChatDocument;
 
 export interface OpeningPorts {
@@ -66,7 +66,7 @@ const failed = (stage: Extract<UnmovedReason, { kind: 'failed' }>['stage'], erro
 async function openCdoc(target: ChatDocumentTarget, ports: OpeningPorts): Promise<ChatDocumentOpening> {
   const open: ChatDocumentOpener = await ports.opener();
   const document: ChatDocument = open({
-    docId: target.docId, selfCid: target.selfCid, peer: target.peer, title: target.title,
+    docId: target.docId, selfCid: target.selfCid, title: target.title,
     origin: target.seed === null ? { kind: 'blank' } : { kind: 'seeded', text: target.seed },
     // A new document has no move to record; the chat's own notice (chat-problems.ts) says it.
     heldApart: (): void => undefined,
@@ -108,7 +108,7 @@ async function openMoved(target: ChatDocumentTarget, ports: OpeningPorts): Promi
   readBanner().catch((error: unknown): void => ports.report('What the move left out could not be read', error));
   const open: ChatDocumentOpener = await ports.opener();
   const document: ChatDocument = open({
-    docId: target.docId, selfCid: target.selfCid, peer: target.peer, title: target.title,
+    docId: target.docId, selfCid: target.selfCid, title: target.title,
     origin: { kind: 'migrated', snapshot: moved.snapshot, migrationOrigin: moved.marker.originYjsSvHash },
     heldApart: (theirs: string | null): void => {
       migration.recordHeldApart(target.docId, theirs, CREATOR_SIDE[target.creator]).then(readBanner)

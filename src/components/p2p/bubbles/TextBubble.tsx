@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { AlertCircle, MoreVertical, Edit2, Trash2 } from 'lucide-react';
 import { MemberAvatar } from '@/components/shared/MemberAvatar';
 import {
@@ -29,7 +30,8 @@ export function TextBubble({
   focusComposer,
   quoted,
   reactions,
-}: ReplyableBubbleProps): JSX.Element {
+  children,
+}: ReplyableBubbleProps & { children?: ReactNode }): JSX.Element {
   const handoff: MenuFocusHandoff = useMenuFocusHandoff(focusComposer);
   const isFailed: boolean = message.status === 'failed';
   const bubbleStyles: string = getBubbleStyles(isOwn, isFailed);
@@ -67,7 +69,8 @@ export function TextBubble({
               none — so it painted outside the bubble and was cut at the panel
               edge, unreadable and unselectable. The most common long string a
               chat user produces. */}
-          <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+          {/* What the message carries instead of text (a shared file's card) replaces the text. */}
+          {children ?? <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>}
           {/* Inline failure indicator */}
           {isOwn && isFailed && (
             <div className="flex items-center gap-1 mt-1.5 text-xs text-destructive-emphasis">

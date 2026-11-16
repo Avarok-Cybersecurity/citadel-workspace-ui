@@ -34,7 +34,7 @@ function answering(...answers: boolean[]): Person {
 }
 
 /** An open session whose Save the server acknowledges: the held edits leave the device. */
-const acknowledgingSave = (nodeId: string): (() => void) => registerDocumentSync(nodeId, (): Promise<void> => localRecordRemove(documentEditsKey(ME, nodeId, 'tab-1')));
+const acknowledgingSave = (nodeId: string): (() => void) => registerDocumentSync({ nodeId, chatDoc: null }, (): Promise<void> => localRecordRemove(documentEditsKey(ME, nodeId, 'tab-1')));
 
 describe('signing out with edits held on this device', () => {
   it('asks nothing when none are held', async () => {
@@ -57,7 +57,7 @@ describe('signing out with edits held on this device', () => {
   it('asks before deleting what could not be sent, and keeps the account signed in on a no', async () => {
     store.clear();
     await holdEditsOf('doc-b');
-    const close: () => void = registerDocumentSync('doc-b', (): Promise<void> => Promise.reject(new Error('the server refused the edits')));
+    const close: () => void = registerDocumentSync({ nodeId: 'doc-b', chatDoc: null }, (): Promise<void> => Promise.reject(new Error('the server refused the edits')));
     const declines: Person = answering(true, false);
     expect(await mayLeaveAccountHeldEdits(ME, true, declines.confirm)).toBe(false);
     expect(declines.asked).toEqual(['Sync now', 'Delete and sign out']);

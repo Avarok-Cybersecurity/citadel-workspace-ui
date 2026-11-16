@@ -10,7 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { debugLog, errorLog } from '@/lib/debug-config';
 import type { Notification, NotificationHandler, UnreadCountChange } from './types';
 import { NotificationType, NotificationPriority, notificationBelongsTo } from './types';
-import { belongingTo, everything, messagesFrom, type ReadPredicate } from './read-state';
+import { belongingTo, everything, messagesFrom, messagesInGroup, type ReadPredicate } from './read-state';
 import { unreadCountFor, unreadCountsByCid } from './unread-counts';
 import { peerRegistrationNotification, withRosterName } from './peer-registration-notification';
 import { memberDisplayName } from '@/lib/member-names';
@@ -158,6 +158,8 @@ export class NotificationService {
   public markMessageNotificationsAsReadBySender(senderId: string): void {
     this.markRead(messagesFrom(senderId), { notifyHandlers: false });
   }
+  /** A channel's messages are on screen: its bell entries are read. */
+  public markGroupNotificationsAsRead(groupId: string): void { this.markRead(messagesInGroup(groupId)); }
 
   public removeNotification(notificationId: string): void {
     const notification: Notification | undefined = this.notifications.get(notificationId);

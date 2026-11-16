@@ -26,8 +26,9 @@ const permission: { allowed: boolean; loading: boolean; unanswered: boolean; ans
   allowed: false, loading: false, unanswered: false, answered: true,
 };
 
-vi.mock('@/components/chat/GroupChatView', () => ({
-  default: (props: { sendRestriction: string }): JSX.Element => (
+// The restriction the chat is handed is what is under test, not the chat.
+vi.mock('../NodeChat', () => ({
+  NodeChat: (props: { sendRestriction: string }): JSX.Element => (
     <div data-testid="chat-view" data-restriction={props.sendRestriction} />
   ),
 }));
@@ -58,6 +59,8 @@ function restrictionWith(nodeId: string | undefined): string {
       roomName="Random"
       currentUserId="1"
       currentUserName="alice"
+      currentUserCid={1n}
+      rules={null}
     />,
   );
   const value: string = screen.getByTestId('chat-view').getAttribute('data-restriction') ?? '';

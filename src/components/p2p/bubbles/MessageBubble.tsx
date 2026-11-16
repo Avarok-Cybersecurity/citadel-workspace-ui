@@ -6,12 +6,15 @@ import { SystemNoticeLine } from './SystemNoticeLine';
 import { getBubbleContainerStyles } from './types';
 import { MESSAGE_ANCHOR_ATTRIBUTE, JUMP_TARGET_CLASSES } from '@/components/chat/shared/jump-to-message';
 import type { QuotedMessage } from '@/components/chat/shared/reply-quote';
-import type { P2PMessage } from '@/lib/p2p';
+import type { ChatMessage, PaneMessage } from '@/lib/chat/transport/chat-transport';
+import { ServerFileCard } from '@/components/chat/attachments/ServerFileCard';
+import { GroupFileShareCard } from '@/components/chat/GroupFileShareCard';
 import type { ReactionBinding } from '@/components/chat/shared/reactions/reaction-binding';
 import type { ChatDocumentLink } from '../hooks/useP2PTabs';
 
 interface MessageBubbleProps {
-  message: P2PMessage;
+  /** A pane message; one that is a peer group's shared file carries its `share`. */
+  message: PaneMessage | ChatMessage;
   isOwn: boolean;
   /** What a reply quotes; `null` when this is not a reply or the original is not loaded. */
   quoted: QuotedMessage | null;
@@ -59,7 +62,7 @@ export function MessageBubble({
   const containerStyles: string = getBubbleContainerStyles(isOwn);
 
   // Common props for all bubble types
-  const commonProps: { message: P2PMessage; isOwn: boolean; onRetry: (() => void) | undefined; showSenderName: boolean | undefined; showSenderAvatar: boolean | undefined; senderName: string | undefined; senderUsername: string | undefined; onEdit: (() => void) | undefined; onDelete: (() => void) | undefined; onReply: (() => void) | undefined; focusComposer: (() => void) | undefined; reactions: ReactionBinding | undefined; } = {
+  const commonProps: { message: PaneMessage; isOwn: boolean; onRetry: (() => void) | undefined; showSenderName: boolean | undefined; showSenderAvatar: boolean | undefined; senderName: string | undefined; senderUsername: string | undefined; onEdit: (() => void) | undefined; onDelete: (() => void) | undefined; onReply: (() => void) | undefined; focusComposer: (() => void) | undefined; reactions: ReactionBinding | undefined; } = {
     message,
     isOwn,
     onRetry,
@@ -75,6 +78,20 @@ export function MessageBubble({
   };
 
   const renderBubble: () => JSX.Element = (): JSX.Element => {
+    if ('attachment' in message && message.attachment !== undefined) {
+      return (
+        <TextBubble {...commonProps} quoted={quoted}>
+          <ServerFileCard file={message.attachment} />
+        </TextBubble>
+      );
+    }
+    if ('share' in message && message.share !== null) {
+      return (
+        <TextBubble {...commonProps} quoted={quoted}>
+          <GroupFileShareCard share={message.share} senderName={message.author.name} />
+        </TextBubble>
+      );
+    }
     switch (message.message_type) {
       case 'system_notice':
         return <SystemNoticeLine message={message} />;

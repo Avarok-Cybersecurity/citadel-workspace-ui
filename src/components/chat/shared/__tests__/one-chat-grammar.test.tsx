@@ -28,25 +28,20 @@ describe('the date separator', () => {
   });
 });
 
-describe('both chat surfaces', () => {
-  it('use the same separator component', () => {
-    // Not a copy each. The group view had its own inline markup, which is how
-    // the P2P one came to have none at all.
-    for (const file of ['components/chat/GroupChatView.tsx', 'components/p2p/P2PMessageList.tsx']) {
-      const source: string = readFileSync(join(SRC, file), 'utf-8');
-      expect(source, `${file} should render the shared DateSeparator`).toContain('<DateSeparator');
+describe('every chat surface', () => {
+  // There were two, a group view and a direct one, each with its own separator and its own
+  // received-bubble colour (`bg-muted` against `bg-surface`), and they drifted. There is one pane
+  // now, so the grammar cannot be copied: each conversation renders it.
+  it('is the one pane, whose list renders the shared separator', () => {
+    for (const file of ['components/p2p/P2PChat.tsx', 'components/chat/PeerGroupChat.tsx', 'components/office/NodeChat.tsx']) {
+      expect(readFileSync(join(SRC, file), 'utf-8'), `${file} should render the chat pane`).toContain('<ChatPane');
     }
+    expect(readFileSync(join(SRC, 'components/chat/pane/MessageList.tsx'), 'utf-8')).toContain('<DateSeparator');
   });
 
-  it('use the same received-bubble surface', () => {
-    const group: string = readFileSync(join(SRC, 'components/chat/GroupMessageItem.tsx'), 'utf-8');
+  it('uses the received-bubble surface with the documented contrast reason', () => {
     const p2p: string = readFileSync(join(SRC, 'components/p2p/bubbles/types.ts'), 'utf-8');
-
-    // `bg-muted` in one and `bg-surface` in the other is what the drift looked
-    // like. P2P's is the one with a documented contrast reason behind it.
-    expect(group).toContain('bg-surface text-foreground');
     expect(p2p).toContain('bg-surface text-foreground');
-    expect(group).not.toContain("'bg-muted text-foreground'");
   });
 
   it('group messages by date with one shared rule', () => {

@@ -9,7 +9,7 @@ import { DRAFT_KEY, clearDraft, couponForPlan, loadDraft, saveDraft, type Applie
 import { previewRequestFor, requestFor } from '../tenant-request';
 import type { PlanSelection } from '../tiers';
 
-const TEAM: PlanSelection = { tier: 'team', interval: 'month', seats: 3, storageBlocks: 1, linkPacks: 2 };
+const TEAM: PlanSelection = { tier: 'team', interval: 'month', seats: 3, storageBlocks: 1, linkPacks: 2, chatDocumentPacks: 0 };
 const LAUNCH: AppliedCoupon = { code: 'LAUNCH10', preview: { kind: 'discount', percent_off: 10, duration: 'once' } };
 const DRAFT: FlowDraft = { displayName: 'Acme', slug: 'acme', plan: TEAM, reservationToken: 'rt_1', coupon: LAUNCH };
 
@@ -43,7 +43,7 @@ describe('the coupon in the draft', () => {
 
   it('loads a draft saved before link packs and coupons, upgraded on both counts', () => {
     store({ displayName: 'Acme', slug: 'acme', plan: { tier: 'team', interval: 'month', seats: 2, storageBlocks: 0 } });
-    expect(loadDraft('acme')).toEqual({ displayName: 'Acme', slug: 'acme', plan: { tier: 'team', interval: 'month', seats: 2, storageBlocks: 0, linkPacks: 0 } });
+    expect(loadDraft('acme')).toEqual({ displayName: 'Acme', slug: 'acme', plan: { tier: 'team', interval: 'month', seats: 2, storageBlocks: 0, linkPacks: 0, chatDocumentPacks: 0 } });
   });
 
   it.each([
@@ -77,7 +77,7 @@ describe('a plan change', () => {
   });
 
   it('of the add-ons alone keeps it', () => {
-    expect(couponForPlan(LAUNCH, TEAM, { ...TEAM, storageBlocks: 5, linkPacks: 0 })).toBe(LAUNCH);
+    expect(couponForPlan(LAUNCH, TEAM, { ...TEAM, storageBlocks: 5, linkPacks: 0, chatDocumentPacks: 0 })).toBe(LAUNCH);
   });
 });
 
@@ -97,7 +97,7 @@ describe('the requests', () => {
 
   it('ask about a code with the same clamped plan creation sends', () => {
     expect(previewRequestFor('LAUNCH10', { ...TEAM, seats: 0 })).toEqual({
-      code: 'LAUNCH10', tier: 'team', interval: 'month', seats: 1, storage_blocks: 1, link_packs: 2,
+      code: 'LAUNCH10', tier: 'team', interval: 'month', seats: 1, storage_blocks: 1, link_packs: 2, chat_document_packs: 0,
     });
     expect(previewRequestFor('LAUNCH10', { ...TEAM, tier: 'free' })).toBeUndefined();
   });

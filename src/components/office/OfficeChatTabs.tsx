@@ -1,17 +1,21 @@
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { FileText, MessageSquare } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import GroupChatView from '@/components/chat/GroupChatView';
+import { NodeChat } from './NodeChat';
+import { chatSelf } from '@/lib/tab-identity';
+import type { ChatSelf } from '@/lib/chat/transport/chat-transport';
 import { GroupCallControls } from '@/components/call/GroupCallControls';
 import type { RoomCallRoster } from '@/lib/call/callable-members';
 import { usePermission } from '@/hooks/use-permission';
-import { permits } from '@/hooks/use-permission-result';
+import { confirms, permits } from '@/hooks/use-permission-result';
 import { WORKSPACE_ROOT_ID } from '@/lib/workspace-constants';
 import { debugLog } from '@/lib/debug-config';
 import type { GroupRestriction } from '@/components/chat/group-restriction';
 import { Permission } from '@/lib/permissions-service/types';
 import { GroupCallDock } from '@/components/call/GroupCallDock';
 import { useDomainCallMembers } from '@/hooks/use-domain-call-members';
+import { useNodeRoster } from '@/hooks/use-node-roster';
+import type { User } from '@/types/workspace-entities';
 import { rememberedTab, rememberTab, type OfficeTab } from './office-tab-memory';
 
 interface OfficeChatTabsProps {
@@ -21,9 +25,13 @@ interface OfficeChatTabsProps {
   /** The workspace node whose member roster a call here would ring. */
   nodeId?: string;
   roomName: string;
+  /** The reader's workspace id: what the server writes as the sender of their messages. */
   currentUserId: string;
   currentUserName: string;
-  rules?: string;
+  /** The reader's CID; undefined until the tab knows it. */
+  currentUserCid: bigint | undefined;
+  /** The channel's rules; null when it has none. */
+  rules: string | null;
 }
 
 /**
@@ -39,13 +47,23 @@ export function OfficeChatTabs({
   roomName,
   currentUserId,
   currentUserName,
+  currentUserCid,
   rules,
 }: OfficeChatTabsProps): JSX.Element {
-  const callRoster: RoomCallRoster = useDomainCallMembers(nodeId);
+  // Keyed by its parts: a new object every render would rebuild the chat's transport.
+  const self: ChatSelf | null = useMemo(
+    (): ChatSelf | null => chatSelf({ id: currentUserId, displayName: currentUserName }, currentUserCid),
+    [currentUserId, currentUserName, currentUserCid],
+  );
+  // One roster for the node: the call rings it, and the chat counts receipts and members against it.
+  const members: readonly User[] | null = useNodeRoster(nodeId);
+  const callRoster: RoomCallRoster = useDomainCallMembers(members);
   const [tab, setTab] = useState<OfficeTab>((): OfficeTab => rememberedTab(chatChannelId));
   // Office chat is governed by the workspace permission system, not by group
   // roles, so its only two answers are the permission's.
   const send: ReturnType<typeof usePermission> = usePermission(nodeId, Permission.SendMessages);
+  // Who may buy chat-document packs, as the share panel decides who may buy link packs.
+  const managesSubscription: boolean = confirms(usePermission(WORKSPACE_ROOT_ID, Permission.ManageRoles));
 
   // `permits`, not `allowed`: four states are not the answer "no", and this
   // site had three of them. See hooks/use-permission-result.ts.
@@ -115,15 +133,7 @@ export function OfficeChatTabs({
         </TabsContent>
 
         <TabsContent value="chat" className="mt-0 flex-1 overflow-hidden">
-          <GroupChatView
-            groupId={chatChannelId}
-            currentUserId={currentUserId}
-            currentUserName={currentUserName}
-            rules={rules}
-            // The channel's full roster is not known here (callRoster lists only who can be called).
-            totalMembers={null}
-            sendRestriction={sendRestriction}
-          />
+          <NodeChat nodeId={nodeId ?? WORKSPACE_ROOT_ID} channelId={chatChannelId} channelName={roomName} self={self} sendRestriction={sendRestriction} rules={rules} members={members} managesSubscription={managesSubscription} />
         </TabsContent>
       </Tabs>
     </div>

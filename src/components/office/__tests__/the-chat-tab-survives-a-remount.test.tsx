@@ -18,8 +18,9 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { forgetAllTabs } from '../office-tab-memory';
 
-vi.mock('@/components/chat/GroupChatView', () => ({
-  default: (): JSX.Element => <div data-testid="group-message-input" />,
+// The chat itself is not what is under test here: whether its tab is still selected is.
+vi.mock('../NodeChat', () => ({
+  NodeChat: (): JSX.Element => <div data-testid="group-message-input" />,
 }));
 vi.mock('@/components/call/GroupCallControls', () => ({
   GroupCallControls: (): JSX.Element => <div />,
@@ -47,6 +48,8 @@ function renderTabs(chatChannelId: string): ReturnType<typeof render> {
       roomName="Random"
       currentUserId="1"
       currentUserName="alice"
+      currentUserCid={1n}
+      rules={null}
     />,
   );
 }

@@ -2,6 +2,8 @@ import { Type, Code2, FileText } from 'lucide-react';
 import type { MessageType } from '@/types/message-protocol';
 
 interface TypeSelectorBarProps {
+  /** The kinds this conversation can carry, in the order they are offered. */
+  offered: readonly MessageType[];
   selectedType: MessageType;
   onTypeChange: (type: MessageType) => void;
 }
@@ -39,28 +41,28 @@ function TypeButton({ icon, label, active, onClick }: TypeButtonProps): JSX.Elem
   );
 }
 
-export function TypeSelectorBar({ selectedType, onTypeChange }: TypeSelectorBarProps): JSX.Element {
+export function TypeSelectorBar({ offered, selectedType, onTypeChange }: TypeSelectorBarProps): JSX.Element {
   return (
     <div className="flex items-center gap-1 px-2 py-1.5 border-t border-surface/50 bg-background">
       <span className="text-xs text-muted-foreground mr-2 hidden sm:inline">Type:</span>
-      <TypeButton
+      {offered.includes('text') && <TypeButton
         icon={<Type className="h-3.5 w-3.5" />}
         label="Text"
         active={selectedType === 'text'}
         onClick={() => onTypeChange('text')}
-      />
-      <TypeButton
+      />}
+      {offered.includes('markdown') && <TypeButton
         icon={<Code2 className="h-3.5 w-3.5" />}
         label="Markdown"
         active={selectedType === 'markdown'}
         onClick={() => onTypeChange('markdown')}
-      />
-      <TypeButton
+      />}
+      {offered.includes('live_document') && <TypeButton
         icon={<FileText className="h-3.5 w-3.5" />}
         label="Live Doc"
         active={selectedType === 'live_document'}
         onClick={() => onTypeChange('live_document')}
-      />
+      />}
     </div>
   );
 }

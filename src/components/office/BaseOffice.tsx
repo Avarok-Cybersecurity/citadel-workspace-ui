@@ -224,7 +224,8 @@ export const BaseOffice = ({ title, getInitialContent, nodeId }: BaseOfficeProps
         roomName={entityData?.name || title}
         currentUserId={reader.id}
         currentUserName={reader.displayName}
-        rules={entityData?.rules ?? undefined}
+        currentUserCid={tabSession?.cid}
+        rules={entityData?.rules ? entityData.rules : null}
       />
     </OfficeLayout>
   );

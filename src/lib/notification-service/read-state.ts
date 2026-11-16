@@ -28,3 +28,9 @@ export function messagesFrom(senderId: string): ReadPredicate {
   return (notification) =>
     notification.type === NotificationType.MESSAGE && notification.senderId === senderId;
 }
+
+/** Message notifications raised for one group or node channel (group-notifications sets `groupId`). */
+export function messagesInGroup(groupId: string): ReadPredicate {
+  return (notification) =>
+    notification.type === NotificationType.MESSAGE && notification.data?.groupId === groupId;
+}

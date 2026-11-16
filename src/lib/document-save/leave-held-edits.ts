@@ -7,24 +7,25 @@
  * The one seam for that decision (an owner choice still open): the callers ask
  * `mayLeaveHeldEdits` and act on its answer; the wording is leave-held-edits-prompt.ts.
  */
+import type { DocumentPlace } from '@/lib/document-replica-cache';
 import { discardHeldEditsPrompt, syncHeldEditsPrompt, type HeldEditsPrompt } from './leave-held-edits-prompt';
 
 export interface HeldEditsIO {
-  /** The documents the account has edits held of here. */
-  held(): Promise<readonly string[]>;
+  /** The documents the account has edits held of here: pages, and documents shared in a node's chat. */
+  held(): Promise<readonly DocumentPlace[]>;
   /** Whether this tab can send them now (signed in as that account, link up); false for another account's session. */
   canSync(): boolean;
-  sync(nodeId: string): Promise<void>;
+  sync(place: DocumentPlace): Promise<void>;
   confirm(prompt: HeldEditsPrompt): Promise<boolean>;
 }
 
 /** True when the sign-out may go ahead: nothing held, everything sent, or deleting it confirmed. */
 export async function mayLeaveHeldEdits(io: HeldEditsIO): Promise<boolean> {
-  let held: readonly string[] = await io.held();
+  let held: readonly DocumentPlace[] = await io.held();
   if (held.length === 0) return true;
   if (io.canSync() && (await io.confirm(syncHeldEditsPrompt(held.length)))) {
     // Each document is tried; one that fails stays held and is asked about below.
-    await Promise.allSettled(held.map((nodeId: string): Promise<void> => io.sync(nodeId)));
+    await Promise.allSettled(held.map((place: DocumentPlace): Promise<void> => io.sync(place)));
     held = await io.held();
     if (held.length === 0) return true;
   }

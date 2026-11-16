@@ -9,7 +9,7 @@ import { fileTransferService } from '@/lib/file-transfer';
 import { looksLikePicture, safeThumbnail } from '@/lib/received-files/image-preview';
 import type { FileTransfer } from '@/lib/file-transfer/types';
 import type { PictureLoad } from '@/lib/received-files/picture-load';
-import type { P2PMessage } from '@/lib/p2p';
+import type { PaneMessage } from '@/lib/chat/transport/chat-transport';
 import { useTransferPicture } from '../hooks/useTransferPicture';
 import { PictureViewer } from '../PictureViewer';
 
@@ -20,7 +20,7 @@ function picturesWith(peerCid: string): FileTransfer[] {
     .sort((a: FileTransfer, b: FileTransfer): number => a.createdAt - b.createdAt);
 }
 
-export function TransferPicture({ message, isOwn }: { message: P2PMessage; isOwn: boolean }): JSX.Element | null {
+export function TransferPicture({ message, isOwn }: { message: PaneMessage; isOwn: boolean }): JSX.Element | null {
   const name: string = message.file_name ?? '';
   const eligible: boolean = looksLikePicture(name, message.file_type, message.file_size ?? 0);
   const load: PictureLoad | null = useTransferPicture(eligible && message.transfer_id ? fileTransferService.getTransfer(message.transfer_id) : undefined);
@@ -36,8 +36,9 @@ export function TransferPicture({ message, isOwn }: { message: P2PMessage; isOwn
   }
 
   const open = (): void => {
-    const peer: string = (isOwn ? message.recipientCid : message.senderCid).toString();
-    const pictures: FileTransfer[] = picturesWith(peer);
+    // A direct chat's pictures page through its peer's; without a peer (absent CIDs) only this one shows.
+    const peerCid: bigint | undefined = isOwn ? message.recipientCid : message.senderCid;
+    const pictures: FileTransfer[] = peerCid === undefined ? [] : picturesWith(peerCid.toString());
     const at: number = pictures.findIndex((t: FileTransfer): boolean => t.id === transferId);
     const own: FileTransfer | undefined = fileTransferService.getTransfer(transferId);
     if (at >= 0) setGallery({ pictures, at });

@@ -6,7 +6,7 @@ import type { CouponPreview } from '../coupon-preview';
 import { quote, type Quote } from '../tiers';
 
 // 3 Team seats ($18) + 1 storage block ($2) + 2 link packs ($4) = $24 a month.
-const MONTHLY: Quote = quote({ tier: 'team', interval: 'month', seats: 3, storageBlocks: 1, linkPacks: 2 });
+const MONTHLY: Quote = quote({ tier: 'team', interval: 'month', seats: 3, storageBlocks: 1, linkPacks: 2, chatDocumentPacks: 0 });
 
 describe('applyCoupon', () => {
   it('without a coupon, charges the total today and every interval after', () => {
@@ -23,7 +23,7 @@ describe('applyCoupon', () => {
 
   it('rounds a percentage to whole cents', () => {
     // Every catalogue price today is whole dollars, so a quote is built by hand to reach a fraction.
-    const odd: Quote = { seatsCents: 999, storageCents: 0, linkPacksCents: 0, totalCents: 999, storageGb: 10, sharedLinks: 0 };
+    const odd: Quote = { seatsCents: 999, storageCents: 0, linkPacksCents: 0, chatDocumentPacksCents: 0, totalCents: 999, storageGb: 10, sharedLinks: 0, chatDocuments: 1000 };
     expect(applyCoupon(odd, { kind: 'discount', percent_off: 10, duration: 'once' }, 'month')).toMatchObject({ discountCents: 100, dueTodayCents: 899 });
   });
 
@@ -33,7 +33,7 @@ describe('applyCoupon', () => {
   });
 
   it('counts a repeating discount on a yearly plan as the payments inside those months', () => {
-    const yearly: Quote = quote({ tier: 'team', interval: 'year', seats: 3, storageBlocks: 0, linkPacks: 0 });
+    const yearly: Quote = quote({ tier: 'team', interval: 'year', seats: 3, storageBlocks: 0, linkPacks: 0, chatDocumentPacks: 0 });
     expect(applyCoupon(yearly, { kind: 'discount', percent_off: 20, duration: 'repeating', months: 3 }, 'year').discountedPayments).toBe(1);
     expect(applyCoupon(yearly, { kind: 'discount', percent_off: 20, duration: 'repeating', months: 13 }, 'year').discountedPayments).toBe(2);
   });

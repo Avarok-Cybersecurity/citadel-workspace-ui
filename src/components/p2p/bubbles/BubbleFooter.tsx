@@ -1,5 +1,5 @@
 import { Check, CheckCheck, Clock, RefreshCw, XCircle } from 'lucide-react';
-import type { P2PMessage } from '@/lib/p2p';
+import type { PaneMessage } from '@/lib/chat/transport/chat-transport';
 import { formatTime } from '@/components/chat/shared';
 import { useContext, useId, useState } from 'react';
 import { AwaitingAcceptContext, sendsWhenAcceptedCopy } from './awaiting-accept';
@@ -7,14 +7,14 @@ import { StatusPanel, StatusTick } from '@/components/shared/StatusDetails';
 import { MessageStatusDetails, messageStatusLabel } from './MessageStatusDetails';
 
 interface BubbleFooterProps {
-  message: P2PMessage;
+  message: PaneMessage;
   isOwn: boolean;
   onRetry?: () => void;
 }
 
 // These ticks show only on the sender's own bubble (bg-primary), where muted measured
 // 1.09:1 light and 2.53:1 dark; they take the bubble's foreground (UX review).
-function getMessageStatusIcon(message: P2PMessage): JSX.Element | null {
+function getMessageStatusIcon(message: PaneMessage): JSX.Element | null {
   switch (message.status) {
     case 'pending':
       return <Clock className="h-3 w-3 text-primary-foreground" data-testid="message-status-pending" />;
@@ -57,7 +57,7 @@ export function BubbleFooter({ message, isOwn, onRetry }: BubbleFooterProps): JS
           </span>
         )}
         {isOwn && statusIcon && (
-          <StatusTick label={messageStatusLabel(message.status)} open={detailsOpen} onToggle={() => setDetailsOpen(!detailsOpen)} panelId={panelId}>
+          <StatusTick label={messageStatusLabel(message)} open={detailsOpen} onToggle={() => setDetailsOpen(!detailsOpen)} panelId={panelId}>
             {statusIcon}
           </StatusTick>
         )}

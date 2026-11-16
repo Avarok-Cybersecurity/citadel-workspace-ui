@@ -9,22 +9,25 @@ import { usernameAvatarColor } from '@/lib/avatar-color';
 import { hexColor, type HexColor } from '../editor/model-values';
 import { workspaceDocumentsTransport } from './documents-transport';
 import type { EditorOpener } from '../editor/controller';
-import type { DocumentSessionPorts, DocumentsTransport, PeerIdentity } from './ports';
-import { indexedDbDocumentCache } from './document-cache';
+import type { DocumentCache, DocumentSessionPorts, DocumentsTransport, PeerIdentity } from './ports';
+import { indexedDbDocumentCache, placedCache } from './document-cache';
+import { chatDocumentRecordId } from '@/lib/document-replica-cache';
 import { browserInstanceLocks } from './instance-locks';
 import { DOCUMENTS_RELAY_LIMITS } from './relay-limits';
 import { RequestPacer, type DocumentPacing } from './request-pacer';
 import { browserClock } from '@/lib/browser-clock';
-
 
 export const rosterIdentity: PeerIdentity = (cid: bigint): { readonly name: string; readonly color: HexColor } => ({
   name: rosterPeerName(cid),
   color: hexColor(usernameAvatarColor(rosterPeerUsername(cid))),
 });
 
-export function workspaceCollabPorts(openEditor: EditorOpener): DocumentSessionPorts {
-  const transport: DocumentsTransport = workspaceDocumentsTransport(WorkspaceService);
-  return { transport, clock: browserClock, cache: indexedDbDocumentCache(transport.selfCid, browserInstanceLocks()), openEditor, identify: rosterIdentity, pacing: tabPacing(transport.selfCid) };
+/** A node's page (`chatDoc` null), or a document shared in its chat, kept on this device beside the page. */
+export function workspaceCollabPorts(openEditor: EditorOpener, chatDoc: string | null): DocumentSessionPorts {
+  const transport: DocumentsTransport = workspaceDocumentsTransport(WorkspaceService, chatDoc);
+  const accountCache: DocumentCache = indexedDbDocumentCache(transport.selfCid, browserInstanceLocks());
+  const cache: DocumentCache = chatDoc === null ? accountCache : placedCache(accountCache, (nodeId: string): string => chatDocumentRecordId(nodeId, chatDoc));
+  return { transport, clock: browserClock, cache, openEditor, identify: rosterIdentity, pacing: tabPacing(transport.selfCid) };
 }
 
 const pacingByAccount: Map<bigint, DocumentPacing> = new Map<bigint, DocumentPacing>();

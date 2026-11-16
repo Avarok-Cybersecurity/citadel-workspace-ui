@@ -1,6 +1,6 @@
 /**
- * A chat's document tab: the Citadel Docs canvas, kept live with the chat's peer, under a strip
- * saying who it is shared with (and its rename), with a moved document's loss banner above it;
+ * A chat's document tab: the Citadel Docs canvas, kept live with the chat's peer or channel, under
+ * a strip saying who it is shared with (and its rename, where one is carried), with a moved document's loss banner above it;
  * or, when the document does not open as a canvas, the notice that says why.
  */
 import { useState, useSyncExternalStore } from 'react';
@@ -28,6 +28,8 @@ interface ChatDocumentPaneProps {
   /** The title the chat message gave it, until the document's own is known. */
   readonly title: string;
   readonly peerName: string;
+  /** Who it is kept live with, as the strip above it says it (the transport's `sharedWith`). */
+  readonly sharedWith: string;
   readonly selfName: string;
   /** Null while it is being opened (or moved). */
   readonly opening: ChatDocumentOpening | null;
@@ -42,7 +44,7 @@ function useStore<T>(store: ValueStore<T> | null): T | null {
   return useSyncExternalStore(store === null ? subscribeNone : store.subscribe, store === null ? nothing : store.get);
 }
 
-export function ChatDocumentPane({ docId, title, peerName, selfName, opening, onRetry, onRename }: ChatDocumentPaneProps): JSX.Element {
+export function ChatDocumentPane({ docId, title, peerName, sharedWith, selfName, opening, onRetry, onRename }: ChatDocumentPaneProps): JSX.Element {
   const [renaming, setRenaming] = useState<boolean>(false);
   const canvas: Extract<ChatDocumentOpening, { kind: 'canvas' }> | null = opening?.kind === 'canvas' ? opening : null;
   const shownTitle: string = useStore(canvas?.document.title ?? null) ?? title;
@@ -55,14 +57,14 @@ export function ChatDocumentPane({ docId, title, peerName, selfName, opening, on
     <div className="flex h-full min-h-0 min-w-0 flex-col bg-background" data-testid="chat-document-pane" data-document-id={docId}>
       <div className="flex min-h-[44px] min-w-0 items-center gap-[8px] border-b border-border px-[16px] text-xs text-muted-foreground">
         <Users className="h-[16px] w-[16px] shrink-0" aria-hidden="true" />
-        <span className="min-w-0 flex-1 truncate">Shared live with {peerName}</span>
-        <Button
+        <span className="min-w-0 flex-1 truncate">{sharedWith}</span>
+        {opening.document.rename !== null && <Button
           variant="ghost" size="sm" className="min-h-[44px] shrink-0 gap-[4px] text-muted-foreground hover:text-foreground"
           onClick={(): void => setRenaming(true)} data-testid="live-doc-rename"
         >
           <Pencil className="h-[14px] w-[14px]" aria-hidden="true" />
           Rename
-        </Button>
+        </Button>}
       </div>
       {opening.moved !== null && banner !== null && (
         <LossReportBanner

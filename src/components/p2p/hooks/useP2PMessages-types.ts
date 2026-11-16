@@ -2,11 +2,12 @@
  * Types and helpers for useP2PMessages hook.
  */
 
-import type { P2PMessage, PeerPresence } from '@/lib/p2p';
+import type { PeerPresence } from '@/lib/p2p';
 import { mergeById } from '@/lib/p2p/merge-by-id';
+import type { ChatMessage, ChatTransport } from '@/lib/chat/transport/chat-transport';
 
 export interface UseP2PMessagesProps {
-  peerCid: bigint;
+  transport: ChatTransport;
   activeTabIdRef: React.MutableRefObject<string>;
   scrollRef: React.RefObject<HTMLDivElement>;
   /** Whether the reader is at the bottom; arrivals are read only while it is true. */
@@ -15,8 +16,9 @@ export interface UseP2PMessagesProps {
 }
 
 export interface UseP2PMessagesReturn {
-  messages: P2PMessage[];
-  peerTyping: boolean;
+  messages: ChatMessage[];
+  /** Who is typing now, by name; empty when nobody is. */
+  typing: readonly string[];
   peerPresence: PeerPresence | null;
   isConnected: boolean;
   isRegistered: boolean;
@@ -30,7 +32,7 @@ export interface UseP2PMessagesReturn {
   isLoadingHistory: boolean;
   hasMorePages: boolean;
   handleScroll: (event: React.UIEvent<HTMLDivElement>) => void;
-  handleRetryMessage: (message: P2PMessage) => Promise<void>;
+  handleRetryMessage: (message: Pick<ChatMessage, 'id' | 'status'>) => Promise<void>;
   handleEditMessage: (messageId: string, content: string) => Promise<void>;
   handleDeleteMessage: (messageId: string) => Promise<void>;
   /** Toggle the viewer's own reaction; failures are reported, not thrown. */
@@ -48,7 +50,7 @@ export interface UseP2PMessagesReturn {
  * resolves the same conflict the other way (in-memory beats storage), and the
  * two used to share a name and disagree silently.
  */
-export function mergeMessages(existing: P2PMessage[], incoming: P2PMessage[]): P2PMessage[] {
+export function mergeMessages<M extends { id: string; timestamp: number }>(existing: M[], incoming: M[]): M[] {
   return mergeById(existing, incoming, 'existing');
 }
 
@@ -56,9 +58,9 @@ export function mergeMessages(existing: P2PMessage[], incoming: P2PMessage[]): P
  * Prepends older messages to existing messages (for pagination), deduplicating by id.
  * Returns the previous array reference if no new messages were added.
  */
-export function prependMessages(existing: P2PMessage[], older: P2PMessage[]): P2PMessage[] {
+export function prependMessages<M extends { id: string; timestamp: number }>(existing: M[], older: readonly M[]): M[] {
   const existingIds: Set<string> = new Set(existing.map(m => m.id));
-  const newMessages: P2PMessage[] = older.filter(m => !existingIds.has(m.id));
+  const newMessages: M[] = older.filter(m => !existingIds.has(m.id));
   if (newMessages.length === 0) return existing;
   return [...newMessages, ...existing].sort((a, b) => a.timestamp - b.timestamp);
 }

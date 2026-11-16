@@ -21,16 +21,16 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, renderHook } from '@testing-library/react';
 import { forgetAllTabs, rememberTab } from '../office-tab-memory';
+import { ConfirmDialogProvider } from '@/components/shared/confirm-dialog';
 import { chatSurfaceOf, useChatSurface } from '../chat-surface';
 import { permits } from '@/hooks/use-permission-result';
 import type { DomainNode } from '@/components/layout/sidebar/TreeNodesSection';
 import type { UsePermissionResult } from '@/hooks/use-permission-result';
 
-vi.mock('@/components/chat/GroupChatView', () => ({
-  default: (props: { sendRestriction: string }): JSX.Element =>
-    props.sendRestriction === 'allowed'
-      ? <textarea data-testid="group-message-input" />
-      : <p data-testid="group-send-restricted">restricted</p>,
+// The real chat, over the channel-server double (only the socket is replaced): the question is
+// whether the person can type, so the composer asked about is the one they would type in.
+vi.mock('@/lib/workspace-service', async () => ({
+  default: (await import('@/lib/chat/transport/__tests__/doubles/channel-server')).channelServer.service,
 }));
 vi.mock('@/components/call/GroupCallControls', () => ({ GroupCallControls: (): JSX.Element => <div /> }));
 vi.mock('@/components/call/GroupCallDock', () => ({ GroupCallDock: (): JSX.Element => <div /> }));
@@ -66,14 +66,14 @@ describe('the office composer, end to end', () => {
     expect(permits(NOTHING_ANSWERED)).toBe(true);
 
     render(
-      <OfficeChatTabs
+      <ConfirmDialogProvider><OfficeChatTabs
         contentView={<div />}
         chatChannelId="ch-1"
         nodeId="n1"
         roomName="Random"
         currentUserId="1"
-        currentUserName="alice"
-      />,
+        currentUserName="alice" currentUserCid={1n} rules={null}
+      /></ConfirmDialogProvider>,
     );
 
     expect(screen.queryByTestId('group-message-input')).toBeTruthy();
@@ -93,19 +93,19 @@ describe('the office composer, end to end', () => {
     forgetAllTabs();
     rememberTab('ch-1', 'chat');
     const { unmount }: ReturnType<typeof render> = render(
-      <OfficeChatTabs
+      <ConfirmDialogProvider><OfficeChatTabs
         contentView={<div />} chatChannelId="ch-1" nodeId="n1"
-        roomName="Random" currentUserId="1" currentUserName="alice"
-      />,
+        roomName="Random" currentUserId="1" currentUserName="alice" currentUserCid={1n} rules={null}
+      /></ConfirmDialogProvider>,
     );
     expect(screen.queryByTestId('group-message-input')).toBeTruthy();
     unmount();
 
     render(
-      <OfficeChatTabs
+      <ConfirmDialogProvider><OfficeChatTabs
         contentView={<div />} chatChannelId="ch-1" nodeId="n1"
-        roomName="Random" currentUserId="1" currentUserName="alice"
-      />,
+        roomName="Random" currentUserId="1" currentUserName="alice" currentUserCid={1n} rules={null}
+      /></ConfirmDialogProvider>,
     );
     expect(screen.queryByTestId('group-message-input')).toBeTruthy();
   });

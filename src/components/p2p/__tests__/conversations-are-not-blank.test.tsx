@@ -8,45 +8,21 @@
  * written; the two surfaces simply diverged.
  */
 
-import type { ComponentProps } from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { P2PMessageList } from '../P2PMessageList';
-import type { P2PMessage } from '@/lib/p2p/p2p-types';
-import type { Key } from 'react';
-import type { UIEvent } from 'react';
-import type { ChatDocumentLink } from '../hooks/useP2PTabs';
+import { MessageList } from '@/components/chat/pane/MessageList';
+import { listProps, between, type ListProps } from '@/components/chat/pane/__tests__/doubles/list-props';
 
 vi.mock('../MessageBubble', () => ({
   MessageBubble: ({ message }: { message: { content: string } }): JSX.Element => <div>{message.content}</div>,
 }));
 
-const base: Omit<ComponentProps<typeof P2PMessageList>, 'ref'> = {
-  messages: [],
-  currentUserCid: 1n,
-  currentUserName: 'me',
-  peerName: 'alice',
-  peerUsername: 'alice',
-  peerCid: 2n,
-  isLoadingMore: false,
-    isLoadingHistory: false,
-  hasMorePages: false,
-  displaySenderName: false,
-  displaySenderAvatar: false,
-  onScroll: vi.fn(),
-  onRetryMessage: vi.fn(),
-  onOpenDocument: vi.fn(),
-  onAcceptTransfer: vi.fn(),
-  onDeclineTransfer: vi.fn(),
-  onCancelTransfer: vi.fn(),
-  onOpenFile: vi.fn(),
-  focusComposer: vi.fn(),
-  awaitingAcceptFrom: null,
-};
+
+const base: ListProps = listProps([]);
 
 describe('an empty P2P conversation', () => {
   it('says it is empty, and who it is with', () => {
-    render(<P2PMessageList {...base} />);
+    render(<MessageList {...base} />);
 
     expect(screen.getByText(/No messages yet/i)).toBeInTheDocument();
     expect(screen.getByText(/alice/)).toBeInTheDocument();
@@ -55,16 +31,16 @@ describe('an empty P2P conversation', () => {
   it('shows the loading hint instead while the first page is arriving', () => {
     // An empty state during a fetch would say "no messages" about messages that
     // are on their way.
-    render(<P2PMessageList {...base} isLoadingMore />);
+    render(<MessageList {...base} isLoadingMore />);
 
     expect(screen.queryByText(/No messages yet/i)).toBeNull();
   });
 
   it('disappears once there is a message', () => {
     render(
-      <P2PMessageList
+      <MessageList
         {...base}
-        messages={[{ id: '1', content: 'hi', senderCid: 1n, timestamp: 0, status: 'sent' }] as never}
+        messages={[between({ id: '1', content: 'hi', senderCid: 1n, recipientCid: 2n, timestamp: 0, index: 0, status: 'sent', message_type: 'text' })]}
       />,
     );
 
@@ -82,19 +58,19 @@ describe('an empty P2P conversation', () => {
  */
 describe('the empty state waits until it is true', () => {
   it('says nothing while the history is still being read', () => {
-    render(<P2PMessageList {...base} isLoadingHistory />);
+    render(<MessageList {...base} isLoadingHistory />);
     expect(screen.queryByText(/No messages yet/i), 'claimed the conversation was empty before reading it').toBeNull();
     expect(screen.queryByText(/Say hello/i)).toBeNull();
   });
 
   it('says it once the history is read and there is genuinely nothing', () => {
-    render(<P2PMessageList {...base} isLoadingHistory={false} />);
+    render(<MessageList {...base} isLoadingHistory={false} />);
     expect(screen.getByText(/No messages yet/i)).toBeInTheDocument();
   });
 
   it('never says it when there are messages, loading or not', () => {
-    const withHistory: { messages: never; currentUserCid?: bigint | undefined; currentUserName: string; peerName: string; peerUsername: string; peerCid: bigint; isLoadingMore: boolean; isLoadingHistory: boolean; hasMorePages: boolean; displaySenderName: boolean; displaySenderAvatar: boolean; onScroll: (event: React.UIEvent<HTMLDivElement>) => void; onRetryMessage: (message: P2PMessage) => void; onOpenDocument: (link: ChatDocumentLink) => void; onAcceptTransfer: (transferId: string) => Promise<void>; onDeclineTransfer: (transferId: string) => Promise<void>; onCancelTransfer: (transferId: string) => Promise<void>; onOpenFile: (downloadPath: string) => void; onEditMessage?: ((messageId: string, content: string) => void) | undefined; onDeleteMessage?: ((messageId: string) => void) | undefined; onReplyMessage?: ((messageId: string) => void) | undefined; focusComposer: () => void; awaitingAcceptFrom: string | null; key?: Key | null | undefined; } = { ...base, messages: [{ id: 'm1', content: 'hello', senderCid: 2n, timestamp: 1, status: 'delivered' }] as never };
-    render(<P2PMessageList {...withHistory} isLoadingHistory />);
+    const withHistory: ListProps = { ...base, messages: [between({ id: 'm1', content: 'hello', senderCid: 2n, recipientCid: 1n, timestamp: 1, index: 0, status: 'delivered', message_type: 'text' })] };
+    render(<MessageList {...withHistory} isLoadingHistory />);
     expect(screen.queryByText(/No messages yet/i)).toBeNull();
   });
 });

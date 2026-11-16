@@ -326,6 +326,19 @@ h1, h2, h3, h4, h5, h6 {
   @apply text-foreground;
 }
 
+/* The reader's own chat bubble is dark purple in BOTH themes (bg-primary), so the theme's
+ * foreground, which the rules above force onto all prose, is near-black on it in light mode:
+ * 2.18:1, measured by the chat polish harness on an own markdown message. The bubble's own
+ * foreground is the colour that reads there, for the body, headings, lists and links alike. */
+.prose.own-bubble-prose,
+.prose.own-bubble-prose :is(h1, h2, h3, h4, h5, h6, ul, ol, strong, em, code, blockquote, a) {
+  @apply text-primary-foreground;
+}
+
+.prose.own-bubble-prose a {
+  @apply underline;
+}
+
 /* Smooth workspace switching animations */
 @keyframes fadeOut {
   from {
@@ -478,9 +491,14 @@ h1, h2, h3, h4, h5, h6 {
   animation-name: lite-exit !important;
 }
 
+/* The motion-safe: forms too: Tailwind names that class `motion-safe:animate-pulse`, which the bare
+ * selector never matched, so a pulse that honoured the OS setting still pulsed under Lite. */
 .lite-motion .animate-pulse,
 .lite-motion .animate-ping,
-.lite-motion .animate-bounce {
+.lite-motion .animate-bounce,
+.lite-motion .motion-safe\:animate-pulse,
+.lite-motion .motion-safe\:animate-ping,
+.lite-motion .motion-safe\:animate-bounce {
   animation: none !important;
 }
 

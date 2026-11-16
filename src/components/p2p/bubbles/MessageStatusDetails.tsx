@@ -1,13 +1,14 @@
-import type { P2PMessage } from '@/lib/p2p';
+import type { PaneMessage } from '@/lib/chat/transport/chat-transport';
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
 import { interactive } from '@/lib/a11y';
 import { formatPreciseDateTime } from '@/lib/format-time';
+import { receiptSummary } from '@/lib/chat/transport/read-receipts';
 
 interface MessageStatusDetailsProps {
-  message: P2PMessage;
+  message: PaneMessage;
 }
 
-const statusLabels: Record<P2PMessage['status'], string> = {
+const statusLabels: Record<PaneMessage['status'], string> = {
   pending: 'Enqueued (waiting to send)',
   sent: 'Sent to server',
   delivered: 'Delivered to peer',
@@ -15,11 +16,13 @@ const statusLabels: Record<P2PMessage['status'], string> = {
   failed: 'Failed to send'
 };
 
-export function messageStatusLabel(status: P2PMessage['status']): string {
-  return statusLabels[status];
+/** A channel's "read" is every member's, and its receipt says so; a direct chat's is the peer's. */
+export function messageStatusLabel(message: PaneMessage): string {
+  if (message.receipt !== undefined && message.status === 'read') return 'Seen by everyone';
+  return statusLabels[message.status];
 }
 
-const statusColors: Record<P2PMessage['status'], string> = {
+const statusColors: Record<PaneMessage['status'], string> = {
   pending: 'text-muted-foreground',
   sent: 'text-foreground/80',
   delivered: 'text-success-emphasis',
@@ -79,7 +82,7 @@ export function MessageStatusDetails({ message }: MessageStatusDetailsProps): JS
       </div>
       <Row
         label="Status"
-        value={statusLabels[message.status]}
+        value={messageStatusLabel(message)}
         valueClassName={statusColors[message.status]}
       />
       <Row
@@ -92,18 +95,23 @@ export function MessageStatusDetails({ message }: MessageStatusDetailsProps): JS
         fullValue={message.id}
         copyable
       />
-      <Row
-        label="From"
-        value={truncateCid(message.senderCid.toString())}
-        fullValue={message.senderCid.toString()}
-        copyable
-      />
-      <Row
-        label="To"
-        value={truncateCid(message.recipientCid.toString())}
-        fullValue={message.recipientCid.toString()}
-        copyable
-      />
+      {/* A direct chat's two ends; a channel message has a sender's name and no recipient. */}
+      {message.senderCid !== undefined && (
+        <Row label="From" value={truncateCid(message.senderCid.toString())} fullValue={message.senderCid.toString()} copyable />
+      )}
+      {message.recipientCid !== undefined && (
+        <Row label="To" value={truncateCid(message.recipientCid.toString())} fullValue={message.recipientCid.toString()} copyable />
+      )}
+      {message.receipt !== undefined && (
+        <>
+          <p className="pt-1 text-muted-foreground" data-testid="message-receipt-summary">{receiptSummary(message.receipt)}</p>
+          {message.receipt.seenBy.length > 0 && (
+            <ul className="text-foreground" aria-label="Seen by" data-testid="message-seen-by">
+              {message.receipt.seenBy.map((name: string, i: number): JSX.Element => <li key={`${i}:${name}`} className="truncate">{name}</li>)}
+            </ul>
+          )}
+        </>
+      )}
       {message.error && (
         <Row
           label="Error"

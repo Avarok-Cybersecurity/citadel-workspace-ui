@@ -18,46 +18,51 @@ vi.mock('@/lib/p2p-auto-connect-service', () => ({
   p2pAutoConnectService: { markChannelReady: (): void => {}, onPeerConnected: () => (): void => {} },
 }));
 
+const stub: { statusHandler: ((id: string, status: string) => void) | undefined } = vi.hoisted(() => ({ statusHandler: undefined }));
+vi.mock('@/lib/p2p/p2p-messenger-manager', () => ({
+  P2PMessengerManager: {
+    getInstance: (): unknown => ({
+      onMessage: () => (): void => {},
+      onMessageStatusChange: (cb: (id: string, status: string) => void) => {
+        stub.statusHandler = cb;
+        return (): void => {};
+      },
+      onTyping: () => (): void => {},
+      onConnectionChange: () => (): void => {},
+      onPresenceChange: () => (): void => {},
+    }),
+  },
+}));
+
 import { subscribeToConversationEvents } from '../useP2PMessages-subscriptions';
 import type { P2PMessage } from '@/lib/p2p';
+import { peerTransportFor } from '@/components/p2p/__tests__/doubles/peer-transport';
 
 const CONVERSATION: P2PMessage[] = [
   { id: 'a', status: 'sent' },
   { id: 'b', status: 'sent' },
 ] as unknown as P2PMessage[];
 
-/** Wire up the real subscription and return the status-change callback. */
+/** Wire up the real subscription over the real adapter and return the status-change callback. */
 function captureStatusHandler(): { statusHandler: (id: string, status: string) => void; updates: ((prev: P2PMessage[]) => P2PMessage[])[]; } {
-  let statusHandler: ((id: string, status: string) => void) | undefined;
+  stub.statusHandler = undefined;
   const updates: Array<(prev: P2PMessage[]) => P2PMessage[]> = [];
 
-  const messenger: never = {
-    onMessage: () => (): void => {},
-    onMessageStatusChange: (cb: (id: string, status: string) => void) => {
-      statusHandler = cb;
-      return (): void => {};
-    },
-    onTyping: () => (): void => {},
-    onConnectionChange: () => (): void => {},
-    onPresenceChange: () => (): void => {},
-    onRegistrationChange: () => (): void => {},
-  } as never;
-
   subscribeToConversationEvents({
-    messenger,
-    peerCid: 42n,
+    transport: peerTransportFor({ cid: 42n, name: 'Bob' }, null),
     activeTabIdRef: { current: 'messages' },
     pinnedRef: { current: true },
     onUnreadMessage: () => {},
     setMessages: ((updater: (prev: P2PMessage[]) => P2PMessage[]) => {
       updates.push(updater);
     }) as never,
-    setPeerTyping: (() => {}) as never,
+    setTyping: (() => {}) as never,
     setIsConnected: (() => {}) as never,
     setPeerPresence: (() => {}) as never,
     setIsRegistered: (() => {}) as never,
   });
 
+  const statusHandler: ((id: string, status: string) => void) | undefined = stub.statusHandler;
   if (!statusHandler) throw new Error('the subscription did not register a status listener');
   return { statusHandler, updates };
 }

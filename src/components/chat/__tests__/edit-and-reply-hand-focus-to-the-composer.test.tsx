@@ -9,21 +9,19 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { GroupMessageItem } from '../GroupMessageItem';
 import { TextBubble } from '@/components/p2p/bubbles/TextBubble';
-
-const own: never = { id: 'm1', group_id: 'g1', sender_id: 'lara', sender_name: 'lara', content: 'hello', timestamp: 1, edited: false, reply_to: null, reply_count: 0 } as never;
 
 async function choose(item: string): Promise<{ focusComposer: ReturnType<typeof vi.fn> }> {
   const focusComposer: ReturnType<typeof vi.fn> = vi.fn();
-  render(<GroupMessageItem message={own} currentUserName="lara" totalMembers={2} onEdit={(): void => {}} onDelete={(): void => {}}
-    canRevise onReply={(): void => {}} focusComposer={focusComposer} quoted={null} />);
+  const message: never = { id: 'm1', content: 'hello', timestamp: 1, status: 'sent' } as never;
+  render(<TextBubble message={message} isOwn quoted={null} showSenderName senderName="lara" onEdit={(): void => {}} onDelete={(): void => {}}
+    onReply={(): void => {}} focusComposer={focusComposer} />);
   await userEvent.click(screen.getByRole('button', { name: /message actions/i }));
   await userEvent.click(screen.getByRole('menuitem', { name: item }));
   return { focusComposer };
 }
 
-describe('choosing from a message menu', () => {
+describe('choosing from a channel message menu', () => {
   it.each(['Edit', 'Reply'])('%s gives the composer focus as the menu closes', async (item: string) => {
     const { focusComposer } = await choose(item);
     await waitFor((): void => { expect(focusComposer).toHaveBeenCalledTimes(1); });

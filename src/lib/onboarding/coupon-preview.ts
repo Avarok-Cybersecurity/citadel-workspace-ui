@@ -22,6 +22,7 @@ export interface CouponPreviewRequest {
   readonly seats: number;
   readonly storage_blocks: number;
   readonly link_packs: number;
+  readonly chat_document_packs: number;
 }
 
 type DiscountAmount =
