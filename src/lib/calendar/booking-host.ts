@@ -18,7 +18,7 @@ import { decideClaim, type ClaimVerdict } from './booking-claim';
 import { readAcks, sharedSeats } from './group-seats';
 import { busyOf, readBookingPage } from './booking-pages';
 import { announce } from './cal-topic';
-import { decodeCancel, encodeAlternatives, encodeReason, routeOf } from './booking-wire';
+import { decodeCancel, encodeAlternatives, encodeReason, routeOf, type BookingRoute } from './booking-wire';
 import type { CalendarEngine } from './engine/calendar-engine';
 import type { Booking } from './generated/Booking';
 import type { Event } from './generated/Event';
@@ -26,6 +26,11 @@ import type { CalendarPorts, CalendarStore } from './ports';
 import { EVENT_PREFIX, readSource } from './read-sources';
 import type { CalendarEntry } from './store';
 import { readTeamTypes, typesHostedBy } from './team-types';
+import type { AuthoredKey } from '@/lib/citadel-apps/sdk/generated/AuthoredKey';
+import type { HostBusy } from '@/lib/calendar/booking-pages';
+import type { Availability } from './generated/Availability';
+import type { EventType } from './generated/EventType';
+import type { SourceRead } from '@/lib/calendar/read-sources';
 
 export interface HostDeps {
   readonly ports: CalendarPorts;
@@ -59,10 +64,10 @@ export class BookingHost {
   readonly cancelAsHost = (id: string, reason: string | null): Promise<IhttpMessage> => this.serialized(() => this.cancel(id, this.d.me, reason, 'cancelled'));
 
   private async route(request: IhttpRequest): Promise<IhttpMessage> {
-    const route = routeOf(request.path);
+    const route: BookingRoute | null = routeOf(request.path);
     if (request.method !== 'POST' || route === null) return refuse(404, 'no such route');
     if (route.kind === 'cancel') {
-      const body = decodeCancel(request.body);
+      const body: { reason: string | null; } | null = decodeCancel(request.body);
       return body === null ? refuse(400, 'not a cancellation') : this.cancel(route.id, request.caller.username, body.reason, 'cancelled');
     }
     let booking: Booking;
@@ -78,7 +83,7 @@ export class BookingHost {
   /** The host's events now, the one being rescheduled left out. */
   private async entries(except: string | null): Promise<CalendarEntry[]> {
     const { ports, engine, node } = this.d;
-    const read = await Promise.all([readSource(ports, engine, 'authored', node), readSource(ports, engine, 'node', node)]);
+    const read: [SourceRead, SourceRead] = await Promise.all([readSource(ports, engine, 'authored', node), readSource(ports, engine, 'node', node)]);
     return read.flatMap((r) => r.entries).filter((e: CalendarEntry) => e.source === 'inherited' || e.event.id !== except);
   }
 
@@ -89,10 +94,10 @@ export class BookingHost {
   async decide(booking: Booking, caller: string, except: string | null): Promise<ClaimVerdict> {
     const { ports, engine, node, me } = this.d;
     const [own, team, entries, acks] = await Promise.all([readBookingPage(ports, engine, node, me), readTeamTypes(ports, engine, node), this.entries(except), readAcks(ports, engine, node, me)]);
-    const page = { ...own, types: [...own.types, ...typesHostedBy(team, me)] };
-    const type = page.types.find((t) => t.id === booking.type_id);
+    const page: { types: EventType[]; host: string; availability: Availability | null; unreadable: number; } = { ...own, types: [...own.types, ...typesHostedBy(team, me)] };
+    const type: EventType | undefined = page.types.find((t) => t.id === booking.type_id);
     const seated: Set<string> = new Set(type === undefined ? [] : sharedSeats(type, booking, acks, engine));
-    const busy = (fromMs: bigint, toMs: bigint, zone: string) => busyOf(entries, me, zone, { fromMs, toMs }, seated, engine);
+    const busy = (fromMs: bigint, toMs: bigint, zone: string): HostBusy => busyOf(entries, me, zone, { fromMs, toMs }, seated, engine);
     return decideClaim({ booking, caller, host: me, node, page, busy, nowMs: this.d.nowMs() }, engine);
   }
 
@@ -138,7 +143,7 @@ export class BookingHost {
     const bytes: Uint8Array | null = await ports.storage.get(this.mine, `${EVENT_PREFIX}${id}`);
     const said: string | null = why === 'rescheduled' ? 'rescheduled' : reason;
     const cancelled: Booking = { ...booking, state: { cancelled: { by, reason: said } } };
-    const writes = [{ key: `${BOOKING_ACK_PREFIX}${id}`, value: engine.encodeBooking(cancelled) }];
+    const writes: { key: string; value: Uint8Array; }[] = [{ key: `${BOOKING_ACK_PREFIX}${id}`, value: engine.encodeBooking(cancelled) }];
     if (bytes !== null) {
       const event: Event = engine.decodeEvent(bytes);
       writes.push({ key: `${EVENT_PREFIX}${id}`, value: engine.encodeEvent({ ...event, status: { cancelled: { by, reason: said } }, rev: event.rev + 1, updated_ms: this.d.nowMs() }) });
@@ -158,7 +163,7 @@ export class BookingHost {
    */
   async answerRequests(): Promise<number> {
     const { ports, engine, node, me } = this.d;
-    const keys = await ports.storage.authoredKeys(node, BOOKING_PREFIX);
+    const keys: AuthoredKey[] = await ports.storage.authoredKeys(node, BOOKING_PREFIX);
     let answered: number = 0;
     for (const k of keys) {
       const id: string = k.key.slice(BOOKING_PREFIX.length);

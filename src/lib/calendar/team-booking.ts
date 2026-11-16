@@ -15,6 +15,7 @@ import { cancelBooking, claimWith, keepOwnCopy, ownCopy, requestBooking, type Bo
 import type { BookOutcome } from './booking-form';
 import type { Booking } from './generated/Booking';
 import type { CollectiveOutcome } from './generated/CollectiveOutcome';
+import type { Event } from './generated/Event';
 import type { HostAnswer } from './generated/HostAnswer';
 
 /**
@@ -62,14 +63,14 @@ export async function bookCollective(d: BookerDeps, booking: Booking, hosts: rea
   }
   const outcome: CollectiveOutcome = d.engine.team.collectiveOutcome(answers);
   if (outcome === 'booked') {
-    const own = ownCopy({ ...booking, state: 'confirmed' }, d);
+    const own: Event = ownCopy({ ...booking, state: 'confirmed' }, d);
     await keepOwnCopy(d, { ...own, hosts: [...hosts] }, null);
     return { kind: 'confirmed', booking: { ...booking, state: 'confirmed' } };
   }
   const { cancel, conflict } = outcome.rolled_back;
   const undone: string[] = [];
   for (const host of cancel) {
-    const done = await cancelBooking(d.client, host, booking.id, COLLECTIVE_INCOMPLETE);
+    const done: { ok: true; } | { ok: false; reason: string; } = await cancelBooking(d.client, host, booking.id, COLLECTIVE_INCOMPLETE);
     if (!done.ok) undone.push(`${host} (${done.reason})`);
   }
   if (undone.length > 0) return { kind: 'failed', reason: `the booking was not made, and could not be withdrawn from ${undone.join(', ')}` };

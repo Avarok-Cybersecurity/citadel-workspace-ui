@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import type { CalendarEngine } from '@/lib/calendar/engine/calendar-engine';
 import type { EventType } from '@/lib/calendar/generated/EventType';
 import type { Poll } from '@/lib/calendar/generated/Poll';
-import { checkPollDraft, type PollDraft, type ProposalDraft } from '@/lib/calendar/poll-draft';
+import { checkPollDraft, type PollDraft, type ProposalDraft, type PollCheck } from '@/lib/calendar/poll-draft';
 import { NativeSelect } from './NativeSelect';
 
 interface PollComposerProps {
@@ -40,7 +40,7 @@ export function PollComposer({ id, me, zone, engine, types, firstDate, onSave, o
   }
   const save = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
-    const checked = checkPollDraft(draft, { id, host: me, zone }, engine);
+    const checked: PollCheck = checkPollDraft(draft, { id, host: me, zone }, engine);
     if (!checked.ok) {
       setErrors(checked.errors);
       setSaid('Some fields need attention.');

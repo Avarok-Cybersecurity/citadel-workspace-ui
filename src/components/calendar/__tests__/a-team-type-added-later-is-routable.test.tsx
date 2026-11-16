@@ -19,9 +19,10 @@ import { STANDARD_HOST_POLICY } from '@/lib/citadel-apps/host/limits';
 import { ManualClock } from '@/lib/citadel-apps/host/__tests__/fakes';
 import { rosterMembersPort } from '@/lib/citadel-apps/runtime/first-party-ports';
 import { RoutingFormsSetup } from '../RoutingFormsSetup';
+import type { CalendarEngine } from '@/lib/calendar/engine/calendar-engine';
 
-const engine = realEngine();
-const NODE = { id: 'n1', name: 'Platform' };
+const engine: CalendarEngine = realEngine();
+const NODE: { id: string; name: string; } = { id: 'n1', name: 'Platform' };
 const ROTA: EventType = { ...INTRO, id: 'rr', name: 'Support rota', kind: { round_robin: { hosts: ['ana', 'bo'], strategy: 'equal' } } };
 
 interface Rig {

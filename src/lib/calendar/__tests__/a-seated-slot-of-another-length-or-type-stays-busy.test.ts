@@ -17,10 +17,11 @@ import { bookRoundRobin } from '../team-booking';
 import { INTRO, WORKING_HOURS } from './booking-fixture';
 import { choice, engine, member, NOW, SLOT, type Member } from './booking-rig';
 import { IhttpRelay } from './ihttp-relay';
+import type { Booking } from '@/lib/calendar/generated/Booking';
 
 const WORKSHOP: EventType = { ...INTRO, id: 'workshop', name: 'Workshop', kind: { group: { seats: 3 } }, durations_min: [30, 60], questions: [] };
 const CLINIC: EventType = { ...WORKSHOP, id: 'clinic', name: 'Clinic' };
-const DAY = { y: 2024, m: 7, d: 16 };
+const DAY: { y: number; m: number; d: number; } = { y: 2024, m: 7, d: 16 };
 const HOUR: Interval = { start_ms: SLOT.start_ms, end_ms: SLOT.start_ms + 3_600_000n };
 const at = (s: Interval): string => `${new Date(Number(s.start_ms)).toISOString()}/${Number(s.end_ms - s.start_ms) / 60_000}`;
 
@@ -31,7 +32,7 @@ interface Rig {
 }
 
 async function rig(): Promise<Rig> {
-  const relay = new IhttpRelay();
+  const relay: IhttpRelay = new IhttpRelay();
   const shared: Map<string, Uint8Array> = new Map();
   const [ana, bo, cy] = await Promise.all(['ana', 'bo', 'cy'].map((n: string) => member(n, relay, shared))) as [Member, Member, Member];
   await saveEventType(ana.ports, engine, 'n1', 'ana', WORKSHOP);
@@ -40,12 +41,12 @@ async function rig(): Promise<Rig> {
   const deps = (m: Member, title: string): BookerDeps => ({ ports: m.ports, engine, client: m.endpoint.client, node: 'n1', me: m.name, title, nowMs: NOW });
   const book = async (m: Member, id: string, type: EventType, slot: Interval): Promise<unknown> => {
     const durationMin: number = Number(slot.end_ms - slot.start_ms) / 60_000;
-    const booking = bookingOf({ ...choice, type, durationMin, slot, answers: [] }, { id, node: 'n1', host: 'ana', me: m.name });
+    const booking: Booking = bookingOf({ ...choice, type, durationMin, slot, answers: [] }, { id, node: 'n1', host: 'ana', me: m.name });
     return (await bookRoundRobin(deps(m, type.name), booking, ['ana'])).kind;
   };
   const pageOf = async (viewer: Member, type: EventType, durationMin: number): Promise<string[]> => {
     const [page, acks, read] = await Promise.all([readBookingPage(viewer.ports, engine, 'n1', 'ana'), readAcks(viewer.ports, engine, 'n1', 'ana'), readSource(viewer.ports, engine, 'authored', 'n1')]);
-    const ask = { type, durationMin, nowMs: NOW, from: DAY, to: DAY };
+    const ask: { type: EventType; durationMin: number; nowMs: bigint; from: { y: number; m: number; d: number; }; to: { y: number; m: number; d: number; }; } = { type, durationMin, nowMs: NOW, from: DAY, to: DAY };
     return bookerSlots(engine, ask, page.availability, (f, t, zone, except) => busyOf(read.entries, 'ana', zone, { fromMs: f, toMs: t }, except, engine), acks).map(at);
   };
   return { book, pageOf, people: [ana, bo, cy] };

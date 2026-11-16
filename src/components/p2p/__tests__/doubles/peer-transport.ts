@@ -8,7 +8,7 @@ import type { ChatTransport } from '@/lib/chat/transport/chat-transport';
 import { peerOpeningPorts } from '../../chat-document/use-chat-documents';
 
 export function peerTransportFor(peer: { cid: bigint; name: string }, selfCid: bigint | null): ChatTransport {
-  const chatPeer = { cid: peer.cid, name: peer.name, username: peer.name };
+  const chatPeer: { cid: bigint; name: string; username: string; } = { cid: peer.cid, name: peer.name, username: peer.name };
   return createPeerTransport({
     peer: chatPeer,
     self: selfCid === null ? null : { cid: selfCid, username: 'me', displayName: 'You' },

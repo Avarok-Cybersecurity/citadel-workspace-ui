@@ -30,7 +30,7 @@ export function useCalendarSettings(ports: CalendarPorts): SettingsState {
     }, (e: unknown): void => { if (live) setRead({ kind: 'failed', reason: reasonOf(e) }); });
     return (): void => { live = false; };
   }, [ports]);
-  const choose = useCallback((choice: DisplayZoneChoice): void => {
+  const choose: (choice: DisplayZoneChoice) => void = useCallback((choice: DisplayZoneChoice): void => {
     const settings: CalendarSettings = { displayZone: choice };
     setSaving(true);
     setError(null);

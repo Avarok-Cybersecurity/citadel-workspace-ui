@@ -8,8 +8,9 @@ import type { CivilDate } from '../generated/CivilDate';
 import { place, type Chip, type Placement } from '../placement';
 import { realEngine } from './engine-rig';
 import { bobsBusy, cancelled, inherited, JULY_WEEK, lateRelease, nowhere, offsite, standup, upPulled, VIEWER, weekly } from './placement-fixture';
+import type { CalendarEngine } from '@/lib/calendar/engine/calendar-engine';
 
-const engine = realEngine();
+const engine: CalendarEngine = realEngine();
 const week = (y: number, m: number, d: number): CivilDate[] => engine.weekOf({ y, m, d });
 const on = (p: Placement, day: string): Chip[] => p.days.get(day) ?? [];
 const timed = (c: Chip | undefined): [number, number] => {
@@ -21,7 +22,7 @@ describe('placing a node calendar on a week', () => {
   const p: Placement = place(JULY_WEEK, week(2024, 7, 15), 'America/New_York', VIEWER, engine);
 
   it('puts a one-off event at its wall time in the display zone', () => {
-    const chip = on(p, '2024-07-15').find((c) => c.entryKey === standup.key);
+    const chip: Chip | undefined = on(p, '2024-07-15').find((c) => c.entryKey === standup.key);
     expect(timed(chip)).toEqual([9 * 60, 9 * 60 + 30]);
     expect(chip).toMatchObject({ title: 'Standup', origin: 'own', cancelled: false, linked: true });
   });
@@ -33,7 +34,7 @@ describe('placing a node calendar on a week', () => {
 
   it('shows another member’s busy-only event as busy, with no title', () => {
     expect(on(p, '2024-07-18').find((c) => c.entryKey === bobsBusy.key)?.title).toBeNull();
-    const mine = place([bobsBusy], week(2024, 7, 15), 'America/New_York', 'bob', engine);
+    const mine: Placement = place([bobsBusy], week(2024, 7, 15), 'America/New_York', 'bob', engine);
     expect(on(mine, '2024-07-18')[0]?.title).toBe('Dentist');
   });
 
@@ -63,12 +64,12 @@ describe('placing across zones and DST', () => {
     expect(london(2, 3)).toBe(14 * 60);
     expect(london(9, 3)).toBe(13 * 60);
     expect(london(30, 3)).toBe(14 * 60);
-    const ny = place([weekly], week(2026, 3, 9), 'America/New_York', VIEWER, engine);
+    const ny: Placement = place([weekly], week(2026, 3, 9), 'America/New_York', VIEWER, engine);
     expect(timed(ny.days.get('2026-03-09')?.[0])).toEqual([9 * 60, 9 * 60 + 30]);
   });
 
   it('lists an event in a zone the database does not know as unplaced, with the reason', () => {
-    const p = place([nowhere, standup], week(2024, 7, 15), 'America/New_York', VIEWER, engine);
+    const p: Placement = place([nowhere, standup], week(2024, 7, 15), 'America/New_York', VIEWER, engine);
     expect(p.unplaced).toEqual([{ entryKey: nowhere.key, title: 'Mars sync', code: 'unknown_zone' }]);
     expect(on(p, '2024-07-15').map((c) => c.entryKey)).toEqual([standup.key]);
   });

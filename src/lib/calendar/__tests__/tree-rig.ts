@@ -40,20 +40,20 @@ export class TopicGroup {
   port(me: string): TopicPort {
     const listeners: Set<(a: TopicArrival) => void> = new Set();
     return {
-      TopicOpen: ({ name }) => {
+      TopicOpen: ({ name }): { ok: { name: string; members: string[]; }; } => {
         this.joined.set(me, listeners);
         return { ok: { name, members: [...this.joined.keys()] } };
       },
-      TopicPublish: ({ name, body }) => {
+      TopicPublish: ({ name, body }): { ok: null; } => {
         this.sent.push({ from: me, body });
         for (const [who, hear] of this.joined) {
           if (who === me) continue;
-          const from = { username: me, cid: 1n, app_id: 'net.avarok.calendar', install_id: 'i1', via: 'group' as const };
+          const from: { username: string; cid: bigint; app_id: string; install_id: string; via: "group"; } = { username: me, cid: 1n, app_id: 'net.avarok.calendar', install_id: 'i1', via: 'group' as const };
           for (const l of hear) l({ name, event: { message: { from, body } } });
         }
         return { ok: null };
       },
-      TopicClose: () => {
+      TopicClose: (): { ok: null; } => {
         this.joined.delete(me);
         return { ok: null };
       },

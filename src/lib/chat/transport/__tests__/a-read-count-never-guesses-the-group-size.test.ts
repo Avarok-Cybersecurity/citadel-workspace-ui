@@ -13,7 +13,7 @@ const roster: RosterEntry[] = [
   { username: 'cy', displayName: 'Cy Press', online: null },
   { username: 'dee', displayName: 'Dee Bug', online: true },
 ];
-const messages = [{ id: 'm1', own: true }, { id: 'm2', own: false }, { id: 'm3', own: true }];
+const messages: { id: string; own: boolean; }[] = [{ id: 'm1', own: true }, { id: 'm2', own: false }, { id: 'm3', own: true }];
 const stamp = (cursors: [string, string][], list: RosterEntry[] | null, id: string): ReceiptStamp | undefined =>
   readReceipts({ messages, cursors: new Map(cursors), roster: list, selfUsername: 'ada' }).get(id);
 

@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import type { InstallScope } from 'citadel-workspace-client-ts';
 import { badgedNotifyPort, rosterMembersPort, type AppNotice } from '../first-party-ports';
 import { treeNodesPort, type TreeNode } from '../nodes-port';
+import type { MembersPort, NodesPort, NotifyPort } from '@/lib/citadel-apps/host/ports';
 
 const TREE: Record<string, TreeNode> = {
   root: { id: 'root', name: 'Company', parent_id: null, children: ['eng', 'sales'] },
@@ -16,8 +17,8 @@ const TREE: Record<string, TreeNode> = {
   sales: { id: 'sales', name: 'Sales', parent_id: 'root', children: [] },
 };
 
-const nodes = (scope: InstallScope) => treeNodesPort(scope, () => TREE);
-const NOT_FOUND = { refused: { unavailable: 'not_found' } };
+const nodes = (scope: InstallScope): NodesPort => treeNodesPort(scope, () => TREE);
+const NOT_FOUND: { refused: { unavailable: string; }; } = { refused: { unavailable: 'not_found' } };
 
 describe('nodes.read for a glue app', () => {
   it('answers a node and its children for a workspace install', () => {
@@ -29,7 +30,7 @@ describe('nodes.read for a glue app', () => {
   });
 
   it('keeps a subtree install inside its subtree, as the kernel keeps its storage', () => {
-    const port = nodes({ NodeTree: 'eng' });
+    const port: NodesPort = nodes({ NodeTree: 'eng' });
     expect(port.NodeGet({ node_id: 'platform' })).toMatchObject({ ok: { node_id: 'platform' } });
     expect(port.NodeGet({ node_id: 'sales' })).toEqual(NOT_FOUND);
     expect(port.NodeGet({ node_id: 'root' })).toEqual(NOT_FOUND);
@@ -37,7 +38,7 @@ describe('nodes.read for a glue app', () => {
   });
 
   it('keeps a node install on its node', () => {
-    const port = nodes({ Node: 'eng' });
+    const port: NodesPort = nodes({ Node: 'eng' });
     expect(port.NodeGet({ node_id: 'eng' })).toMatchObject({ ok: { node_id: 'eng' } });
     expect(port.NodeGet({ node_id: 'platform' })).toEqual(NOT_FOUND);
     expect(port.NodeChildren({ node_id: 'eng' })).toEqual({ ok: { nodes: [] } });
@@ -51,7 +52,7 @@ describe('nodes.read for a glue app', () => {
 
 describe('members.list and notifications for a glue app', () => {
   it('lists the roster by username and never calls unknown presence online', () => {
-    const port = rosterMembersPort(() => [
+    const port: MembersPort = rosterMembersPort(() => [
       { username: 'zoe', displayName: 'Zoe', isOnline: true },
       { username: 'amy', displayName: 'Amy', isOnline: null },
       { username: 'bob', displayName: 'Bob', isOnline: false },
@@ -65,7 +66,7 @@ describe('members.list and notifications for a glue app', () => {
 
   it("badges every notification with the app's name", () => {
     const seen: AppNotice[] = [];
-    const port = badgedNotifyPort({ id: 'net.avarok.calendar', name: 'Calendar' }, (n: AppNotice): void => { seen.push(n); });
+    const port: NotifyPort = badgedNotifyPort({ id: 'net.avarok.calendar', name: 'Calendar' }, (n: AppNotice): void => { seen.push(n); });
     expect(port.Notify({ title: 'Standup in 10 minutes', body: 'Platform, 9:00 AM' })).toEqual({ ok: null });
     expect(seen).toEqual([{ from: 'Calendar', appId: 'net.avarok.calendar', title: 'Standup in 10 minutes', body: 'Platform, 9:00 AM' }]);
   });

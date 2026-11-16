@@ -15,7 +15,7 @@ const reasonOf = (e: unknown): string => (e instanceof PortRefused ? refusalCopy
 export function SdkAppsPanel({ ports, engine }: { ports: CalendarPorts; engine: CalendarEngine }): JSX.Element {
   const [loaded, setLoaded] = useState<Loaded>({ kind: 'loading' });
   const [said, setSaid] = useState<string>('');
-  const reload = useCallback(async (): Promise<void> => {
+  const reload: () => Promise<void> = useCallback(async (): Promise<void> => {
     try {
       setLoaded({ kind: 'ready', apps: await readConsents(ports, engine) });
     } catch (e: unknown) {

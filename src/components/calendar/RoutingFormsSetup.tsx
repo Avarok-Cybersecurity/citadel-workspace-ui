@@ -39,7 +39,7 @@ export function RoutingFormsSetup({ ports, engine, node, newId }: RoutingFormsSe
   const [loaded, setLoaded] = useState<Loaded>({ kind: 'loading' });
   const [editing, setEditing] = useState<Editing>({ kind: 'none' });
   const [said, setSaid] = useState<string>('');
-  const reload = useCallback(async (): Promise<void> => {
+  const reload: () => Promise<void> = useCallback(async (): Promise<void> => {
     try {
       const [routing, team, members] = await Promise.all([readRoutingForms(ports, engine, node.id), readTeamTypes(ports, engine, node.id), ports.members()]);
       setLoaded({ kind: 'ready', forms: routing.forms, teams: team.types, members: members.map((m: Member) => m.username) });

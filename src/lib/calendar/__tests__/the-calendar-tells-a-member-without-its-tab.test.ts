@@ -16,8 +16,10 @@ import { planOf, REMINDER_PREFIX } from '../reminder-scheduler';
 import { realEngine } from './engine-rig';
 import { event, NY, utc } from './event-fixture';
 import { noticeMember, settle, type NoticeMember } from './notice-rig';
+import type { ReminderPlan } from '@/lib/calendar/generated/ReminderPlan';
+import type { CalendarEngine } from '@/lib/calendar/engine/calendar-engine';
 
-const engine = realEngine();
+const engine: CalendarEngine = realEngine();
 const USER = { kind: 'user' } as const;
 const NOW: string = '2024-07-16T13:00:00Z';
 const stops: (() => void)[] = [];
@@ -28,7 +30,7 @@ function start(m: NoticeMember, me: string): void {
 }
 
 async function withPlan(m: NoticeMember, ev: Event, handledIso: string): Promise<void> {
-  const plan = planOf(ev, utc('2024-07-16T00:00:00Z'), engine);
+  const plan: ReminderPlan | null = planOf(ev, utc('2024-07-16T00:00:00Z'), engine);
   if (plan === null) throw new Error('no plan');
   await m.ports.storage.set({ kind: 'node', node: 'n1' }, `cal/event/${ev.id}`, engine.encodeEvent(ev));
   await m.ports.storage.set(USER, `${REMINDER_PREFIX}${ev.id}`, engine.encodeReminderPlan(plan));
@@ -45,7 +47,7 @@ describe('the Calendar with no tab open', () => {
     start(ana, 'ana');
     await settle();
     expect(ana.notes).toEqual([]);
-    for (let minute = 0; minute < 5; minute += 1) {
+    for (let minute: number = 0; minute < 5; minute += 1) {
       ana.clock.advance(60_000);
       await settle();
     }
@@ -68,7 +70,7 @@ describe('the Calendar with no tab open', () => {
     await ana.ports.storage.set(USER, NOTIFY_PREFS_KEY, encodePrefs({ ...PREFS_BEFORE_CHOICE, kinds: { ...PREFS_BEFORE_CHOICE.kinds, reminders: false } }));
     await withPlan(ana, standup, NOW);
     start(ana, 'ana');
-    for (let minute = 0; minute < 5; minute += 1) {
+    for (let minute: number = 0; minute < 5; minute += 1) {
       ana.clock.advance(60_000);
       await settle();
     }

@@ -5,7 +5,7 @@
  */
 import { useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { checkAnswers } from '@/lib/calendar/booking-form';
+import { checkAnswers, type FormCheck } from '@/lib/calendar/booking-form';
 import { CalendarRefusal, type CalendarEngine } from '@/lib/calendar/engine/calendar-engine';
 import type { RoutingForm } from '@/lib/calendar/generated/RoutingForm';
 import type { RoutingTarget } from '@/lib/calendar/generated/RoutingTarget';
@@ -28,7 +28,7 @@ export function RoutingAnswer({ engine, forms, onRouted }: RoutingAnswerProps): 
   if (form === undefined) return null;
 
   const route = (): void => {
-    const checked = checkAnswers(form.questions, values);
+    const checked: FormCheck = checkAnswers(form.questions, values);
     if (!checked.ok) {
       setErrors(checked.errors);
       setSaid('Some answers need attention.');

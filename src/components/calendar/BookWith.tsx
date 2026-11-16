@@ -26,6 +26,7 @@ import { readTeamTypes } from '@/lib/calendar/team-types';
 import { BookingPage } from './BookingPage';
 import { RoutingAnswer } from './RoutingAnswer';
 import { TeamBooking } from './TeamBooking';
+import type { Interval } from '@/lib/calendar/generated/Interval';
 
 interface BookWithProps {
   ports: CalendarPorts;
@@ -56,7 +57,7 @@ export function BookWith(p: BookWithProps): JSX.Element {
   const [choices, setChoices] = useState<Choices>({ kind: 'loading' });
   const [page, setPage] = useState<Page>({ kind: 'none' });
   const [away, setAway] = useState<Extract<Routed, { kind: 'away' }> | null>(null);
-  const open = useCallback((host: string): void => {
+  const open: (host: string) => void = useCallback((host: string): void => {
     setAway(null);
     setPage({ kind: 'loading', host });
     Promise.all([readBookingPage(ports, engine, node.id, host), readAcks(ports, engine, node.id, host)]).then(
@@ -77,7 +78,7 @@ export function BookWith(p: BookWithProps): JSX.Element {
   const initialHost: string | null = p.initial?.host ?? null;
   useEffect(() => { if (initialHost !== null) open(initialHost); }, [initialHost, open]);
   const shown: Extract<Page, { kind: 'ready' }> | null = page.kind === 'ready' ? page : null;
-  const slotsFor = useMemo(() => (ask: SlotAsk) => bookerSlots(engine, ask, shown?.page.availability ?? null,
+  const slotsFor: (ask: SlotAsk) => Interval[] = useMemo(() => (ask: SlotAsk): Interval[] => bookerSlots(engine, ask, shown?.page.availability ?? null,
     (fromMs: bigint, toMs: bigint, zone: string, except: ReadonlySet<string>) => busyOf(entries.values(), shown?.page.host ?? '', zone, { fromMs, toMs }, except, engine), shown?.acks ?? []), [entries, engine, shown]);
   const routed = (target: RoutingTarget, teams: readonly EventType[]): void => {
     const to: Routed = routedTo(target, { node: node.id, teams, origin: p.origin, nodeName: p.nodeName });

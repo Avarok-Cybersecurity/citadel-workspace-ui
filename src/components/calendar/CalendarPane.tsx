@@ -20,7 +20,7 @@ import { saveEvent as save, type SaveOutcome } from '@/lib/calendar/event-save';
 import type { CivilDate } from '@/lib/calendar/generated/CivilDate';
 import type { Chip } from '@/lib/calendar/placement';
 import { PortRefused, refusalCopy, type CalendarPorts } from '@/lib/calendar/ports';
-import { calendarReducer, initialCalendar, type CalendarState, type EventEntry } from '@/lib/calendar/store';
+import { calendarReducer, initialCalendar, type CalendarEntry, type CalendarState, type EventEntry } from '@/lib/calendar/store';
 import { bookCollective, bookRoundRobin, type BookTarget } from '@/lib/calendar/team-booking';
 import { useCalendarSources } from '@/lib/calendar/use-calendar-sources';
 import { nodeZone } from '@/lib/calendar/zones';
@@ -40,6 +40,13 @@ import { useBookings } from './use-bookings';
 import { useSdkConsent } from './use-sdk-consent';
 import { useMinuteClock } from './use-minute-clock';
 import type { Capability } from '@/lib/citadel-apps/host/capabilities';
+import type { IhttpMessage } from '@/lib/citadel-apps/glue-sdk/ihttp-io';
+import type { IhttpClient } from '@/lib/citadel-apps/glue-sdk/ihttp-client';
+import type { Booking } from '@/lib/calendar/generated/Booking';
+import type { NamedNode } from '@/components/calendar/PropagationFields';
+import type { SdkConsent } from '@/components/calendar/use-sdk-consent';
+import type { CivilDateTime } from '@/lib/calendar/generated/CivilDateTime';
+import type { Event } from '@/lib/calendar/generated/Event';
 
 /** Below this width the Calendar opens on Agenda, which reads as a list on a phone. */
 const NARROW_PX: number = 640;
@@ -67,7 +74,7 @@ const reasonOf = (e: unknown): string => (e instanceof PortRefused ? refusalCopy
 
 export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZone, held, mayEditNode }: CalendarPaneProps): JSX.Element {
   const { state: ws } = useWorkspace();
-  const now = useMinuteClock(engine, displayZone, ports.clock);
+  const now: CivilDateTime = useMinuteClock(engine, displayZone, ports.clock);
   const nowMs: bigint = useMemo(() => engine.instantOf(displayZone, now), [engine, displayZone, now]);
   const [state, dispatch] = useReducer(calendarReducer, undefined, (): CalendarState =>
     initialCalendar(window.innerWidth < NARROW_PX ? 'agenda' : 'month', now.date));
@@ -75,11 +82,11 @@ export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZon
   const [panel, setPanel] = useState<Panel>(linked === null ? { kind: 'none' } : { kind: 'book', moving: null });
   const [open, setOpen] = useState<Chip | null>(null);
   useCalendarSources(ports, engine, nodeId, dispatch);
-  const consent = useSdkConsent();
+  const consent: SdkConsent = useSdkConsent();
   const { client, host } = useBookings(ports, engine, nodeId, me, held, consent.ask);
-  const nodeName = useCallback((id: string): string => ws.nodes[id]?.name ?? 'a page you cannot see', [ws.nodes]);
+  const nodeName: (id: string) => string = useCallback((id: string): string => ws.nodes[id]?.name ?? 'a page you cannot see', [ws.nodes]);
   const zone: string | null = useMemo(() => nodeZone(ws.nodes, nodeId, ws.workspace?.metadata), [ws.nodes, nodeId, ws.workspace?.metadata]);
-  const node = { id: nodeId, name: ws.nodes[nodeId]?.name ?? 'This page' };
+  const node: { id: string; name: string; } = { id: nodeId, name: ws.nodes[nodeId]?.name ?? 'This page' };
   const close = (): void => setPanel({ kind: 'none' });
   /** A new event starts with the member's chosen reminders, read as it is opened so a change elsewhere holds. */
   const create = (date: CivilDate): void => {
@@ -89,34 +96,34 @@ export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZon
     });
   };
 
-  const above = useAbove(ports, nodeId, nodeName);
+  const above: readonly NamedNode[] = useAbove(ports, nodeId, nodeName);
   const saveEvent = (checked: Extract<EventCheck, { ok: true }>, progress: (done: number, of: number) => void): Promise<SaveOutcome> =>
     save(ports, engine, checked, null, progress);
   const book = (target: BookTarget, choice: BookingChoice): Promise<BookOutcome> => {
     const first: string = target.kind === 'member' ? target.host : (target.kind === 'round_robin' ? target.ranked : target.hosts)[0] ?? '';
-    const booking = bookingOf(choice, { id: newId(), node: nodeId, host: first, me });
+    const booking: Booking = bookingOf(choice, { id: newId(), node: nodeId, host: first, me });
     const moving: string | null = panel.kind === 'book' && panel.moving !== null ? panel.moving.id : null;
     if (client === null) {
       if (moving !== null) return Promise.resolve<BookOutcome>({ kind: 'failed', reason: 'a booking can be moved only while its host can be reached' });
       if (target.kind === 'collective') return Promise.resolve<BookOutcome>({ kind: 'failed', reason: 'a booking with every host at once can be made only while they can be reached' });
       return first === '' ? Promise.resolve<BookOutcome>({ kind: 'failed', reason: 'no host is free at that time' }) : requestBooking(ports, engine, booking, nodeId, me);
     }
-    const deps = { ports, engine, client, node: nodeId, me, title: target.kind === 'member' ? `${choice.type.name} with ${target.host}` : choice.type.name, nowMs: nowOf(ports) };
+    const deps: { ports: CalendarPorts; engine: CalendarEngine; client: IhttpClient; node: string; me: string; title: string; nowMs: bigint; } = { ports, engine, client, node: nodeId, me, title: target.kind === 'member' ? `${choice.type.name} with ${target.host}` : choice.type.name, nowMs: nowOf(ports) };
     if (target.kind === 'round_robin') return bookRoundRobin(deps, booking, target.ranked);
     if (target.kind === 'collective') return bookCollective(deps, booking, target.hosts);
     return claim(deps, booking, moving);
   };
 
-  const openEntry = open === null ? undefined : state.entries.get(open.entryKey);
+  const openEntry: CalendarEntry | undefined = open === null ? undefined : state.entries.get(open.entryKey);
   const openOwn: EventEntry | null = openEntry === undefined || openEntry.source === 'inherited' ? null : openEntry;
-  const openEvent = openOwn === null ? null : openOwn.event;
+  const openEvent: Event | null = openOwn === null ? null : openOwn.event;
   const changeable: EventEntry | null = openOwn !== null && changeableBy(openOwn, me, mayEditNode) ? openOwn : null;
   const role: BookingRole | null = openEvent === null ? null : bookingRole(openEvent, me);
   const cancelOpen = async (reason: string | null): Promise<string | null> => {
     if (role === null || openEvent === null) return 'this is not a booking you can cancel';
     try {
       if (role.kind === 'host') {
-        const answer = await host.cancelAsHost(role.id, reason);
+        const answer: IhttpMessage = await host.cancelAsHost(role.id, reason);
         return answer.status === 200 ? null : `it could not be cancelled (${answer.status})`;
       }
       if (client === null) return 'bookings cannot be changed from here right now';
@@ -126,7 +133,7 @@ export function CalendarPane({ ports, engine, nodeId, me, displayZone, deviceZon
     }
   };
   const reschedule = async (id: string, bookedWith: string): Promise<void> => {
-    const ack = await bookingAckOf(ports, engine, nodeId, bookedWith, id);
+    const ack: Booking | null = await bookingAckOf(ports, engine, nodeId, bookedWith, id);
     if (ack === null) throw new Error(`${bookedWith} holds no booking ${id}`);
     setOpen(null);
     setPanel({ kind: 'book', moving: { id, host: bookedWith, typeId: ack.type_id } });

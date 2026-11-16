@@ -29,7 +29,7 @@ const TONE: Record<Chip['origin'], string> = {
 };
 
 function Words({ words, density, zone }: { words: ChipWords; density: ChipDensity; zone: string }): JSX.Element {
-  const title = <span className={cn('truncate font-medium', words.cancelled && 'line-through')}>{words.title}</span>;
+  const title: JSX.Element = <span className={cn('truncate font-medium', words.cancelled && 'line-through')}>{words.title}</span>;
   return (
     <>
       <span className={cn('flex min-w-0 items-center gap-1', density === 'row' && 'w-28 shrink-0')}>

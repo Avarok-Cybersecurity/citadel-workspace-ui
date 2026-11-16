@@ -60,7 +60,7 @@ export function TeamBooking(p: TeamBookingProps): JSX.Element {
     availability: hours.kind === 'ready' ? hours.byHost.get(host) ?? null : null,
     busyFor: (fromMs: bigint, toMs: bigint, zone: string): HostBusy => busyOf(entries.values(), host, zone, { fromMs, toMs }, NO_SEATS, engine),
   }), [hours, entries, engine]);
-  const slotsFor = useMemo(() => (ask: SlotAsk): Interval[] => teamSlots(engine, ask, source).slots, [engine, source]);
+  const slotsFor: (ask: SlotAsk) => Interval[] = useMemo(() => (ask: SlotAsk): Interval[] => teamSlots(engine, ask, source).slots, [engine, source]);
 
   if (hours.kind === 'loading') return <p role="status" className="text-sm text-muted-foreground">Loading the hours of {type.name}&apos;s hosts…</p>;
   if (hours.kind === 'failed') return <p role="alert" className="text-sm text-destructive-emphasis">The hours of {type.name}&apos;s hosts could not be read: {hours.reason}.</p>;

@@ -58,12 +58,12 @@ export function treeNodesPort(scope: InstallScope, read: TreeRead): NodesPort {
     return node === undefined || !reaches(scope, nodes, id) ? null : { nodes, node };
   };
   return {
-    NodeGet: ({ node_id }) => {
-      const at = visible(node_id);
+    NodeGet: ({ node_id }): ReturnType<NodesPort['NodeGet']> => {
+      const at: { nodes: Readonly<Record<string, TreeNode>>; node: TreeNode; } | null = visible(node_id);
       return at === null ? NOT_FOUND : { ok: info(at.nodes, at.node) };
     },
-    NodeChildren: ({ node_id }) => {
-      const at = visible(node_id);
+    NodeChildren: ({ node_id }): ReturnType<NodesPort['NodeChildren']> => {
+      const at: { nodes: Readonly<Record<string, TreeNode>>; node: TreeNode; } | null = visible(node_id);
       if (at === null) return NOT_FOUND;
       const children: NodeInfo[] = [];
       for (const id of at.node.children) {

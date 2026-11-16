@@ -11,6 +11,7 @@ import type { HostBusy } from './booking-pages';
 import type { CalendarEngine } from './engine/calendar-engine';
 import type { Availability } from './generated/Availability';
 import type { CivilDate } from './generated/CivilDate';
+import type { Event } from './generated/Event';
 import type { EventType } from './generated/EventType';
 import type { HostCount } from './generated/HostCount';
 import type { Interval } from './generated/Interval';
@@ -83,7 +84,7 @@ export function confirmedCounts(entries: Iterable<CalendarEntry>, hosts: readonl
   const seen: Set<string> = new Set();
   for (const entry of entries) {
     if (entry.source === 'inherited') continue;
-    const e = entry.event;
+    const e: Event = entry.event;
     if (seen.has(e.id) || e.status !== 'confirmed' || typeof e.kind !== 'object' || !('once' in e.when)) continue;
     const start: bigint = e.when.once.start_ms;
     if (start < fromMs || start >= toMs) continue;

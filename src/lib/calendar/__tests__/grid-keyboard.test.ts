@@ -6,8 +6,9 @@ import { describe, expect, it } from 'vitest';
 import { gridIntent, type GridIntent } from '../grid-keyboard';
 import type { CivilDate } from '../generated/CivilDate';
 import { realEngine } from './engine-rig';
+import type { CalendarEngine } from '@/lib/calendar/engine/calendar-engine';
 
-const nav = realEngine();
+const nav: CalendarEngine = realEngine();
 const d = (y: number, m: number, day: number): CivilDate => ({ y, m, d: day });
 const focusOn = (date: CivilDate): GridIntent => ({ kind: 'focus', date });
 

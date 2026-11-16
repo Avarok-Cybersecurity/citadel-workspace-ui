@@ -16,9 +16,11 @@ import type { HostReply, InboundIhttpFrame, Refused, TopicArrival } from '@/lib/
 import type { OpArgs, OpReplies } from '@/lib/citadel-apps/sdk/generated/AbiConstants';
 import type { Address } from '@/lib/citadel-apps/sdk/generated/Address';
 import type { AuthoredKey } from '@/lib/citadel-apps/sdk/generated/AuthoredKey';
+import type { AuthoredPage } from '@/lib/citadel-apps/sdk/generated/AuthoredPage';
 import type { Caller } from '@/lib/citadel-apps/sdk/generated/Caller';
 import type { IhttpFrame } from '@/lib/citadel-apps/sdk/generated/IhttpFrame';
 import type { KvBackend } from '@/lib/citadel-apps/sdk/generated/KvBackend';
+import type { KvPage } from '@/lib/citadel-apps/sdk/generated/KvPage';
 import type { Member } from '@/lib/citadel-apps/sdk/generated/Member';
 import type { NodeInfo } from '@/lib/citadel-apps/sdk/generated/NodeInfo';
 import type { Route } from '@/lib/citadel-apps/sdk/generated/Route';
@@ -128,11 +130,11 @@ export function calendarPorts(glue: GlueInstance): CalendarPorts {
       setMany: (store, entries) => done('KvSetMany', { backend: backendOf(store), entries: entries.map((e) => ({ key: e.key, value: e.value })) }),
       remove: (store, key) => done('KvDelete', { backend: backendOf(store), key }),
       keys: (store, prefix) => paged('KvList', async (cursor) => {
-        const page = await ok('KvList', { backend: backendOf(store), prefix, cursor });
+        const page: KvPage = await ok('KvList', { backend: backendOf(store), prefix, cursor });
         return { items: page.keys, next: page.next };
       }),
       authoredKeys: (node, prefix) => paged('KvListAuthored', async (cursor) => {
-        const page = await ok('KvListAuthored', { node_id: node, prefix, cursor });
+        const page: AuthoredPage = await ok('KvListAuthored', { node_id: node, prefix, cursor });
         return { items: page.entries, next: page.next };
       }),
     },

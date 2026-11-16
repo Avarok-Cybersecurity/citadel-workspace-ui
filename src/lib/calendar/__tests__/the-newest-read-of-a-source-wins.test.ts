@@ -16,8 +16,10 @@ import { calendarReducer, initialCalendar, type CalendarAction, type CalendarSta
 import { useCalendarSources } from '../use-calendar-sources';
 import { event, realEngine } from './engine-rig';
 import { MemoryStore } from './memory-store';
+import type { CalendarPorts } from '@/lib/calendar/ports';
+import type { CalendarEngine } from '@/lib/calendar/engine/calendar-engine';
 
-const engine = realEngine();
+const engine: CalendarEngine = realEngine();
 
 describe('reading a source twice at once', () => {
   it('keeps the newer read when the older one answers last', async () => {
@@ -31,17 +33,17 @@ describe('reading a source twice at once', () => {
       KvList: (args) => {
         if (typeof args.backend === 'object' && 'node' in args.backend && firstNodeList) {
           firstNodeList = false;
-          const stale = real.KvList(args) as PortAnswer<KvPage>;
+          const stale: PortAnswer<KvPage> = real.KvList(args) as PortAnswer<KvPage>;
           return new Promise<PortAnswer<KvPage>>((resolve) => { held.push((): void => resolve(stale)); });
         }
         return real.KvList(args);
       },
     };
     const listeners: Set<(c: StorageChange) => void> = new Set();
-    const ports = calendarPorts(glueInstance({
+    const ports: CalendarPorts = calendarPorts(glueInstance({
       appId: 'net.avarok.calendar', ports: { storage }, held: new Set<Capability>(['storage.user', 'storage.node', 'storage.node.authored']),
       policy: STANDARD_HOST_POLICY, limits: { topics: null, p2p: null }, clock: new ManualClock(), pageUrl: 'https://w.example/n1',
-      storageChanges: (l) => { listeners.add(l); return () => listeners.delete(l); },
+      storageChanges: (l) => { listeners.add(l); return (): boolean => listeners.delete(l); },
     }));
     let state: CalendarState = initialCalendar('month', { y: 2024, m: 7, d: 16 });
     const dispatch = (a: CalendarAction): void => { state = calendarReducer(state, a); };

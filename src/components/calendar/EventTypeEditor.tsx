@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { isTeamKind, type EditableKind, type KindChoice } from '@/lib/calendar/event-type-kind';
-import { checkEventType, COLOR_TOKENS, eventTypeDraft, type EventTypeDraft, type RangeDraft } from '@/lib/calendar/event-type-form';
+import { checkEventType, COLOR_TOKENS, eventTypeDraft, type EventTypeDraft, type RangeDraft, type EventTypeCheck } from '@/lib/calendar/event-type-form';
 import type { CivilDate } from '@/lib/calendar/generated/CivilDate';
 import type { ColorToken } from '@/lib/calendar/generated/ColorToken';
 import type { EventType } from '@/lib/calendar/generated/EventType';
@@ -80,7 +80,7 @@ export function EventTypeEditor({ id, saved, kinds, members, deviceZone, today, 
   };
   const save = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
-    const checked = checkEventType(id, draft, isKnownZone);
+    const checked: EventTypeCheck = checkEventType(id, draft, isKnownZone);
     if (!checked.ok) {
       setErrors(checked.errors);
       setSaid('Some fields need attention.');
@@ -131,8 +131,8 @@ export function EventTypeEditor({ id, saved, kinds, members, deviceZone, today, 
         {draft.range.kind === 'fixed' && (
           <div className="flex flex-wrap gap-2">
             {(['from', 'to'] as const).map((end) => {
-              const r = draft.range as Extract<RangeDraft, { kind: 'fixed' }>;
-              const v = r[end];
+              const r: { kind: "fixed"; from: CivilDate; to: CivilDate; } = draft.range as Extract<RangeDraft, { kind: 'fixed' }>;
+              const v: CivilDate = r[end];
               return (
                 <Input key={end} type="date" aria-label={end === 'from' ? 'First date' : 'Last date'} className="h-[44px] w-[180px]" value={`${v.y}-${String(v.m).padStart(2, '0')}-${String(v.d).padStart(2, '0')}`}
                   onChange={(e): void => {

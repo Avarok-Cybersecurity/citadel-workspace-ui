@@ -12,12 +12,13 @@ import type { CalendarEngine } from '@/lib/calendar/engine/calendar-engine';
 import { saveEvent } from '@/lib/calendar/event-save';
 import type { Event } from '@/lib/calendar/generated/Event';
 import { event, realEngine, utc } from '@/lib/calendar/__tests__/engine-rig';
-import { member, TopicGroup, treeOf } from '@/lib/calendar/__tests__/tree-rig';
+import { member, TopicGroup, treeOf, type Member } from '@/lib/calendar/__tests__/tree-rig';
 import { CalendarPane } from '../CalendarPane';
+import type { TreeNode } from '@/lib/citadel-apps/runtime/nodes-port';
 
 const engine: CalendarEngine = realEngine();
 /** a > b > c. */
-const TREE = treeOf({ a: null, b: 'a', c: 'b' });
+const TREE: Record<string, TreeNode> = treeOf({ a: null, b: 'a', c: 'b' });
 const ALL_HANDS: Event = event({
   id: 'all', origin_node: 'a', author: 'amy', title: 'All hands', propagate: { down: true, up_to: null },
   when: { once: { start_ms: utc('2024-07-16T16:00:00Z'), end_ms: utc('2024-07-16T17:00:00Z') } },
@@ -31,10 +32,10 @@ afterEach((): void => { vi.useRealTimers(); });
 
 async function opened(mayEditNode: boolean): Promise<Map<string, Uint8Array>> {
   const values: Map<string, Uint8Array> = new Map();
-  const amy = member('amy', values, TREE, new TopicGroup());
-  const saving = { ok: true as const, event: ALL_HANDS, store: { kind: 'node' as const, node: 'a' }, key: 'cal/event/all' };
+  const amy: Member = member('amy', values, TREE, new TopicGroup());
+  const saving: { ok: true; event: Event; store: { kind: "node"; node: string; }; key: string; } = { ok: true as const, event: ALL_HANDS, store: { kind: 'node' as const, node: 'a' }, key: 'cal/event/all' };
   expect(await saveEvent(amy.ports, engine, saving, null, () => {})).toEqual({ kind: 'saved' });
-  const state = { nodes: TREE, members: {}, workspace: { metadata: [] } } as unknown as WorkspaceState;
+  const state: WorkspaceState = { nodes: TREE, members: {}, workspace: { metadata: [] } } as unknown as WorkspaceState;
   render(
     <WorkspaceContext.Provider value={{ state }}>
       <CalendarPane ports={amy.ports} engine={engine} nodeId="a" me="amy" displayZone="America/New_York" deviceZone="America/New_York" held={new Set()} mayEditNode={mayEditNode} />
@@ -51,7 +52,7 @@ const BELOW: string[] = ['node:b|cal/inherit/a/all', 'node:c|cal/inherit/a/all']
 
 describe("changing one of the node's own events from its details", () => {
   it('cancels it, recording who, and takes it off every page below', async () => {
-    const values = await opened(true);
+    const values: Map<string, Uint8Array> = await opened(true);
     expect(projections(values)).toEqual(BELOW);
     fireEvent.change(screen.getByLabelText('Reason (optional)'), { target: { value: 'moved online' } });
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Cancel event' })); });
@@ -61,9 +62,9 @@ describe("changing one of the node's own events from its details", () => {
   });
 
   it('edited to stop going down, takes it off the pages below', async () => {
-    const values = await opened(true);
+    const values: Map<string, Uint8Array> = await opened(true);
     fireEvent.click(screen.getByRole('button', { name: 'Edit event' }));
-    const below = screen.getByLabelText('On every page below A') as HTMLInputElement;
+    const below: HTMLInputElement = screen.getByLabelText('On every page below A') as HTMLInputElement;
     expect(below.checked).toBe(true);
     fireEvent.click(below);
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Save changes' })); });
@@ -73,7 +74,7 @@ describe("changing one of the node's own events from its details", () => {
   });
 
   it('edited, shows the new title on the pages below, at the same times', async () => {
-    const values = await opened(true);
+    const values: Map<string, Uint8Array> = await opened(true);
     fireEvent.click(screen.getByRole('button', { name: 'Edit event' }));
     fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'All hands, moved' } });
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Save changes' })); });

@@ -13,6 +13,9 @@ import type { Projection } from '../generated/Projection';
 import type { SlotRequest } from '../generated/SlotRequest';
 import type { Write } from '../generated/Write';
 import { event, NY, realEngine, utc } from './engine-rig';
+import type { Imported } from '@/lib/calendar/generated/Imported';
+import type { IcsFile } from '@/lib/calendar/generated/IcsFile';
+import type { Event } from '../generated/Event';
 
 let engine: CalendarEngine;
 beforeAll(() => {
@@ -57,7 +60,7 @@ describe('propagation through the engine', () => {
   });
 
   it('pulls up to the named ancestor, caps the pull, and reconciles by what the reader can read', () => {
-    const fromBelow = event({ origin_node: 'n3', propagate: { down: false, up_to: 'n1' } });
+    const fromBelow: Event = event({ origin_node: 'n3', propagate: { down: false, up_to: 'n1' } });
     expect(engine.shownUpAt(fromBelow, ['n1'])).toBe(true);
     expect(engine.shownUpAt(fromBelow, ['n3', 'n1'])).toBe(false);
     const many: string[] = Array.from({ length: 300 }, (_: unknown, i: number): string => `n${i}`);
@@ -74,10 +77,10 @@ describe('propagation through the engine', () => {
 
 describe('ICS and stored values through the engine', () => {
   it('exports an event and imports it back as a draft', () => {
-    const file = engine.exportIcs([event({})]);
+    const file: IcsFile = engine.exportIcs([event({})]);
     expect(file.unwritten).toEqual([]);
     expect(file.text).toContain('SUMMARY:Standup');
-    const imported = engine.importIcs(file.text, NY);
+    const imported: Imported = engine.importIcs(file.text, NY);
     expect(imported.skipped).toEqual([]);
     expect(imported.drafts.map((d: { title: string }): string => d.title)).toEqual(['Standup']);
   });

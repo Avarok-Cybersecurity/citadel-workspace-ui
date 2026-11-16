@@ -9,10 +9,11 @@ import type { RoutingForm } from '../generated/RoutingForm';
 import type { RoutingRule } from '../generated/RoutingRule';
 import { blankForm, blankRule, formErrors, moveRule, unchosen } from '../routing-form-draft';
 import { realEngine } from './engine-rig';
+import type { CalendarEngine } from '@/lib/calendar/engine/calendar-engine';
 
-const engine = realEngine();
+const engine: CalendarEngine = realEngine();
 const TOPIC: Question = { id: 'q', label: 'Topic', kind: { choice: { options: ['Sales', 'Support'] } }, required: true };
-const to = (username: string) => ({ member: { username, slug: 'n1' } });
+const to = (username: string): { member: { username: string; slug: string; }; } => ({ member: { username, slug: 'n1' } });
 
 describe('editing a routing form', () => {
   it('moves a rule one place, and not past either end', () => {

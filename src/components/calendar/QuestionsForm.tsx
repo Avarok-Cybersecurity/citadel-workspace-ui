@@ -21,7 +21,7 @@ interface QuestionsFormProps {
 const FIELD: string = 'min-h-[44px] w-full';
 
 function Field({ q, id, value, invalid, describedBy, onChange }: { q: Question; id: string; value: string; invalid: boolean; describedBy: string | undefined; onChange: (v: string) => void }): JSX.Element {
-  const common = { id, required: q.required, 'aria-invalid': invalid, 'aria-describedby': describedBy };
+  const common: { id: string; required: boolean; 'aria-invalid': boolean; 'aria-describedby': string | undefined; } = { id, required: q.required, 'aria-invalid': invalid, 'aria-describedby': describedBy };
   if (q.kind === 'text') return <Input {...common} className={FIELD} value={value} onChange={(e): void => onChange(e.target.value)} />;
   if (q.kind === 'long_text') return <Textarea {...common} className={FIELD} rows={3} value={value} onChange={(e): void => onChange(e.target.value)} />;
   return (

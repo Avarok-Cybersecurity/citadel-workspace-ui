@@ -5,6 +5,7 @@
  */
 import { formatTimeIn, zoneAbbreviation } from './format';
 import type { Chip } from './placement';
+import type { ChipSpan } from '@/lib/calendar/placement';
 
 export interface ChipWords {
   /** "9:00 AM", or "All day". */
@@ -20,7 +21,7 @@ export interface ChipWords {
 }
 
 export function chipWords(chip: Chip, displayZone: string, nodeName: (id: string) => string): ChipWords {
-  const span = chip.span;
+  const span: ChipSpan = chip.span;
   const time: string = span.kind === 'all_day' ? 'All day' : formatTimeIn(span.startMs, displayZone);
   const badge: string | null = span.kind === 'timed' && chip.zone !== displayZone ? zoneAbbreviation(chip.zone, span.startMs) : null;
   const clock: string | null = span.kind === 'timed' ? zoneAbbreviation(displayZone, span.startMs) : null;
@@ -35,7 +36,7 @@ export function chipWords(chip: Chip, displayZone: string, nodeName: (id: string
 /** The chip's accessible name: "Standup, 9:00 AM to 9:30 AM EDT, From Company, cancelled". */
 export function chipLabel(chip: Chip, displayZone: string, nodeName: (id: string) => string): string {
   const words: ChipWords = chipWords(chip, displayZone, nodeName);
-  const span = chip.span;
+  const span: ChipSpan = chip.span;
   const when: string = span.kind === 'all_day'
     ? 'all day'
     : `${words.time} to ${formatTimeIn(span.endMs, displayZone)} ${words.clock ?? ''}`;

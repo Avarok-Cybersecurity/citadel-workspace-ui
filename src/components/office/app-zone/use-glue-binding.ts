@@ -3,7 +3,7 @@
  * and lets them go when it is not: the glue analogue of `useRuntimeMount`. Its first-party ports
  * read the tree and the roster as they are at the time of each call, not as they were at mount.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { pageAppNotices } from '@/lib/citadel-apps/app-notices';
 import type { RosterMember } from '@/lib/citadel-apps/runtime/first-party-ports';
@@ -14,8 +14,8 @@ export type GlueBinding = { kind: 'binding' } | GlueBound;
 
 export function useGlueBinding(runtime: AppZoneRuntime, tab: AppTabMount): GlueBinding {
   const { state } = useWorkspace();
-  const tree = useRef<Readonly<Record<string, TreeNode>>>(state.nodes);
-  const roster = useRef<readonly RosterMember[]>(Object.values(state.members));
+  const tree: MutableRefObject<Readonly<Record<string, TreeNode>>> = useRef<Readonly<Record<string, TreeNode>>>(state.nodes);
+  const roster: MutableRefObject<readonly RosterMember[]> = useRef<readonly RosterMember[]>(Object.values(state.members));
   tree.current = state.nodes;
   roster.current = Object.values(state.members);
   const [binding, setBinding] = useState<GlueBinding>({ kind: 'binding' });

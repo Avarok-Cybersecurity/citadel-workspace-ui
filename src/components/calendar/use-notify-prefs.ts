@@ -3,7 +3,7 @@
  * ports, saved on each change, one save at a time. Settings that cannot be read are shown as what
  * applies (the ones before a choice), with that said; a refused read says why and offers nothing.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { readPrefs } from '@/lib/calendar/notice-gate';
 import { decodePrefs, encodePrefs, NOTIFY_PREFS_KEY, type NotifyPrefs } from '@/lib/calendar/notify-prefs';
 import { PortRefused, refusalCopy, type CalendarPorts } from '@/lib/calendar/ports';
@@ -29,9 +29,9 @@ export function useNotifyPrefs(ports: CalendarPorts): PrefsState {
   const [read, setRead] = useState<Read>({ kind: 'loading' });
   const [saving, setSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const turn = useRef<Promise<void>>(Promise.resolve());
+  const turn: MutableRefObject<Promise<void>> = useRef<Promise<void>>(Promise.resolve());
   /** What is kept, read again: on mount, and after a save that failed, so the form never shows what was not saved. */
-  const reread = useCallback(async (): Promise<Read> => {
+  const reread: () => Promise<Read> = useCallback(async (): Promise<Read> => {
     const bytes: Uint8Array | null = await ports.storage.get({ kind: 'user' }, NOTIFY_PREFS_KEY);
     return { kind: 'ready', prefs: await readPrefs(ports.storage), chosen: bytes !== null && decodePrefs(bytes) !== null };
   }, [ports]);
@@ -41,7 +41,7 @@ export function useNotifyPrefs(ports: CalendarPorts): PrefsState {
     reread().then((r: Read): void => { if (live) setRead(r); }, (e: unknown): void => { if (live) setRead({ kind: 'failed', reason: reasonOf(e) }); });
     return (): void => { live = false; };
   }, [reread]);
-  const save = useCallback((next: NotifyPrefs): void => {
+  const save: (next: NotifyPrefs) => void = useCallback((next: NotifyPrefs): void => {
     setRead({ kind: 'ready', prefs: next, chosen: true });
     setSaving(true);
     setError(null);

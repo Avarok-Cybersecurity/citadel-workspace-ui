@@ -9,7 +9,7 @@
  *
  * With no window open nothing runs: that needs server-side timers (Signals), not this.
  */
-import type { StorageChange } from '@/lib/citadel-apps/host/glue-instance';
+import type { StorageChange, Unsubscribe } from '@/lib/citadel-apps/host/glue-instance';
 import type { CalendarEngine } from './engine/calendar-engine';
 import type { Event } from './generated/Event';
 import { formatDayShort, formatTimeIn } from './format';
@@ -70,7 +70,7 @@ export function startCalendarBackground(d: BackgroundDeps): () => void {
   runner.tick().catch((e: unknown): void => d.report('[calendar] reminders could not be handled', e));
   // One change at a time, in arrival order, so one change heard twice is told once.
   let turn: Promise<void> = Promise.resolve();
-  const off = ports.onStorageChanged((change: StorageChange): void => {
+  const off: Unsubscribe = ports.onStorageChanged((change: StorageChange): void => {
     turn = turn.then(async (): Promise<void> => {
       const zone: string = await zoneOf(d);
       await tellAbout(change, { ports, engine, me: d.me, nodeName: d.nodeName, when: (event: Event): string => startOf(d, zone, startMsOf(d, event)) });

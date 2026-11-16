@@ -5,6 +5,7 @@
  * author's vote and computed by the core, never stored. Picking a proposal turns the poll into the
  * host's event on the node, with everyone who said yes or maybe invited.
  */
+import type { AuthoredKey } from '@/lib/citadel-apps/sdk/generated/AuthoredKey';
 import type { CalendarEngine } from './engine/calendar-engine';
 import type { PollTally } from './engine/team-engine';
 import type { Event } from './generated/Event';
@@ -13,6 +14,7 @@ import type { Poll } from './generated/Poll';
 import type { PollVote } from './generated/PollVote';
 import type { CalendarPorts, CalendarStore } from './ports';
 import { EVENT_PREFIX } from './read-sources';
+import type { ProposalTally } from './generated/ProposalTally';
 
 export const POLL_PREFIX: string = 'cal/poll/';
 export const VOTE_PREFIX: string = 'cal/poll-vote/';
@@ -32,7 +34,7 @@ export async function readPoll(ports: CalendarPorts, engine: CalendarEngine, nod
 
 /** Every poll on `node`, by every host, by title; a value that will not decode is counted, not shown. */
 export async function listPolls(ports: CalendarPorts, engine: CalendarEngine, node: string): Promise<{ polls: Poll[]; unreadable: number }> {
-  const keys = await ports.storage.authoredKeys(node, POLL_PREFIX);
+  const keys: AuthoredKey[] = await ports.storage.authoredKeys(node, POLL_PREFIX);
   const polls: Poll[] = [];
   let unreadable: number = 0;
   for (const k of keys) {
@@ -64,7 +66,7 @@ export async function castVote(ports: CalendarPorts, engine: CalendarEngine, nod
 /** Every author's vote on `poll`, tallied; a vote that will not decode counts for nothing. */
 export async function tallyOf(ports: CalendarPorts, engine: CalendarEngine, node: string, poll: Poll): Promise<PollTally> {
   const key: string = `${VOTE_PREFIX}${poll.id}`;
-  const keys = (await ports.storage.authoredKeys(node, key)).filter((k) => k.key === key);
+  const keys: AuthoredKey[] = (await ports.storage.authoredKeys(node, key)).filter((k) => k.key === key);
   const votes: [string, PollVote][] = [];
   for (const k of keys) {
     const bytes: Uint8Array | null = await ports.storage.get(authored(node, k.author), key);
@@ -91,7 +93,7 @@ export interface PickContext {
 export async function pickProposal(ports: CalendarPorts, engine: CalendarEngine, poll: Poll, proposal: number, ctx: PickContext): Promise<Event> {
   const [picked, slot]: [Poll, Interval] = engine.team.pick(poll, proposal, ctx.eventId);
   const { tallies } = await tallyOf(ports, engine, ctx.node, poll);
-  const chosen = tallies[proposal];
+  const chosen: ProposalTally = tallies[proposal];
   const invited: string[] = chosen === undefined ? [] : [...chosen.yes, ...chosen.maybe].filter((u: string) => u !== poll.host);
   const event: Event = {
     id: ctx.eventId, rev: 1, origin_node: ctx.node, author: poll.host, title: poll.title, body: null, kind: 'plain', status: 'confirmed',

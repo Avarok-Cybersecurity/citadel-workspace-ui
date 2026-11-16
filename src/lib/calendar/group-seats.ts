@@ -14,6 +14,7 @@ import type { EventType } from './generated/EventType';
 import type { Interval } from './generated/Interval';
 import type { CalendarPorts } from './ports';
 import { askRequest, hostSlots, type SlotAsk } from './team-slots';
+import type { SlotRequest } from './generated/SlotRequest';
 
 const live = (b: Booking): boolean => b.state === 'confirmed' || (typeof b.state === 'object' && 'rescheduled' in b.state);
 
@@ -39,7 +40,7 @@ export function sharedSeats(type: EventType, slot: SeatSlot, acks: readonly Book
 /** Every booking `host` has answered on `node` (`cal/booking-ack/<id>` in their authored namespace). */
 export async function readAcks(ports: CalendarPorts, engine: CalendarEngine, node: string, host: string): Promise<Booking[]> {
   const keys: string[] = (await ports.storage.authoredKeys(node, BOOKING_ACK_PREFIX)).filter((k) => k.author === host).map((k) => k.key);
-  const values = await Promise.all(keys.map((key: string) => ports.storage.get({ kind: 'authored', node, author: host }, key)));
+  const values: (Uint8Array | null)[] = await Promise.all(keys.map((key: string) => ports.storage.get({ kind: 'authored', node, author: host }, key)));
   return values.filter((b): b is Uint8Array => b !== null).map((b: Uint8Array) => engine.decodeBooking(b));
 }
 
@@ -67,7 +68,7 @@ export function bookerSlots(engine: Engine, ask: SlotAsk, availability: Availabi
     if (b.type_id !== ask.type.id || slot.end_ms - slot.start_ms !== length || offered.has(keyOf(slot))) continue;
     const seated: Set<string> = new Set(sharedSeats(ask.type, { id: null, type_id: ask.type.id, ...slot }, acks, engine));
     if (seated.size === 0) continue;
-    const request = askRequest(engine, ask, availability, (f: bigint, t: bigint, z: string) => busyFor(f, t, z, seated));
+    const request: SlotRequest = askRequest(engine, ask, availability, (f: bigint, t: bigint, z: string) => busyFor(f, t, z, seated));
     if (engine.offers(request, slot)) offered.set(keyOf(slot), slot);
   }
   return [...offered.values()].sort(byStart);

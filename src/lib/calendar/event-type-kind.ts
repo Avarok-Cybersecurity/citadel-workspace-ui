@@ -71,7 +71,7 @@ export function checkKind(draft: KindDraft, errors: Map<string, string>): TypeKi
 
 /** The kind fields of a saved type's form; every kind the core has is one this editor makes. */
 export function kindDraftOf(kind: TypeKind): KindDraft {
-  const none = { seats: '', hosts: [], strategy: 'equal' as const, weights: {} };
+  const none: { seats: string; hosts: never[]; strategy: "equal"; weights: {}; } = { seats: '', hosts: [], strategy: 'equal' as const, weights: {} };
   if (kind === 'one_on_one' || kind === 'poll') return { ...none, kind };
   if ('group' in kind) return { ...none, kind: 'group', seats: String(kind.group.seats) };
   if ('collective' in kind) return { ...none, kind: 'collective', hosts: kind.collective.hosts };

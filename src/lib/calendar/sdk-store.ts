@@ -38,7 +38,7 @@ export interface AppConsent {
 /** Every app the member answered, by app id. */
 export async function readConsents(ports: CalendarPorts, engine: Sdk): Promise<AppConsent[]> {
   const keys: string[] = await ports.storage.keys(USER, SDK_ALLOW_PREFIX);
-  const got = await Promise.all(keys.map(async (key: string): Promise<AppConsent | null> => {
+  const got: (AppConsent | null)[] = await Promise.all(keys.map(async (key: string): Promise<AppConsent | null> => {
     const consent: Consent | null = await readConsent(ports, engine, key.slice(SDK_ALLOW_PREFIX.length));
     return consent === null ? null : { appId: key.slice(SDK_ALLOW_PREFIX.length), consent };
   }));

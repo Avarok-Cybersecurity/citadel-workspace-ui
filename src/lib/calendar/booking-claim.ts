@@ -16,6 +16,8 @@ import type { Event } from './generated/Event';
 import type { EventType } from './generated/EventType';
 import type { Interval } from './generated/Interval';
 import { slotRequest, type SlotInput } from './slot-list';
+import type { FormCheck } from '@/lib/calendar/booking-form';
+import type { Availability } from './generated/Availability';
 
 /** How many other times a lost race is offered, and over how many days from its date. */
 export const MAX_ALTERNATIVES: number = 5;
@@ -43,7 +45,7 @@ type Engine = Pick<CalendarEngine, 'offers' | 'freeSlots' | 'civilOf' | 'addDays
 const bookerOf = (b: Booking): string => ('member' in b.booker ? b.booker.member.username : b.booker.guest.account);
 
 function slotInput(type: EventType, durationMin: number, input: ClaimInput, from: CivilDate, to: CivilDate, engine: Engine): SlotInput {
-  const availability = input.page.availability;
+  const availability: Availability | null = input.page.availability;
   if (availability === null) throw new Error('a claim needs the host\'s schedule');
   const fromMs: bigint = engine.instantOf(availability.zone, { date: from, minute: 0 });
   const toMs: bigint = engine.instantOf(availability.zone, { date: engine.addDays(to, 1), minute: 0 });
@@ -59,7 +61,7 @@ export function decideClaim(input: ClaimInput, engine: Engine): ClaimVerdict {
   if (type === undefined) return { kind: 'refused', status: 404, reason: 'no such event type' };
   const minutes: bigint = (booking.end_ms - booking.start_ms) / 60_000n;
   if ((booking.end_ms - booking.start_ms) % 60_000n !== 0n || !type.durations_min.includes(Number(minutes))) return { kind: 'refused', status: 422, reason: 'not a length this type offers' };
-  const answers = checkAnswers(type.questions, new Map(booking.answers.map((a) => [a.question_id, a.value])));
+  const answers: FormCheck = checkAnswers(type.questions, new Map(booking.answers.map((a) => [a.question_id, a.value])));
   if (!answers.ok) return { kind: 'refused', status: 422, reason: [...answers.errors.values()].join(' ') };
 
   const zone: string = page.availability.zone;

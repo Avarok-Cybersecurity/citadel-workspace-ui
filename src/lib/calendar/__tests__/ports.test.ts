@@ -41,7 +41,7 @@ describe("the Calendar's ports", () => {
     let at: string = 'first';
     const storage: StoragePort = { ...fakeStorage(rec), KvList: (args) => {
       rec.calls.push({ method: 'KvList', args });
-      const page = pages[at] as { keys: string[]; next: string | null };
+      const page: { keys: string[]; next: string | null; } = pages[at] as { keys: string[]; next: string | null };
       at = page.next ?? 'done';
       return { ok: page };
     } };
@@ -56,7 +56,7 @@ describe("the Calendar's ports", () => {
 
   it('hands back the value, the members and the nodes the ports answer', async () => {
     const storage: StoragePort = { ...fakeStorage({ calls: [] }), KvGet: () => ({ ok: { value: new Uint8Array([1, 2]) } }) };
-    const ports = rig({
+    const ports: CalendarPorts = rig({
       storage,
       members: rosterMembersPort(() => [{ username: 'amy', displayName: 'Amy', isOnline: true }]),
       nodes: treeNodesPort('Workspace', () => ({ n1: { id: 'n1', name: 'Platform', parent_id: null, children: [] } })),
@@ -82,7 +82,7 @@ describe("the Calendar's ports", () => {
       TopicClose: recordingCall(rec, 'TopicClose', () => ({ ok: null })),
       onEvent: () => () => {},
     };
-    const ports = rig({ topic });
+    const ports: CalendarPorts = rig({ topic });
     expect(await ports.topics.open('cal')).toEqual(['amy', 'bob']);
     await ports.topics.publish('cal', new Uint8Array([7]));
     await ports.topics.close('cal');
@@ -91,7 +91,7 @@ describe("the Calendar's ports", () => {
 
   it('refuses a notification the grant does not cover in the page; the port is never reached (control: granted, it is)', async () => {
     const rec: Recorder = { calls: [] };
-    const without = rig({ notify: notifyRecorder(rec) }, ALL.filter((c) => c !== 'notifications'));
+    const without: CalendarPorts = rig({ notify: notifyRecorder(rec) }, ALL.filter((c) => c !== 'notifications'));
     await expect(without.notify('reminders', 'Standup', 'in 10 minutes')).rejects.toMatchObject({ op: 'Notify', refused: 'ungranted' });
     expect(rec.calls).toEqual([]);
     await rig({ notify: notifyRecorder(rec) }).notify('reminders', 'Standup', 'in 10 minutes');
@@ -100,7 +100,7 @@ describe("the Calendar's ports", () => {
 
   it('refuses the authored store to an install without storage.node.authored, though storage.node is granted', async () => {
     const rec: Recorder = { calls: [] };
-    const ports = rig({ storage: fakeStorage(rec) }, ['storage.user', 'storage.node']);
+    const ports: CalendarPorts = rig({ storage: fakeStorage(rec) }, ['storage.user', 'storage.node']);
     await expect(ports.storage.authoredKeys('n1', 'cal/event/')).rejects.toMatchObject({ refused: 'ungranted' });
     await expect(ports.storage.get({ kind: 'authored', node: 'n1', author: 'bob' }, 'cal/event/x')).rejects.toMatchObject({ refused: 'ungranted' });
     expect(rec.calls).toEqual([]);

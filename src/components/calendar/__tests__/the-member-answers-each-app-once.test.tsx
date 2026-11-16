@@ -14,11 +14,12 @@ import { readConsent, saveConsent } from '@/lib/calendar/sdk-store';
 import { SdkAppsPanel } from '../SdkAppsPanel';
 import { SdkConsentPrompt } from '../SdkConsentPrompt';
 import { useSdkConsent, type SdkConsent } from '../use-sdk-consent';
+import type { CalendarEngine } from '@/lib/calendar/engine/calendar-engine';
 
-const engine = realEngine();
+const engine: CalendarEngine = realEngine();
 
 function Prompt({ grab }: { grab: (c: SdkConsent) => void }): JSX.Element {
-  const consent = useSdkConsent();
+  const consent: SdkConsent = useSdkConsent();
   grab(consent);
   return <SdkConsentPrompt consent={consent} />;
 }

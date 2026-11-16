@@ -46,7 +46,7 @@ export function checkWindows(typed: readonly WindowText[]): WindowsCheck {
     windows.push({ start_min: start, end_min: end });
   }
   windows.sort((a: Window, b: Window): number => a.start_min - b.start_min);
-  for (let i = 1; i < windows.length; i += 1) {
+  for (let i: number = 1; i < windows.length; i += 1) {
     const before: Window = windows[i - 1] as Window;
     const after: Window = windows[i] as Window;
     if (after.start_min < before.end_min) return { ok: false, error: `${clockText(after.start_min)} starts before ${clockText(before.end_min)} ends.` };

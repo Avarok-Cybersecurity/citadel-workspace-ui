@@ -3,7 +3,7 @@
  * it (server-upload). Held here, not in a toast: the strip under the transcript shows the progress
  * and stays with the outcome until the person dismisses it.
  */
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { announcement, type ServerUpload } from '@/lib/chat/attachments/server-upload';
 
 export interface ServerUploadView {
@@ -20,14 +20,14 @@ export interface ServerUploadControl {
 }
 
 export function useServerUpload(): ServerUploadControl {
-  const current = useRef<ServerUpload | null>(null);
+  const current: MutableRefObject<ServerUpload | null> = useRef<ServerUpload | null>(null);
   const [state, setState] = useState<{ upload: ServerUpload | null; announced: string }>({ upload: null, announced: '' });
-  const move = useCallback((next: ServerUpload): void => {
+  const move: (next: ServerUpload) => void = useCallback((next: ServerUpload): void => {
     const said: string | null = announcement(current.current, next);
     current.current = next;
     setState((was: { announced: string }): { upload: ServerUpload; announced: string } => ({ upload: next, announced: said ?? was.announced }));
   }, []);
-  const dismiss = useCallback((): void => {
+  const dismiss: () => void = useCallback((): void => {
     current.current = null;
     setState({ upload: null, announced: '' });
   }, []);

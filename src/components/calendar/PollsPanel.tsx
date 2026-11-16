@@ -37,7 +37,7 @@ const reasonOf = (e: unknown): string => (e instanceof PortRefused ? refusalCopy
 export function PollsPanel({ ports, engine, node, me, displayZone, firstDate, newId, nowMs }: PollsPanelProps): JSX.Element {
   const [loaded, setLoaded] = useState<Loaded>({ kind: 'loading' });
   const [composing, setComposing] = useState<string | null>(null);
-  const reload = useCallback(async (): Promise<void> => {
+  const reload: () => Promise<void> = useCallback(async (): Promise<void> => {
     try {
       const [{ polls, unreadable }, page] = await Promise.all([listPolls(ports, engine, node.id), readBookingPage(ports, engine, node.id, me)]);
       const shown: Shown[] = await Promise.all(polls.map(async (poll: Poll): Promise<Shown> => ({

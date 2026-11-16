@@ -27,7 +27,7 @@ function cursorWith(clock: ManualClock, newest: { id: string | null }, receipts:
 describe('the read cursor', () => {
   it('folds reads inside the gap into one trailing write of the newest message', async () => {
     const clock: ManualClock = new ManualClock();
-    const newest = { id: 'm1' as string | null };
+    const newest: { id: string | null; } = { id: 'm1' as string | null };
     const writes: string[] = [];
     const cursor: ReadCursor = cursorWith(clock, newest, { on: true }, writes, { next: false });
     cursor.read();
@@ -60,7 +60,7 @@ describe('the read cursor', () => {
 });
 
 function typingWith(clock: ManualClock, sent: number[], shows: { on: boolean }): { port: StatusPort; heard: (m: string) => void; wrote: (m: string) => void; seen: string[][] } {
-  const hooks = { heard: (_m: string): void => undefined, wrote: (_m: string): void => undefined };
+  const hooks: { heard: (_m: string) => void; wrote: (_m: string) => void; } = { heard: (_m: string): void => undefined, wrote: (_m: string): void => undefined };
   const port: StatusPort = nodeStatus({
     clock, sendTyping: (): void => { sent.push(clock.now()); }, showsTyping: (): boolean => shows.on, selfUsername: 'ada',
     nameOf: (member: string): string => member.toUpperCase(),
@@ -80,7 +80,7 @@ describe('typing in a node channel', () => {
     port.startTyping((): string => text);
     clock.advance(3_000);
     expect(sent).toEqual([]);
-    for (let i = 0; i < 10; i += 1) { text += 'x'; clock.advance(1_000); }
+    for (let i: number = 0; i < 10; i += 1) { text += 'x'; clock.advance(1_000); }
     expect(sent.length).toBe(Math.ceil(10_000 / TYPING_SEND_GAP_MS));
     expect(sent[1] - sent[0]).toBeGreaterThanOrEqual(TYPING_SEND_GAP_MS);
     port.stopTyping();
@@ -93,7 +93,7 @@ describe('typing in a node channel', () => {
     const { port } = typingWith(clock, sent, { on: false });
     let text: string = '';
     port.startTyping((): string => text);
-    for (let i = 0; i < 6; i += 1) { text += 'x'; clock.advance(1_000); }
+    for (let i: number = 0; i < 6; i += 1) { text += 'x'; clock.advance(1_000); }
     expect(sent).toEqual([]);
   });
 

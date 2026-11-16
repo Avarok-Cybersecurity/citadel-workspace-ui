@@ -4,7 +4,7 @@
  * events, checked by `checkEvent` (event-draft.ts) and written by `onSave`. Times are typed on
  * the member's display zone clock, which the form says. In the page's flow, above the grid.
  */
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, type RefObject } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -69,12 +69,12 @@ function MissedPages({ missed, nodeName, onDone }: { missed: readonly FanOutFail
 
 export function EventEditor({ date, reminders, editing, node, above, nodeName, me, displayZone, engine, newId, nowMs, onSave, onClose }: EventEditorProps): JSX.Element {
   const base: string = useId();
-  const title = useRef<HTMLInputElement>(null);
+  const title: RefObject<HTMLInputElement> = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState<EventDraft>(editing?.draft ?? {
     title: '', notes: '', date, allDay: false, start: '09:00', end: '10:00', location: { kind: 'in_app' }, visibility: 'public', destination: 'authored', down: false, upTo: null, reminders,
   });
   // An edit keeps the event where it is stored: a private event stays private, a shared one shared.
-  const choices = editing === null ? VISIBILITY : editing.kept === 'private' ? [] : VISIBILITY.filter((v) => v.value !== 'private');
+  const choices: { value: Visibility; label: string; }[] = editing === null ? VISIBILITY : editing.kept === 'private' ? [] : VISIBILITY.filter((v) => v.value !== 'private');
   const [errors, setErrors] = useState<ReadonlyMap<string, string>>(new Map());
   const [saving, setSaving] = useState<boolean>(false);
   const [failed, setFailed] = useState<string | null>(null);
@@ -135,7 +135,7 @@ export function EventEditor({ date, reminders, editing, node, above, nodeName, m
         <label htmlFor={`${base}-where`} className="text-sm font-medium text-foreground">Where</label>
         <NativeSelect id={`${base}-where`} className="w-full" value={draft.location.kind}
           onChange={(e): void => {
-            const k = e.target.value as EventDraft['location']['kind'];
+            const k: "in_app" | "in_person" | "text" = e.target.value as EventDraft['location']['kind'];
             set({ location: k === 'in_app' ? { kind: k } : k === 'in_person' ? { kind: k, address: '' } : { kind: k, text: '' } });
           }}>
           <option value="in_app">A call in the workspace</option>

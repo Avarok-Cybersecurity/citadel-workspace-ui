@@ -12,5 +12,5 @@ export const INTRO: EventType = {
   rules: { buffer_before_min: 0, buffer_after_min: 0, min_notice_min: 4 * 60, max_per_day: null, increment_min: 30, range: 'indefinite', cancel_policy: null },
 };
 
-const workday = [{ start_min: 9 * 60, end_min: 12 * 60 }, { start_min: 13 * 60, end_min: 17 * 60 }];
+const workday: { start_min: number; end_min: number; }[] = [{ start_min: 9 * 60, end_min: 12 * 60 }, { start_min: 13 * 60, end_min: 17 * 60 }];
 export const WORKING_HOURS: Availability = { id: 'a1', name: 'Working hours', zone: NY, weekly: [workday, workday, workday, workday, workday, [], []], overrides: [] };

@@ -5,7 +5,7 @@
  * host's alternatives and moves focus to them.
  */
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, type Mock } from 'vitest';
 import { INTRO, WORKING_HOURS } from '@/lib/calendar/__tests__/booking-fixture';
 import { NY, realEngine, utc } from '@/lib/calendar/__tests__/engine-rig';
 import type { BookingChoice, BookOutcome } from '@/lib/calendar/booking-form';
@@ -15,9 +15,10 @@ import type { Interval } from '@/lib/calendar/generated/Interval';
 import { slotRequest } from '@/lib/calendar/slot-list';
 import { hostSlots } from '@/lib/calendar/team-slots';
 import { BookingPage } from '../BookingPage';
+import type { CalendarEngine } from '@/lib/calendar/engine/calendar-engine';
 
-const engine = realEngine();
-const TODAY = { y: 2024, m: 7, d: 15 };
+const engine: CalendarEngine = realEngine();
+const TODAY: { y: number; m: number; d: number; } = { y: 2024, m: 7, d: 15 };
 const NOW: bigint = utc('2024-07-15T13:30:00Z');
 const BUSY: Interval = { start_ms: utc('2024-07-16T14:00:00Z'), end_ms: utc('2024-07-16T15:00:00Z') };
 const busyFor = (): HostBusy => ({ busy: [BUSY], booked: [] });
@@ -60,7 +61,7 @@ describe('the booking page', () => {
   });
 
   it('does not book until the required question is answered, then hands over the choice as seen', async () => {
-    const onBook = vi.fn(async (c: BookingChoice): Promise<BookOutcome> => ({ kind: 'failed', reason: `kept ${c.answers.length}` }));
+    const onBook: Mock<(c: BookingChoice) => Promise<BookOutcome>> = vi.fn(async (c: BookingChoice): Promise<BookOutcome> => ({ kind: 'failed', reason: `kept ${c.answers.length}` }));
     page(onBook);
     pickDay(16);
     fireEvent.click(screen.getAllByTestId('calendar-slot')[0] as HTMLElement);
@@ -70,7 +71,7 @@ describe('the booking page', () => {
     fireEvent.change(screen.getByLabelText(/What should we cover\?/), { target: { value: 'Roadmap' } });
     await act(async () => { fireEvent.click(screen.getByTestId('calendar-confirm-booking')); });
     expect(onBook).toHaveBeenCalledTimes(1);
-    const choice = onBook.mock.calls[0]?.[0] as BookingChoice;
+    const choice: BookingChoice = onBook.mock.calls[0]?.[0] as BookingChoice;
     expect([choice.type.id, choice.durationMin, choice.zone, choice.answers]).toEqual(['t1', 30, NY, [{ question_id: 'q-topic', value: 'Roadmap' }]]);
     expect(choice.slot.start_ms).toBe(utc('2024-07-16T13:00:00Z'));
     expect(screen.getByTestId('calendar-booking-said')).toHaveTextContent('Not booked: kept 1.');

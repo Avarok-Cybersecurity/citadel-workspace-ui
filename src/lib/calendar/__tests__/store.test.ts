@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { calendarReducer, entryKey, initialCalendar, type CalendarState } from '../store';
 import { bobsBusy, inherited, standup } from './placement-fixture';
 
-const today = { y: 2026, m: 10, d: 24 };
+const today: { y: number; m: number; d: number; } = { y: 2026, m: 10, d: 24 };
 
 describe('the Calendar store', () => {
   it('starts on the view and day it is given, with nothing read', () => {

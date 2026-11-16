@@ -13,12 +13,14 @@ import { readRoutingForms, routeAnswers, saveRoutingForm } from '../routing-form
 import { engine, member, NOW, type Member } from './booking-rig';
 import { utc } from './event-fixture';
 import { IhttpRelay } from './ihttp-relay';
+import type { PollTally } from '@/lib/calendar/engine/team-engine';
+import type { Event } from '../generated/Event';
 
-const hour = (h: number) => ({ start_ms: utc(`2024-07-16T${h}:00:00Z`), end_ms: utc(`2024-07-16T${h}:30:00Z`) });
+const hour = (h: number): { start_ms: bigint; end_ms: bigint; } => ({ start_ms: utc(`2024-07-16T${h}:00:00Z`), end_ms: utc(`2024-07-16T${h}:30:00Z`) });
 const POLL: Poll = { id: 'p1', type_id: 'plan', host: 'ana', title: 'Planning', zone: 'America/New_York', proposals: [hour(13), hour(15), hour(17)], state: 'open' };
 
 async function members(): Promise<{ shared: Map<string, Uint8Array>; m: (name: string) => Member }> {
-  const relay = new IhttpRelay();
+  const relay: IhttpRelay = new IhttpRelay();
   const shared: Map<string, Uint8Array> = new Map();
   const all: Map<string, Member> = new Map();
   for (const name of ['ana', 'bo', 'cy']) all.set(name, await member(name, relay, shared));
@@ -31,13 +33,13 @@ describe('polls', () => {
     await savePoll(m('ana').ports, engine, 'n1', POLL);
     await castVote(m('bo').ports, engine, 'n1', 'bo', POLL, { poll_id: 'p1', yes: [1], maybe: [0] });
     await castVote(m('cy').ports, engine, 'n1', 'cy', POLL, { poll_id: 'p1', yes: [1, 2], maybe: [] });
-    const tally = await tallyOf(m('ana').ports, engine, 'n1', POLL);
+    const tally: PollTally = await tallyOf(m('ana').ports, engine, 'n1', POLL);
     expect(tally.leading).toBe(1);
     expect(tally.tallies[1]?.yes).toEqual(['bo', 'cy']);
-    const made = await pickProposal(m('ana').ports, engine, POLL, 1, { node: 'n1', eventId: 'e-plan', nowMs: NOW });
+    const made: Event = await pickProposal(m('ana').ports, engine, POLL, 1, { node: 'n1', eventId: 'e-plan', nowMs: NOW });
     expect(made).toMatchObject({ when: { once: hour(15) }, hosts: ['ana'], invitees: [{ member: { username: 'bo' } }, { member: { username: 'cy' } }] });
     expect(shared.has('authored:n1:ana|cal/event/e-plan')).toBe(true);
-    const picked = await readPoll(m('bo').ports, engine, 'n1', 'ana', 'p1');
+    const picked: Poll | null = await readPoll(m('bo').ports, engine, 'n1', 'ana', 'p1');
     expect(picked?.state).toEqual({ picked: { proposal: 1, event_id: 'e-plan' } });
     await expect(pickProposal(m('ana').ports, engine, picked as Poll, 0, { node: 'n1', eventId: 'e2', nowMs: NOW })).rejects.toBeInstanceOf(CalendarRefusal);
     await expect(castVote(m('bo').ports, engine, 'n1', 'bo', picked as Poll, { poll_id: 'p1', yes: [0], maybe: [] })).rejects.toMatchObject({ code: 'not_open' });

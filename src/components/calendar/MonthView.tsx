@@ -10,6 +10,7 @@ import type { CivilDate } from '@/lib/calendar/generated/CivilDate';
 import type { Chip, Placement } from '@/lib/calendar/placement';
 import { EventChip } from './EventChip';
 import { useRovingGrid, type GridHandlers } from './use-roving-grid';
+import type { DayCell, RovingGrid } from '@/components/calendar/use-roving-grid';
 
 /** Chips a desktop day lists before "+N more". */
 const SHOWN_PER_DAY: number = 3;
@@ -32,13 +33,13 @@ const counted = (n: number): string => (n === 0 ? 'no events' : n === 1 ? '1 eve
 
 function weeksOf(days: CivilDate[]): CivilDate[][] {
   const weeks: CivilDate[][] = [];
-  for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7));
+  for (let i: number = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7));
   return weeks;
 }
 
 export function MonthView(props: MonthViewProps): JSX.Element {
   const { days, cursor, today, placement, displayZone, nodeName, nav, onOpenChip, onMore } = props;
-  const grid = useRovingGrid(cursor, 'month', nav, props);
+  const grid: RovingGrid = useRovingGrid(cursor, 'month', nav, props);
   const firstWeek: CivilDate[] = days.slice(0, 7);
   return (
     <div
@@ -62,7 +63,7 @@ export function MonthView(props: MonthViewProps): JSX.Element {
             const outside: boolean = day.m !== cursor.m;
             const isToday: boolean = sameDate(day, today);
             const hidden: number = Math.max(0, chips.length - SHOWN_PER_DAY);
-            const cell = grid.cell(day);
+            const cell: DayCell = grid.cell(day);
             return (
               <div
                 key={cell.key}

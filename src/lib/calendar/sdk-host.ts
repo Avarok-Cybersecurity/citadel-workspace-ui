@@ -13,7 +13,7 @@ import type { IhttpMessage } from '@/lib/citadel-apps/glue-sdk/ihttp-io';
 import type { IhttpRequest } from '@/lib/citadel-apps/glue-sdk/ihttp-server';
 import { announce } from './cal-topic';
 import type { CalendarEngine } from './engine/calendar-engine';
-import { saveEvent } from './event-save';
+import { saveEvent, type SaveOutcome } from './event-save';
 import type { Event } from './generated/Event';
 import type { Placement } from './generated/Placement';
 import type { SdkRefusal } from './generated/SdkRefusal';
@@ -22,6 +22,14 @@ import type { CalendarPorts } from './ports';
 import { REMINDER_PREFIX } from './reminder-scheduler';
 import { freeBusy, listEvents } from './sdk-reads';
 import { dropPlacement, keepPlacement, keptBy, placementOf, readConsent, saveConsent, whereKept } from './sdk-store';
+import type { Consent } from './generated/Consent';
+import type { Gate } from './generated/Gate';
+import type { SdkAnswer } from './generated/SdkAnswer';
+import type { ListQuery } from './generated/ListQuery';
+import type { FreeBusyQuery } from './generated/FreeBusyQuery';
+import type { NewEvent } from './generated/NewEvent';
+import type { EventPatch } from './generated/EventPatch';
+import type { Rev } from './generated/Rev';
 
 /** `unanswered`: the prompt went away unanswered; nothing is let through and nothing is kept. */
 export type ConsentAnswer = 'allow' | 'once' | 'refuse' | 'unanswered';
@@ -55,8 +63,8 @@ export class SdkHost {
     if (route === null) return this.refuse({ code: 'bad_request', current_rev: null, detail: 'not an SDK route' });
     const app: string = request.caller.app_id;
     const mutates: boolean = route === 'create' || typeof route === 'object';
-    const consent = mutates ? await readConsent(this.d.ports, this.d.engine, app) : null;
-    const gate = this.d.engine.sdk.gate(route, request.caller.username, this.d.me, consent);
+    const consent: Consent | null = mutates ? await readConsent(this.d.ports, this.d.engine, app) : null;
+    const gate: Gate = this.d.engine.sdk.gate(route, request.caller.username, this.d.me, consent);
     if (typeof gate === 'object') return this.refuse(gate.refuse);
     if (gate === 'ask') {
       const answer: ConsentAnswer = await this.askOnce(app);
@@ -95,11 +103,11 @@ export class SdkHost {
     const { ports, engine } = this.d;
     if (route === 'health') return this.reply(200, engine.sdk.encodeHealth(engine.sdk.health()));
     if (route === 'list') {
-      const q = engine.sdk.parseListQuery(query);
+      const q: SdkAnswer<ListQuery> = engine.sdk.parseListQuery(query);
       if ('refused' in q) return this.refuse(q.refused);
       return this.reply(200, engine.sdk.encodeEvents({ events: await listEvents(ports, engine, q.ok) }));
     }
-    const q = engine.sdk.parseFreeBusyQuery(query);
+    const q: SdkAnswer<FreeBusyQuery> = engine.sdk.parseFreeBusyQuery(query);
     if ('refused' in q) return this.refuse(q.refused);
     return this.reply(200, engine.sdk.encodeFreeBusy(await freeBusy(ports, engine, q.ok)));
   }
@@ -124,26 +132,26 @@ export class SdkHost {
     if (!this.admitted(app)) return this.refuse({ code: 'limit', current_rev: null, detail: '60 changes a minute' });
     const bad = (what: string): IhttpMessage => this.refuse({ code: 'bad_request', current_rev: null, detail: `not ${what}` });
     if (route === 'create') {
-      const req = this.decode(body, this.d.engine.sdk.decodeNewEvent);
+      const req: NewEvent | null = this.decode(body, this.d.engine.sdk.decodeNewEvent);
       return req === null ? bad('a new event') : this.create(app, req);
     }
     if (typeof route !== 'object') return bad('a change');
     if ('patch' in route) {
-      const patch = this.decode(body, this.d.engine.sdk.decodeEventPatch);
+      const patch: EventPatch | null = this.decode(body, this.d.engine.sdk.decodeEventPatch);
       return patch === null ? bad('a patch') : this.update(app, route.patch.id, (e: Event) => this.d.engine.sdk.patchEvent(e, patch, app, this.d.nowMs()));
     }
-    const rev = this.decode(body, this.d.engine.sdk.decodeRev);
+    const rev: Rev | null = this.decode(body, this.d.engine.sdk.decodeRev);
     return rev === null ? bad('a revision') : this.remove(app, route.delete.id, rev.rev);
   }
 
   private async create(app: string, req: Parameters<CalendarEngine['sdk']['newEvent']>[0]): Promise<IhttpMessage> {
     const { ports, engine, me } = this.d;
-    const adding = { id: this.d.newId(), me, app_id: app, kept: await keptBy(ports, app), now_ms: this.d.nowMs() };
-    const made = engine.sdk.newEvent(req, adding);
+    const adding: { id: string; me: string; app_id: string; kept: number; now_ms: bigint; } = { id: this.d.newId(), me, app_id: app, kept: await keptBy(ports, app), now_ms: this.d.nowMs() };
+    const made: SdkAnswer<[Event, Placement]> = engine.sdk.newEvent(req, adding);
     if ('refused' in made) return this.refuse(made.refused);
     const [event, placement] = made.ok;
     await keepPlacement(ports, engine, app, event.id, placement);
-    const saved = await this.save(event, placement, null);
+    const saved: IhttpMessage | null = await this.save(event, placement, null);
     if (saved !== null) {
       await dropPlacement(ports, app, event.id);
       return saved;
@@ -160,18 +168,18 @@ export class SdkHost {
   }
 
   private async update(app: string, id: string, patch: (e: Event) => ReturnType<CalendarEngine['sdk']['patchEvent']>): Promise<IhttpMessage> {
-    const found = await this.stored(app, id);
+    const found: { event: Event; placement: Placement; } | null = await this.stored(app, id);
     if (found === null) return this.refuse({ code: 'not_found', current_rev: null, detail: null });
-    const next = patch(found.event);
+    const next: SdkAnswer<Event> = patch(found.event);
     if ('refused' in next) return this.refuse(next.refused);
     return (await this.save(next.ok, found.placement, found.event)) ?? this.reply(200, this.d.engine.sdk.encodeRev({ rev: next.ok.rev }));
   }
 
   private async remove(app: string, id: string, rev: number): Promise<IhttpMessage> {
     const { ports, engine, me } = this.d;
-    const found = await this.stored(app, id);
+    const found: { event: Event; placement: Placement; } | null = await this.stored(app, id);
     if (found === null) return this.refuse({ code: 'not_found', current_rev: null, detail: null });
-    const may = engine.sdk.mayChange(found.event, app, rev);
+    const may: SdkAnswer<null> = engine.sdk.mayChange(found.event, app, rev);
     if ('refused' in may) return this.refuse(may.refused);
     const { store, key } = whereKept(found.placement, me, id);
     await ports.storage.remove(store, key);
@@ -184,7 +192,7 @@ export class SdkHost {
   /** Saves as the editor saves (reminders kept, other windows told); null once saved, else the refusal to answer. */
   private async save(event: Event, placement: Placement, before: Event | null): Promise<IhttpMessage | null> {
     const { store, key } = whereKept(placement, this.d.me, event.id);
-    const outcome = await saveEvent(this.d.ports, this.d.engine, { ok: true, event, store, key }, before, NO_PROGRESS);
+    const outcome: SaveOutcome = await saveEvent(this.d.ports, this.d.engine, { ok: true, event, store, key }, before, NO_PROGRESS);
     if (outcome.kind === 'refused') return this.refuse({ code: 'invalid', current_rev: null, detail: outcome.reason });
     return null;
   }

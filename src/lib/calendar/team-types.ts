@@ -27,7 +27,7 @@ export interface TeamTypes {
 
 export async function readTeamTypes(ports: CalendarPorts, engine: CalendarEngine, node: string): Promise<TeamTypes> {
   const keys: string[] = await ports.storage.keys(nodeStore(node), TYPE_PREFIX);
-  const values = await Promise.all(keys.map((key: string) => ports.storage.get(nodeStore(node), key)));
+  const values: (Uint8Array | null)[] = await Promise.all(keys.map((key: string) => ports.storage.get(nodeStore(node), key)));
   const types: EventType[] = [];
   let unreadable: number = 0;
   for (const bytes of values) {

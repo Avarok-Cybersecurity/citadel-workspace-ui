@@ -8,9 +8,10 @@ import type { EventType } from '../generated/EventType';
 import type { Interval } from '../generated/Interval';
 import { slotDays, slotRequest, slotZone, type SlotInput } from '../slot-list';
 import { NY, realEngine, utc } from './engine-rig';
+import type { CalendarEngine } from '@/lib/calendar/engine/calendar-engine';
 
-const engine = realEngine();
-const evening = [{ start_min: 17 * 60, end_min: 20 * 60 }];
+const engine: CalendarEngine = realEngine();
+const evening: { start_min: number; end_min: number; }[] = [{ start_min: 17 * 60, end_min: 20 * 60 }];
 const availability: Availability = { id: 'a1', name: 'Evenings', zone: NY, weekly: [evening, evening, evening, evening, evening, [], []], overrides: [] };
 const type: EventType = {
   id: 't1', name: 'Intro call', kind: 'one_on_one', durations_min: [30, 60], questions: [], color: 'primary', locked: false, zone_lock: null,
@@ -36,8 +37,8 @@ describe('the booking page slot list', () => {
 
   it('regroups by the day each slot starts on in the zone the invitee picks', () => {
     const core: Interval[] = engine.freeSlots(slotRequest(input));
-    const ny = slotDays(core, NY, engine).map((d) => [d.date.d, d.slots.length]);
-    const london = slotDays(core, 'Europe/London', engine).map((d) => [d.date.d, d.slots.length]);
+    const ny: number[][] = slotDays(core, NY, engine).map((d) => [d.date.d, d.slots.length]);
+    const london: number[][] = slotDays(core, 'Europe/London', engine).map((d) => [d.date.d, d.slots.length]);
     expect(ny).toEqual([[15, 2], [16, 5]]);
     expect(london).toEqual([[15, 1], [16, 5], [17, 1]]);
   });

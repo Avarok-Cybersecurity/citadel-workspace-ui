@@ -6,23 +6,24 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { Capability } from '../../host/capabilities';
-import { glueInstance } from '../../host/glue-instance';
+import { glueInstance, type GlueInstance } from '../../host/glue-instance';
 import { STANDARD_HOST_POLICY } from '../../host/limits';
 import { ManualClock } from '../../host/__tests__/fakes';
 import { IHTTP_INITIAL_CREDIT, IHTTP_MAX_CHUNK_BYTES } from '../../sdk/generated/AbiConstants';
-import { calendarPorts } from '@/lib/calendar/ports';
+import { calendarPorts, type CalendarPorts } from '@/lib/calendar/ports';
 import { IhttpRelay } from '@/lib/calendar/__tests__/ihttp-relay';
 import { ihttpEndpoint, type IhttpEndpoint } from '../ihttp-endpoint';
 import type { IhttpRequest } from '../ihttp-server';
+import type { IhttpResponse } from '@/lib/citadel-apps/glue-sdk/ihttp-client';
 
 const HELD: Capability[] = ['ihttp.serve', 'ihttp.call'];
 
 function instance(name: string, relay: IhttpRelay, heard: IhttpRequest[]): IhttpEndpoint {
-  const glue = glueInstance({
+  const glue: GlueInstance = glueInstance({
     appId: 'net.avarok.calendar', ports: { ihttp: relay.port(name) }, held: new Set<Capability>(HELD), policy: STANDARD_HOST_POLICY,
-    limits: { topics: null, p2p: null }, clock: new ManualClock(), pageUrl: 'https://w.example/n1', storageChanges: () => () => {},
+    limits: { topics: null, p2p: null }, clock: new ManualClock(), pageUrl: 'https://w.example/n1', storageChanges: () => (): void => {},
   });
-  const ports = calendarPorts(glue);
+  const ports: CalendarPorts = calendarPorts(glue);
   void ports.ihttp.serve([{ method: 'POST', path: '/echo' }], { relay: true, p2p: false });
   return ihttpEndpoint(ports.ihttp, async (request: IhttpRequest) => {
     heard.push(request);
@@ -38,7 +39,7 @@ describe("a glue app's internal HTTP", () => {
     const bob: IhttpEndpoint = instance('bob', relay, []);
     const chunks: number = IHTTP_INITIAL_CREDIT + 2;
     const body: Uint8Array = new Uint8Array(chunks * IHTTP_MAX_CHUNK_BYTES - 7).map((_v, i) => i % 251);
-    const answer = await bob.client.request({ user: { app_id: 'net.avarok.calendar', username: 'ana' } }, 'relay', 'POST', '/echo', '', body);
+    const answer: IhttpResponse = await bob.client.request({ user: { app_id: 'net.avarok.calendar', username: 'ana' } }, 'relay', 'POST', '/echo', '', body);
     expect([answer.status, answer.from.username, answer.body]).toEqual([200, 'ana', body]);
     expect(heard.map((r) => r.caller.username)).toEqual(['bob']);
     const sent = (from: string, kind: string): number => relay.carried.filter((c) => c.from === from && typeof c.frame.kind === 'object' && kind in c.frame.kind).length;

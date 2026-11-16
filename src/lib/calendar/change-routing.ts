@@ -8,7 +8,7 @@
 import type { StorageChange } from '@/lib/citadel-apps/host/glue-instance';
 import type { CalChange } from './generated/CalChange';
 import { INHERIT_PREFIX } from './read-propagated';
-import { EVENT_PREFIX, sourceOfChange } from './read-sources';
+import { EVENT_PREFIX, sourceOfChange, type ReadSource } from './read-sources';
 import type { EntrySource } from './store';
 
 /** Where a pane is: its node, its chain (the node, then its ancestors) and the pages below it. */
@@ -33,7 +33,7 @@ function sourcesAt(node: string, key: string, around: Around, kind: Kind): Entry
 }
 
 export function sourcesOfStorageChange(change: StorageChange, around: Around): EntrySource[] {
-  const own = sourceOfChange(change, around.node);
+  const own: ReadSource | null = sourceOfChange(change, around.node);
   if (own !== null) return [own];
   const { backend, key } = change;
   if (typeof backend !== 'object') return [];

@@ -21,7 +21,7 @@ const { pageAppNotices } = await import('../app-notices');
 const { recordAppNoticeDelivery } = await import('../app-notice-delivery');
 const { notificationService } = await import('@/lib/notification-service/service');
 
-const settle = async (): Promise<void> => { for (let i = 0; i < 10; i += 1) await Promise.resolve(); };
+const settle = async (): Promise<void> => { for (let i: number = 0; i < 10; i += 1) await Promise.resolve(); };
 const raised = (title: string): Notification[] => notificationService.getNotifications().filter((n) => n.title === title);
 
 beforeEach(() => { vi.spyOn(document, 'hasFocus').mockReturnValue(false); });

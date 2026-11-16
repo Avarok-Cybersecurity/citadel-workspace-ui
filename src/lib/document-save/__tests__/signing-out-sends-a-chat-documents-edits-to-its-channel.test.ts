@@ -16,6 +16,7 @@ import type { HeldEditsPrompt } from '../leave-held-edits-prompt';
 import type { EditorSession } from '@/lib/cdoc/editor/editor-session';
 import { createEditorOpener } from '@/lib/cdoc/editor/editor-opener';
 import { inProcessRuntime, type TestRuntime } from '@/lib/cdoc/__tests__/wasm-rig';
+import type { EditorOrigin } from '@/lib/cdoc/editor/controller';
 
 const store: Map<string, unknown> = vi.hoisted((): Map<string, unknown> => new Map<string, unknown>());
 const sent: WorkspaceProtocolRequestTS[] = vi.hoisted((): WorkspaceProtocolRequestTS[] => []);
@@ -25,9 +26,9 @@ vi.mock('@/lib/cdoc/collab/instance-locks', async () => ({ browserInstanceLocks:
 vi.mock('@/lib/workspace-service', () => ({
   default: { currentCid: 7n, sendProtocolRequest: (request: WorkspaceProtocolRequestTS): Promise<void> => { sent.push(request); return Promise.resolve(); } },
 }));
-vi.mock('@/lib/cdoc/runtime-loader', async () => {
+vi.mock('@/lib/cdoc/runtime-loader', async (): Promise<{ loadCdocRuntime: () => Promise<TestRuntime>; }> => {
   const { inProcessRuntime } = await import('@/lib/cdoc/__tests__/wasm-rig');
-  return { loadCdocRuntime: () => { loads.count += 1; return Promise.resolve(inProcessRuntime('main-thread')); } };
+  return { loadCdocRuntime: (): Promise<TestRuntime> => { loads.count += 1; return Promise.resolve(inProcessRuntime('main-thread')); } };
 });
 
 const { mayLeaveAccountHeldEdits } = await import('../held-edits-io');
@@ -81,8 +82,8 @@ describe('signing out with edits held of a chat document', () => {
   it('asks a chat document open in this tab to send them, not a second session', async () => {
     await holdChatEdits();
     const runtime: TestRuntime = inProcessRuntime('main-thread');
-    const open = createEditorOpener({ client: runtime.client, renderer: runtime.renderer }, (b: Uint8Array): Uint8Array => crypto.getRandomValues(b));
-    const close = chatDocumentReplicaKeeper<EditorSession>(NODE, DOC, (): void => undefined)(open, (): void => undefined, (): void => undefined);
+    const open: (from: EditorOrigin) => Promise<EditorSession> = createEditorOpener({ client: runtime.client, renderer: runtime.renderer }, (b: Uint8Array): Uint8Array => crypto.getRandomValues(b));
+    const close: () => Promise<void> = chatDocumentReplicaKeeper<EditorSession>(NODE, DOC, (): void => undefined)(open, (): void => undefined, (): void => undefined);
     const syncing: Promise<void> = requestDocumentSync({ nodeId: NODE, chatDoc: DOC });
     await vi.advanceTimersByTimeAsync(120_000);
     await syncing;

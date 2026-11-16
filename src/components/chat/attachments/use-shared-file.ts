@@ -4,7 +4,7 @@
  * the five raster formats and its header is within the decode limits (received-files/image-preview),
  * never by its name or declared type, and is drawn from a Blob of its sniffed type.
  */
-import { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useRef, useState, type MutableRefObject } from 'react';
 import type { SharedFile } from '@/lib/chat/attachments/shared-file';
 import { looksLikePicture, pictureOf, type Picture } from '@/lib/received-files/image-preview';
 import { blobTypeFor } from '@/lib/received-files/blob-type';
@@ -24,12 +24,12 @@ export interface SharedFileView {
 
 export function useSharedFile(file: SharedFile): SharedFileView {
   const io: AttachmentIO | null = useContext(AttachmentIOContext);
-  const bytes = useRef<Promise<Uint8Array> | null>(null);
+  const bytes: MutableRefObject<Promise<Uint8Array> | null> = useRef<Promise<Uint8Array> | null>(null);
   const [pictureUrl, setPictureUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState<boolean>(false);
   const [failure, setFailure] = useState<string | null>(null);
 
-  const read = useCallback((): Promise<Uint8Array> => {
+  const read: () => Promise<Uint8Array> = useCallback((): Promise<Uint8Array> => {
     if (io === null) return Promise.reject(new Error('This conversation cannot read files.'));
     bytes.current ??= io.read(file);
     // A failed read is not kept, so the next click reads again.
@@ -53,7 +53,7 @@ export function useSharedFile(file: SharedFile): SharedFileView {
     };
   }, [io, file, read]);
 
-  const download = useCallback((): void => {
+  const download: () => void = useCallback((): void => {
     if (io === null) return;
     setBusy(true);
     setFailure(null);

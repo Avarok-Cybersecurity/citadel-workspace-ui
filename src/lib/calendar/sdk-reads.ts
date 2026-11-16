@@ -16,7 +16,7 @@ import type { FreeBusyQuery } from './generated/FreeBusyQuery';
 import type { ListQuery } from './generated/ListQuery';
 import type { CalendarPorts } from './ports';
 import { readInherited, readUpPulled } from './read-propagated';
-import { readSource } from './read-sources';
+import { readSource, type SourceRead } from './read-sources';
 import type { CalendarEntry } from './store';
 import { chainOf, descendantsOf } from './tree-walk';
 
@@ -45,7 +45,7 @@ async function entriesFor(ports: CalendarPorts, engine: CalendarEngine, q: ListQ
     const [chain, below] = await Promise.all([chainOf(ports, q.node), descendantsOf(ports, q.node, engine.propagationBounds().up_pull)]);
     return (await readUpPulled(ports, engine, chain, below)).entries;
   }
-  const read = await Promise.all((['node', 'authored', 'private'] as const).map((s) => readSource(ports, engine, s, q.node)));
+  const read: SourceRead[] = await Promise.all((['node', 'authored', 'private'] as const).map((s) => readSource(ports, engine, s, q.node)));
   return read.flatMap((r) => r.entries).filter((e: CalendarEntry) => e.source === 'inherited' || e.event.origin_node === q.node);
 }
 
@@ -62,8 +62,8 @@ export async function listEvents(ports: CalendarPorts, engine: CalendarEngine, q
 const COUNTING_ZONE: string = 'UTC';
 
 export async function freeBusy(ports: CalendarPorts, engine: CalendarEngine, q: FreeBusyQuery): Promise<FreeBusy> {
-  const read = await Promise.all([readSource(ports, engine, 'node', q.node), readSource(ports, engine, 'authored', q.node)]);
+  const read: [SourceRead, SourceRead] = await Promise.all([readSource(ports, engine, 'node', q.node), readSource(ports, engine, 'authored', q.node)]);
   const entries: CalendarEntry[] = read.flatMap((r) => r.entries);
-  const range = { fromMs: BigInt(q.from_ms), toMs: BigInt(q.to_ms) };
+  const range: { fromMs: bigint; toMs: bigint; } = { fromMs: BigInt(q.from_ms), toMs: BigInt(q.to_ms) };
   return { users: q.users.map((user: string) => ({ user, busy: busyOf(entries, user, COUNTING_ZONE, range, new Set(), engine).busy })) };
 }

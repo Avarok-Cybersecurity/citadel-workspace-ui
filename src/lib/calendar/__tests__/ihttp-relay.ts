@@ -23,7 +23,7 @@ export class IhttpRelay {
   }
 
   private deliver(from: string, app: string, to: string, toApp: string, frame: IhttpFrame): PortAnswer<null> {
-    const listener = this.listeners.get(at(to, toApp));
+    const listener: ((f: InboundIhttpFrame) => void) | undefined = this.listeners.get(at(to, toApp));
     if (listener === undefined) return { refused: { unavailable: 'no_host' } };
     this.carried.push({ from, to, frame });
     setTimeout((): void => listener({ from: this.caller(from, app), frame }), 0);

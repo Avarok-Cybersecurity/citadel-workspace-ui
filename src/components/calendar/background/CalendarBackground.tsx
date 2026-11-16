@@ -3,7 +3,7 @@
  * in the one window that holds their runner lock: mounted by every workspace window's layout,
  * whether or not any of them shows the Calendar. A window that waits its turn binds nothing.
  */
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, type MutableRefObject } from 'react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { startCalendarBackground } from '@/lib/calendar/calendar-background';
 import type { CalendarEngine } from '@/lib/calendar/engine/calendar-engine';
@@ -11,10 +11,11 @@ import type { CalendarPorts } from '@/lib/calendar/ports';
 import { browserRunnerLock, runnerLockName, type RunnerLock } from '@/lib/calendar/runner-lock';
 import { useHeldLock } from './use-held-lock';
 import { WithCalendar, type CalendarReach } from './WithCalendar';
+import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 
 function Running({ ports, engine, me }: { ports: CalendarPorts; engine: CalendarEngine; me: string }): null {
   const { state } = useWorkspace();
-  const nodes = useRef(state.nodes);
+  const nodes: MutableRefObject<Record<string, DomainNode>> = useRef(state.nodes);
   nodes.current = state.nodes;
   useEffect(() => startCalendarBackground({
     ports, engine, me,

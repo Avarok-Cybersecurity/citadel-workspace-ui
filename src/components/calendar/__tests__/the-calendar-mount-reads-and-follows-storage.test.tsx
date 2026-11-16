@@ -13,20 +13,22 @@ import type { GlueInstance } from '@/lib/citadel-apps/host/glue-instance';
 import { event, realEngine } from '@/lib/calendar/__tests__/engine-rig';
 import { decodeSettings, encodeSettings, SETTINGS_KEY } from '@/lib/calendar/zones';
 import { mountCalendar, mountRig, type MountRig } from './mount-rig';
+import type { CalendarEngine } from '@/lib/calendar/engine/calendar-engine';
+import type * as CalendarGlue from '../../../../vendor/calendar/calendar_glue.js';
 
 vi.mock('@/lib/calendar/engine/load-calendar-wasm', async () => {
   const { readFileSync } = await import('node:fs');
   const { join } = await import('node:path');
-  const glue = await import('../../../../vendor/calendar/calendar_glue.js');
+  const glue: typeof CalendarGlue = await import('../../../../vendor/calendar/calendar_glue.js');
   return {
-    loadCalendarWasm: async () => {
+    loadCalendarWasm: async (): Promise<typeof CalendarGlue> => {
       glue.initSync({ module: readFileSync(join(process.cwd(), 'public/calendar/calendar_glue_bg.wasm')) });
       return glue;
     },
   };
 });
 
-const engine = realEngine();
+const engine: CalendarEngine = realEngine();
 const rig = (): MountRig => mountRig('amy');
 const mount = (glue: GlueInstance): void => mountCalendar(glue, 'amy', false);
 

@@ -14,6 +14,8 @@ import type { Event } from './generated/Event';
 import type { CalendarStore } from './ports';
 import { EVENT_PREFIX, PRIVATE_PREFIX } from './read-sources';
 import type { EventEntry } from './store';
+import type { CivilDateTime } from './generated/CivilDateTime';
+import type { Visibility } from './generated/Visibility';
 
 type Stored = { readonly store: CalendarStore; readonly key: string };
 
@@ -55,14 +57,14 @@ export function draftOf(event: Event, zone: string, engine: Pick<CalendarEngine,
   if ('recurring' in when) throw new Error('a recurring event is not edited in this form');
   const location: EventDraft['location'] = event.location === 'in_app' ? { kind: 'in_app' }
     : 'in_person' in event.location ? { kind: 'in_person', address: event.location.in_person.address } : { kind: 'text', text: event.location.text.text };
-  const base = {
+  const base: { title: string; notes: string; location: { kind: "in_app"; } | { kind: "in_person"; address: string; } | { kind: "text"; text: string; }; visibility: Visibility; destination: "node" | "authored"; down: boolean; upTo: string | null; reminders: number[]; } = {
     title: event.title, notes: event.body ?? '', location, visibility: event.visibility,
     destination: source === 'node' ? 'node' as const : 'authored' as const, down: event.propagate.down, upTo: event.propagate.up_to,
     reminders: event.reminders.map((r) => r.minutes_before),
   };
   if ('all_day' in when) return { ...base, date: when.all_day.date, allDay: true, start: '09:00', end: '10:00' };
-  const start = engine.civilOf(zone, when.once.start_ms);
-  const end = engine.civilOf(zone, when.once.end_ms);
+  const start: CivilDateTime = engine.civilOf(zone, when.once.start_ms);
+  const end: CivilDateTime = engine.civilOf(zone, when.once.end_ms);
   const sameDay: boolean = end.date.y === start.date.y && end.date.m === start.date.m && end.date.d === start.date.d;
   return { ...base, date: start.date, allDay: false, start: clockOf(start.minute), end: sameDay ? clockOf(end.minute) : '24:00' };
 }

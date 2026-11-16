@@ -46,7 +46,7 @@ describe('booking guests', () => {
   });
 
   it('reads back from a stored link and says how many', () => {
-    const grant = { BookingGuest: { node_id: 'n-1', page: 'ana', max_guests: 3 } };
+    const grant: { BookingGuest: { node_id: string; page: string; max_guests: number; }; } = { BookingGuest: { node_id: 'n-1', page: 'ana', max_guests: 3 } };
     expect(grantsOf(draftOf(grant))).toEqual([grant]);
     expect(describeGrants([grant], (id: string) => id)).toBe('Up to 3 guests from outside');
     expect(describeGrants([{ BookingGuest: { ...grant.BookingGuest, max_guests: 1 } }], (id: string) => id)).toBe('Up to 1 guest from outside');

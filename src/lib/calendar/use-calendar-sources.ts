@@ -9,13 +9,13 @@
  * one's answer is kept, so an older, slower read cannot overwrite a newer one.
  */
 import { useEffect } from 'react';
-import type { StorageChange } from '@/lib/citadel-apps/host/glue-instance';
+import type { StorageChange, Unsubscribe } from '@/lib/citadel-apps/host/glue-instance';
 import { listenCal } from './cal-topic';
 import { sourcesOfStorageChange, sourcesOfTopicChange, type Around } from './change-routing';
 import type { CalendarEngine } from './engine/calendar-engine';
 import type { CalChange } from './generated/CalChange';
 import { PortRefused, refusalCopy, type CalendarPorts } from './ports';
-import { readInherited, readUpPulled } from './read-propagated';
+import { readInherited, readUpPulled, type PropagatedRead } from './read-propagated';
 import { readSource } from './read-sources';
 import type { CalendarAction, CalendarEntry, EntrySource } from './store';
 import { chainOf, descendantsOf } from './tree-walk';
@@ -42,7 +42,7 @@ async function readOne(ports: CalendarPorts, engine: CalendarEngine, source: Ent
   if (source === 'inherited') return { ...(await readInherited(ports, engine, node)), limitedTo: null };
   if (source === 'up_pulled') {
     const { chain, below } = await around;
-    const got = await readUpPulled(ports, engine, chain, [...below]);
+    const got: PropagatedRead = await readUpPulled(ports, engine, chain, [...below]);
     return { entries: got.entries, unreadable: got.unreadable, limitedTo: got.truncated ? engine.propagationBounds().up_pull : null };
   }
   return { ...(await readSource(ports, engine, source, node)), limitedTo: null };
@@ -73,8 +73,8 @@ export function useCalendarSources(ports: CalendarPorts, engine: CalendarEngine,
     const route = (pick: (a: Around) => EntrySource[]): void => {
       void around.then((a: Around) => reread(pick(a)), (): void => reread(pick({ node, chain: [node], below: new Set() })));
     };
-    const offStorage = ports.onStorageChanged((change: StorageChange): void => route((a: Around) => sourcesOfStorageChange(change, a)));
-    const offTopic = listenCal(ports, engine, (change: CalChange): void => route((a: Around) => sourcesOfTopicChange(change, a)));
+    const offStorage: Unsubscribe = ports.onStorageChanged((change: StorageChange): void => route((a: Around) => sourcesOfStorageChange(change, a)));
+    const offTopic: () => void = listenCal(ports, engine, (change: CalChange): void => route((a: Around) => sourcesOfTopicChange(change, a)));
     return (): void => {
       live = false;
       offStorage();

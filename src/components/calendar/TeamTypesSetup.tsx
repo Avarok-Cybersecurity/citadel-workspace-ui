@@ -34,7 +34,7 @@ export function TeamTypesSetup({ ports, engine, node, deviceZone, today, newId }
   const [loaded, setLoaded] = useState<Loaded>({ kind: 'loading' });
   const [editing, setEditing] = useState<Editing>({ kind: 'none' });
   const [said, setSaid] = useState<string>('');
-  const reload = useCallback(async (): Promise<void> => {
+  const reload: () => Promise<void> = useCallback(async (): Promise<void> => {
     try {
       const [team, members] = await Promise.all([readTeamTypes(ports, engine, node.id), ports.members()]);
       setLoaded({ kind: 'ready', types: team.types, members: members.map((m: Member) => m.username) });

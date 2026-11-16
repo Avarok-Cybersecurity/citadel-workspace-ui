@@ -62,7 +62,7 @@ export interface BookerDeps {
   readonly nowMs: bigint;
 }
 
-const hostAddress = (host: string) => ({ user: { app_id: CALENDAR_APP_ID, username: host } });
+const hostAddress = (host: string): { user: { app_id: "net.avarok.calendar"; username: string; }; } => ({ user: { app_id: CALENDAR_APP_ID, username: host } });
 
 /** What the host answered when it was not a booking, in words. */
 function answered(host: string, r: IhttpResponse): string {
@@ -146,7 +146,7 @@ export function bookingRole(event: Event, me: string): BookingRole | null {
 
 /** The booker cancels with the host, then marks their own copy cancelled. */
 export async function cancelAsBooker(d: Pick<BookerDeps, 'ports' | 'engine' | 'client' | 'me' | 'nowMs'>, own: Event, host: string, id: string, reason: string | null): Promise<string | null> {
-  const done = await cancelBooking(d.client, host, id, reason);
+  const done: { ok: true; } | { ok: false; reason: string; } = await cancelBooking(d.client, host, id, reason);
   if (!done.ok) return done.reason;
   const cancelled: Event = { ...own, status: { cancelled: { by: d.me, reason } }, rev: own.rev + 1, updated_ms: d.nowMs };
   await d.ports.storage.set({ kind: 'user' }, `${PRIVATE_PREFIX}${own.id}`, d.engine.encodeEvent(cancelled));

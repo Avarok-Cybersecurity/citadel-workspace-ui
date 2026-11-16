@@ -8,7 +8,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Capability } from '@/lib/citadel-apps/host/capabilities';
 import { glueInstance } from '@/lib/citadel-apps/host/glue-instance';
-import { STANDARD_HOST_POLICY } from '@/lib/citadel-apps/host/limits';
+import { STANDARD_HOST_POLICY, type IhttpLimits } from '@/lib/citadel-apps/host/limits';
 import { ManualClock } from '@/lib/citadel-apps/host/__tests__/fakes';
 import { ihttpEndpoint } from '@/lib/citadel-apps/glue-sdk/ihttp-endpoint';
 import { BookingHost } from '../booking-host';
@@ -21,8 +21,10 @@ import { SdkHost, type ConsentAnswer } from '../sdk-host';
 import { NOW, engine } from './booking-rig';
 import { IhttpRelay } from './ihttp-relay';
 import { MemoryStore } from './memory-store';
+import type { Events } from '@/lib/calendar/generated/Events';
+import type { SdkCall } from '@/lib/calendar/sdk-client';
 
-const POLICY = { ...STANDARD_HOST_POLICY, serverCallsPerSecond: 100_000 };
+const POLICY: { serverCallsPerSecond: number; memoryMaxPages: number; computeBudgetMs: number; hostNetTimeoutMs: number; serverNetTimeoutMs: number; portTimeoutMs: number; hostCallsPerSecond: number; maxLiveInstancesPerPage: number; maxRequestBytes: number; maxReplyBytes: number; maxLiveReplies: number; replyTtlMs: number; maxLogBytes: number; peerAuthorizationsPerSecond: number; ihttp: IhttpLimits; } = { ...STANDARD_HOST_POLICY, serverCallsPerSecond: 100_000 };
 const KANBAN: string = 'com.acme.kanban';
 const STANDUP: NewEvent = {
   node: 'n1', title: 'Standup', when: { once: { start_ms: NOW + 3_600_000n, end_ms: NOW + 5_400_000n } }, zone: 'Europe/Berlin',
@@ -45,21 +47,21 @@ interface Rig {
 }
 
 async function rig(answers: ConsentAnswer[]): Promise<Rig> {
-  const relay = new IhttpRelay();
-  const store = new MemoryStore('amy');
+  const relay: IhttpRelay = new IhttpRelay();
+  const store: MemoryStore = new MemoryStore('amy');
   const asked: string[] = [];
-  const ports = instance('net.avarok.calendar', 'amy', relay, store, ['storage.user', 'storage.node', 'storage.node.authored', 'ihttp.serve']);
+  const ports: CalendarPorts = instance('net.avarok.calendar', 'amy', relay, store, ['storage.user', 'storage.node', 'storage.node.authored', 'ihttp.serve']);
   let n: number = 0;
   const ask = async (appId: string): Promise<ConsentAnswer> => {
     asked.push(appId);
     await new Promise((r) => setTimeout(r, 5));
     return answers.shift() ?? 'unanswered';
   };
-  const sdk = new SdkHost({ ports, engine, me: 'amy', nowMs: () => NOW, newId: () => `e${(n += 1)}`, ask });
-  const bookings = new BookingHost({ ports, engine, node: 'n1', me: 'amy', nowMs: () => NOW });
+  const sdk: SdkHost = new SdkHost({ ports, engine, me: 'amy', nowMs: (): bigint => NOW, newId: (): string => `e${(n += 1)}`, ask });
+  const bookings: BookingHost = new BookingHost({ ports, engine, node: 'n1', me: 'amy', nowMs: (): bigint => NOW });
   await serveCalendar(ports, calendarRoutes(engine), calendarHandler(sdk, bookings), { relay: true, p2p: false });
   const app = (appId: string, user: string): CalendarSdk => {
-    const caller = instance(appId, user, relay, new MemoryStore(user), ['ihttp.call']);
+    const caller: CalendarPorts = instance(appId, user, relay, new MemoryStore(user), ['ihttp.call']);
     return new CalendarSdk(ihttpEndpoint(caller.ihttp, () => Promise.reject(new Error('serves nothing'))).client, engine.sdk, 'amy');
   };
   return { ports, asked, app };
@@ -69,14 +71,14 @@ const posted = async (r: Rig): Promise<string[]> => (await r.ports.storage.autho
 
 describe('an app using the Calendar SDK', () => {
   it('asks the member once for racing calls, then adds, lists, updates and removes its own event', async () => {
-    const r = await rig(['allow']);
-    const kanban = r.app(KANBAN, 'amy');
+    const r: Rig = await rig(['allow']);
+    const kanban: CalendarSdk = r.app(KANBAN, 'amy');
     const [a, b] = await Promise.all([kanban.addEvent(STANDUP), kanban.addEvent({ ...STANDUP, reference: 'card-2' })]);
     expect([a, b]).toEqual([{ ok: { id: 'e1', rev: 1 } }, { ok: { id: 'e2', rev: 1 } }]);
     expect(r.asked).toEqual([KANBAN]);
     expect(await posted(r)).toEqual(['amy:cal/event/e1', 'amy:cal/event/e2']);
 
-    const listed = await kanban.list({ node: 'n1', from_ms: NOW, to_ms: NOW + 86_400_000n, include: 'own' });
+    const listed: SdkCall<Events> = await kanban.list({ node: 'n1', from_ms: NOW, to_ms: NOW + 86_400_000n, include: 'own' });
     expect('ok' in listed ? listed.ok.events.map((e) => [e.id, e.title, e.source?.app_id]) : listed).toEqual([['e1', 'Standup', KANBAN], ['e2', 'Standup', KANBAN]]);
     expect(await kanban.updateEvent('e1', { rev: 1, title: 'Daily', when: null, zone: null, location: null, reminders: null })).toEqual({ ok: 2 });
     expect(await kanban.removeEvent('e2', 1)).toEqual({ ok: null });
@@ -89,8 +91,8 @@ describe('an app using the Calendar SDK', () => {
   });
 
   it("refuses an app in another member's session, writing nothing and asking no one", async () => {
-    const r = await rig(['allow']);
-    const bobs = r.app(KANBAN, 'bob');
+    const r: Rig = await rig(['allow']);
+    const bobs: CalendarSdk = r.app(KANBAN, 'bob');
     expect(await bobs.addEvent(STANDUP)).toMatchObject({ refused: { code: 'cross_user' } });
     expect(await bobs.list({ node: 'n1', from_ms: 0n, to_ms: 1n, include: 'own' })).toMatchObject({ refused: { code: 'cross_user' } });
     expect(await posted(r)).toEqual([]);
@@ -98,19 +100,19 @@ describe('an app using the Calendar SDK', () => {
   });
 
   it('says stale at an old revision, and lets an app change only the events it added', async () => {
-    const r = await rig(['allow', 'allow']);
-    const kanban = r.app(KANBAN, 'amy');
+    const r: Rig = await rig(['allow', 'allow']);
+    const kanban: CalendarSdk = r.app(KANBAN, 'amy');
     await kanban.addEvent(STANDUP);
     expect(await kanban.updateEvent('e1', { rev: 1, title: 'Daily', when: null, zone: null, location: null, reminders: null })).toEqual({ ok: 2 });
     expect(await kanban.removeEvent('e1', 1)).toEqual({ refused: { code: 'stale', current_rev: 2, detail: null } });
-    const other = r.app('com.other', 'amy');
+    const other: CalendarSdk = r.app('com.other', 'amy');
     expect(await other.removeEvent('e1', 2)).toMatchObject({ refused: { code: 'not_found' } });
     expect(await posted(r)).toEqual(['amy:cal/event/e1']);
   });
 
   it('remembers a refusal, and asks again after "Allow once"', async () => {
-    const r = await rig(['once', 'refuse']);
-    const kanban = r.app(KANBAN, 'amy');
+    const r: Rig = await rig(['once', 'refuse']);
+    const kanban: CalendarSdk = r.app(KANBAN, 'amy');
     expect(await kanban.addEvent(STANDUP)).toEqual({ ok: { id: 'e1', rev: 1 } });
     expect(await kanban.addEvent(STANDUP)).toMatchObject({ refused: { code: 'not_consented' } });
     expect(await kanban.addEvent(STANDUP)).toMatchObject({ refused: { code: 'not_consented' } });

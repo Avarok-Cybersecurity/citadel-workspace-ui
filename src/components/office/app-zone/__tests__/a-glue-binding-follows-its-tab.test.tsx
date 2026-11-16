@@ -28,7 +28,7 @@ function recordingRuntime(): { runtime: AppZoneRuntime; binds: Bind[] } {
       const ready: Promise<GlueBound> = new Promise<GlueBound>((r) => { bound = r; });
       const bind: Bind = { tab, bound: (b) => bound(b), closed: false };
       binds.push(bind);
-      return { ready, close: async () => { bind.closed = true; } };
+      return { ready, close: async (): Promise<void> => { bind.closed = true; } };
     },
   };
   return { runtime, binds };
@@ -36,19 +36,19 @@ function recordingRuntime(): { runtime: AppZoneRuntime; binds: Bind[] } {
 
 const stateWith = (name: string): WorkspaceState => ({ nodes: { n1: { id: 'n1', name, parent_id: null, children: [] } }, members: {} }) as unknown as WorkspaceState;
 /** One install and manifest, as the pane's view holds them: a new object would be a new tab to bind. */
-const INSTALL = { id: 'i1' } as AppInstall;
-const MANIFEST = { name: 'Calendar' } as AppManifest;
+const INSTALL: AppInstall = { id: 'i1' } as AppInstall;
+const MANIFEST: AppManifest = { name: 'Calendar' } as AppManifest;
 const tabOn = (nodeId: string): AppTabMount => ({ install: INSTALL, manifest: MANIFEST, tabId: 'calendar', nodeId, me: 'amy' });
 
 describe("a glue tab's binding", () => {
   it('reads binding, then the bound instance, and its tree port reads the tree as it is now', async () => {
     const { runtime, binds } = recordingRuntime();
     let state: WorkspaceState = stateWith('Platform');
-    const wrapper = ({ children }: { children: ReactNode }) => <WorkspaceProvider state={state}>{children}</WorkspaceProvider>;
+    const wrapper = ({ children }: { children: ReactNode }): JSX.Element => <WorkspaceProvider state={state}>{children}</WorkspaceProvider>;
     const tab: AppTabMount = tabOn('n1');
     const { result, rerender } = renderHook(() => useGlueBinding(runtime, tab), { wrapper });
     expect(result.current).toEqual({ kind: 'binding' });
-    const instance = { held: new Set() } as unknown as GlueInstance;
+    const instance: GlueInstance = { held: new Set() } as unknown as GlueInstance;
     await act(async () => { binds[0]?.bound({ kind: 'bound', instance }); });
     expect(result.current).toEqual({ kind: 'bound', instance });
     state = stateWith('Platform team');
@@ -59,7 +59,7 @@ describe("a glue tab's binding", () => {
 
   it('lets the binding go on unmount, and on a move to another node binds afresh', () => {
     const { runtime, binds } = recordingRuntime();
-    const wrapper = ({ children }: { children: ReactNode }) => <WorkspaceProvider state={stateWith('Platform')}>{children}</WorkspaceProvider>;
+    const wrapper = ({ children }: { children: ReactNode }): JSX.Element => <WorkspaceProvider state={stateWith('Platform')}>{children}</WorkspaceProvider>;
     const { rerender, unmount } = renderHook(({ node }: { node: string }) => useGlueBinding(runtime, tabOn(node)), { wrapper, initialProps: { node: 'n1' } });
     rerender({ node: 'n2' });
     expect(binds.map((b) => [b.tab.nodeId, b.closed])).toEqual([['n1', true], ['n2', false]]);

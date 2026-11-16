@@ -13,13 +13,16 @@ import type { EventType } from '@/lib/calendar/generated/EventType';
 import type { RoutingForm } from '@/lib/calendar/generated/RoutingForm';
 import { readRoutingForms, routeAnswers, saveRoutingForm } from '@/lib/calendar/routing-forms';
 import { RoutingFormEditor } from '../RoutingFormEditor';
+import type { CalendarPorts } from '@/lib/calendar/ports';
+import type { MemoryStore } from '@/lib/calendar/__tests__/memory-store';
+import type { CalendarEngine } from '@/lib/calendar/engine/calendar-engine';
 
-const engine = realEngine();
-const NODE = { id: 'n1', name: 'Platform' };
+const engine: CalendarEngine = realEngine();
+const NODE: { id: string; name: string; } = { id: 'n1', name: 'Platform' };
 const ROTA: EventType = { ...INTRO, id: 'rr', name: 'Support rota', kind: { round_robin: { hosts: ['ana', 'bo'], strategy: 'equal' } } };
 
 function editor(): ReturnType<typeof portsRig> {
-  const rig = portsRig('alice');
+  const rig: { store: MemoryStore; ports: CalendarPorts; } = portsRig('alice');
   let n: number = 0;
   render(
     <RoutingFormEditor engine={engine} id="f1" saved={null} node={NODE} members={['ana', 'bo']} teams={[ROTA]} newId={(): string => `q${(n += 1)}`}
@@ -34,7 +37,7 @@ const change = (label: string | RegExp, value: string, within_: HTMLElement = do
 
 describe('a routing form', () => {
   it('is saved as edited, rules in the order they were left, and routes answers by them', async () => {
-    const rig = editor();
+    const rig: { store: MemoryStore; ports: CalendarPorts; } = editor();
     change('Form name', 'Talk to the right person');
     fireEvent.click(screen.getByRole('button', { name: 'Add a question' }));
     change('Question 1', 'What is it about?');
@@ -65,7 +68,7 @@ describe('a routing form', () => {
   });
 
   it('is not saved while a target is unchosen, and says which', async () => {
-    const rig = editor();
+    const rig: { store: MemoryStore; ports: CalendarPorts; } = editor();
     change('Form name', 'Triage');
     fireEvent.click(screen.getByRole('button', { name: 'Save routing form' }));
     await screen.findByText('Some fields need attention.');

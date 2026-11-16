@@ -8,11 +8,12 @@ import { checkEventType, eventTypeDraft, type EventTypeDraft } from '../event-ty
 import { NY } from './engine-rig';
 import { INTRO } from './booking-fixture';
 import type { EventType } from '../generated/EventType';
+import type { EventTypeCheck } from '@/lib/calendar/event-type-form';
 
 const known = (zone: string): boolean => zone === NY;
 const draft: EventTypeDraft = eventTypeDraft(INTRO);
 const errorsOf = (d: Partial<EventTypeDraft>): string[] => {
-  const checked = checkEventType('t1', { ...draft, ...d }, known);
+  const checked: EventTypeCheck = checkEventType('t1', { ...draft, ...d }, known);
   return checked.ok ? [] : [...checked.errors.keys()].sort();
 };
 
@@ -22,7 +23,7 @@ describe('the event-type editor', () => {
   });
 
   it('sorts and dedupes the lengths, and refuses one under five minutes or not a number', () => {
-    const checked = checkEventType('t1', { ...draft, durations: '60, 30,60' }, known);
+    const checked: EventTypeCheck = checkEventType('t1', { ...draft, durations: '60, 30,60' }, known);
     expect(checked.ok && checked.type.durations_min).toEqual([30, 60]);
     expect(errorsOf({ durations: '3' })).toEqual(['durations']);
     expect(errorsOf({ durations: '30, half an hour' })).toEqual(['durations']);
@@ -43,13 +44,13 @@ describe('the event-type editor', () => {
 
   it('seats a group at two or more and keeps the notice in minutes', () => {
     expect(errorsOf({ kind: 'group', seats: '1' })).toEqual(['seats']);
-    const group = checkEventType('t1', { ...draft, kind: 'group', seats: '12', minNoticeHours: '24' }, known);
+    const group: EventTypeCheck = checkEventType('t1', { ...draft, kind: 'group', seats: '12', minNoticeHours: '24' }, known);
     expect(group.ok && group.type.kind).toEqual({ group: { seats: 12 } });
     expect(group.ok && group.type.rules.min_notice_min).toBe(24 * 60);
   });
 
   it('refuses a blank name, a question without a label, a choice with one option, and an unknown locked zone', () => {
-    const questions = [{ id: 'a', label: '', kind: 'text' as const, required: false }, { id: 'b', label: 'Pick', kind: { choice: { options: ['Only', ' '] } }, required: true }];
+    const questions: ({ id: string; label: string; kind: "text"; required: boolean; } | { id: string; label: string; kind: { choice: { options: string[]; }; }; required: boolean; })[] = [{ id: 'a', label: '', kind: 'text' as const, required: false }, { id: 'b', label: 'Pick', kind: { choice: { options: ['Only', ' '] } }, required: true }];
     expect(errorsOf({ name: '  ', questions, zoneLock: 'Mars/Olympus' })).toEqual(['name', 'question-0', 'question-1', 'zoneLock']);
   });
 
@@ -74,7 +75,7 @@ describe('the event-type editor', () => {
   });
 
   it('keeps a weight only for a host the type still names', () => {
-    const checked = checkEventType('t1', { ...draft, kind: 'round_robin', hosts: ['ana', 'bo'], strategy: 'priority', weights: { ana: '2', bo: '5', cy: '9' } }, known);
+    const checked: EventTypeCheck = checkEventType('t1', { ...draft, kind: 'round_robin', hosts: ['ana', 'bo'], strategy: 'priority', weights: { ana: '2', bo: '5', cy: '9' } }, known);
     expect(checked.ok && checked.type.kind).toEqual({ round_robin: { hosts: ['ana', 'bo'], strategy: { priority: { weights: [['ana', 2], ['bo', 5]] } } } });
   });
 });

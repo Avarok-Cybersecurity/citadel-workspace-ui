@@ -11,6 +11,7 @@ import type { NodeChatIO } from '../node-chat-io';
 import type { SharedFile } from '@/lib/chat/attachments/shared-file';
 import { sha256Hex } from '@/lib/chat/attachments/attachment-wire';
 import type { GroupMessage } from '@/types/workspace-entities';
+import type { FilePort, FileSendReceipt } from '@/lib/chat/transport/chat-transport';
 
 function io(refuse: boolean): Pick<NodeChatIO, 'attachments' | 'shareFile' | 'readFile'> & { shared: SharedFile[]; uploads: string[] } {
   const listeners: Set<(answer: ChatAttachmentsResponse) => void> = new Set();
@@ -41,16 +42,16 @@ const picked: File = new File(['four'], 'plan.pdf', { type: 'application/pdf' })
 
 describe('a node channel\'s files', () => {
   it('says beside the attach control that the server keeps them for the channel', () => {
-    const port = nodeFiles(io(false), 'room-1');
+    const port: FilePort = nodeFiles(io(false), 'room-1');
     expect(port.destination).toBe("Stored on the workspace server, readable by this channel's members");
     expect(port.destination).toBe(NODE_FILES_DESTINATION);
     expect(port.modes).toEqual(['server']);
   });
 
   it('uploads to the node, then shares what it uploaded, reporting what the server stored', async () => {
-    const wire = io(false);
+    const wire: Pick<NodeChatIO, "attachments" | "shareFile" | "readFile"> & { shared: SharedFile[]; uploads: string[]; } = io(false);
     const progress: number[][] = [];
-    const receipt = await nodeFiles(wire, 'room-1').send(picked, (done: number, total: number): void => { progress.push([done, total]); });
+    const receipt: FileSendReceipt = await nodeFiles(wire, 'room-1').send(picked, (done: number, total: number): void => { progress.push([done, total]); });
     expect(receipt).toEqual({ outcome: 'shared' });
     expect(progress).toEqual([[0, 4], [4, 4]]);
     expect(wire.uploads).toEqual(['room-1']);
@@ -58,7 +59,7 @@ describe('a node channel\'s files', () => {
   });
 
   it('shares nothing when the server refuses the upload, and says why', async () => {
-    const wire = io(true);
+    const wire: Pick<NodeChatIO, "attachments" | "shareFile" | "readFile"> & { shared: SharedFile[]; uploads: string[]; } = io(true);
     const progress: number[][] = [];
     await expect(nodeFiles(wire, 'room-1').send(picked, (done: number, total: number): void => { progress.push([done, total]); }))
       .rejects.toThrow('You cannot share or open files in this channel.');

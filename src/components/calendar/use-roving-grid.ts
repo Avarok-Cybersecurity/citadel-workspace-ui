@@ -3,8 +3,8 @@
  * tab order; the grid's keys (`gridIntent`) move the cursor, and focus follows it to the new day's
  * cell once that cell is drawn, even when the move changed the month or week on screen.
  */
-import { useCallback, useEffect, useRef } from 'react';
-import { dateKey, gridIntent, sameDate, type GridNav, type GridView } from '@/lib/calendar/grid-keyboard';
+import { useCallback, useEffect, useRef, type RefObject, type MutableRefObject } from 'react';
+import { dateKey, gridIntent, sameDate, type GridIntent, type GridNav, type GridView } from '@/lib/calendar/grid-keyboard';
 import type { CivilDate } from '@/lib/calendar/generated/CivilDate';
 
 export interface GridHandlers {
@@ -30,8 +30,8 @@ export interface RovingGrid {
 }
 
 export function useRovingGrid(cursor: CivilDate, view: GridView, nav: GridNav, handlers: GridHandlers): RovingGrid {
-  const gridRef = useRef<HTMLDivElement>(null);
-  const following = useRef<boolean>(false);
+  const gridRef: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
+  const following: MutableRefObject<boolean> = useRef<boolean>(false);
   const { onFocus, onOpenDay, onCreate } = handlers;
 
   useEffect((): void => {
@@ -40,8 +40,8 @@ export function useRovingGrid(cursor: CivilDate, view: GridView, nav: GridNav, h
     gridRef.current?.querySelector<HTMLElement>(`[data-date="${dateKey(cursor)}"]`)?.focus();
   }, [cursor]);
 
-  const onKeyDown = useCallback((e: React.KeyboardEvent): void => {
-    const intent = gridIntent(e.key, cursor, view, nav);
+  const onKeyDown: (e: React.KeyboardEvent) => void = useCallback((e: React.KeyboardEvent): void => {
+    const intent: GridIntent | null = gridIntent(e.key, cursor, view, nav);
     if (intent === null || (intent.kind === 'create' && onCreate === null)) return;
     e.preventDefault();
     if (intent.kind === 'focus') {
@@ -54,7 +54,7 @@ export function useRovingGrid(cursor: CivilDate, view: GridView, nav: GridNav, h
     }
   }, [cursor, view, nav, onFocus, onOpenDay, onCreate]);
 
-  const cell = useCallback((date: CivilDate): DayCell => {
+  const cell: (date: CivilDate) => DayCell = useCallback((date: CivilDate): DayCell => {
     const current: boolean = sameDate(date, cursor);
     return {
       tabIndex: current ? 0 : -1,

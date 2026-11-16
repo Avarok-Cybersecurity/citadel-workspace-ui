@@ -8,13 +8,14 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { notificationService } from '@/lib/notification-service/service';
+import type { Notification } from '@/lib/notification-service/types';
 import { pageAppNotices } from '../app-notices';
 
-const cid = vi.hoisted(() => ({ now: null as bigint | null }));
+const cid: { now: bigint | null; } = vi.hoisted(() => ({ now: null as bigint | null }));
 vi.mock('@/lib/p2p/current-cid', () => ({ getCurrentCid: async (): Promise<bigint | null> => cid.now }));
 
 const settle = (): Promise<void> => new Promise<void>((r) => setTimeout(r, 0));
-const NOTICE = { from: 'Calendar', appId: 'net.avarok.calendar', title: 'New booking', body: 'Intro with ana' };
+const NOTICE: { from: string; appId: string; title: string; body: string; } = { from: 'Calendar', appId: 'net.avarok.calendar', title: 'New booking', body: 'Intro with ana' };
 
 afterEach(() => { vi.restoreAllMocks(); });
 
@@ -23,7 +24,7 @@ describe("an app's notification", () => {
     cid.now = 42n;
     pageAppNotices(NOTICE);
     await settle();
-    const mine = notificationService.getNotificationsForCid('42').filter((n) => n.title === 'New booking');
+    const mine: Notification[] = notificationService.getNotificationsForCid('42').filter((n) => n.title === 'New booking');
     expect(mine.map((n) => [n.content, n.senderName, n.data])).toEqual([['Intro with ana', 'Calendar', { appId: 'net.avarok.calendar' }]]);
     expect(notificationService.getNotificationsForCid('7').some((n) => n.title === 'New booking')).toBe(false);
   });

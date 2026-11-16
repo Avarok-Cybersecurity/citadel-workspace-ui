@@ -11,6 +11,9 @@ import type { CivilDate } from './generated/CivilDate';
 import type { RefusalCode } from './generated/RefusalCode';
 import type { When } from './generated/When';
 import type { CalendarEntry } from './store';
+import type { Expansion } from './generated/Expansion';
+import type { Projection } from './generated/Projection';
+import type { Event } from './generated/Event';
 
 export type PlacementEngine = Pick<CalendarEngine, 'instantOf' | 'civilOf' | 'expand' | 'addDays'>;
 
@@ -56,11 +59,11 @@ type Base = Omit<Chip, 'id' | 'span'>;
 
 function describe(entry: CalendarEntry, viewer: string): { base: Base; when: When } {
   if (entry.source === 'inherited') {
-    const p = entry.projection;
+    const p: Projection = entry.projection;
     const base: Base = { entryKey: entry.key, title: p.title, origin: 'inherited', fromNode: p.origin_node, linked: entry.linked, cancelled: false, zone: p.zone };
     return { base, when: p.when };
   }
-  const e = entry.event;
+  const e: Event = entry.event;
   const busy: boolean = e.visibility === 'busy_only' && e.author !== viewer;
   const upPulled: boolean = entry.source === 'up_pulled';
   const base: Base = {
@@ -107,11 +110,11 @@ export function place(entries: Iterable<CalendarEntry>, days: CivilDate[], displ
       } else if ('all_day' in when) {
         let date: CivilDate = when.all_day.date;
         const lastKey: string = dateKey(last);
-        for (let n = 0; n < when.all_day.days && dateKey(date) <= lastKey; n++, date = engine.addDays(date, 1)) {
+        for (let n: number = 0; n < when.all_day.days && dateKey(date) <= lastKey; n++, date = engine.addDays(date, 1)) {
           placed.get(dateKey(date))?.push({ ...base, id: `${base.entryKey}#${dateKey(when.all_day.date)}`, span: { kind: 'all_day' } });
         }
       } else {
-        const expansion = engine.expand(when.recurring, base.zone, from, to);
+        const expansion: Expansion = engine.expand(when.recurring, base.zone, from, to);
         truncated ||= expansion.truncated;
         for (const o of expansion.occurrences) putTimed(base, o.start_ms, o.end_ms);
       }

@@ -82,7 +82,7 @@ export class IhttpServer {
 
   private async flush(key: string, stream: bigint): Promise<void> {
     for (;;) {
-      const o = this.outgoing.get(key);
+      const o: { peer: Caller; outbox: Outbox; } | undefined = this.outgoing.get(key);
       const next: FrameKind | null = o?.outbox.next() ?? null;
       if (o === undefined || next === null) {
         if (o?.outbox.done === true) this.outgoing.delete(key);

@@ -78,32 +78,32 @@ export class MemoryStore {
     };
     return {
       KvGet: ({ backend, key }) => (this.denied(backend, false) ? DENIED : { ok: { value: this.values.get(this.where(backend, key, false)) ?? null } }),
-      KvSet: ({ backend, key, value }) => {
+      KvSet: ({ backend, key, value }): { readonly refused: { readonly policy: "permission"; }; } | { refused: { policy: string; }; ok?: undefined; } | { ok: null; refused?: undefined; } => {
         if (this.denied(backend, true)) return DENIED;
         if (this.foreign(backend)) return { refused: { policy: 'author' } };
         this.put(backend, key, value);
         return { ok: null };
       },
-      KvSetMany: ({ backend, entries }) => {
+      KvSetMany: ({ backend, entries }): { readonly refused: { readonly policy: "permission"; }; } | { refused: { policy: string; }; ok?: undefined; } | { ok: null; refused?: undefined; } => {
         if (this.denied(backend, true)) return DENIED;
         if (this.foreign(backend)) return { refused: { policy: 'author' } };
         for (const e of entries) this.put(backend, e.key, e.value);
         return { ok: null };
       },
-      KvDelete: ({ backend, key }) => {
+      KvDelete: ({ backend, key }): { readonly refused: { readonly policy: "permission"; }; } | { refused: { policy: string; }; ok?: undefined; } | { ok: null; refused?: undefined; } => {
         if (this.denied(backend, true)) return DENIED;
         if (this.foreign(backend)) return { refused: { policy: 'author' } };
         this.values.delete(this.where(backend, key, true));
         return { ok: null };
       },
-      KvList: ({ backend, prefix, cursor }) => {
+      KvList: ({ backend, prefix, cursor }): { readonly refused: { readonly policy: "permission"; }; } | { ok: { keys: string[]; next: string | null; }; } => {
         if (this.denied(backend, false)) return DENIED;
         const base: string = this.where(backend, '', false);
         const keys: string[] = [...this.values.keys()].filter((k) => k.startsWith(base + prefix)).map((k) => k.slice(base.length)).sort();
         const { items, next } = page(keys, cursor);
         return { ok: { keys: items, next } };
       },
-      KvListAuthored: ({ node_id, prefix, cursor }) => {
+      KvListAuthored: ({ node_id, prefix, cursor }): { readonly refused: { readonly policy: "permission"; }; } | { ok: { entries: AuthoredKey[]; next: string | null; }; } => {
         if (this.unreadable.has(node_id)) return DENIED;
         const head: string = `authored:${node_id}:`;
         const found: AuthoredKey[] = [...this.values.keys()].filter((k) => k.startsWith(head)).map((k) => {

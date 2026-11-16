@@ -36,9 +36,9 @@ function Notice({ children }: { children: React.ReactNode }): JSX.Element {
 }
 
 export function CalendarNotices({ loads, placement }: CalendarNoticesProps): JSX.Element | null {
-  const failed = [...loads].flatMap(([source, load]) => (load.kind === 'failed' ? [{ source, reason: load.reason }] : []));
-  const unreadable = [...loads].flatMap(([source, load]) => (load.kind === 'ready' && load.unreadable > 0 ? [{ source, count: load.unreadable }] : []));
-  const limited = [...loads].flatMap(([source, load]) => (load.kind === 'ready' && load.limitedTo !== null ? [{ source, to: load.limitedTo }] : []));
+  const failed: { source: EntrySource; reason: string; }[] = [...loads].flatMap(([source, load]) => (load.kind === 'failed' ? [{ source, reason: load.reason }] : []));
+  const unreadable: { source: EntrySource; count: number; }[] = [...loads].flatMap(([source, load]) => (load.kind === 'ready' && load.unreadable > 0 ? [{ source, count: load.unreadable }] : []));
+  const limited: { source: EntrySource; to: number; }[] = [...loads].flatMap(([source, load]) => (load.kind === 'ready' && load.limitedTo !== null ? [{ source, to: load.limitedTo }] : []));
   if (failed.length === 0 && unreadable.length === 0 && limited.length === 0 && placement.unplaced.length === 0 && !placement.truncated) return null;
   return (
     <ul className="flex flex-col gap-2" aria-label="Calendar notices" data-testid="calendar-notices">

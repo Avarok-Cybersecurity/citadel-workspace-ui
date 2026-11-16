@@ -11,6 +11,7 @@
  *
  * A value the core cannot decode is left out and counted, as read-sources.ts does.
  */
+import type { AuthoredKey } from '@/lib/citadel-apps/sdk/generated/AuthoredKey';
 import type { CalendarEngine } from './engine/calendar-engine';
 import type { Event } from './generated/Event';
 import type { OriginRead } from './generated/OriginRead';
@@ -64,7 +65,7 @@ export async function readInherited(ports: CalendarPorts, engine: CalendarEngine
   const entries: InheritedEntry[] = [];
   let unreadable: number = 0;
   for (const key of keys) {
-    const parts = inheritedKeyParts(key);
+    const parts: { origin: string; id: string; } | null = inheritedKeyParts(key);
     const bytes: Uint8Array | null = await ports.storage.get({ kind: 'node', node }, key);
     if (bytes === null) continue;
     const projection: Projection | null = parts === null ? null : decoded(() => engine.decodeProjection(bytes));
@@ -87,7 +88,7 @@ export async function readInherited(ports: CalendarPorts, engine: CalendarEngine
 
 async function eventsAt(ports: CalendarPorts, below: string): Promise<{ author: string | null; key: string }[]> {
   const official: string[] = await ports.storage.keys({ kind: 'node', node: below }, EVENT_PREFIX);
-  const authored = await ports.storage.authoredKeys(below, EVENT_PREFIX);
+  const authored: AuthoredKey[] = await ports.storage.authoredKeys(below, EVENT_PREFIX);
   return [...official.map((key: string) => ({ author: null, key })), ...authored.map((k) => ({ author: k.author, key: k.key }))];
 }
 

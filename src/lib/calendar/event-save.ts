@@ -18,6 +18,7 @@ import type { Event } from './generated/Event';
 import type { Write } from './generated/Write';
 import { PortRefused, refusalCopy, type CalendarPorts } from './ports';
 import { keepPlan } from './reminder-plans';
+import type { FanOutResult } from '@/lib/calendar/fan-out';
 
 export type SaveOutcome =
   | { readonly kind: 'saved' }
@@ -52,6 +53,6 @@ export async function saveEvent(ports: CalendarPorts, engine: CalendarEngine, sa
   }
   if (store.kind !== 'user') await announce(ports, engine, { node: event.origin_node, key });
   if (plan.length === 0) return { kind: 'saved' };
-  const result = await applyFanOut(ports, engine, plan, progress);
+  const result: FanOutResult = await applyFanOut(ports, engine, plan, progress);
   return result.failed.length === 0 ? { kind: 'saved' } : { kind: 'partly', failed: result.failed };
 }

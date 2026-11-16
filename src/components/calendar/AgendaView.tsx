@@ -3,7 +3,7 @@
  * prints its time, zone, title and where it comes from in text. The focused day is scrolled to,
  * and its first event takes focus when the member arrived here from a day in a grid.
  */
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 import { CalendarDays } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { dateKey, sameDate } from '@/lib/calendar/grid-keyboard';
@@ -27,7 +27,7 @@ interface AgendaViewProps {
 }
 
 export function AgendaView({ days, cursor, today, placement, displayZone, nodeName, focusCursor, onOpenChip, onCreate }: AgendaViewProps): JSX.Element {
-  const list = useRef<HTMLDivElement>(null);
+  const list: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
   const busy: CivilDate[] = days.filter((day: CivilDate) => (placement.days.get(dateKey(day)) ?? []).length > 0);
   const cursorKey: string = dateKey(cursor);
 

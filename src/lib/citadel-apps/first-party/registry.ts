@@ -39,7 +39,7 @@ export type GlueTabLoader = () => Promise<ComponentType<GlueTabProps>>;
 
 /** App id -> its tab, loaded the first time it is shown. */
 const GLUE_TABS: ReadonlyMap<string, GlueTabLoader> = new Map<string, GlueTabLoader>([
-  [CALENDAR_APP_ID, () => import('@/components/calendar/CalendarMount').then((m) => m.CalendarMount)],
+  [CALENDAR_APP_ID, (): Promise<ComponentType<GlueTabProps>> => import('@/components/calendar/CalendarMount').then((m) => m.CalendarMount)],
 ]);
 
 export function glueTab(appId: string): GlueTabLoader | null {

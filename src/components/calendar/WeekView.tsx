@@ -5,17 +5,18 @@
  * snap sideways. The days are one tab stop (design §3.10); Enter opens the day in Agenda, where each
  * event is its own button, so the chips here are pointer targets the keyboard reaches there.
  */
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 import { cn } from '@/lib/utils';
 import { dateKey, sameDate, type GridNav } from '@/lib/calendar/grid-keyboard';
 import { formatDayLong, formatDayShort, zoneAbbreviation } from '@/lib/calendar/format';
 import type { CivilDate } from '@/lib/calendar/generated/CivilDate';
 import type { CivilDateTime } from '@/lib/calendar/generated/CivilDateTime';
-import { layoutLanes } from '@/lib/calendar/lanes';
+import { layoutLanes, type Laned } from '@/lib/calendar/lanes';
 import type { Chip, Placement } from '@/lib/calendar/placement';
 import { EventChip } from './EventChip';
 import { HOURS, TimeRuler } from './TimeRuler';
 import { useRovingGrid, type GridHandlers } from './use-roving-grid';
+import type { DayCell, RovingGrid } from '@/components/calendar/use-roving-grid';
 
 /** One hour's height: tall enough on a phone that a half-hour event is a 44px target. */
 const HOUR_CLASS: string = 'h-[96px] sm:h-[48px]';
@@ -41,7 +42,7 @@ interface WeekViewProps extends GridHandlers {
 }
 
 function Column({ chips, isToday, now, props }: { chips: Chip[]; isToday: boolean; now: CivilDateTime; props: WeekViewProps }): JSX.Element {
-  const timed = layoutLanes(chips.flatMap((chip: Chip) => (chip.span.kind === 'timed' ? [{ chip, fromMinute: chip.span.fromMinute, toMinute: chip.span.toMinute }] : [])));
+  const timed: Laned<{ chip: Chip; fromMinute: number; toMinute: number; }>[] = layoutLanes(chips.flatMap((chip: Chip) => (chip.span.kind === 'timed' ? [{ chip, fromMinute: chip.span.fromMinute, toMinute: chip.span.toMinute }] : [])));
   return (
     <div className="relative">
       {HOURS.map((h: number) => <div key={h} className={cn('border-b border-dashed border-border/70', HOUR_CLASS)} />)}
@@ -99,8 +100,8 @@ function AllDay({ chips, shown, className, day, props }: { chips: Chip[]; shown:
 
 export function WeekView(props: WeekViewProps): JSX.Element {
   const { view, days, cursor, today, now, placement, displayZone, nodeRuler, nav } = props;
-  const grid = useRovingGrid(cursor, view, nav, props);
-  const scroller = useRef<HTMLDivElement>(null);
+  const grid: RovingGrid = useRovingGrid(cursor, view, nav, props);
+  const scroller: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
   const first: CivilDate = days[0] as CivilDate;
 
   useEffect((): void => {
@@ -119,7 +120,7 @@ export function WeekView(props: WeekViewProps): JSX.Element {
             const chips: Chip[] = placement.days.get(dateKey(day)) ?? [];
             const allDay: Chip[] = chips.filter((c: Chip) => c.span.kind === 'all_day');
             const isToday: boolean = sameDate(day, today);
-            const cell = grid.cell(day);
+            const cell: DayCell = grid.cell(day);
             return (
               <div
                 key={cell.key}

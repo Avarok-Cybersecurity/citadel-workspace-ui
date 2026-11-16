@@ -11,6 +11,7 @@ import type { TopicArrival } from '@/lib/citadel-apps/host/ports';
 import type { CalendarEngine } from './engine/calendar-engine';
 import type { CalChange } from './generated/CalChange';
 import { PortRefused, type CalendarPorts } from './ports';
+import type { Unsubscribe } from '@/lib/citadel-apps/host/glue-instance';
 
 export const CAL_TOPIC: string = 'cal';
 
@@ -30,7 +31,7 @@ export async function announce(ports: TopicPorts, engine: CalendarEngine, change
 /** Joins the topic and hands each change another window announced to `onChange`; returns the leave. */
 export function listenCal(ports: TopicPorts, engine: CalendarEngine, onChange: (change: CalChange) => void): () => void {
   let live: boolean = true;
-  const off = ports.topics.onArrival((arrival: TopicArrival): void => {
+  const off: Unsubscribe = ports.topics.onArrival((arrival: TopicArrival): void => {
     if (!live || arrival.name !== CAL_TOPIC || !('message' in arrival.event)) return;
     let change: CalChange;
     try {

@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { checkAvailability, draftOf, type AvailabilityDraft, type WindowText } from '@/lib/calendar/availability-edit';
+import { checkAvailability, draftOf, type AvailabilityDraft, type WindowText, type AvailabilityCheck } from '@/lib/calendar/availability-edit';
 import { formatDayLong } from '@/lib/calendar/format';
 import type { Availability } from '@/lib/calendar/generated/Availability';
 import type { CivilDate } from '@/lib/calendar/generated/CivilDate';
@@ -72,7 +72,7 @@ export function AvailabilityEditor({ id, saved, zone, deviceZone, onSave }: Avai
   const [said, setSaid] = useState<string>('');
   const save = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
-    const checked = checkAvailability(id, draft, isKnownZone);
+    const checked: AvailabilityCheck = checkAvailability(id, draft, isKnownZone);
     if (!checked.ok) {
       setErrors(checked.errors);
       setSaid('Some hours need attention.');

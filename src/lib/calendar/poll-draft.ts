@@ -56,8 +56,8 @@ export function checkPollDraft(draft: PollDraft, who: PollIdentity, engine: Pick
   if (draft.typeId === null || draft.durationMin === null) errors.set('type', 'Choose which of your poll types this is, and how long.');
   const proposals: Interval[] = [];
   draft.proposals.forEach((p: ProposalDraft, i: number): void => {
-    const d = DATE.exec(p.date);
-    const t = TIME.exec(p.time);
+    const d: RegExpExecArray | null = DATE.exec(p.date);
+    const t: RegExpExecArray | null = TIME.exec(p.time);
     if (d === null || t === null) {
       errors.set(`proposal-${i}`, `Time ${i + 1} needs a date and a time.`);
       return;

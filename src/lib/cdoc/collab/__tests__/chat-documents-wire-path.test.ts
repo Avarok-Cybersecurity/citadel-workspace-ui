@@ -43,9 +43,9 @@ describe('a chat document on the production path', () => {
 
   it('hears its own answers, and the page and the other documents of the node never do', () => {
     const { sender } = recordingSender();
-    const page = listen(workspaceDocumentsTransport(sender, null));
-    const a = listen(workspaceDocumentsTransport(sender, DOC_A));
-    const b = listen(workspaceDocumentsTransport(sender, DOC_B));
+    const page: { heard: DocumentsResponse[]; stop: () => void; } = listen(workspaceDocumentsTransport(sender, null));
+    const a: { heard: DocumentsResponse[]; stop: () => void; } = listen(workspaceDocumentsTransport(sender, DOC_A));
+    const b: { heard: DocumentsResponse[]; stop: () => void; } = listen(workspaceDocumentsTransport(sender, DOC_B));
     eventEmitter.emit('websocket-message', pushOf({ ChatDocuments: { chat_doc: DOC_A, answer: PUSH } }));
     eventEmitter.emit('websocket-message', pushOf({ Documents: PUSH }));
     for (const listener of [page, a, b]) listener.stop();

@@ -23,7 +23,7 @@ describe('the notification settings', () => {
   });
 
   it('refuse bytes that are not version-1 settings', () => {
-    const base = { v: 1, enabled: true, kinds: ['reminders'], lead: [10], delivery: 'system' };
+    const base: { v: number; enabled: boolean; kinds: string[]; lead: number[]; delivery: string; } = { v: 1, enabled: true, kinds: ['reminders'], lead: [10], delivery: 'system' };
     expect(decodePrefs(encodeCbor(base))).not.toBeNull();
     expect(decodePrefs(encodeCbor({ ...base, v: 2 }))).toBeNull();
     expect(decodePrefs(encodeCbor({ ...base, kinds: ['everything'] }))).toBeNull();

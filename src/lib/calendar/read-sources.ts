@@ -13,6 +13,7 @@ import type { CalendarEngine } from './engine/calendar-engine';
 import type { Event } from './generated/Event';
 import type { CalendarPorts, CalendarStore } from './ports';
 import { entryKey, type CalendarEntry, type EntrySource, type EventEntry } from './store';
+import type { AuthoredKey } from '@/lib/citadel-apps/sdk/generated/AuthoredKey';
 
 /** Where events live in each store (design 3.3.2). */
 export const EVENT_PREFIX: string = 'cal/event/';
@@ -54,7 +55,7 @@ async function decodeAll(ports: CalendarPorts, engine: CalendarEngine, source: R
 
 export async function readSource(ports: CalendarPorts, engine: CalendarEngine, source: ReadSource, node: string): Promise<SourceRead> {
   if (source === 'authored') {
-    const keys = await ports.storage.authoredKeys(node, EVENT_PREFIX);
+    const keys: AuthoredKey[] = await ports.storage.authoredKeys(node, EVENT_PREFIX);
     return decodeAll(ports, engine, source, node, keys.map((k) => ({ store: { kind: 'authored', node, author: k.author }, author: k.author, key: k.key })));
   }
   const store: CalendarStore = source === 'node' ? { kind: 'node', node } : { kind: 'user' };

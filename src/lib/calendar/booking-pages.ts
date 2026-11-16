@@ -18,6 +18,7 @@ import type { Interval } from './generated/Interval';
 import { dateKey } from './grid-keyboard';
 import type { CalendarPorts, CalendarStore } from './ports';
 import type { CalendarEntry } from './store';
+import type { AuthoredKey } from '@/lib/citadel-apps/sdk/generated/AuthoredKey';
 
 export const TYPE_PREFIX: string = 'cal/type/';
 export const AVAILABILITY_KEY: string = 'cal/availability';
@@ -57,7 +58,7 @@ export async function readBookingPage(ports: CalendarPorts, engine: CalendarEngi
 
 /** The members who offer at least one type on `node`, by name. */
 export async function hostsOn(ports: CalendarPorts, node: string): Promise<string[]> {
-  const keys = await ports.storage.authoredKeys(node, TYPE_PREFIX);
+  const keys: AuthoredKey[] = await ports.storage.authoredKeys(node, TYPE_PREFIX);
   return [...new Set(keys.map((k) => k.author))].sort((a: string, b: string) => a.localeCompare(b));
 }
 

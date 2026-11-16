@@ -5,9 +5,9 @@
  * team-slots.ts), shown in the zone chosen here, or the type's locked zone. It reads no port: the
  * mount hands it the types, how to work out their times, and `onBook` (booking.ts).
  */
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState, type RefObject } from 'react';
 import { Button } from '@/components/ui/button';
-import { checkAnswers, type BookingChoice, type BookOutcome } from '@/lib/calendar/booking-form';
+import { checkAnswers, type BookingChoice, type BookOutcome, type FormCheck } from '@/lib/calendar/booking-form';
 import { CalendarRefusal, type CalendarEngine } from '@/lib/calendar/engine/calendar-engine';
 import { formatDayLong, formatDayShort } from '@/lib/calendar/format';
 import { dateKey } from '@/lib/calendar/grid-keyboard';
@@ -60,7 +60,7 @@ export function BookingPage(p: BookingPageProps): JSX.Element {
   const [busy, setBusy] = useState<boolean>(false);
   const [said, setSaid] = useState<string>('');
   const [alternatives, setAlternatives] = useState<Interval[]>([]);
-  const times = useRef<HTMLDivElement>(null);
+  const times: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
   const zone: string = type === null ? chosenZone : slotZone(type, chosenZone);
   const to: CivilDate = engine.addDays(from, RANGE_DAYS - 1);
 
@@ -89,7 +89,7 @@ export function BookingPage(p: BookingPageProps): JSX.Element {
   };
   const confirm = async (): Promise<void> => {
     if (type === null || duration === null || slot === null) return;
-    const checked = checkAnswers(type.questions, values);
+    const checked: FormCheck = checkAnswers(type.questions, values);
     if (!checked.ok) {
       setErrors(checked.errors);
       setSaid('Some answers need attention.');

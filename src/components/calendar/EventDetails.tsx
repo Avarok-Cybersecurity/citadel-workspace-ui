@@ -3,12 +3,12 @@
  * the event it describes, with every fact in words (chip-label.ts). A booking its reader hosts or
  * booked can be cancelled from here; an event they may change (event-edit.ts) edited or cancelled.
  */
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { chipWords, type ChipWords } from '@/lib/calendar/chip-label';
 import { formatTimeIn } from '@/lib/calendar/format';
-import type { Chip } from '@/lib/calendar/placement';
+import type { Chip, ChipSpan } from '@/lib/calendar/placement';
 import { CancelBooking } from './CancelBooking';
 
 interface EventDetailsProps {
@@ -26,10 +26,10 @@ interface EventDetailsProps {
 }
 
 export function EventDetails({ chip, displayZone, nodeName, onClose, onCancelBooking, onReschedule, onEdit, onCancelEvent }: EventDetailsProps): JSX.Element {
-  const heading = useRef<HTMLHeadingElement>(null);
+  const heading: RefObject<HTMLHeadingElement> = useRef<HTMLHeadingElement>(null);
   useEffect(() => { heading.current?.focus(); }, [chip.id]);
   const words: ChipWords = chipWords(chip, displayZone, nodeName);
-  const span = chip.span;
+  const span: ChipSpan = chip.span;
   const when: string = span.kind === 'all_day' ? 'All day' : `${words.time} to ${formatTimeIn(span.endMs, displayZone)} ${words.clock ?? ''}`;
   return (
     <section aria-label="Event details" data-testid="calendar-event-details" className="flex items-start gap-3 rounded-md border border-border bg-muted/40 p-3">

@@ -9,19 +9,20 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { realEngine } from '@/lib/calendar/__tests__/engine-rig';
 import { JULY_WEEK, VIEWER } from '@/lib/calendar/__tests__/placement-fixture';
 import type { CivilDateTime } from '@/lib/calendar/generated/CivilDateTime';
-import { calendarReducer, initialCalendar, type CalendarView } from '@/lib/calendar/store';
+import { calendarReducer, initialCalendar, type CalendarView, type CalendarState } from '@/lib/calendar/store';
 import { CalendarTab } from '../CalendarTab';
+import type { CalendarEngine } from '@/lib/calendar/engine/calendar-engine';
 
-const engine = realEngine();
+const engine: CalendarEngine = realEngine();
 const NOW: CivilDateTime = { date: { y: 2024, m: 7, d: 16 }, minute: 600 };
 const NAMES: Record<string, string> = { company: 'Company', 'team-d': 'Team D', n1: 'Platform' };
 
 function Tab({ view, zone = 'America/New_York' }: { view: CalendarView; zone?: string }): JSX.Element {
   const [state, dispatch] = useReducer(calendarReducer, undefined, () => {
-    const s = initialCalendar(view, NOW.date);
+    const s: CalendarState = initialCalendar(view, NOW.date);
     return calendarReducer(s, { type: 'read', source: 'node', entries: JULY_WEEK.filter((e) => e.source === 'node'), unreadable: 0, limitedTo: null });
   });
-  const withOthers = JULY_WEEK.filter((e) => e.source !== 'node').reduce((s, e) => ({ ...s, entries: new Map([...s.entries, [e.key, e]]) }), state);
+  const withOthers: CalendarState = JULY_WEEK.filter((e) => e.source !== 'node').reduce((s, e) => ({ ...s, entries: new Map([...s.entries, [e.key, e]]) }), state);
   return (
     <CalendarTab state={withOthers} dispatch={dispatch} engine={engine} viewer={VIEWER} displayZone={zone}
       node={{ id: 'n1', name: 'Platform', zone: 'America/New_York' }} nodeName={(id: string): string => NAMES[id] ?? id}

@@ -11,7 +11,7 @@ describe("an app's notification settings", () => {
   it('are listed under Notifications, by app', async () => {
     render(<SettingsModal open onOpenChange={() => {}} tab="notifications" />);
     expect(screen.getByRole('tab', { name: 'Notifications' }).getAttribute('aria-selected')).toBe('true');
-    const section = await screen.findByRole('region', { name: 'Calendar' });
+    const section: HTMLElement = await screen.findByRole('region', { name: 'Calendar' });
     expect(await screen.findByText("Open a workspace to change the Calendar's notifications.")).toBeTruthy();
     expect(section.contains(screen.getByText("Open a workspace to change the Calendar's notifications."))).toBe(true);
   });

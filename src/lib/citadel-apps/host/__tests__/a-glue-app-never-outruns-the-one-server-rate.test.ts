@@ -26,7 +26,7 @@ async function arrivals(burst: number): Promise<{ readonly counts: number[]; rea
   const pending: Promise<HostReply<unknown>>[] = Array.from({ length: burst }, () => g.op('KvGet', { backend: 'user', key: 'k' }));
   const counts: number[] = [];
   const horizon: number = Math.ceil((burst / RATE) * 1000) + 1000;
-  for (let t = 0; t <= horizon; t += STEP_MS) {
+  for (let t: number = 0; t <= horizon; t += STEP_MS) {
     await flush();
     counts.push(rec.calls.length);
     clock.advance(STEP_MS);
@@ -53,7 +53,7 @@ describe("a glue app's server calls", () => {
     const { counts } = await arrivals(5 * RATE);
     const since: number[] = [0, ...counts];
     const window: number = 1000 / STEP_MS;
-    for (let i = 0; i + window < since.length; i += 1) {
+    for (let i: number = 0; i + window < since.length; i += 1) {
       expect(since[i + window] - since[i], `window from ${(i - 1) * STEP_MS} ms`).toBeLessThanOrEqual(2 * RATE);
     }
   });

@@ -21,6 +21,7 @@ import type { Health } from './generated/Health';
 import type { ListQuery } from './generated/ListQuery';
 import type { NewEvent } from './generated/NewEvent';
 import type { SdkRefusal } from './generated/SdkRefusal';
+import type { Rev } from './generated/Rev';
 
 export type SdkCall<T> = { readonly ok: T } | { readonly refused: SdkRefusal } | { readonly failed: string };
 
@@ -40,7 +41,7 @@ export class CalendarSdk {
 
   /** The new revision. */
   async updateEvent(id: string, patch: EventPatch): Promise<SdkCall<number>> {
-    const r = await this.call('PATCH', this.sdk.eventPath(id), '', this.sdk.encodeEventPatch(patch), 200, this.sdk.decodeRev);
+    const r: SdkCall<Rev> = await this.call('PATCH', this.sdk.eventPath(id), '', this.sdk.encodeEventPatch(patch), 200, this.sdk.decodeRev);
     return 'ok' in r ? { ok: r.ok.rev } : r;
   }
 

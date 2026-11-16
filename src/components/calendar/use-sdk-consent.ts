@@ -4,7 +4,7 @@
  * answers it. A prompt left open when the pane goes away is answered `unanswered`, which lets
  * nothing through and is not remembered, so the app is asked again next time.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
 import type { ConsentAnswer } from '@/lib/calendar/sdk-host';
 
 interface Waiting {
@@ -20,13 +20,13 @@ export interface SdkConsent {
 }
 
 export function useSdkConsent(): SdkConsent {
-  const queue = useRef<Waiting[]>([]);
+  const queue: MutableRefObject<Waiting[]> = useRef<Waiting[]>([]);
   const [asking, setAsking] = useState<string | null>(null);
-  const ask = useCallback((appId: string): Promise<ConsentAnswer> => new Promise<ConsentAnswer>((resolve): void => {
+  const ask: (appId: string) => Promise<ConsentAnswer> = useCallback((appId: string): Promise<ConsentAnswer> => new Promise<ConsentAnswer>((resolve): void => {
     queue.current.push({ appId, resolve });
     setAsking(queue.current[0]?.appId ?? null);
   }), []);
-  const answer = useCallback((given: Exclude<ConsentAnswer, 'unanswered'>): void => {
+  const answer: (given: Exclude<ConsentAnswer, "unanswered">) => void = useCallback((given: Exclude<ConsentAnswer, 'unanswered'>): void => {
     queue.current.shift()?.resolve(given);
     setAsking(queue.current[0]?.appId ?? null);
   }, []);

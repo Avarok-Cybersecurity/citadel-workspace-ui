@@ -54,14 +54,14 @@ export function CalendarTab({ state, dispatch, engine, viewer, displayZone, node
   const [focusAgenda, setFocusAgenda] = useState<boolean>(false);
   const days: CivilDate[] = useMemo(() => daysFor(view, cursor, engine), [view, cursor, engine]);
   const placement: Placement = useMemo(() => place(state.entries.values(), days, displayZone, viewer, engine), [state.entries, days, displayZone, viewer, engine]);
-  const nodeRuler = useMemo(() => {
+  const nodeRuler: { zone: string; hourStarts: bigint[]; } | null = useMemo(() => {
     if (node.zone === null || node.zone === displayZone || (view !== 'week' && view !== 'day')) return null;
     const first: CivilDate = days[0] as CivilDate;
     return { zone: node.zone, hourStarts: HOURS.map((h: number): bigint => engine.instantOf(displayZone, { date: first, minute: h * 60 })) };
   }, [node.zone, displayZone, view, days, engine]);
 
-  const onFocus = useCallback((date: CivilDate): void => dispatch({ type: 'focus', date }), [dispatch]);
-  const openDay = useCallback((date: CivilDate): void => {
+  const onFocus: (date: CivilDate) => void = useCallback((date: CivilDate): void => dispatch({ type: 'focus', date }), [dispatch]);
+  const openDay: (date: CivilDate) => void = useCallback((date: CivilDate): void => {
     dispatch({ type: 'focus', date });
     dispatch({ type: 'view', view: 'agenda' });
     setFocusAgenda(true);
@@ -75,7 +75,7 @@ export function CalendarTab({ state, dispatch, engine, viewer, displayZone, node
     dispatch({ type: 'focus', date });
   };
 
-  const shared = { cursor, today, placement, displayZone, nodeName, nav: engine, onOpenChip, onFocus, onOpenDay: openDay, onCreate, onMore: openDay };
+  const shared: { cursor: CivilDate; today: CivilDate; placement: Placement; displayZone: string; nodeName: (id: string) => string; nav: CalendarEngine; onOpenChip: (chip: Chip) => void; onFocus: (date: CivilDate) => void; onOpenDay: (date: CivilDate) => void; onCreate: ((date: CivilDate) => void) | null; onMore: (date: CivilDate) => void; } = { cursor, today, placement, displayZone, nodeName, nav: engine, onOpenChip, onFocus, onOpenDay: openDay, onCreate, onMore: openDay };
   return (
     <div className="flex min-w-0 flex-col gap-3" data-testid="calendar-tab">
       <CalendarToolbar

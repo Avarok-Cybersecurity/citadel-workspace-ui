@@ -17,7 +17,7 @@ const changed = (installId: string, keys: string[]): unknown => ({
 
 describe('StorageChanged reaches the running instances of the install that wrote, only', () => {
   it('delivers one event per key to an instance of the same install', () => {
-    const s = pushStream();
+    const s: { pushes: (l: (a: unknown) => void) => () => void; push: (a: unknown) => void; } = pushStream();
     const heard: AppEvent[] = [];
     onStorageChanged(s.pushes, 'cal-1', (e: AppEvent): void => { heard.push(e); });
     s.push(changed('cal-1', ['cal/rsvp/1', 'cal/rsvp/2']));
@@ -28,7 +28,7 @@ describe('StorageChanged reaches the running instances of the install that wrote
   });
 
   it('tells an instance of another install nothing', () => {
-    const s = pushStream();
+    const s: { pushes: (l: (a: unknown) => void) => () => void; push: (a: unknown) => void; } = pushStream();
     const heard: AppEvent[] = [];
     onStorageChanged(s.pushes, 'kanban-1', (e: AppEvent): void => { heard.push(e); });
     s.push(changed('cal-1', ['cal/rsvp/1']));
@@ -36,7 +36,7 @@ describe('StorageChanged reaches the running instances of the install that wrote
   });
 
   it('ignores a push that carries a value or a store the server never announces', () => {
-    const s = pushStream();
+    const s: { pushes: (l: (a: unknown) => void) => () => void; push: (a: unknown) => void; } = pushStream();
     const heard: AppEvent[] = [];
     onStorageChanged(s.pushes, 'cal-1', (e: AppEvent): void => { heard.push(e); });
     s.push({ StorageChanged: { install_id: 'cal-1', backend: { node: { node_id: 'room' } }, keys: ['k'], value: [1] } });
@@ -45,7 +45,7 @@ describe('StorageChanged reaches the running instances of the install that wrote
   });
 
   it('stops delivering once unsubscribed', () => {
-    const s = pushStream();
+    const s: { pushes: (l: (a: unknown) => void) => () => void; push: (a: unknown) => void; } = pushStream();
     const heard: AppEvent[] = [];
     const off: () => void = onStorageChanged(s.pushes, 'cal-1', (e: AppEvent): void => { heard.push(e); });
     off();

@@ -48,7 +48,7 @@ function server(refusal: { at: number; refusal: ChatAttachmentRefusal } | null):
 }
 
 function Channel({ files }: { files: FilePort }): JSX.Element {
-  const transfer = useP2PFileTransfer({ files, recipient: 'Engine room' });
+  const transfer: ReturnType<typeof useP2PFileTransfer> = useP2PFileTransfer({ files, recipient: 'Engine room' });
   return (
     <>
       <button type="button" onClick={(): void => { transfer.handleSendFile(new File(['x'], 'plan.pdf')).catch((): void => undefined); }}>send</button>
@@ -58,7 +58,7 @@ function Channel({ files }: { files: FilePort }): JSX.Element {
 }
 
 async function answer(wire: { answer: () => void }, times: number): Promise<void> {
-  for (let i = 0; i < times; i++) {
+  for (let i: number = 0; i < times; i++) {
     // Each chunk is sent only after the last one's answer, so wait for it to be asked for.
     await act(async (): Promise<void> => { await new Promise((r: (v: unknown) => void): void => { setTimeout(r, 5); }); wire.answer(); });
   }
@@ -68,7 +68,7 @@ afterEach(cleanup);
 
 describe('a channel upload', () => {
   it('shows what the server has stored, then that the file is shared, and never "Preparing to send"', async () => {
-    const wire = server(null);
+    const wire: { io: Pick<NodeChatIO, "attachments" | "shareFile" | "readFile">; answer: () => void; } = server(null);
     render(<><Toaster /><Channel files={nodeFiles(wire.io, 'room-1')} /></>);
     act((): void => { screen.getByText('send').click(); });
     await waitFor((): void => { expect(screen.getByRole('progressbar', { name: 'Upload of plan.pdf' })).toHaveAttribute('aria-valuenow', '0'); });
@@ -83,7 +83,7 @@ describe('a channel upload', () => {
   });
 
   it('shows the server\'s reason when it refuses, once, and never as shared', async () => {
-    const wire = server({ at: 1, refusal: { TooLarge: { max_bytes: 10n * 1024n * 1024n } } });
+    const wire: { io: Pick<NodeChatIO, "attachments" | "shareFile" | "readFile">; answer: () => void; } = server({ at: 1, refusal: { TooLarge: { max_bytes: 10n * 1024n * 1024n } } });
     render(<><Toaster /><Channel files={nodeFiles(wire.io, 'room-1')} /></>);
     act((): void => { screen.getByText('send').click(); });
     await answer(wire, 2);

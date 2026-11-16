@@ -5,15 +5,15 @@
  * clock are the stand-ins; what the Calendar decides to raise is the shipped code.
  */
 import type { Capability } from '@/lib/citadel-apps/host/capabilities';
-import { glueInstance, type StorageChange } from '@/lib/citadel-apps/host/glue-instance';
-import { STANDARD_HOST_POLICY } from '@/lib/citadel-apps/host/limits';
+import { glueInstance, type StorageChange, type GlueInstance } from '@/lib/citadel-apps/host/glue-instance';
+import { STANDARD_HOST_POLICY, type IhttpLimits } from '@/lib/citadel-apps/host/limits';
 import { ManualClock } from '@/lib/citadel-apps/host/__tests__/fakes';
 import { withNoticePrefs } from '../notice-gate';
 import { calendarPorts, type CalendarPorts } from '../ports';
 import { MemoryStore } from './memory-store';
 
 const HELD: Capability[] = ['storage.user', 'storage.node', 'storage.node.authored', 'notifications'];
-const POLICY = { ...STANDARD_HOST_POLICY, serverCallsPerSecond: 100_000 };
+const POLICY: { serverCallsPerSecond: number; memoryMaxPages: number; computeBudgetMs: number; hostNetTimeoutMs: number; serverNetTimeoutMs: number; portTimeoutMs: number; hostCallsPerSecond: number; maxLiveInstancesPerPage: number; maxRequestBytes: number; maxReplyBytes: number; maxLiveReplies: number; replyTtlMs: number; maxLogBytes: number; peerAuthorizationsPerSecond: number; ihttp: IhttpLimits; } = { ...STANDARD_HOST_POLICY, serverCallsPerSecond: 100_000 };
 
 export interface NoticeMember {
   /** Under the member's settings, as the page binds them. */
@@ -33,7 +33,7 @@ export function noticeMember(name: string, shared: Map<string, Uint8Array>, star
   const listeners: Set<(change: StorageChange) => void> = new Set();
   const store: MemoryStore = new MemoryStore(name, shared);
   const clock: ManualClock = new ManualClock(startMs);
-  const glue = glueInstance({
+  const glue: GlueInstance = glueInstance({
     appId: 'net.avarok.calendar', held: new Set<Capability>(held), policy: POLICY, limits: { topics: null, p2p: null },
     ports: { storage: store.port(), notify: { Notify: ({ title, body }) => { notes.push(`${title}: ${body}`); return { ok: null }; } } },
     clock, pageUrl: 'https://w.example/n1',
@@ -45,5 +45,5 @@ export function noticeMember(name: string, shared: Map<string, Uint8Array>, star
 
 /** Lets every queued turn run, over several macrotasks: each change heard waits on the one before it. */
 export async function settle(): Promise<void> {
-  for (let i = 0; i < 20; i += 1) await new Promise<void>((r) => { setTimeout(r, 0); });
+  for (let i: number = 0; i < 20; i += 1) await new Promise<void>((r) => { setTimeout(r, 0); });
 }

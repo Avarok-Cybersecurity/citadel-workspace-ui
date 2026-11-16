@@ -21,7 +21,7 @@ export type RosterRead = () => readonly RosterMember[];
 /** The roster in username order, so two reads of the same roster answer the same list. */
 export function rosterMembersPort(read: RosterRead): MembersPort {
   return {
-    MembersList: () => {
+    MembersList: (): ReturnType<MembersPort['MembersList']> => {
       const members: Member[] = read()
         // Unknown presence is reported as not online: the app is told only what the page knows.
         .map((m: RosterMember): Member => ({ username: m.username, display_name: m.displayName, online: m.isOnline === true }))
@@ -43,7 +43,7 @@ export type NoticeSink = (notice: AppNotice) => void;
 
 export function badgedNotifyPort(app: { readonly id: string; readonly name: string }, sink: NoticeSink): NotifyPort {
   return {
-    Notify: ({ title, body }) => {
+    Notify: ({ title, body }): ReturnType<NotifyPort['Notify']> => {
       sink({ from: app.name, appId: app.id, title, body });
       return { ok: null };
     },

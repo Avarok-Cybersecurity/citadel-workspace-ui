@@ -46,7 +46,7 @@ export function BookingSetup({ ports, engine, node, me, displayZone, deviceZone,
   const [said, setSaid] = useState<string>('');
   const [scheduleId] = useState<string>(newId);
   const share: ShareLauncher = useShareLauncher();
-  const reload = useCallback(async (): Promise<void> => {
+  const reload: () => Promise<void> = useCallback(async (): Promise<void> => {
     try {
       setLoaded({ kind: 'ready', page: await readBookingPage(ports, engine, node.id, me) });
     } catch (e: unknown) {

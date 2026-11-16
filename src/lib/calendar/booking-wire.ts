@@ -44,7 +44,7 @@ export const encodeAlternatives = (alternatives: readonly Interval[]): Uint8Arra
   encodeCbor({ v: WIRE_VERSION, alternatives: alternatives.map((a: Interval) => ({ start_ms: a.start_ms, end_ms: a.end_ms })) });
 
 export function decodeAlternatives(bytes: Uint8Array): Interval[] | null {
-  const m = versioned(bytes);
+  const m: Readonly<Record<string, unknown>> | null = versioned(bytes);
   if (m === null || !Array.isArray(m.alternatives)) return null;
   const out: Interval[] = [];
   for (const a of m.alternatives as unknown[]) {
@@ -61,7 +61,7 @@ export function decodeAlternatives(bytes: Uint8Array): Interval[] | null {
 export const encodeCancel = (reason: string | null): Uint8Array => encodeCbor({ v: WIRE_VERSION, reason });
 
 export function decodeCancel(bytes: Uint8Array): { reason: string | null } | null {
-  const m = versioned(bytes);
+  const m: Readonly<Record<string, unknown>> | null = versioned(bytes);
   if (m === null || !(m.reason === null || typeof m.reason === 'string')) return null;
   return { reason: m.reason === null ? null : (m.reason as string) };
 }
@@ -70,6 +70,6 @@ export function decodeCancel(bytes: Uint8Array): { reason: string | null } | nul
 export const encodeReason = (reason: string): Uint8Array => encodeCbor({ v: WIRE_VERSION, reason });
 
 export function decodeReason(bytes: Uint8Array): string | null {
-  const m = versioned(bytes);
+  const m: Readonly<Record<string, unknown>> | null = versioned(bytes);
   return m !== null && typeof m.reason === 'string' ? m.reason : null;
 }

@@ -25,7 +25,7 @@ describe('an author’s store on a node', () => {
 
   it('lists every author’s keys only with storage.node.authored, and reaches the server', () => {
     expect(listAuthored.name).toBe('KvListAuthored');
-    const args = { node_id: 'room', prefix: 'cal/', cursor: null };
+    const args: { node_id: string; prefix: string; cursor: null; } = { node_id: 'room', prefix: 'cal/', cursor: null };
     expect(listAuthored.admits(args, held('storage.node'))).toBe(false);
     expect(listAuthored.admits(args, held('storage.node.authored'))).toBe(true);
     expect(listAuthored.server(args)).toBe(true);

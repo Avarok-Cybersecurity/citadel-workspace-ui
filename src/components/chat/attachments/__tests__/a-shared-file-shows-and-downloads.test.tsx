@@ -3,7 +3,7 @@
  * raster image within the decode limits (never by its name or declared type), and a Download that
  * saves the original bytes under the sender's name with any path taken off.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ServerFileCard } from '../ServerFileCard';
 import { AttachmentIOContext, type AttachmentIO } from '../attachment-io';
@@ -37,7 +37,7 @@ describe('a shared file in a node channel', () => {
   });
 
   it('does not draw an SVG that calls itself a PNG', async () => {
-    const reads = vi.fn(async (): Promise<Uint8Array> => SVG);
+    const reads: Mock<() => Promise<Uint8Array>> = vi.fn(async (): Promise<Uint8Array> => SVG);
     card({ ...picture, size: SVG.length }, { read: reads, files: { save: vi.fn() } });
     await waitFor((): void => expect(reads).toHaveBeenCalled());
     await Promise.resolve();
@@ -46,7 +46,7 @@ describe('a shared file in a node channel', () => {
   });
 
   it('downloads the original bytes under the sender\'s name without its path', async () => {
-    const value = io(PNG);
+    const value: AttachmentIO & { saved: SavedFile[]; } = io(PNG);
     card(picture, value);
     fireEvent.click(screen.getByRole('button', { name: 'Download ../../photos/holiday.png' }));
     await waitFor((): void => expect(value.saved).toHaveLength(1));

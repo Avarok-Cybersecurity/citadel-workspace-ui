@@ -4,6 +4,7 @@
  * an event left with none, cancelled, or with nothing still ahead has its plan removed, so the
  * scheduler never fires for it. The plan is the saver's alone: the reminders are theirs.
  */
+import type { ReminderPlan } from './generated/ReminderPlan';
 import type { CalendarEngine } from './engine/calendar-engine';
 import type { Event } from './generated/Event';
 import type { CalendarPorts, CalendarStore } from './ports';
@@ -19,7 +20,7 @@ const USER: CalendarStore = { kind: 'user' };
 export async function keepPlan(ports: CalendarPorts, engine: Pick<CalendarEngine, 'expand' | 'instantOf' | 'encodeReminderPlan'>, event: Event, before: Event | null): Promise<void> {
   if (event.reminders.length === 0 && (before?.reminders.length ?? 0) === 0) return;
   const key: string = `${REMINDER_PREFIX}${event.id}`;
-  const plan = planOf(event, event.updated_ms, engine);
+  const plan: ReminderPlan | null = planOf(event, event.updated_ms, engine);
   if (plan === null) await ports.storage.remove(USER, key);
   else await ports.storage.set(USER, key, engine.encodeReminderPlan(plan));
 }

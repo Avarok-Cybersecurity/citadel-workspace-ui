@@ -44,7 +44,7 @@ describe('a booking link', () => {
   });
 
   it('waits for how many guests, says a count the server refuses, and sends the one given', async () => {
-    const a = api();
+    const a: Pick<SecureLinksApi, "list" | "create"> & { created: NewSecureLink[]; } = api();
     render(<Panel a={a} />);
     await screen.findByTestId('share-quota');
     await userEvent.click(screen.getByTestId('share-add-booking-guests'));
@@ -73,7 +73,7 @@ describe('a booking link', () => {
   });
 
   it('is never sent one-time, even when one-time was chosen before the guests', async () => {
-    const a = api();
+    const a: Pick<SecureLinksApi, "list" | "create"> & { created: NewSecureLink[]; } = api();
     render(<Panel a={a} />);
     await screen.findByTestId('share-quota');
     await userEvent.click(screen.getByTestId('share-one-time'));

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { checkAnswers } from '../booking-form';
 import type { Question } from '../generated/Question';
+import type { FormCheck } from '@/lib/calendar/booking-form';
 
 const questions: Question[] = [
   { id: 'name', label: 'Name', kind: 'text', required: true },
@@ -16,7 +17,7 @@ describe("an invitee's answers", () => {
   });
 
   it('name a missing required answer, a choice not offered, and a question not asked', () => {
-    const check = checkAnswers(questions, new Map([['name', ' '], ['topic', 'Legal'], ['age', '40']]));
+    const check: FormCheck = checkAnswers(questions, new Map([['name', ' '], ['topic', 'Legal'], ['age', '40']]));
     expect(check.ok).toBe(false);
     if (check.ok) return;
     expect([...check.errors.keys()].sort()).toEqual(['age', 'name', 'topic']);

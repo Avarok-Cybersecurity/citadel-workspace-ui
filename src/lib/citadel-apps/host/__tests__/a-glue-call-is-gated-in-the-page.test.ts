@@ -8,8 +8,9 @@ import { describe, expect, it } from 'vitest';
 import type { Capability } from '../capabilities';
 import { glueInstance, type GlueInstance } from '../glue-instance';
 import { STANDARD_HOST_POLICY } from '../limits';
-import type { HostPorts } from '../ports';
+import type { HostPorts, HostReply } from '../ports';
 import { fakeLog, fakeNodes, fakeStorage, ManualClock, type Recorder } from './fakes';
+import type { KvValue } from '@/lib/citadel-apps/sdk/generated/KvValue';
 
 /** Every microtask the calls queued, run: a real macrotask turn (the test's clock is the manual one). */
 const flush = (): Promise<void> => new Promise<void>((done: () => void): void => { setTimeout(done, 0); });
@@ -43,7 +44,7 @@ describe('a glue instance', () => {
   it("holds the app to a worker's host-call rate", async () => {
     const rec: Recorder = { calls: [] };
     const g: GlueInstance = glue({ log: fakeLog(rec) }, []);
-    const answers = await Promise.all(Array.from({ length: STANDARD_HOST_POLICY.hostCallsPerSecond + 1 }, () => g.op('LogWrite', { level: 'info', message: 'm' })));
+    const answers: HostReply<null>[] = await Promise.all(Array.from({ length: STANDARD_HOST_POLICY.hostCallsPerSecond + 1 }, () => g.op('LogWrite', { level: 'info', message: 'm' })));
     expect(answers.filter((a) => 'refused' in a)).toEqual([{ refused: { limit: 'host_calls' } }]);
     expect(rec.calls).toHaveLength(STANDARD_HOST_POLICY.hostCallsPerSecond);
   });
@@ -53,11 +54,11 @@ describe('a glue instance', () => {
     const clock: ManualClock = new ManualClock();
     const g: GlueInstance = glue({ storage: fakeStorage(rec) }, ['storage.user'], clock);
     const rate: number = STANDARD_HOST_POLICY.serverCallsPerSecond;
-    const pending = Array.from({ length: rate + 1 }, () => g.op('KvGet', { backend: 'user', key: 'k' }));
+    const pending: Promise<HostReply<KvValue>>[] = Array.from({ length: rate + 1 }, () => g.op('KvGet', { backend: 'user', key: 'k' }));
     await flush();
     expect(rec.calls).toHaveLength(rate);
     clock.advance(1000 / rate);
-    const answers = await Promise.all(pending);
+    const answers: HostReply<KvValue>[] = await Promise.all(pending);
     expect(answers.every((a) => 'ok' in a)).toBe(true);
     expect(rec.calls).toHaveLength(rate + 1);
   });

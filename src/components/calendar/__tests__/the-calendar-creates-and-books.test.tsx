@@ -15,20 +15,25 @@ import { formatDayLong } from '@/lib/calendar/format';
 import type { KvBackend } from '@/lib/citadel-apps/sdk/generated/KvBackend';
 import { encodeSettings, SETTINGS_KEY } from '@/lib/calendar/zones';
 import { mountCalendar, mountRig } from './mount-rig';
+import type { Booking } from '@/lib/calendar/generated/Booking';
+import type { Availability } from '@/lib/calendar/generated/Availability';
+import type { CalendarEngine } from '@/lib/calendar/engine/calendar-engine';
+import type * as CalendarGlue from '../../../../vendor/calendar/calendar_glue.js';
+import type { Event } from '@/lib/calendar/generated/Event';
 
 vi.mock('@/lib/calendar/engine/load-calendar-wasm', async () => {
   const { readFileSync } = await import('node:fs');
   const { join } = await import('node:path');
-  const glue = await import('../../../../vendor/calendar/calendar_glue.js');
+  const glue: typeof CalendarGlue = await import('../../../../vendor/calendar/calendar_glue.js');
   return {
-    loadCalendarWasm: async () => {
+    loadCalendarWasm: async (): Promise<typeof CalendarGlue> => {
       glue.initSync({ module: readFileSync(join(process.cwd(), 'public/calendar/calendar_glue_bg.wasm')) });
       return glue;
     },
   };
 });
 
-const engine = realEngine();
+const engine: CalendarEngine = realEngine();
 const authored = (author: string): KvBackend => ({ node_authored: { node_id: 'n1', author } });
 
 function signedIn(me: string, store: MemoryStore = new MemoryStore(me)): MemoryStore {
@@ -49,13 +54,13 @@ afterEach((): void => { vi.useRealTimers(); });
 
 describe('the Calendar tab', () => {
   it('opens the event editor from New, and posts the saved event under the member on the node', async () => {
-    const store = signedIn('amy');
+    const store: MemoryStore = signedIn('amy');
     fireEvent.click(await screen.findByRole('button', { name: 'New' }));
     // The editor opens once the member's notification settings are read: a new event starts with their reminders.
     fireEvent.change(await screen.findByLabelText('Title'), { target: { value: 'Planning' } });
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Save event' })); });
     await waitFor(() => expect(screen.queryByTestId('calendar-event-editor')).toBeNull());
-    const events = decoded(store, 'authored:n1:amy|cal/event/', (b) => engine.decodeEvent(b));
+    const events: Event[] = decoded(store, 'authored:n1:amy|cal/event/', (b) => engine.decodeEvent(b));
     expect(events.map((e) => [e.title, e.author, e.zone])).toEqual([['Planning', 'amy', 'America/New_York']]);
   });
 
@@ -69,7 +74,7 @@ describe('the Calendar tab', () => {
   });
 
   it("saves a member's types and hours on their booking page, where a booker reads them", async () => {
-    const store = signedIn('amy');
+    const store: MemoryStore = signedIn('amy');
     fireEvent.click(await screen.findByRole('button', { name: 'Your booking page' }));
     fireEvent.click(await screen.findByRole('button', { name: 'New event type' }));
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Intro call' } });
@@ -77,7 +82,7 @@ describe('the Calendar tab', () => {
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Save hours' })); });
     await screen.findByText('Saved. Bookings use these hours from now on.');
     expect(decoded(store, 'authored:n1:amy|cal/type/', (b) => engine.decodeEventType(b)).map((t) => [t.name, t.durations_min])).toEqual([['Intro call', [30]]]);
-    const hours = decoded(store, 'authored:n1:amy|cal/availability', (b) => engine.decodeAvailability(b));
+    const hours: Availability[] = decoded(store, 'authored:n1:amy|cal/availability', (b) => engine.decodeAvailability(b));
     expect(hours.map((h) => [h.zone, h.weekly[0], h.weekly[5]])).toEqual([['America/New_York', [{ start_min: 540, end_min: 1020 }], []]]);
     expect(screen.getByLabelText(/Link to book you/)).toHaveValue(bookingLink(window.location.origin, { node: 'n1', host: 'amy', typeId: null }));
   });
@@ -96,7 +101,7 @@ describe('the Calendar tab', () => {
     fireEvent.change(screen.getByLabelText(/What should we cover\?/), { target: { value: 'Roadmap' } });
     await act(async () => { fireEvent.click(screen.getByTestId('calendar-confirm-booking')); });
     await waitFor(() => expect(screen.getByTestId('calendar-booking-said')).toHaveTextContent(/^Requested: ana is not online/));
-    const requests = decoded(store, 'authored:n1:bob|cal/booking/', (b) => engine.decodeBooking(b));
+    const requests: Booking[] = decoded(store, 'authored:n1:bob|cal/booking/', (b) => engine.decodeBooking(b));
     expect(requests.map((r) => [r.host, r.booker, r.type_id, r.state, r.answers])).toEqual([['ana', { member: { username: 'bob' } }, 't1', 'requested', [{ question_id: 'q-topic', value: 'Roadmap' }]]]);
     expect(new Date(Number(requests[0]?.start_ms)).toISOString()).toBe('2024-07-17T13:00:00.000Z');
   });

@@ -10,11 +10,12 @@ import { WorkspaceContext, type WorkspaceState } from '@/contexts/WorkspaceConte
 import type { CalendarEngine } from '@/lib/calendar/engine/calendar-engine';
 import { decodePrefs, type NotifyPrefs } from '@/lib/calendar/notify-prefs';
 import { realEngine } from '@/lib/calendar/__tests__/engine-rig';
-import { member, TopicGroup, treeOf } from '@/lib/calendar/__tests__/tree-rig';
+import { member, TopicGroup, treeOf, type Member } from '@/lib/calendar/__tests__/tree-rig';
 import { CalendarPane } from '../CalendarPane';
+import type { TreeNode } from '@/lib/citadel-apps/runtime/nodes-port';
 
 const engine: CalendarEngine = realEngine();
-const TREE = treeOf({ a: null });
+const TREE: Record<string, TreeNode> = treeOf({ a: null });
 
 beforeEach((): void => {
   vi.useFakeTimers({ toFake: ['Date'] });
@@ -24,8 +25,8 @@ afterEach((): void => { vi.useRealTimers(); });
 
 function opened(): Map<string, Uint8Array> {
   const values: Map<string, Uint8Array> = new Map();
-  const amy = member('amy', values, TREE, new TopicGroup());
-  const state = { nodes: TREE, members: {}, workspace: { metadata: [] } } as unknown as WorkspaceState;
+  const amy: Member = member('amy', values, TREE, new TopicGroup());
+  const state: WorkspaceState = { nodes: TREE, members: {}, workspace: { metadata: [] } } as unknown as WorkspaceState;
   render(
     <WorkspaceContext.Provider value={{ state }}>
       <CalendarPane ports={amy.ports} engine={engine} nodeId="a" me="amy" displayZone="America/New_York" deviceZone="America/New_York" held={new Set()} mayEditNode />
@@ -46,7 +47,7 @@ async function panel(): Promise<HTMLElement> {
 
 describe("the Calendar's notification settings", () => {
   it('save each change to the member and read it back as chosen', async () => {
-    const values = opened();
+    const values: Map<string, Uint8Array> = opened();
     const form: HTMLElement = await panel();
     expect(within(form).getByText(/Not set yet/)).toBeTruthy();
     await act(async () => { fireEvent.click(within(form).getByLabelText(/^Bookings/)); });
@@ -59,7 +60,7 @@ describe("the Calendar's notification settings", () => {
   });
 
   it('turned off, still every option and say nothing will be reminded', async () => {
-    const values = opened();
+    const values: Map<string, Uint8Array> = opened();
     const form: HTMLElement = await panel();
     await act(async () => { fireEvent.click(within(form).getByRole('switch', { name: 'Calendar notifications' })); });
     await vi.waitFor(() => expect(kept(values)?.enabled).toBe(false));

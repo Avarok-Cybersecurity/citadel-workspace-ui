@@ -22,12 +22,13 @@ import { announce, CAL_TOPIC, listenCal } from '../cal-topic';
 import type { CalChange } from '../generated/CalChange';
 import { calendarPorts, type CalendarPorts } from '../ports';
 import { realEngine } from './engine-rig';
+import type { CalendarEngine } from '@/lib/calendar/engine/calendar-engine';
 
-const engine = realEngine();
+const engine: CalendarEngine = realEngine();
 /** The Calendar's topic limits (design 3.5): 1 KiB a message, two a second. */
-const LIMITS = { max_msg_bytes: 1024, max_msgs_per_s: 2 };
+const LIMITS: { max_msg_bytes: number; max_msgs_per_s: number; } = { max_msg_bytes: 1024, max_msgs_per_s: 2 };
 const SUCCESS: Readonly<Record<string, string>> = { GroupRequestJoin: 'GroupRequestJoinSuccess', GroupMessage: 'GroupMessageSuccess', GroupLeave: 'GroupLeaveSuccess' };
-const GROUP = { cid: 5n, mgid: 9n };
+const GROUP: { cid: bigint; mgid: bigint; } = { cid: 5n, mgid: 9n };
 
 interface Seat {
   readonly ports: CalendarPorts;
@@ -71,7 +72,7 @@ describe('a cal change over the real topic port', () => {
     const amy: Seat = seat(100n, 'amy');
     const bob: Seat = seat(200n, 'bob');
     const heard: { change: CalChange }[] = [];
-    const leave = listenCal(bob.ports, engine, (change: CalChange): void => { heard.push({ change }); });
+    const leave: () => void = listenCal(bob.ports, engine, (change: CalChange): void => { heard.push({ change }); });
     await amy.ports.topics.open(CAL_TOPIC);
     await settle();
     // The longest a change gets: a node id and an event id of 36 characters each, under the inherit prefix.

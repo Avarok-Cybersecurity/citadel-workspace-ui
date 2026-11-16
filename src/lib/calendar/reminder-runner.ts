@@ -65,7 +65,7 @@ export function reminderStore(ports: CalendarPorts, engine: Pick<CalendarEngine,
     drop: (eventId: string): Promise<void> => ports.storage.remove(USER, `${REMINDER_PREFIX}${eventId}`),
     plans: async (): Promise<ReminderPlan[]> => {
       const keys: string[] = await ports.storage.keys(USER, REMINDER_PREFIX);
-      const values = await Promise.all(keys.map((k: string) => ports.storage.get(USER, k)));
+      const values: (Uint8Array | null)[] = await Promise.all(keys.map((k: string) => ports.storage.get(USER, k)));
       return values.flatMap((bytes) => {
         if (bytes === null) return [];
         try {

@@ -19,7 +19,7 @@ export class Outbox {
 
   constructor(head: FrameKind, body: Uint8Array) {
     this.queued.push(head);
-    for (let at = 0; at < body.length; at += IHTTP_MAX_CHUNK_BYTES) this.queued.push({ Body: { bytes: body.subarray(at, at + IHTTP_MAX_CHUNK_BYTES) } });
+    for (let at: number = 0; at < body.length; at += IHTTP_MAX_CHUNK_BYTES) this.queued.push({ Body: { bytes: body.subarray(at, at + IHTTP_MAX_CHUNK_BYTES) } });
     this.queued.push('End');
   }
 

@@ -24,6 +24,7 @@ import { DEFAULT_PRIVACY_SETTINGS, savePrivacySettings } from '@/lib/privacy-set
 import { channelServer, channelMessage } from '@/lib/chat/transport/__tests__/doubles/channel-server';
 import type { ChatSelf } from '@/lib/chat/transport/chat-transport';
 import type { User } from '@/types/workspace-entities';
+import type { Notification } from '@/lib/notification-service/types';
 
 vi.mock('@/lib/workspace-service', async () => ({
   default: (await import('@/lib/chat/transport/__tests__/doubles/channel-server')).channelServer.service,
@@ -145,8 +146,8 @@ describe('a node channel', () => {
 
   it('reading the channel clears its bell, and only its own', async () => {
     const bell: ReturnType<typeof NotificationService.getInstance> = NotificationService.getInstance();
-    const here = bell.addMessageNotification('Bob', 'Morning all', 'bob', 'n-here', undefined, { groupId: CHANNEL });
-    const elsewhere = bell.addMessageNotification('Bob', 'Elsewhere', 'bob', 'n-else', undefined, { groupId: 'another-channel' });
+    const here: Notification = bell.addMessageNotification('Bob', 'Morning all', 'bob', 'n-here', undefined, { groupId: CHANNEL });
+    const elsewhere: Notification = bell.addMessageNotification('Bob', 'Elsewhere', 'bob', 'n-else', undefined, { groupId: 'another-channel' });
     await open(ROSTER);
     await waitFor((): void => { expect(bell.getNotifications().find((n) => n.id === here.id)?.read).toBe(true); });
     expect(bell.getNotifications().find((n) => n.id === elsewhere.id)?.read).toBe(false);
