@@ -165,7 +165,7 @@ async function sendMarkdownMessage(page: Page, username: string, marker: string)
 
   await messageInput.fill(`**Bold ${marker}** and *italic ${marker}*`);
 
-  const sendBtn = page.locator('button[type="submit"]').last();
+  const sendBtn = page.getByTestId('p2p-chat').getByTestId('chat-send');
   if (!(await isVisibleWithin(sendBtn, 5000))) {
     console.log('  Send button not found');
     return results;

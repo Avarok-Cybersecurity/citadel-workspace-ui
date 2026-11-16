@@ -173,6 +173,7 @@ export const MessageInput: React.ForwardRefExoticComponent<MessageInputProps & R
               // `critical button-name` without it and a screen reader
               // announces nothing at all.
               aria-label="Send message"
+              data-testid="chat-send"
               // isSending is the guard against a second Enter during the
               // send window -- peer registration and CheckState can take tens
               // of seconds, and the text is still in the field for all of it.

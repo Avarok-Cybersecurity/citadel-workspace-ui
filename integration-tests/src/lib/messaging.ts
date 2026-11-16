@@ -81,7 +81,9 @@ export async function sendMessage(
   await new Promise(resolve => setTimeout(resolve, 500));
 
   console.log(`  [DEBUG] Looking for send button...`);
-  const sendBtn = page.locator('button[type="submit"]').last();
+  // The composer's own send button, by name: positional picks ("the last submit", "the last
+  // button with an icon") were stale once the chat pane gained the message-type bar (ba2e7886).
+  const sendBtn = page.getByTestId('p2p-chat').getByTestId('chat-send');
 
   const sendBtnVisible = await sendBtn.isVisible().catch(() => false);
   console.log(`  [DEBUG] Send button visible: ${sendBtnVisible}`);
@@ -118,74 +120,17 @@ export async function verifyMessageReceived(
 
   console.log(`  Looking for: "${expectedText.substring(0, 50)}..."`);
 
-  // Escape special regex characters in the expected text for use in selectors
-  const escapedText = expectedText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
+  // A message row (`data-message-id`, the pane's jump anchor) with the text, and nothing broader:
+  // every `div` and the page source contain the composer, whose textarea's text is its value, so a
+  // typed and unsent message matched here and read as received.
+  const row = page.locator('[data-message-id]').filter({ hasText: expectedText }).first();
   try {
-    // Use Playwright's waitForFunction to wait for the message to appear in DOM
-    // This is the most reliable synchronization mechanism
-    await page.waitForFunction(
-      (text: string) => {
-        // Check all potential message containers
-        const selectors = [
-          '.prose',
-          '[class*="message"]',
-          '[class*="chat"]',
-          '[class*="bubble"]',
-          'p',
-          'div',
-        ];
-
-        for (let i = 0; i < selectors.length; i++) {
-          const elements = document.querySelectorAll(selectors[i]);
-          for (let j = 0; j < elements.length; j++) {
-            if (elements[j].textContent?.includes(text)) {
-              return true;
-            }
-          }
-        }
-        return false;
-      },
-      expectedText,
-      { timeout, polling: 500 }
-    );
-
+    await row.waitFor({ state: 'visible', timeout });
     console.log(`  ✓ Message found: "${expectedText.substring(0, 50)}..."`);
     await takeScreenshot(page, `${username}_message_verified`);
     return true;
   } catch {
-    // waitForFunction timed out, try alternative methods
-    await reportTimeout(page, `waitForFunction timed out, trying alternative selectors...`);
-  }
-
-  // Alternative: Try multiple specific selectors with waitForSelector
-  const messageSelectors = [
-    `text="${expectedText}"`,
-    `text=/${escapedText}/`,
-    `.prose:has-text("${expectedText}")`,
-    `p:has-text("${expectedText}")`,
-    `div:has-text("${expectedText}")`,
-    `[class*="message"]:has-text("${expectedText}")`,
-  ];
-
-  for (const selector of messageSelectors) {
-    try {
-      const element = page.locator(selector).first();
-      await element.waitFor({ state: 'visible', timeout: 3000 });
-      console.log(`  ✓ Message found with selector: ${selector.substring(0, 30)}...`);
-      await takeScreenshot(page, `${username}_message_verified`);
-      return true;
-    } catch {
-      // This selector didn't work, try next
-    }
-  }
-
-  // Final fallback: Check page content directly
-  const pageContent = await page.content();
-  if (pageContent.includes(expectedText)) {
-    console.log(`  ✓ Message found in page content (may not be visible)`);
-    await takeScreenshot(page, `${username}_message_in_content`);
-    return true;
+    await reportTimeout(page, `Message not in the transcript within ${timeout}ms`);
   }
 
   // Debug: Log what IS visible in the chat area
@@ -231,7 +176,8 @@ export async function verifyMessageOrder(
     try {
       await page.waitForFunction(
         (text: string) => {
-          const elements = document.querySelectorAll('.prose, [class*="message"], [class*="bubble"], p, div');
+          // Message rows only: a `div` holding the composer matched a typed, unsent message.
+          const elements = document.querySelectorAll('[data-message-id]');
           for (let i = 0; i < elements.length; i++) {
             if (elements[i].textContent?.includes(text)) {
               return true;
@@ -256,8 +202,9 @@ export async function verifyMessageOrder(
   const allMessageTexts: string[] = [];
   const seen = new Set<string>();
 
-  // Use 'p' selector since it finds the message text reliably
-  const locator = page.locator('p');
+  // Message rows, in document order: every 'p' on the page included the composer's helper text and
+  // any other paragraph, so positions were not positions in the transcript.
+  const locator = page.locator('[data-message-id]');
   const count = await locator.count();
 
   for (let i = 0; i < count; i++) {
@@ -360,7 +307,7 @@ export async function waitForAllMessages(
       // Wait for the next unfound message using in-browser JS (lightweight)
       await page.waitForFunction(
         (msgs: string[]) => {
-          const body = document.body?.innerText ?? '';
+          const body = Array.from(document.querySelectorAll<HTMLElement>('[data-message-id]')).map((row) => row.innerText).join('\n');
           return msgs.some(m => body.includes(m));
         },
         remaining,
@@ -371,7 +318,7 @@ export async function waitForAllMessages(
     }
 
     // Check which remaining messages are now present (lightweight innerText check)
-    const bodyText = await page.evaluate(() => document.body?.innerText ?? '').catch(() => '');
+    const bodyText = await page.evaluate(() => Array.from(document.querySelectorAll<HTMLElement>('[data-message-id]')).map((row) => row.innerText).join('\n')).catch(() => '');
     const nowFound: string[] = [];
     for (const msg of remaining) {
       if (!results[msg] && bodyText.includes(msg)) {

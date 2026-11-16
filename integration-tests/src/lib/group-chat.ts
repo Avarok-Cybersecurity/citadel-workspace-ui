@@ -241,7 +241,7 @@ export async function sendGroupMessage(
     // button until node channels moved onto the direct chat's pane (ba2e7886), whose message-type
     // bar sits below the composer: "the last button with an svg" became "Live Doc", which opened
     // the New document dialog over the page and left the message unsent.
-    const sendButton = page.getByTestId('group-chat').getByRole('button', { name: 'Send message', exact: true });
+    const sendButton = page.getByTestId('group-chat').getByTestId('chat-send');
 
     if (await isVisibleWithin(sendButton, 2000)) {
       await sendButton.click();

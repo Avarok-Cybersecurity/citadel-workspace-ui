@@ -33,7 +33,14 @@ export async function createAccount(page: Page, username: string, options: Creat
   // CRITICAL: Clear all browser storage after navigation to avoid stale session/peer data
   // from previous test runs. This prevents P2PAutoConnect from trying to connect to
   // non-existent peers from old sessions.
-  if (options.sharesContextWithASignedInTab !== true) await clearBrowserStorage(page);
+  //
+  // Never while another tab of this context is open: the storage is that tab's too (its tab
+  // selection, kept sessions, peer requests). Clearing it signed every earlier tab out from under
+  // itself; in a room chat each earlier member's node chat then had no account and refused to send
+  // ("This tab has not finished signing in"). Read from the context, not asked of each caller:
+  // the two-tab spec passed a flag for it, and the group helpers that open N tabs never did.
+  const sharesContext: boolean = page.context().pages().some((other: Page): boolean => other !== page && !other.isClosed());
+  if (!sharesContext) await clearBrowserStorage(page);
 
   // Reload the page to ensure the app starts fresh without stale state.
   // Second load should be fast since Vite deps are already optimized.
