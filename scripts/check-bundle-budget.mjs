@@ -235,9 +235,18 @@ const dist = join(root, 'dist');
  * and the stored record's server, taken from the agent and backfilled when the record has none,
  * with the hand-off to a sign-in when nobody can say (connection/stored-server.ts, +0.5 KB).
  *
+ * 341 -> 342 (2026-11-16), for the welcome, call-goodbye and dialog-footer fixes merged onto
+ * fix/chat-files-calls: measured 341.1. What each adds runs from boot (raw bytes by source map):
+ * the per-account "welcome shown" check made on every connection, including the reconnect a
+ * returning user boots into (welcome/welcome-once.ts, 343 B); the goodbye a tab sends before it
+ * lets a call's media go, since any tab may be closed mid-call (multi-instance/departure-steps.ts
+ * and release-holds.ts, 122 + 268 B); and the shared footer that wraps a dialog's answers so none
+ * is clipped at 390px (ui/footer-layout.ts, 97 B, used by Dialog and AlertDialog).
+ *
  * 341 -> 344 (2026-11-15), for the Calendar release (fix/chat-files-calls-calendar): the batch
  * at 341 merged with three lanes that each fit their own lane's headroom under 339, and the sum
- * measured 343.7. What the lanes put on the path runs from boot in every tab: a node's tabs, read
+ * measured 343.7 (343.9 once the batch's 342 above merged too; 344 holds both). What the
+ * lanes put on the path runs from boot in every tab: a node's tabs, read
  * when any node renders (node-tabs/tab-list.ts 1,072 + tab-memory.ts 535 + tab-keys.ts 62 B raw
  * by source map, and the service's node-tabs-operations.ts 551); a node channel's reactions,
  * receipts and typing, which arrive whatever page is open (group-conversations/channel-signals.ts
