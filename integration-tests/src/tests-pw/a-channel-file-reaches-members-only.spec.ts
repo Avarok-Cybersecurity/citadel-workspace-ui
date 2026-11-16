@@ -14,7 +14,7 @@
 import { expect, type Download, type Locator, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { adminMemberTest, createUserSession, type UserSession } from '../fixtures/multi-user.fixture.js';
-import { activateAdminTab, adminDialog, createOffice, navigateToOffice, openAdminPanel, revealNode, switchToChatTab } from '../lib/index.js';
+import { activateAdminTab, adminDialog, createOffice, navigateToOffice, openAdminPanel, revealNode, switchToChatTab, treeRow } from '../lib/index.js';
 
 const stamp: number = Date.now();
 const OFFICE: string = `Files ${stamp}`;
@@ -74,7 +74,12 @@ adminMemberTest('a channel file reaches a member under its own name, and not a r
     await admin.page.keyboard.press('Escape');
 
     await outsider.page.reload();
-    expect(await revealNode(outsider.page, OFFICE, 30_000), `"${OFFICE}" should not be reachable by a removed account`).toBeNull();
+    // The kernel refuses a removed account the node list, so its sidebar never offers the tree or
+    // its filter: it says the spaces could not be loaded (after the load deadline). revealNode asks
+    // the filter and, rightly, will not read a missing filter as a missing node, so it threw here
+    // on every run. The refusal is asserted as what the page shows, then the office's absence.
+    await expect(outsider.page.getByTestId('tree-unavailable'), 'a removed account should be refused the hierarchy').toBeVisible({ timeout: 60_000 });
+    await expect(treeRow(outsider.page, OFFICE)).toHaveCount(0);
     await expect(card(outsider.page)).toHaveCount(0);
     // The second control: the member, still in the workspace, still reaches the office after a reload.
     await member.page.reload();
