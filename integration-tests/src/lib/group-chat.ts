@@ -237,8 +237,11 @@ export async function sendGroupMessage(
     await messageInput.fill(message);
     await sleep(500);
 
-    // Find and click the send button
-    const sendButton = page.locator('button:has(svg), button[aria-label*="send"], button[aria-label*="Send"]').last();
+    // The composer's own send button, by its name. The last button with an icon was the send
+    // button until node channels moved onto the direct chat's pane (ba2e7886), whose message-type
+    // bar sits below the composer: "the last button with an svg" became "Live Doc", which opened
+    // the New document dialog over the page and left the message unsent.
+    const sendButton = page.getByTestId('group-chat').getByRole('button', { name: 'Send message', exact: true });
 
     if (await isVisibleWithin(sendButton, 2000)) {
       await sendButton.click();
@@ -297,7 +300,10 @@ export async function verifyGroupMessageReceived(
     // Substring rather than exact match, so surrounding whitespace or wrapping in
     // the bubble does not matter. getByText rather than `text="..."` because the
     // message is interpolated and a quote in it would break a hand-built selector.
-    const message = page.getByText(expectedMessage).first();
+    //
+    // Inside the transcript only: the composer is a textarea, whose text is its value, so a message
+    // that was typed and never sent matched here and read as received.
+    const message = page.getByTestId('group-chat-view').getByText(expectedMessage).first();
 
     if (await isVisibleWithin(message, timeout)) {
       console.log(`  Message found`);
@@ -656,7 +662,8 @@ export async function switchToContentTab(
   console.log(`\n=== ${username}: Switching to Content tab ===`);
 
   try {
-    const contentTab = page.locator('[data-state][value="content"], button:has-text("Content"), [role="tab"]:has-text("Content")').first();
+    // The node's page tab, named "Page" since app tabs joined the row (c1440cc9); its key is still `content`.
+    const contentTab = page.getByTestId('node-tab-content');
 
     if (await isVisibleWithin(contentTab, 5000)) {
       await contentTab.click();

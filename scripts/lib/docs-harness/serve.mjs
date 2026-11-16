@@ -11,6 +11,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { stubWasmClient } from '../stub-wasm-client.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const APP_ROOT = resolve(HERE, '..', '..', '..');
@@ -35,7 +36,9 @@ export async function serveHarness(root, port) {
     configFile: false,
     logLevel: 'error',
     publicDir: resolve(APP_ROOT, 'public'),
-    plugins: [react()],
+    // An app tab's pane reaches the Calendar's lazy chunk (first-party/registry.ts), and the
+    // Calendar reaches the session's services: the build must resolve the glue it never loads.
+    plugins: [react(), stubWasmClient()],
     css: { postcss: APP_ROOT },
     resolve: { alias: { '@': resolve(APP_ROOT, 'src') } },
   };
