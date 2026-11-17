@@ -10,6 +10,7 @@
  */
 import type { Locator, Page, WebSocket } from 'playwright';
 import { isVisibleWithin, sleep } from './utils.js';
+import { keepAskingEachTime } from './always-accept.js';
 
 /** 'unseen' means no greeting arrived on any socket of this page; nothing may be assumed then. */
 export type AgentPicker = 'true' | 'false' | 'absent' | 'unseen';
@@ -100,6 +101,8 @@ export async function receiveAndVerify(page: Page, fileName: string, maxWaitMs: 
   const bubble: Locator = page.getByTestId('file-transfer-bubble').filter({ hasText: fileName });
   const accept: Locator = bubble.getByTestId('file-transfer-accept');
   if (!(await isVisibleWithin(accept, 20000))) return { offered: false, transferred: false };
+  // The receiver's first offer from this peer asks "always accept?" over the button.
+  await keepAskingEachTime(page, 10000);
   await accept.click();
   const done: Locator = page.locator('[data-testid="file-transfer-bubble"][data-transfer-state="complete"]').filter({ hasText: fileName });
   return { offered: true, transferred: await isVisibleWithin(done, maxWaitMs) };

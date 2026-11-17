@@ -5,7 +5,7 @@
  * running apps. Anything not exactly one of these is not one of these.
  */
 import type { AppListing, IhttpFrom } from 'citadel-workspace-client-ts';
-import { exactly, isAppListing, isBytes, isString, single } from './install-shape';
+import { exactly, isAppListing, isBytes, isString, isStrings, single } from './install-shape';
 
 export type RuntimeAnswer =
   | { kind: 'release'; installId: string; current: AppListing; waitingOn: AppListing | null }
@@ -15,12 +15,20 @@ export type RuntimeAnswer =
   | { kind: 'advertised'; untilMs: bigint }
   | { kind: 'withdrawn'; installId: string; closedStreams: number }
   | { kind: 'ihttp-sent' }
-  | { kind: 'ihttp-frame'; from: IhttpFrom; toInstallId: string; frame: number[] };
+  | { kind: 'ihttp-frame'; from: IhttpFrom; toInstallId: string; frame: number[] }
+  /** An app wrote to a node this person may view: which install, which store, which keys; never a value. */
+  | { kind: 'storage-changed'; installId: string; backend: NodeStore; keys: string[] };
+
+/** The stores the server announces writes to: a node's, and one author's on a node. */
+export type NodeStore = { node: { node_id: string } } | { node_authored: { node_id: string; author: string } };
 
 const isU32 = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 0xffff_ffff;
 const isU64 = (v: unknown): v is bigint => typeof v === 'bigint' && v >= 0n && v < 2n ** 64n;
 // Undefined as well as null: an Option the wasm client hands over as `None` arrives undefined.
 const optionalListing = (v: unknown): boolean => v === null || v === undefined || isAppListing(v);
+const isNodeStore = (v: unknown): v is NodeStore =>
+  single(v, 'node', (x: unknown) => exactly(x, { node_id: isString }))
+  || single(v, 'node_authored', (x: unknown) => exactly(x, { node_id: isString, author: isString }));
 const isFrom = (v: unknown): v is IhttpFrom => exactly(v, { username: isString, cid: isU64, app_id: isString, install_id: isString });
 
 type Json = Record<string, unknown>;
@@ -45,6 +53,10 @@ export function readRuntimeAnswer(payload: unknown): RuntimeAnswer | null {
   if (single(payload, 'IhttpFrame', (x: unknown) => exactly(x, { from: isFrom, to_install_id: isString, frame: isBytes }))) {
     const f: Json = inner(payload, 'IhttpFrame');
     return { kind: 'ihttp-frame', from: f.from as IhttpFrom, toInstallId: f.to_install_id as string, frame: f.frame as number[] };
+  }
+  if (single(payload, 'StorageChanged', (x: unknown) => exactly(x, { install_id: isString, backend: isNodeStore, keys: isStrings }))) {
+    const c: Json = inner(payload, 'StorageChanged');
+    return { kind: 'storage-changed', installId: c.install_id as string, backend: c.backend as NodeStore, keys: c.keys as string[] };
   }
   return null;
 }

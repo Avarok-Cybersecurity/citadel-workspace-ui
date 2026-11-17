@@ -32,6 +32,8 @@ export interface ShareLinkFlow {
   setPreset: (preset: LifetimePreset) => void;
   oneTime: boolean;
   setOneTime: (oneTime: boolean) => void;
+  /** False while booking guests are chosen: their access lasts as long as the link, so the server refuses one-time. */
+  oneTimeAllowed: boolean;
   quota: QuotaState;
   phase: SecurePhase;
   create: () => Promise<void>;
@@ -54,6 +56,8 @@ export function useShareLinkFlow(target: ShareTarget, ctx: ShareLinkContext): Sh
   const [quota, setQuota] = useState<QuotaState>({ kind: 'loading' });
   const [phase, setPhase] = useState<SecurePhase>({ kind: 'editing' });
   const { api, origin, server } = ctx;
+  const oneTimeAllowed: boolean = draft.booking === null;
+  const sentOneTime: boolean = oneTime && oneTimeAllowed;
 
   useEffect(() => {
     let live: boolean = true;
@@ -73,7 +77,7 @@ export function useShareLinkFlow(target: ShareTarget, ctx: ShareLinkContext): Sh
     setPhase({ kind: 'creating' });
     try {
       const outcome: CreateOutcome = await api.create({
-        target: target.href, label: target.label, grants: grantsOf(draft), lifetime: lifetimeOf(preset, oneTime),
+        target: target.href, label: target.label, grants: grantsOf(draft), lifetime: lifetimeOf(preset, sentOneTime),
       });
       setPhase(outcome.kind === 'created'
         ? { kind: 'created', url: secureLinkUrl(origin, outcome.token, server) }
@@ -81,7 +85,7 @@ export function useShareLinkFlow(target: ShareTarget, ctx: ShareLinkContext): Sh
     } catch (error: unknown) {
       setPhase({ kind: 'failed', message: failureOf(error) });
     }
-  }, [api, target, draft, preset, oneTime, origin, server]);
+  }, [api, target, draft, preset, sentOneTime, origin, server]);
 
-  return { draft, setDraft, preset, setPreset, oneTime, setOneTime, quota, phase, create };
+  return { draft, setDraft, preset, setPreset, oneTime: sentOneTime, setOneTime, oneTimeAllowed, quota, phase, create };
 }

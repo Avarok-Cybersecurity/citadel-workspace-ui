@@ -41,7 +41,7 @@ export class DocumentSessionError extends Error {
 function describeProblem(problem: DocumentSessionProblem): string {
   switch (problem.kind) {
     case 'refused':
-      return retryLater(problem.refusal) === null ? `The server refused the document request: ${refusalName(problem.refusal)}` : SENDING_PAUSED_TEXT;
+      return refusedText(problem.refusal);
     case 'permissionDenied':
       return problem.message;
     case 'docVersionMismatch':
@@ -90,12 +90,22 @@ function causeOf(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause);
 }
 
+function refusedText(refusal: DocumentRefusal): string {
+  if (typeof refusal !== 'string' && 'ChatDocumentLimitReached' in refusal) {
+    return `This workspace already holds the ${refusal.ChatDocumentLimitReached.limit.toLocaleString('en-US')} chat documents its plan allows, so this document was not made.`;
+  }
+  if (typeof refusal !== 'string' && 'ChatDocumentLimitUnavailable' in refusal) {
+    return 'The server could not say how many chat documents this workspace may hold, so this document was not made.';
+  }
+  return retryLater(refusal) === null ? `The server refused the document request: ${refusalName(refusal)}` : SENDING_PAUSED_TEXT;
+}
+
 /**
  * Refusals after which this session must stop writing: its replica holds an edit the log
- * never will, or the log is gone. The rest (a snapshot someone else already stored, an
+ * never will, or the log is gone (or, for a chat document over its workspace's limit, was never made). The rest (a snapshot someone else already stored, an
  * awareness payload rate-limited) are reported and the session carries on.
  */
 export function haltsWriting(refusal: DocumentRefusal): boolean {
   if (refusal === 'NoSession' || refusal === 'NotConfigured') return true;
-  return 'NoSuchNode' in refusal || 'UpdateTooLarge' in refusal;
+  return 'NoSuchNode' in refusal || 'UpdateTooLarge' in refusal || 'ChatDocumentLimitReached' in refusal || 'ChatDocumentLimitUnavailable' in refusal;
 }

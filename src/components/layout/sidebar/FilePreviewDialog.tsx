@@ -32,6 +32,8 @@ interface FilePreviewDialogProps {
   file: FileDetails | null;
   isOpen: boolean;
   onClose: () => void;
+  /** Why the file could not be handed to the browser, when this dialog stands in for that. */
+  failure: string | null;
 }
 
 const getFileIcon: (fileName: string) => JSX.Element = (fileName: string): JSX.Element => {
@@ -94,7 +96,7 @@ function SavedLocation({ path }: { path: string }): JSX.Element {
   );
 }
 
-export const FilePreviewDialog = ({ file, isOpen, onClose }: FilePreviewDialogProps): JSX.Element | null => {
+export const FilePreviewDialog = ({ file, isOpen, onClose, failure }: FilePreviewDialogProps): JSX.Element | null => {
   if (!file) return null;
 
   return (
@@ -108,6 +110,11 @@ export const FilePreviewDialog = ({ file, isOpen, onClose }: FilePreviewDialogPr
         </DialogHeader>
 
         <div className="space-y-4">
+          {failure !== null && (
+            <p role="alert" className="rounded border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-foreground">
+              Your agent could not hand this file to the browser: {failure}
+            </p>
+          )}
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             {file.sender.username ? (
               <MemberAvatar username={file.sender.username} name={file.sender.name} />

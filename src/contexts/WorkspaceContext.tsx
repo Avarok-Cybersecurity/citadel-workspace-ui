@@ -48,6 +48,8 @@ export interface WorkspaceState {
    * fetch. `use-domain-members` reached the same conclusion for members first.
    */
   nodesUnavailable: boolean;
+  /** The server refused this account the workspace: it is not a member (lib/membership-refusal.ts). */
+  membershipRefused: boolean;
 
   error?: string;
   protocolWarning?: {
@@ -77,6 +79,7 @@ const initialState: WorkspaceState = {
   members: {},
   nodes: {},
   nodesUnavailable: false,
+  membershipRefused: false,
   treeSchema: null,
   loading: {
     workspace: false,

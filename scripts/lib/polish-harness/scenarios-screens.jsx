@@ -9,7 +9,6 @@ import { WorkspaceProvider } from '@/contexts/WorkspaceContext';
 import { PermissionsProvider } from '@/contexts/PermissionsContext';
 import { ConfirmDialogProvider } from '@/components/shared/confirm-dialog';
 import { Toaster } from '@/components/ui/sonner';
-import { GroupMessageItem } from '@/components/chat/GroupMessageItem';
 import { GroupChatHeader } from '@/components/chat/GroupChatHeader';
 import { SettingsModal } from '@/components/SettingsModal';
 import { OfficeLayout } from '@/components/office/OfficeLayout';
@@ -43,29 +42,6 @@ export function Shell({ children, route = '/', state = STATE }) {
   );
 }
 
-const at = (minutes) => new Date().setHours(10, minutes, 0, 0);
-const GROUP_MESSAGES = [
-  { id: 'g1', group_id: 'grp', sender_id: 'ada', sender_name: 'Ada Lovelace', content: 'Morning all. The analytical engine notes are in the shared folder.', timestamp: at(0), read_by: [] },
-  { id: 'g2', group_id: 'grp', sender_id: 'grace', sender_name: 'Grace Hopper', content: 'Thanks Ada. I will compile them before lunch, there is a very long identifier in section four: a-very-long-unbroken-token-that-must-wrap-inside-the-bubble-and-not-push-the-layout.', timestamp: at(2), read_by: [] },
-  { id: 'g3', group_id: 'grp', sender_id: 'me', sender_name: 'Me', content: 'Sounds good. I will review after.', timestamp: at(5), read_by: [{ user_id: 'ada', user_name: 'Ada Lovelace', read_at: at(6) }] },
-  { id: 'g4', group_id: 'grp', sender_id: 'me', sender_name: 'Me', content: 'One more thing: can someone check the build?', timestamp: at(6), read_by: [] },
-];
-
-function GroupChat() {
-  return (
-    <Shell>
-      <div style={{ height: '100vh', width: '100%', display: 'flex', flexDirection: 'column' }} className="bg-background">
-        {GROUP_MESSAGES.map((message) => (
-          <GroupMessageItem
-            key={message.id} message={message} currentUserName="me" totalMembers={3} onEdit={NOTHING} onDelete={NOTHING}
-            canRevise onReply={NOTHING} focusComposer={NOTHING} quoted={null}
-          />
-        ))}
-      </div>
-    </Shell>
-  );
-}
-
 const treeNode = (id, parent, type, name) => ({
   id, parent_id: parent, entity_type: { Child: type }, depth: 0, name, description: '', owner_id: '', members: [], children: [],
   mdx_content: '', mdx_content_hash: null, rules: null, chat_enabled: false, chat_channel_id: null, default_permissions: {},
@@ -95,4 +71,4 @@ function OfficeHeader() {
 const settingsTab = (tab) => () => <Shell><SettingsModal open onOpenChange={NOTHING} tab={tab} /></Shell>;
 const SignIn = () => <Shell><Landing /></Shell>;
 
-export const SCREEN_SCENARIOS = { 'group-chat': GroupChat, settings: settingsTab('general'), 'settings-connections': settingsTab('connections'), 'settings-appearance': settingsTab('appearance'), 'settings-privacy': settingsTab('privacy'), landing: SignIn, 'office-header': OfficeHeader };
+export const SCREEN_SCENARIOS = { settings: settingsTab('general'), 'settings-connections': settingsTab('connections'), 'settings-appearance': settingsTab('appearance'), 'settings-privacy': settingsTab('privacy'), 'settings-notifications': settingsTab('notifications'), landing: SignIn, 'office-header': OfficeHeader };

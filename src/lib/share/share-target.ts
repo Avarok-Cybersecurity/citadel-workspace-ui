@@ -11,6 +11,7 @@ import { fileManagerHref, type FileManagerTarget } from '@/lib/file-manager-loca
 import { selectNodePath } from '@/hooks/use-select-node';
 import { conversationHref } from '@/components/layout/sidebar/active-conversation';
 import { getWorkspacePath } from '@/lib/workspace-navigation';
+import { bookingLink } from '@/lib/calendar/booking-link';
 import { DIRECTORY_PATH, GROUPS_PATH, type ShareKind } from './target-rules';
 
 export { validateShareTarget, kindOfTarget, SHARE_KIND_NAMES, type ShareKind } from './target-rules';
@@ -23,7 +24,9 @@ export type ShareSubject =
   | { kind: 'peer-chat'; peerUsername: string; peerName: string }
   /** `members` are usernames as this member sees the group now; a secure link freezes them. */
   | { kind: 'group-chat'; groupId: string; name: string; members: readonly string[] }
-  | { kind: 'directory'; nodeId: string | null; name: string };
+  | { kind: 'directory'; nodeId: string | null; name: string }
+  /** A member's booking page on a node's Calendar tab: `host` is the member's username. */
+  | { kind: 'booking-page'; nodeId: string; host: string; nodeName: string };
 
 /** Who is sharing: a peer chat opens, for the peer, their conversation with this person. */
 export interface ShareViewer {
@@ -41,6 +44,8 @@ export interface ShareTarget {
   nodeId: string | null;
   /** The group whose members a snapshot grant may name, when the thing is a group chat. */
   group: { groupId: string; name: string; members: readonly string[] } | null;
+  /** The booking page guests from outside the workspace may be let in to, when the thing is one. */
+  booking: { nodeId: string; page: string } | null;
 }
 
 
@@ -50,7 +55,7 @@ function directoryHref(nodeId: string | null): string {
 
 /** Null only for a peer chat while the sharer is not known: its link is written from their side. */
 export function shareTarget(subject: ShareSubject, viewer: ShareViewer | null): ShareTarget | null {
-  const none: Pick<ShareTarget, 'nodeId' | 'group'> = { nodeId: null, group: null };
+  const none: Pick<ShareTarget, 'nodeId' | 'group' | 'booking'> = { nodeId: null, group: null, booking: null };
   switch (subject.kind) {
     case 'file':
     case 'folder':
@@ -84,5 +89,11 @@ export function shareTarget(subject: ShareSubject, viewer: ShareViewer | null): 
     }
     case 'directory':
       return { ...none, kind: 'directory', label: subject.name, nodeId: subject.nodeId, href: directoryHref(subject.nodeId), defaultGrant: 'Workspace' };
+    case 'booking-page':
+      return {
+        ...none, kind: 'node', label: `Book ${subject.host} on ${subject.nodeName}`, nodeId: subject.nodeId,
+        href: bookingLink('', { node: subject.nodeId, host: subject.host, typeId: null }),
+        defaultGrant: { NodeViewers: subject.nodeId }, booking: { nodeId: subject.nodeId, page: subject.host },
+      };
   }
 }

@@ -46,8 +46,6 @@ export interface PeerInfoResponse {
 
 export interface PeerRegistrationOptions {
   autoRegisterAll?: boolean;
-  sessionSecuritySettings?: SessionSecuritySettings;
-  connectAfterRegister?: boolean;
 }
 
 /** Pending request tracking for promise-based request/response correlation */

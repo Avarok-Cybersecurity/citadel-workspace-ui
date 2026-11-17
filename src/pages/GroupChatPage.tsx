@@ -3,13 +3,9 @@
  *
  * Page for viewing and interacting with a custom peer group chat.
  *
- * Renders GroupChatView directly: it takes a groupId and does its own fetching.
- *
- * There used to be a ChatMessagingAdapter layer here, kept on the grounds that
- * it held the only implementation of edit, delete and reply. That stopped being
- * true -- both chats implement all three in their own hooks (useGroupChat via
- * WorkspaceService, useP2PCompose via the messenger) -- so the layer was two
- * copies of live logic behind a comment explaining why it could not be deleted.
+ * The conversation is the shared chat pane over the peer group's transport
+ * (PeerGroupChat); this page owns what is the group's and not the chat's: its
+ * header, its call and its settings.
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -20,7 +16,7 @@ import { callMembers, invitablePeers, type CallMember } from './group-roster';
 import { useGroupSettingsActions } from './use-group-settings-actions';
 import { useGroupPermissions } from '@/hooks/use-group-permissions';
 import { useTabIdentity } from '@/hooks/use-tab-identity';
-import { readerIdentity, type ReaderIdentity, type TabIdentity } from '@/lib/tab-identity';
+import { readerIdentity, selfCid, type ReaderIdentity, type TabIdentity } from '@/lib/tab-identity';
 import { groupRestriction } from '@/components/chat/group-restriction';
 import { useRegisteredPeers , type RegisteredPeer } from '@/hooks/use-registered-peers';
 import { GroupChatHeader } from '@/components/chat/GroupChatHeader';
@@ -28,9 +24,8 @@ import { GroupCallControls } from '@/components/call/GroupCallControls';
 import { GroupCallDock } from '@/components/call/GroupCallDock';
 import { GroupSettingsPanel } from '@/components/chat/GroupSettingsPanel';
 import type { GroupSettingsTab } from '@/components/chat/group-settings-types';
-import { GroupChatView } from '@/components/chat/GroupChatView';
+import { PeerGroupChat } from '@/components/chat/PeerGroupChat';
 import { useGroupConversations } from '@/hooks/use-group-conversations';
-import { useReadWhenInFront } from '@/hooks/use-read-when-in-front';
 import type { GroupConversation } from '@/types/group';
 import { connectionManager } from '@/lib/connection';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -50,7 +45,6 @@ export function GroupChatPage(): JSX.Element {
   const {
     getGroup,
     hydrated,
-    markAsRead,
     leaveGroup,
     kickMember,
     updateMemberRole,
@@ -99,13 +93,9 @@ export function GroupChatPage(): JSX.Element {
       return;
     }
 
+    // Reading it is the chat pane's: its messages are read when the reader is caught up in front.
     setGroup(loadedGroup);
-    // Opening the group IS reading it. `markAsRead` existed on the hook with
-    // zero callers anywhere, so a group's unread badge could only ever climb —
-    // there was no path back to zero short of a reload.
-    markAsRead(groupId);
-  }, [groupId, getGroup, hydrated, markAsRead, navigate, toast]);
-  useReadWhenInFront(groupId, markAsRead);
+  }, [groupId, getGroup, hydrated, navigate, toast]);
 
   // Handlers
   const handleLeaveGroup: () => Promise<void> = useCallback(async (): Promise<void> => {
@@ -204,21 +194,18 @@ export function GroupChatPage(): JSX.Element {
           from `connectionManager.getConnectionInfo()` -- the CONNECTION's
           identity, not the tab's -- so a tab that could not resolve it rendered
           the group with no message list and no composer at all, which an
-          integration run reports as "Message input not found". GroupChatView's
-          own prop comment says currentUserId is "Unused by the view itself":
-          the whole chat was gated on a value its consumer ignores. */}
+          integration run reports as "Message input not found". The chat needs
+          the CID only to tell the reader's own messages, never to render. */}
       {groupId && (
         <div className="flex-1 min-h-0">
-          {/* Keyed by group: useGroupChat never resets its composer, so a
-              switch mid-draft carried inputValue, replyToId and editingId into
-              the new group — and handleSendMessage pairs the STALE draft with
-              the CURRENT groupId, delivering the message to the wrong group. */}
-          <GroupChatView
+          {/* Keyed by group: a switch mid-draft must not carry the reply or the edit into the new group. */}
+          <PeerGroupChat
             key={groupId}
             groupId={groupId}
-            currentUserId={currentUserId}
-            currentUserName={reader.displayName}
-            totalMembers={group.members.length}
+            groupName={group.name}
+            readerId={reader.id}
+            readerName={reader.displayName}
+            readerCid={selfCid(tab, connectionInfo)}
             sendRestriction={groupRestriction(listedAsMember, myRole !== undefined, can('sendMessages'))}
           />
         </div>

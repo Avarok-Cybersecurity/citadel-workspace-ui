@@ -24,6 +24,8 @@ export interface LandingStepsProps {
   handleLoginNext: (cid: string) => void;
   /** Pre-filled by an account link; undefined for an ordinary sign-in. */
   loginUsername: string | undefined;
+  /** The server an account link named: the sign-in is scoped to it. */
+  loginScope: string | undefined;
 }
 
 export function LandingSteps({
@@ -38,6 +40,7 @@ export function LandingSteps({
   handleJoinBack,
   handleLoginNext,
   loginUsername,
+  loginScope,
 }: LandingStepsProps): JSX.Element {
   return (
     <>
@@ -62,7 +65,7 @@ export function LandingSteps({
         />
       )}
       {currentStep === 'login' && (
-        <Login onNext={handleLoginNext} onCancel={() => setCurrentStep('none')} initialUsername={loginUsername} />
+        <Login onNext={handleLoginNext} onCancel={() => setCurrentStep('none')} initialUsername={loginUsername} scope={loginScope} />
       )}
 
     </>

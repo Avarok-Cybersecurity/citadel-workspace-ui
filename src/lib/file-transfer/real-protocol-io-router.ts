@@ -24,10 +24,10 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
   private disposed: boolean = false;
 
   // Map client transferId to protocol objectId for correlation
-  private transferIdToObjectId: Map<string, string> = new Map<string, string>();
+  protected transferIdToObjectId: Map<string, string> = new Map<string, string>();
   /** Accepts waiting for their transfer's protocol half; see awaitObjectId. */
   private objectIdWaiters: Map<string, Array<(objectId: string | undefined) => void>> = new Map();
-  private objectIdToTransferId: Map<string, string> = new Map<string, string>();
+  protected objectIdToTransferId: Map<string, string> = new Map<string, string>();
 
   /**
    * Correlation state for the id-less tick stream (see tick-events.ts):
@@ -62,7 +62,8 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
     executeCancelTransfer(params, this.transferIdToObjectId, this.objectIdToTransferId);
   }
 
-  async respondToTransfer(params: RespondTransferParams): Promise<void> {
+  /** Resolves to the request id the accepted stream's ticks will carry. */
+  async respondToTransfer(params: RespondTransferParams): Promise<string> {
     const requestId: string = await executeRespondToTransfer(params);
     // An accept spawns the reception tick stream under this request UUID.
     // Register the join BEFORE any tick can arrive (the WebSocket is ordered,
@@ -70,6 +71,7 @@ export class RealProtocolIORouter implements IFileTransferIORouter {
     if (params.accept && params.transferId) {
       this.tickCorrelation.requestIdToTransferId.set(requestId, params.transferId);
     }
+    return requestId;
   }
 
   async downloadFile(params: DownloadFileParams): Promise<void> {

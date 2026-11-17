@@ -21,7 +21,6 @@ import { openChatDocumentTab, type ChatDocumentOpening, type ChatDocumentTarget,
 
 const HEX: string = 'e'.repeat(64);
 const SNAPSHOT: Uint8Array = new Uint8Array([7, 7, 7]);
-const PEER = { cid: 2n, name: 'Bob', username: 'bob' } as const;
 
 interface Recorded {
   readonly requests: ChatDocumentRequest[];
@@ -60,7 +59,7 @@ function ports(outcome: MigrationOutcome): { readonly ports: OpeningPorts; reado
   };
 }
 
-const target = (docId: string, creator: 'self' | 'peer', seed: string | null): ChatDocumentTarget => ({ docId, title: 'Plan', selfCid: 1n, peer: PEER, creator, seed });
+const target = (docId: string, creator: 'self' | 'peer', seed: string | null): ChatDocumentTarget => ({ docId, title: 'Plan', selfCid: 1n, creator, seed });
 const MOVED: MigrationOutcome = { kind: 'migrated', marker: { v: 1, originYjsSvHash: HEX, client: 9n, snapshotSha256: HEX, reportJson: '{}' }, title: 'Plan' };
 
 describe('a document tab', () => {

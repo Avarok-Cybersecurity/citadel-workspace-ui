@@ -21,6 +21,8 @@
  * nothing is lost to whoever is debugging.
  */
 
+import { LOST_ON_TAKEOVER } from './lost-on-takeover';
+
 export interface CallFailureDetail {
   /** What the user is told. */
   detail: string;
@@ -38,6 +40,11 @@ const NO_MEDIA_PATH: RegExp = /no UDP channel|UdpMode disabled|udp channel ended
 
 /** The peer's client answered but could not agree on a codec. */
 const NO_CODEC: RegExp = /no (?:shared |common )?codec|codec mismatch/i;
+
+/** The heading over a failed call: one cut off mid-call did start. */
+export function failedCallTitle(reason: string | null): string {
+  return reason === LOST_ON_TAKEOVER ? 'The call was cut off' : 'The call could not start';
+}
 
 export function callFailureDetail(reason: string | null): CallFailureDetail {
   const raw: string = reason ?? '';

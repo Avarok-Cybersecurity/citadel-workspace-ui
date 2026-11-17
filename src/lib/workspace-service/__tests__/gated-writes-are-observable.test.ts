@@ -18,6 +18,8 @@ import { describe, it, expect, beforeEach, vi  } from 'vitest';
 import { eventEmitter } from '@/lib/event-emitter';
 import { SUCCESS_RESPONSES } from '../await-write-response';
 import { WorkspaceResponseHandler } from '@/lib/workspace-response-handler/service';
+import { groupMessagingManager } from '@/lib/group-messaging-manager';
+import { channelSignals } from '@/lib/group-conversations/channel-signals';
 
 /** A minimal payload for each variant; handlers read fields off these. */
 const PAYLOADS: Record<string, unknown> = {
@@ -32,12 +34,24 @@ const PAYLOADS: Record<string, unknown> = {
   GroupMessageNotification: { group_id: 'g1', message: { id: 'm1', sender_id: 'ada', content: 'hi' } },
   GroupMessageEdited: { group_id: 'g1', message_id: 'm1' },
   GroupMessageDeleted: { group_id: 'g1', message_id: 'm1' },
+  GroupMessageReacted: { group_id: 'g1', message_id: 'm1', reactions: [] },
+  GroupReadCursorMoved: { group_id: 'g1', cursor: { member: 'ada', upto_message_id: 'm1' } },
   SignInSettings: { require_turnstile_sign_in: true },
   Telemetry: { Deleted: { segments: 0 } },
   MessagingTrust: { Settings: { workspace: 'AllTrusted', mine: null, effective_root: 'workspace-root' } },
   Roles: { RoleChanged: { role_id: 'guest', roles: { roles: [], default_role_id: 'member' } } },
   SecureLinks: { Deleted: { id: 'link-1' } },
   Apps: { Uninstalled: { install_id: 'i-1' } },
+};
+
+/**
+ * Handlers whose effect is a state write rather than a domain event of their own: each is
+ * recognised by the write, spied for the one dispatch. Emitting an event nobody hears only to be
+ * seen here is refused by check:event-pairs, and rightly.
+ */
+const STATE_WRITES: Record<string, () => ReturnType<typeof vi.spyOn>> = {
+  GroupMessageReacted: () => vi.spyOn(groupMessagingManager, 'handleReactionsReplaced'),
+  GroupReadCursorMoved: () => vi.spyOn(channelSignals, 'moveCursor'),
 };
 
 /**
@@ -53,6 +67,7 @@ const PAYLOADS: Record<string, unknown> = {
  */
 function dispatch(variant: string): { events: string[]; handled: boolean } {
   const spy: ReturnType<typeof vi.spyOn> = vi.spyOn(eventEmitter, 'emit');
+  const write: ReturnType<typeof vi.spyOn> | null = STATE_WRITES[variant]?.() ?? null;
   try {
     // The shape extractWorkspaceResponse actually accepts: msg.Response IS the
     // WorkspaceProtocolResponse.
@@ -64,10 +79,11 @@ function dispatch(variant: string): { events: string[]; handled: boolean } {
       events,
       // A real variant handler emits at least one domain event of its own.
       // Only the Unhandled fallback emits raw-response and nothing else.
-      handled: events.some((n) => n !== 'workspace:raw-response'),
+      handled: events.some((n) => n !== 'workspace:raw-response') || (write !== null && write.mock.calls.length > 0),
     };
   } finally {
     spy.mockRestore();
+    write?.mockRestore();
   }
 }
 

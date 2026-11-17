@@ -75,6 +75,8 @@ export interface ParsedTickProgress {
   totalBytes: number;
   percentage: number;
   status: 'uploading' | 'downloading';
+  /** Where the agent is writing a reception (ReceptionBeginning); kept so a reload still knows. */
+  downloadPath?: string;
 }
 
 export interface ParsedTickComplete {
@@ -89,6 +91,11 @@ export interface ParsedTickComplete {
 }
 
 export type ParsedTick = ParsedTickProgress | ParsedTickComplete | null;
+
+/** The agent's counts are u64, which reach the page as BigInt whatever the binding says. */
+function asCount(value: number | bigint): number {
+  return Number(value);
+}
 
 function percentage(group: number, total: number): number {
   return total > 0 ? Math.min(100, Math.round((group / total) * 100)) : 0;
@@ -147,13 +154,13 @@ export function parseTickNotification(
       kind: 'progress', direction: 'incoming', transferId,
       cid, peerCid, bytesTransferred: 0,
       totalBytes: Number(metadata.plaintext_length), percentage: 0,
-      status: 'downloading',
+      status: 'downloading', downloadPath,
     };
   }
 
   if (isVariant(status, 'TransferTick')) {
     if (isForeign) return null;
-    const [group, total] = status.TransferTick;
+    const [group, total]: number[] = status.TransferTick.slice(0, 2).map(asCount);
     return {
       kind: 'progress', direction: 'outgoing', transferId: resolved,
       cid, peerCid, bytesTransferred: group, totalBytes: total,
@@ -163,7 +170,7 @@ export function parseTickNotification(
 
   if (isVariant(status, 'ReceptionTick')) {
     if (isForeign) return null;
-    const [group, total] = status.ReceptionTick;
+    const [group, total]: number[] = status.ReceptionTick.slice(0, 2).map(asCount);
     return {
       kind: 'progress', direction: 'incoming', transferId: resolved,
       cid, peerCid, bytesTransferred: group, totalBytes: total,

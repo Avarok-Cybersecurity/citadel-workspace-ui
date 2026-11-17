@@ -32,7 +32,17 @@ function iconTone(isOwn: boolean, stateColour: string): string {
 }
 
 /** Returns the status icon, text, and action flags for a given transfer state. */
-export function getStatusContent(state: string, isOwn: boolean, reason: string | undefined): StatusContent {
+export function getStatusContent(state: string, isOwn: boolean, reason: string | undefined, resuming: boolean): StatusContent {
+  // Picked up again after a reload (lib/file-transfer/reload-recovery.ts): the
+  // application is finishing it; nobody has anything to do but wait.
+  if (resuming) {
+    return {
+      icon: <Clock className={`h-4 w-4 ${iconTone(isOwn, 'text-primary-accent')} animate-spin`} />,
+      text: 'Resuming…',
+      showProgress: state === 'transferring',
+      showCancel: isOwn
+    };
+  }
   switch (state) {
     case 'pending':
       if (isOwn) {

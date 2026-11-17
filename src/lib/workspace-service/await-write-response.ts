@@ -37,6 +37,8 @@ export const SUCCESS_RESPONSES: Record<string, readonly string[]> = {
   CreateNode: ['Node'],
   UpdateNode: ['Node'],
   SetMembersVisible: ['Node'],
+  // A workspace's default tabs; answered and broadcast as the workspace record.
+  SetDefaultAppTabs: ['Workspace'],
   // The sign-in settings, read and written; both answered with what the server holds.
   // Every telemetry request is answered with a Telemetry response; telemetry-operations picks the kind.
   Telemetry: ['Telemetry'],
@@ -96,6 +98,9 @@ export const SUCCESS_RESPONSES: Record<string, readonly string[]> = {
   SendGroupMessage: ['GroupMessageNotification'],
   EditGroupMessage: ['GroupMessageEdited'],
   DeleteGroupMessage: ['GroupMessageDeleted'],
+  // A node channel's reaction and read cursor; both answered with the notice they broadcast.
+  ReactGroupMessage: ['GroupMessageReacted'],
+  MarkGroupRead: ['GroupReadCursorMoved'],
 };
 
 function describeFailure(response: Record<string, unknown>): string {

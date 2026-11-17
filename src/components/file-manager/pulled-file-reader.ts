@@ -32,28 +32,39 @@ export class PulledFileError extends Error {
   }
 }
 
-function check(node: RevfsNode, chunk: PulledChunk, expected: bigint, total: bigint | null): void {
-  if (total !== null && chunk.totalSize !== total) throw new PulledFileError(node.name, `its size changed from ${total} to ${chunk.totalSize} bytes while reading`);
-  if (chunk.offset !== expected) throw new PulledFileError(node.name, `the agent answered offset ${chunk.offset} where ${expected} was asked for`);
-  if (chunk.data.length > READ_CHUNK_BYTES) throw new PulledFileError(node.name, `a chunk of ${chunk.data.length} bytes is over the ${READ_CHUNK_BYTES} asked for`);
-  if (chunk.offset + BigInt(chunk.data.length) > chunk.totalSize) throw new PulledFileError(node.name, 'a chunk runs past the end of the file');
+/** Reads one chunk of the file at `offset`: ReadPulledFileChunk, however the file is named. */
+export type ChunkReader = (offset: bigint, maxLen: number) => Promise<PulledChunk>;
+
+function check(name: string, chunk: PulledChunk, expected: bigint, total: bigint | null): void {
+  if (total !== null && chunk.totalSize !== total) throw new PulledFileError(name, `its size changed from ${total} to ${chunk.totalSize} bytes while reading`);
+  if (chunk.offset !== expected) throw new PulledFileError(name, `the agent answered offset ${chunk.offset} where ${expected} was asked for`);
+  if (chunk.data.length > READ_CHUNK_BYTES) throw new PulledFileError(name, `a chunk of ${chunk.data.length} bytes is over the ${READ_CHUNK_BYTES} asked for`);
+  if (chunk.offset + BigInt(chunk.data.length) > chunk.totalSize) throw new PulledFileError(name, 'a chunk runs past the end of the file');
 }
 
-export async function readPulledFile(node: RevfsNode, io: PulledFileIO): Promise<Uint8Array> {
-  await io.pull(node);
-  const first: PulledChunk = await io.readChunk(node, 0n, READ_CHUNK_BYTES);
-  check(node, first, 0n, null);
+/**
+ * A file the agent holds for this session, read whole and in order. `limit` is the most the
+ * caller will take; a larger file is refused after its first chunk names its size.
+ */
+export async function readAgentFile(name: string, readChunk: ChunkReader, limit: bigint): Promise<Uint8Array> {
+  const first: PulledChunk = await readChunk(0n, READ_CHUNK_BYTES);
+  check(name, first, 0n, null);
   const total: bigint = first.totalSize;
-  if (total > MAX_PULLED_FILE_BYTES) throw new PulledFileError(node.name, `it is ${total} bytes, over the ${MAX_PULLED_FILE_BYTES} a page may read`);
+  if (total > limit) throw new PulledFileError(name, `it is ${total} bytes, over the ${limit} a page may read`);
   const out: Uint8Array = new Uint8Array(Number(total));
   out.set(first.data, 0);
   let at: bigint = BigInt(first.data.length);
   while (at < total) {
-    const chunk: PulledChunk = await io.readChunk(node, at, READ_CHUNK_BYTES);
-    check(node, chunk, at, total);
-    if (chunk.data.length === 0) throw new PulledFileError(node.name, `the agent sent nothing at offset ${at} of ${total}`);
+    const chunk: PulledChunk = await readChunk(at, READ_CHUNK_BYTES);
+    check(name, chunk, at, total);
+    if (chunk.data.length === 0) throw new PulledFileError(name, `the agent sent nothing at offset ${at} of ${total}`);
     out.set(chunk.data, Number(at));
     at += BigInt(chunk.data.length);
   }
   return out;
+}
+
+export async function readPulledFile(node: RevfsNode, io: PulledFileIO): Promise<Uint8Array> {
+  await io.pull(node);
+  return readAgentFile(node.name, (offset: bigint, maxLen: number): Promise<PulledChunk> => io.readChunk(node, offset, maxLen), MAX_PULLED_FILE_BYTES);
 }

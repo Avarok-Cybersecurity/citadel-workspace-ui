@@ -65,8 +65,8 @@ const RECORDED_UNCONSUMED = new Map([
   // them. Every one of these fires alongside file-transfer:state-changed, which
   // the Files sidebar does listen to, so nothing is missing a refresh -- they
   // are finer-grained events kept for consumers that do not exist yet.
-  ['file-transfer:request-received', 'the receiver is prompted by the chat bubble, which reads the message; state-changed drives the sidebar'],
-  ['file-transfer:request-sent', 'as request-received'],
+  // Not request-received: an arriving offer emits it WITHOUT state-changed, and the first-offer prompt listens.
+  ['file-transfer:request-sent', 'the sender sees its own bubble, which reads the message; state-changed drives the sidebar'],
   ['file-transfer:progress-updated', 'progress is rendered from the transfer record; state-changed drives the sidebar'],
   ['outbound-error', 'duplicates the outbound-ack the caller already receives: channel-messaging calls acknowledge() and emits the ack on the same path'],
   ['group:message:new', 'published beside group:message-received, which is the one the store reads'],
@@ -74,7 +74,7 @@ const RECORDED_UNCONSUMED = new Map([
   ['group:message:edited', 'the edit path settles through awaitWriteResponse, not this event'],
   ['group:message:deleted', 'as group:message:edited'],
   ['group:message:single', 'no consumer; single-message fetch is unused by the UI'],
-  ['group:messages:loaded', 'useGroupChat reads the pagination result directly'],
+  ['group:messages:loaded', 'the node chat reads each page from the message manager the response handler fills (node-chat-io)'],
   ['instance:state-changed', 'diagnostic; the UI reads instanceManager directly'],
   ['member:loaded', 'the members list is driven by members:loaded (plural)'],
   // The note this replaces said "node types are read synchronously from the

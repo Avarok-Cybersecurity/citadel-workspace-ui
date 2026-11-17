@@ -22,17 +22,22 @@ export interface DocumentFiles {
  */
 const OBJECT_URL_LIFETIME_MS: number = 40_000;
 
+/** Offers `blob` to the person as a download named `name`: the app's one download anchor. */
+export function downloadBlob(blob: Blob, name: string): void {
+  const url: string = URL.createObjectURL(blob);
+  const anchor: HTMLAnchorElement = document.createElement('a');
+  anchor.href = url;
+  anchor.download = name;
+  anchor.rel = 'noopener';
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout((): void => URL.revokeObjectURL(url), OBJECT_URL_LIFETIME_MS);
+}
+
 export const browserDocumentFiles: DocumentFiles = {
   save(file: SavedFile): void {
-    const url: string = URL.createObjectURL(new Blob([file.bytes.slice().buffer], { type: file.mime }));
-    const anchor: HTMLAnchorElement = document.createElement('a');
-    anchor.href = url;
-    anchor.download = file.name;
-    anchor.rel = 'noopener';
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    window.setTimeout((): void => URL.revokeObjectURL(url), OBJECT_URL_LIFETIME_MS);
+    downloadBlob(new Blob([file.bytes.slice().buffer], { type: file.mime }), file.name);
   },
   nowRfc3339(): string {
     return new Date().toISOString();

@@ -215,8 +215,7 @@ export class P2PMessengerManager extends EventListenerManager {
   public updateFileTransferState(peerCid: bigint, transferId: string, updates: { transfer_state?: P2PMessage['transfer_state']; transfer_progress?: number }): void { updateFileTransferState(this.conversationManager, (e, d) => this.emit(e, d), peerCid, transferId, updates); }
   public markAsRead(peerCid: bigint): void { void this.markMessagesAsRead(peerCid); }
   public async updateUnreadCount(peerCid: bigint, unreadCount: number): Promise<void> { return updateUnreadCount(this.conversationManager, peerCid, unreadCount); }
-  public async autoRegisterPeer(peerCid: bigint): Promise<void> { return autoRegisterPeer(() => resolveCurrentCid(), (e, d) => this.emit(e, d), peerCid); }
-  public async autoRegisterPeerWithCid(peerCid: bigint, ownCid: bigint | null | undefined): Promise<void> { if (!ownCid) throw new Error('No CID provided for registration'); return autoRegisterPeer(() => resolveCurrentCid(), (e, d) => this.emit(e, d), peerCid, ownCid); }
+  public async autoRegisterPeer(peerCid: bigint, peerUsername: string): Promise<void> { return autoRegisterPeer(() => resolveCurrentCid(), peerCid, peerUsername); }
 }
 
 // Lazy singleton — deferred to first access to avoid circular dependency TDZ.

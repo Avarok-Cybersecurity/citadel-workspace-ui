@@ -27,11 +27,14 @@ export interface LoaderInputs {
   keptTree: boolean;
   /** One is kept, sealed, and cannot be opened here. */
   keptTreeLocked: boolean;
+  /** The server refused this account the workspace (lib/membership-refusal.ts): no wait ends that. */
+  refused: boolean;
 }
 
 export type LoaderView =
   | { kind: 'ready' }
   | { kind: 'held-elsewhere' }
+  | { kind: 'refused' }
   | { kind: 'spinner'; message: string; showConnectButton: boolean };
 
 export function shouldLeaveForConnect(inputs: LoaderInputs): boolean {
@@ -52,6 +55,7 @@ function spinnerMessage(inputs: LoaderInputs): string {
 }
 
 export function loaderView(inputs: LoaderInputs): LoaderView {
+  if (inputs.refused) return { kind: 'refused' };
   if (inputs.isLoading && inputs.heldElsewhere) return { kind: 'held-elsewhere' };
   if (!inputs.isLoading && !inputs.isAutoClaiming) return { kind: 'ready' };
   if (inputs.reconnectingTo !== null && inputs.keptTree && !inputs.isAutoClaiming) return { kind: 'ready' };

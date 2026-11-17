@@ -43,7 +43,7 @@ describe('a Documents message on the production path', () => {
 
   it('reaches the transport decoded, u64s exact', () => {
     const { sender } = recordingSender();
-    const transport: DocumentsTransport = workspaceDocumentsTransport(sender);
+    const transport: DocumentsTransport = workspaceDocumentsTransport(sender, null);
     const heard: DocumentsResponse[] = [];
     const stop: () => void = transport.onResponse((response: DocumentsResponse): void => { heard.push(response); });
     eventEmitter.emit('websocket-message', serverPush(BOB, PUSH));
@@ -53,14 +53,14 @@ describe('a Documents message on the production path', () => {
 
   it('sends requests as the Documents sub-protocol', async () => {
     const { sender, sent } = recordingSender();
-    await workspaceDocumentsTransport(sender).send({ Pull: { node_id: 'n1', since_seq: 4n } });
+    await workspaceDocumentsTransport(sender, null).send({ Pull: { node_id: 'n1', since_seq: 4n } });
     expect(sent).toEqual([{ Documents: { Pull: { node_id: 'n1', since_seq: 4n } } }]);
   });
 
   it('follows its own session\'s link, not another\'s', () => {
     const { sender } = recordingSender();
     const states: LinkState[] = [];
-    const stop: () => void = workspaceDocumentsTransport(sender).onLink((state: LinkState): void => { states.push(state); });
+    const stop: () => void = workspaceDocumentsTransport(sender, null).onLink((state: LinkState): void => { states.push(state); });
     eventEmitter.emit('websocket-message', { ServerConnectionLost: { cid: ALICE, reconnecting: true, request_id: null } });
     eventEmitter.emit('websocket-message', { ServerConnectionLost: { cid: BOB, reconnecting: true, request_id: null } });
     eventEmitter.emit('websocket-message', { ServerReconnected: { cid: BOB, request_id: null } });
@@ -71,21 +71,21 @@ describe('a Documents message on the production path', () => {
   it('starts with the link the tab shows: down while the agent re-dials this tab\'s session', () => {
     const { sender } = recordingSender();
     reconnectingTo.set('workspace.example:12349');
-    expect(workspaceDocumentsTransport(sender).link()).toBe('down');
+    expect(workspaceDocumentsTransport(sender, null).link()).toBe('down');
     reconnectingTo.set(null);
-    expect(workspaceDocumentsTransport(sender).link()).toBe('up');
+    expect(workspaceDocumentsTransport(sender, null).link()).toBe('up');
   });
 
   it('hears a permission refusal', () => {
     const { sender } = recordingSender();
     const errors: string[] = [];
-    const stop: () => void = workspaceDocumentsTransport(sender).onError((message: string): void => { errors.push(message); });
+    const stop: () => void = workspaceDocumentsTransport(sender, null).onError((message: string): void => { errors.push(message); });
     eventEmitter.emit('workspace:raw-response', { Error: 'Permission denied: EditMdx required' });
     stop();
     expect(errors).toEqual(['Permission denied: EditMdx required']);
   });
 
   it('refuses to open without a signed-in session', () => {
-    expect(() => workspaceDocumentsTransport({ currentCid: null, sendProtocolRequest: (): Promise<void> => Promise.resolve() })).toThrow('signed-in session');
+    expect(() => workspaceDocumentsTransport({ currentCid: null, sendProtocolRequest: (): Promise<void> => Promise.resolve() }, null)).toThrow('signed-in session');
   });
 });

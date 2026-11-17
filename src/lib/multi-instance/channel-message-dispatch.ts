@@ -26,12 +26,21 @@ import { claimedFromChannel, SESSION_CLAIMED, type ClaimedEvent } from './claim-
 import { noticesHeardFromChannel } from './notices-heard-relay';
 import { noticesHeard } from '../agent-conversations/capabilities';
 import { isFromAnOlderLeadership } from './version-skew';
+import { MEDIA_FRAME_OUT } from './media-frame-relay';
+import { CALL_TAKEN } from '@/lib/call/call-taken-elsewhere';
+import { RINGING_ELSEWHERE } from '@/lib/call/ringing-hand-off';
+import { CALL_DEPARTED } from '@/lib/call/call-departure';
 
 export function dispatchChannelMessage(
   message: ChannelMessage,
   electionState: LeaderElectionState,
   broadcastCid: () => void
 ): void {
+  // Per frame, so ahead of the per-message log below; see media-frame-relay.ts.
+  if (message.type === MEDIA_FRAME_OUT) {
+    eventEmitter.emit(MEDIA_FRAME_OUT, message.payload);
+    return;
+  }
   if (message.type !== 'leader-heartbeat') {
     debugLog('InstanceChannel', `[InstanceChannel] Received ${message.type} from ${message.senderInstanceId}`);
   }
@@ -47,6 +56,11 @@ export function dispatchChannelMessage(
     case 'instance-goodbye': handleInstanceGoodbye(electionState, message); break;
     case 'session-release': handleSessionRelease(message); break;
     case 'cid-update': handleCidUpdate(message); break;
+    case CALL_TAKEN:
+    case RINGING_ELSEWHERE:
+    case CALL_DEPARTED:
+      eventEmitter.emit(message.type, message.payload);
+      break;
     // Self-heal: leader missed our cid-update. No `instanceManager.cid` guard so
     // broadcastCid()'s tab-context fallback runs — post claim/reload owners
     // (CID not yet in instanceManager) still answer; the old guard stranded them.

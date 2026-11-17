@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { withMember, withoutMember, withRole, withoutRole, type GrantDraft } from '@/lib/share/grant-draft';
 import type { ShareTarget } from '@/lib/share/share-target';
+import { BookingGuestsField, GUEST_COPY } from './BookingGuestsField';
 
 export interface RoleOption {
   id: string;
@@ -59,6 +60,7 @@ export function GrantBuilder({ draft, onChange, members, roles, target, disabled
         {draft.nodeViewers !== null && <Chip label={nodeLabel} disabled={disabled} onRemove={() => onChange({ ...draft, nodeViewers: null })} />}
         {draft.workspace && <Chip label="Everyone in the workspace" disabled={disabled} onRemove={() => onChange({ ...draft, workspace: false })} />}
         {draft.group !== null && groupLabel !== null && <Chip label={groupLabel} disabled={disabled} onRemove={() => onChange({ ...draft, group: null })} />}
+        {draft.booking !== null && <Chip label={GUEST_COPY.add} disabled={disabled} onRemove={() => onChange({ ...draft, booking: null })} />}
       </ul>
       <div className="flex flex-wrap gap-1.5">
         <Select value="" onValueChange={(m: string) => onChange(withMember(draft, m))} disabled={disabled || addableMembers.length === 0}>
@@ -83,7 +85,12 @@ export function GrantBuilder({ draft, onChange, members, roles, target, disabled
           <AddToggle label={groupLabel} disabled={disabled} testId="share-add-group"
             onAdd={() => { if (target.group) onChange({ ...draft, group: { groupId: target.group.groupId, members: target.group.members } }); }} />
         )}
+        {target.booking !== null && draft.booking === null && (
+          <AddToggle label={GUEST_COPY.add} disabled={disabled} testId="share-add-booking-guests"
+            onAdd={() => { if (target.booking) onChange({ ...draft, booking: { ...target.booking, maxGuests: null } }); }} />
+        )}
       </div>
+      <BookingGuestsField draft={draft} onChange={onChange} disabled={disabled} />
       {draft.group !== null && (
         <p className="text-xs text-muted-foreground" data-testid="share-group-snapshot-note">
           {`The ${draft.group.members.length} people in the group now. Anyone who joins later is not included.`}

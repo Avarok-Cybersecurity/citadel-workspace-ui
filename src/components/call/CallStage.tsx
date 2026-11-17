@@ -15,6 +15,7 @@ import { canShareScreen } from '@/lib/call/screen-capability';
 import type { VideoQuality } from '@/lib/call/video-quality';
 import { callLabel, ConnectingBanner, ErrorPanel, OutgoingCallPanel } from './CallStagePanels';
 import { useStatusSince } from './use-status-since';
+import { failedCallTitle } from '@/lib/call/call-failure-detail';
 
 interface CallStageProps {
   call: CallState;
@@ -111,7 +112,7 @@ export function CallStage({
     >
       {call.status === 'failed' ? (
         <ErrorPanel
-          title="The call could not start"
+          title={failedCallTitle(call.reason)}
           detail={call.reason ?? 'Something went wrong setting up the call.'}
         />
       ) : call.status === 'ringing-out' ? (

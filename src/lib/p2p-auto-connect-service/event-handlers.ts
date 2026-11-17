@@ -95,7 +95,7 @@ export function setupEventListeners(
     });
   });
 
-  // When WE accept a peer registration, do NOT call PeerConnect.
+  // When WE accept, the accept itself dials (lib/p2p/after-peer-accepted.ts); nothing to do here.
   eventEmitter.on('p2p:registration-accepted', ({ peerCid }: { peerCid: bigint }) => {
     if (peerCid !== undefined) {
       debugLog('P2PAutoConnectService', `P2PAutoConnect: Registration accepted for ${peerCid.toString().slice(0, 8)}... - waiting for initiator to connect`);

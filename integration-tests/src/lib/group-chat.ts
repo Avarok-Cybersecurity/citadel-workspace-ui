@@ -237,8 +237,11 @@ export async function sendGroupMessage(
     await messageInput.fill(message);
     await sleep(500);
 
-    // Find and click the send button
-    const sendButton = page.locator('button:has(svg), button[aria-label*="send"], button[aria-label*="Send"]').last();
+    // The composer's own send button, by its name. The last button with an icon was the send
+    // button until node channels moved onto the direct chat's pane (ba2e7886), whose message-type
+    // bar sits below the composer: "the last button with an svg" became "Live Doc", which opened
+    // the New document dialog over the page and left the message unsent.
+    const sendButton = page.getByTestId('group-chat').getByTestId('chat-send');
 
     if (await isVisibleWithin(sendButton, 2000)) {
       await sendButton.click();
@@ -297,7 +300,10 @@ export async function verifyGroupMessageReceived(
     // Substring rather than exact match, so surrounding whitespace or wrapping in
     // the bubble does not matter. getByText rather than `text="..."` because the
     // message is interpolated and a quote in it would break a hand-built selector.
-    const message = page.getByText(expectedMessage).first();
+    //
+    // Inside the transcript only: the composer is a textarea, whose text is its value, so a message
+    // that was typed and never sent matched here and read as received.
+    const message = page.getByTestId('group-chat-view').getByText(expectedMessage).first();
 
     if (await isVisibleWithin(message, timeout)) {
       console.log(`  Message found`);
@@ -326,8 +332,9 @@ export async function getMessageCount(page: Page, username: string): Promise<num
     // Look for message bubbles/items
     // `[class*="message"]` matched any element whose class merely CONTAINS
     // "message" -- wrappers, the composer, anything -- so this returned a
-    // number that was not the message count. The app now names each message.
-    const messages = page.locator('[data-testid="message-item"]');
+    // number that was not the message count. Each message row carries its id
+    // (the chat pane's jump anchor); scoped to the channel's transcript.
+    const messages = page.locator('[data-testid="group-chat-view"] [data-message-id]');
     const count = await messages.count();
     console.log(`  Found ${count} messages`);
     return count;
@@ -356,7 +363,9 @@ export async function checkMessageTimestamps(page: Page, username: string): Prom
 }
 
 /**
- * Load older messages (pagination)
+ * Load older messages (pagination): scroll the transcript to its top, which is
+ * how the chat pane asks for the page before the oldest message it holds (it
+ * has no button). True when more messages are on screen afterwards.
  */
 export async function loadOlderMessages(
   page: Page,
@@ -366,22 +375,19 @@ export async function loadOlderMessages(
   console.log(`\n=== ${username}: Loading older messages ===`);
 
   try {
-    // `has-text` is a substring match, so this covers the button's full copy,
-    // "Load older messages". The dead alternative that used to sit beside it
-    // searched for "Load more", which the app has never rendered -- it was
-    // carried along harmlessly because the working half of the selector
-    // matched first, which is exactly how a dead locator survives review.
-    const loadMoreBtn = page.locator('button:has-text("Load older")').first();
-
-    if (await isVisibleWithin(loadMoreBtn, 3000)) {
-      await loadMoreBtn.click();
-      await sleep(2000);
-      console.log(`  Clicked "Load older messages"`);
-      return true;
-    }
-
-    console.log(`  No "Load older" button found (may not have more messages)`);
-    return false;
+    const rows = page.locator('[data-testid="group-chat-view"] [data-message-id]');
+    const before: number = await rows.count();
+    const viewport = page.locator('[data-testid="group-chat-view"] [data-radix-scroll-area-viewport]').first();
+    await viewport.evaluate((el: Element): void => { el.scrollTop = 0; el.dispatchEvent(new Event('scroll')); });
+    const grew: boolean = await page
+      .waitForFunction(
+        (n: number): boolean => document.querySelectorAll('[data-testid="group-chat-view"] [data-message-id]').length > n,
+        before,
+        { timeout: 5000 },
+      )
+      .then((): boolean => true, (): boolean => false);
+    console.log(grew ? '  Older messages loaded' : '  No older messages arrived (may not have more)');
+    return grew;
   } catch (error) {
     console.log(`  ERROR loading older messages: ${error}`);
     return false;
@@ -395,7 +401,7 @@ export async function checkRulesBanner(page: Page, username: string): Promise<st
   console.log(`\n=== ${username}: Checking for rules banner ===`);
 
   try {
-    const rulesBanner = page.locator('[class*="rules"], [class*="banner"]:has-text("Rule")').first();
+    const rulesBanner = page.getByTestId('channel-rules').first();
 
     if (await isVisibleWithin(rulesBanner, 3000)) {
       const rulesText = await rulesBanner.textContent();
@@ -656,7 +662,8 @@ export async function switchToContentTab(
   console.log(`\n=== ${username}: Switching to Content tab ===`);
 
   try {
-    const contentTab = page.locator('[data-state][value="content"], button:has-text("Content"), [role="tab"]:has-text("Content")').first();
+    // The node's page tab, named "Page" since app tabs joined the row (c1440cc9); its key is still `content`.
+    const contentTab = page.getByTestId('node-tab-content');
 
     if (await isVisibleWithin(contentTab, 5000)) {
       await contentTab.click();

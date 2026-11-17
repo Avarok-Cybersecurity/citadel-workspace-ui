@@ -36,7 +36,9 @@ import { groupRestriction, type GroupRestriction } from '../group-restriction';
 import { GroupChatHeader } from '../GroupChatHeader';
 import { GroupMemberManagement } from '../GroupMemberManagement';
 import { useGroupPermissions } from '@/hooks/use-group-permissions';
-import { GroupChatView } from '../GroupChatView';
+import { ConfirmDialogProvider } from '@/components/shared/confirm-dialog';
+import { ChatPane } from '../pane/ChatPane';
+import { fakeTransport } from '@/lib/chat/transport/__tests__/doubles/fake-transport';
 
 const SELF: bigint = 7n;
 const OWNER: bigint = 99n;
@@ -48,34 +50,19 @@ vi.mock('@/lib/connection', () => ({
 }));
 
 /**
- * The composer's own state. Only the fields the view reads are supplied; none
- * of the handlers is exercised, since these assertions are about what renders.
+ * The group's chat pane with the reader's restriction as its send gate. The pane is the real one
+ * over a recording transport: what is under test is that the restriction reaches the composer.
  */
-vi.mock('../useGroupChat', () => ({
-  useGroupChat: (): Record<string, unknown> => ({
-    messages: [],
-    messagesByDate: {},
-    loading: false,
-    loadingMore: false,
-    hasMore: false,
-    sending: false,
-    inputValue: '',
-    setInputValue: (): void => {},
-    editingId: null,
-    setEditingId: (): void => {},
-    editContent: '',
-    setEditContent: (): void => {},
-    replyToId: null,
-    setReplyToId: (): void => {},
-    handleKeyPress: (): void => {},
-    handleSendMessage: (): void => {},
-    handleEditMessage: (): void => {},
-    handleDeleteMessage: (): void => {},
-    loadMoreMessages: (): void => {},
-    stick: { unseen: 0, viewLatest: (): void => {}, reveal: (): void => {} },
-    scrollAreaRef: { current: null },
-  }),
-}));
+function composer(restriction: GroupRestriction): JSX.Element {
+  const { transport } = fakeTransport({
+    kind: 'peer-group', self: { cid: SELF, username: 'self', displayName: 'self' }, counterpart: 'Design',
+    latest: { messages: [], older: null },
+    stated: { markdown: false, readReceipts: false, securityLevel: false, retention: false, optimistic: false, namesSenders: true },
+    ports: { status: false, files: true, documents: false, settings: false, revise: false, reactions: true },
+    sendGate: restriction, recordsOnSend: true,
+  });
+  return <ConfirmDialogProvider><ChatPane transport={transport} pause={null} header={(): null => null} /></ConfirmDialogProvider>;
+}
 
 vi.mock('react-router-dom', () => ({
   useNavigate: (): (() => void) => (): void => {},
@@ -172,14 +159,12 @@ describe('the sendMessages switch', () => {
     const mutedRestriction: GroupRestriction = groupRestriction(true, true, muted);
     expect(mutedRestriction).toBe('denied-by-role');
 
-    const permitted: ReturnType<typeof render> = render(
-      <GroupChatView groupId="g1" currentUserName="self" sendRestriction={allowedRestriction} totalMembers={null} />,
-    );
+    const permitted: ReturnType<typeof render> = render(composer(allowedRestriction));
     expect(screen.queryByTestId('group-message-input')).toBeTruthy();
     expect(screen.queryByTestId('group-send-restricted')).toBeNull();
     permitted.unmount();
 
-    render(<GroupChatView groupId="g1" currentUserName="self" sendRestriction={mutedRestriction} totalMembers={null} />);
+    render(composer(mutedRestriction));
     expect(screen.queryByTestId('group-message-input')).toBeNull();
     expect(screen.getByTestId('group-send-restricted')).toBeTruthy();
   });
@@ -208,7 +193,7 @@ describe('a user who is not in the member list', () => {
     );
     expect(restriction).toBe('not-listed');
 
-    render(<GroupChatView groupId="g1" currentUserName="self" sendRestriction={restriction} totalMembers={null} />);
+    render(composer(restriction));
     const said: string = screen.getByTestId('group-send-restricted').textContent ?? '';
     expect(said).toContain('not listed as a member');
     // The specific wrong thing it used to say.
@@ -265,7 +250,7 @@ describe('a member whose roleId names no role we have', () => {
     );
     expect(restriction).toBe('role-missing');
 
-    render(<GroupChatView groupId="g1" currentUserName="self" sendRestriction={restriction} totalMembers={null} />);
+    render(composer(restriction));
     const said: string = screen.getByTestId('group-send-restricted').textContent ?? '';
     expect(said).toContain('role in this group could not be found');
     // The specific wrong thing it used to say: a refusal attributed to a role

@@ -1,4 +1,7 @@
-/** The share dialog in its two widest states: choosing who and how long, and the link shown once. */
+/**
+ * The share dialog in its widest states: choosing who and how long, the link shown once, and a
+ * booking page's guests with a count the server refuses (the longest copy that field says).
+ */
 import { ShareLinkDialogView } from '@/components/share/ShareLinkDialogView';
 import { SecureLinkPanel } from '@/components/share/SecureLinkPanel';
 import { draftOf } from '@/lib/share/grant-draft';
@@ -11,19 +14,23 @@ const TARGET = shareTarget(
 );
 const DRAFT = { ...draftOf(TARGET.defaultGrant), members: ['bartholomew.longname', 'carol'], roles: ['member'], workspace: true };
 
-const flowIn = (phase) => ({
-  draft: DRAFT, setDraft: NOOP, preset: '7d', setPreset: NOOP, oneTime: true, setOneTime: NOOP,
+const BOOKING = shareTarget({ kind: 'booking-page', nodeId: 'n-1', host: 'bartholomew.longname', nodeName: 'Platform engineering and operations' }, null);
+const GUESTS = { ...draftOf(BOOKING.defaultGrant), booking: { ...BOOKING.booking, maxGuests: 51 } };
+
+const flowIn = (phase, draft = DRAFT) => ({
+  draft, setDraft: NOOP, preset: '7d', setPreset: NOOP, oneTime: draft.booking === null, setOneTime: NOOP, oneTimeAllowed: draft.booking === null,
   quota: { kind: 'known', quota: { live: 12, perMember: 50, pool: 100, poolUsed: 30 } }, phase, create: async () => {},
 });
 
-function ShareDialog({ phase }) {
+function ShareDialog({ phase, target = TARGET, draft = DRAFT }) {
   return (
-    <ShareLinkDialogView open onClose={NOOP} targets={[TARGET]} plainLinks={[]} plainNote="" mode="secure" onMode={NOOP} secureUnavailable={null}
-      secure={<SecureLinkPanel flow={flowIn(phase)} target={TARGET} members={['bob', 'dave']} roles={[{ id: 'member', name: 'Member' }]} isAdmin onManageLinks={NOOP} />} />
+    <ShareLinkDialogView open onClose={NOOP} targets={[target]} plainLinks={[]} plainNote="" mode="secure" onMode={NOOP} secureUnavailable={null}
+      secure={<SecureLinkPanel flow={flowIn(phase, draft)} target={target} members={['bob', 'dave']} roles={[{ id: 'member', name: 'Member' }]} isAdmin onManageLinks={NOOP} />} />
   );
 }
 
 export const SHARE_SCENARIOS = {
   'share-secure-editing': () => <ShareDialog phase={{ kind: 'editing' }} />,
+  'share-booking-guests': () => <ShareDialog phase={{ kind: 'editing' }} target={BOOKING} draft={GUESTS} />,
   'share-secure-created': () => <ShareDialog phase={{ kind: 'created', url: `${location.origin}/?redirect=${'x'.repeat(43)}&server=work.example.com` }} />,
 };

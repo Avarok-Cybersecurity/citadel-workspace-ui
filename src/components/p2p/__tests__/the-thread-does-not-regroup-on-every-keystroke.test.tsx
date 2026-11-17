@@ -37,7 +37,8 @@ vi.mock('@/components/ui/scroll-area', () => ({
   ScrollArea: ({ children }: { children: React.ReactNode }): React.ReactNode => children,
 }));
 
-const { P2PMessageList }: typeof import('../P2PMessageList') = await import('../P2PMessageList');
+const { MessageList }: typeof import('@/components/chat/pane/MessageList') = await import('@/components/chat/pane/MessageList');
+const { listProps: baseProps, between }: typeof import('@/components/chat/pane/__tests__/doubles/list-props') = await import('@/components/chat/pane/__tests__/doubles/list-props');
 
 interface Msg { id: string; timestamp: number; senderCid: bigint }
 
@@ -45,27 +46,15 @@ function messages(n: number): Msg[] {
   return Array.from({ length: n }, (_, i) => ({ id: `m${i}`, timestamp: i, senderCid: 7n }));
 }
 
-type ListProps = React.ComponentProps<typeof P2PMessageList>;
+type ListProps = React.ComponentProps<typeof MessageList>;
 
+/** Stamped once per array, as the pane's state holds them: the same `msgs` is the same thread. */
+const stamped: WeakMap<Msg[], ReturnType<typeof between>[]> = new WeakMap();
 function listProps(msgs: Msg[]): ListProps {
-  return {
-    messages: msgs,
-    currentUserCid: 1n,
-    currentUserName: 'me',
-    peerName: 'bob',
-    peerCid: 7n,
-    isLoadingMore: false,
-    hasMorePages: false,
-    displaySenderName: false,
-    displaySenderAvatar: false,
-    onScroll: (): void => {},
-    onRetryMessage: (): void => {},
-    onOpenDocument: (): void => {},
-    onAcceptTransfer: (): void => {},
-    onDeclineTransfer: (): void => {},
-    onCancelTransfer: (): void => {},
-    onOpenFile: (): void => {},
-  } as unknown as ListProps;
+  const known: ReturnType<typeof between>[] | undefined = stamped.get(msgs);
+  const thread: ReturnType<typeof between>[] = known ?? msgs.map((m: Msg) => between({ ...m, content: 'x', recipientCid: 1n, index: 0, status: 'delivered', message_type: 'text' }));
+  stamped.set(msgs, thread);
+  return baseProps(thread);
 }
 
 describe('the P2P thread', () => {
@@ -74,12 +63,12 @@ describe('the P2P thread', () => {
   it('does not regroup when the parent re-renders with the same messages', () => {
     // A keystroke: the parent re-renders, the message list is untouched.
     const msgs: Msg[] = messages(200);
-    const { rerender }: ReturnType<typeof render> = render(<P2PMessageList {...listProps(msgs)} />);
+    const { rerender }: ReturnType<typeof render> = render(<MessageList {...listProps(msgs)} />);
     const afterFirst: number = groupings.length;
     expect(afterFirst, 'the list never grouped at all').toBeGreaterThan(0);
 
     for (let i: number = 0; i < 10; i++) {
-      rerender(<P2PMessageList {...listProps(msgs)} />);
+      rerender(<MessageList {...listProps(msgs)} />);
     }
 
     expect(
@@ -92,10 +81,10 @@ describe('the P2P thread', () => {
     // The opposite failure: a dependency array that never invalidates would pass
     // the assertion above and show a stale thread for ever.
     const msgs: Msg[] = messages(3);
-    const { rerender }: ReturnType<typeof render> = render(<P2PMessageList {...listProps(msgs)} />);
+    const { rerender }: ReturnType<typeof render> = render(<MessageList {...listProps(msgs)} />);
     const afterFirst: number = groupings.length;
 
-    rerender(<P2PMessageList {...listProps([...msgs, { id: 'new', timestamp: 9, senderCid: 7n }])} />);
+    rerender(<MessageList {...listProps([...msgs, { id: 'new', timestamp: 9, senderCid: 7n }])} />);
 
     expect(groupings.length, 'a new message did not reach the thread').toBeGreaterThan(afterFirst);
     expect(groupings[groupings.length - 1]).toBe(4);

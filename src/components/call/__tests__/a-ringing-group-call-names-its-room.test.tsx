@@ -6,10 +6,9 @@
  * room_id (the office's chat channel) straight in as the room's name.
  *
  * Real: RingingCall, IncomingCallCard, the channel-name store fed the way
- * WorkspaceEventHandler feeds it, and the group store. Mocked: leader election,
- * which needs a live BroadcastChannel and instance manager to answer at all.
+ * WorkspaceEventHandler feeds it, and the group store. Nothing mocked.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { render, renderHook, screen, cleanup } from '@testing-library/react';
 import { CallContext, useCall, type CallContextValue } from '@/lib/call/call-context';
 import { callHomeOf, publishChannelNames } from '@/lib/call/room-names';
@@ -17,8 +16,6 @@ import { updateGroups } from '@/lib/group-conversations/group-store';
 import type { DomainNode } from '@/components/layout/sidebar/tree-node-types';
 import type { GroupConversation } from '@/types/group';
 import type { CallState } from '@/lib/call/call-state';
-
-vi.mock('../use-leader-tab', () => ({ useIsLeaderTab: (): boolean => true }));
 
 const { RingingCall } = await import('../RingingCall');
 const DEFAULTS: CallContextValue = renderHook((): CallContextValue => useCall()).result.current;

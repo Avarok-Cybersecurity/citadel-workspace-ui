@@ -46,7 +46,7 @@ const STATE: WorkspaceState = {
   workspace: { id: WORKSPACE_ROOT_ID, name: 'Acme' },
   members: { ada: ADA },
   nodes: { hq: node('hq', WORKSPACE_ROOT_ID, 'Office', 'HQ'), standup: node('standup', 'hq', 'Room', 'Standup') },
-  nodesUnavailable: false, treeSchema: null,
+  nodesUnavailable: false, membershipRefused: false, treeSchema: null,
   loading: { workspace: false, members: false, nodes: false },
   messages: { byPeer: {} }, typing: { peerIds: [], lastUpdated: 0 },
 } as WorkspaceState;
@@ -139,7 +139,7 @@ describe('one member’s permissions', () => {
 
   async function saveAfterClicking(id: string): Promise<string[]> {
     const asked: string[] = [];
-    const close: () => void = registerDocumentSync('standup', (): Promise<void> => { asked.push('standup'); return Promise.resolve(); });
+    const close: () => void = registerDocumentSync({ nodeId: 'standup', chatDoc: null }, (): Promise<void> => { asked.push('standup'); return Promise.resolve(); });
     open();
     answerEveryLevel();
     await waitFor(() => expect(box(id)).toBeEnabled());

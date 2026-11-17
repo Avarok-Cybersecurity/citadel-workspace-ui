@@ -22,7 +22,7 @@ async function connectWith(factors: SignInFactors): Promise<ConnectFields> {
   await new AuthOperations({
     init: vi.fn().mockResolvedValue(undefined), sendRequest,
     claimSession: vi.fn(), disconnect: vi.fn(),
-  }).connect('req-1', 'alice', factors);
+  }).connect('req-1', 'alice', 'citadel.example.com:12349', factors);
   return (sendRequest.mock.calls[0][0] as { Connect: ConnectFields }).Connect;
 }
 

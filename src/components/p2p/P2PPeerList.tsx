@@ -88,8 +88,9 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
 
   const [showDiscovery, setShowDiscovery] = useState(false);
   const navigate: NavigateFunction = useNavigate();
-  // One click on someone in the Available list sends them a request.
-  const { error: addPeerError, request: sendRequest } = usePeerRequest((cid) => messenger.autoRegisterPeer(cid), loadPeers);
+  // One click on someone in the Available list sends them a request, recorded under the name they are addressed by.
+  const handleOf = (cid: bigint): string => peerHandleName({ cid, username: availablePeers.find((p: Peer): boolean => p.cid === cid)?.username });
+  const { error: addPeerError, request: sendRequest } = usePeerRequest((cid) => messenger.autoRegisterPeer(cid, handleOf(cid)), loadPeers);
 
   return (
     <div className="h-full flex flex-col bg-input">
@@ -103,6 +104,7 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
             variant="ghost"
             size="sm"
             onClick={() => setShowAvailablePeers(!showAvailablePeers)}
+            data-testid="messages-available-toggle"
             className="h-7 text-muted-foreground hover:text-foreground text-xs gap-1"
           >
             <Users className="h-3.5 w-3.5" />
@@ -145,6 +147,8 @@ export function P2PPeerList({ onSelectPeer, selectedPeerCid }: P2PPeerListProps)
                     return (
                     <Button
                       key={peerCidStr}
+                      data-testid="messages-available-peer"
+                      data-peer-username={peerHandleName({ cid: peer.cid, username: peer.username })}
                       variant="ghost"
                       className="w-full justify-start h-auto py-2 px-3"
                       onClick={() => {

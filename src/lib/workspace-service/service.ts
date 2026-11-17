@@ -8,7 +8,7 @@
 import type {
   WorkspaceProtocolPayloadTS,
   WorkspaceProtocolRequestTS,
-  GroupMessageTypeTS,
+  SentGroupMessageType,
   PermissionTS,
   UpdateOperationTS,
 } from '@/types/workspace-protocol';
@@ -23,7 +23,9 @@ import type { ProtocolSender } from './workspace-operations';
 import * as ws from './workspace-operations';
 import * as members from './member-operations';
 import * as messaging from './messaging-operations';
+import * as signals from './group-chat-signals';
 import * as nodes from './node-operations';
+import * as nodeTabs from './node-tabs-operations';
 import { createDocument, type NewDocument } from './document-operations';
 import * as signIn from './sign-in-settings';
 import { updateWorkspaceProfile, type WorkspaceProfileChange } from './workspace-profile';
@@ -133,11 +135,14 @@ export class WorkspaceService implements ProtocolSender {
 
   // Messaging operations
   public sendMessage(contents: Uint8Array): Promise<void> { return messaging.sendMessage(this, contents); }
-  public sendGroupMessage(gId: string, content: string, type?: GroupMessageTypeTS, replyTo?: string, mentions?: string[]): Promise<void> { return messaging.sendGroupMessage(this, gId, content, type, replyTo, mentions); }
+  public sendGroupMessage(gId: string, content: string, type?: SentGroupMessageType, replyTo?: string, mentions?: string[]): Promise<void> { return messaging.sendGroupMessage(this, gId, content, type, replyTo, mentions); }
   public editGroupMessage(gId: string, mId: string, content: string): Promise<void> { return messaging.editGroupMessage(this, gId, mId, content); }
   public deleteGroupMessage(gId: string, mId: string): Promise<void> { return messaging.deleteGroupMessage(this, gId, mId); }
   public getGroupMessages(gId: string, before?: number | bigint, limit?: number): Promise<void> { return messaging.getGroupMessages(this, gId, before, limit); }
   public getThreadMessages(gId: string, parentId: string): Promise<void> { return messaging.getThreadMessages(this, gId, parentId); }
+  public reactGroupMessage(gId: string, mId: string, emoji: string, on: boolean): Promise<void> { return signals.reactGroupMessage(this, gId, mId, emoji, on); }
+  public markGroupRead(gId: string, uptoId: string, member: string): Promise<void> { return signals.markGroupRead(this, gId, uptoId, member); }
+  public groupTyping(gId: string): Promise<void> { return signals.groupTyping(this, gId); }
   public updateUserProfile(update: messaging.ProfileUpdate): Promise<void> { return messaging.updateUserProfile(this, update); }
 
   // Node operations
@@ -145,6 +150,8 @@ export class WorkspaceService implements ProtocolSender {
   public updateNode(nodeId: string, updates: { name?: string; description?: string; mdxContent?: string; rules?: string; chatEnabled?: boolean; isDefault?: boolean }): Promise<void> { return nodes.updateNode(this, nodeId, updates); }
   public createDocument(document: NewDocument): Promise<void> { return createDocument(this, document); }
   public setMembersVisible(nodeId: string, visible: boolean): Promise<void> { return nodes.setMembersVisible(this, nodeId, visible); }
+  public writeNodeTabs(nodeId: string, appIds: readonly string[] | null): Promise<void> { return nodeTabs.writeNodeTabs(this, nodeId, appIds); }
+  public setDefaultAppTabs(appIds: readonly string[]): Promise<void> { return nodeTabs.setDefaultAppTabs(this, appIds); }
   public deleteNode(nodeId: string, cascade?: boolean): Promise<void> { return nodes.deleteNode(this, nodeId, cascade); }
   public moveNode(nodeId: string, newParentId: string | null): Promise<void> { return nodes.moveNode(this, nodeId, newParentId); }
   public listNodes(parentId?: string | null, entityTypes?: Array<{ Child: string } | 'Workspace'>): Promise<void> { return nodes.listNodes(this, parentId, entityTypes); }

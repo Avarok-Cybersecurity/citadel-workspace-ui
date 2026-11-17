@@ -8,7 +8,8 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { ChevronLeft, Loader2, User, LogIn } from "lucide-react";
 import { SecuritySettings, SecuritySettingsValues } from "./SecuritySettings";
 import { useLoginHandler, type LoginHandler } from "./useLoginHandler";
-import { PasskeySignIn } from "./passkey/PasskeySignIn";
+import { SignInAccounts, SignInScopeLine } from "./sign-in/SignInAccounts";
+import { scopeDescribedBy, scopedSubmit, useSignInScope, type SignInScope } from "./sign-in/useSignInScope";
 import { usePasskeyAccounts } from "./passkey/usePasskeyAccounts";
 import { PASSWORD_THEN_KEY, passkeyAction, passkeyOffer, type PasskeyAction } from "./passkey/passkey-offer";
 import { LoginFactorFields } from "./LoginFactorFields";
@@ -32,9 +33,13 @@ interface LoginProps {
   onCancel: () => void;
   /** A username to start with (from an account link); the password is still typed. */
   initialUsername: string | undefined;
+  /** Why this sign-in opened, in plain words: given only when there is something to explain. */
+  notice?: string;
+  /** The server this sign-in is for, when the way in knows it: rows and usernames are held to it. */
+  scope?: string;
 }
 
-export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.Element {
+export function Login({ onNext, onCancel, initialUsername, notice, scope: scopedTo }: LoginProps): JSX.Element {
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [showSecuritySettings, setShowSecuritySettings] = useState(false);
 
@@ -46,11 +51,10 @@ export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.El
   const admission: AdmissionGate = useAdmissionGate(ADMISSION_ACTION.signIn, {
     serverAddress: accountServer, reauth: signedOut.some((a) => a.username === typed), accountNamed: typed !== '',
   });
-  const h: LoginHandler = useLoginHandler({ onNext, initialUsername, admission });
+  const h: LoginHandler = useLoginHandler({ onNext, initialUsername, initialServer: scopedTo ?? null, admission });
   const hints: SignInHint[] = useSignInHints();
   const knownServer: string | undefined = useAccountServer(h.username, hints);
   const signInLevel: number | undefined = useSignInLevel(h.username);
-  useEffect((): void => { setAccountServer(knownServer); setTyped(h.username.trim()); }, [knownServer, h.username]);
   const {
     username, setUsername, error, invalidField, loading, securitySettings, setSecuritySettings,
     handleLogin, passkey, handlePasskeyLogin, handleKeyLogin, keyOffer, recoverySession, mode,
@@ -59,6 +63,10 @@ export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.El
   // Offered before a username is typed: option-A passkeys and this device's sign-in hints (passkey-offer.ts).
   const legacyAccounts: string[] = usePasskeyAccounts();
   const passkeyAccounts: string[] = passkeyOffer(username, mode, passkey.hasKeys, legacyAccounts, hints);
+  const scope: SignInScope = useSignInScope(h.server, h.setServer, username, passkeyAccounts, hints, legacyAccounts);
+  // A known server is the one the check binds to; a scoped sign-in is for that server.
+  useEffect((): void => { setAccountServer(scope.server ?? knownServer); setTyped(h.username.trim()); }, [scope.server, knownServer, h.username]);
+  const elsewhere: boolean = scope.typed.kind === 'elsewhere';
   const [keyNext, setKeyNext] = useState<string | null>(null);
   const signInAs = (account: string): void => {
     const action: PasskeyAction = passkeyAction(account, legacyAccounts, hints);
@@ -68,15 +76,8 @@ export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.El
   };
 
   const handleSecuritySettingsComplete = (values: SecuritySettingsValues): void => {
-    setSecuritySettings({
-      securityLevel: values.securityLevel,
-      secrecyMode: values.secrecyMode,
-      encryptionAlgorithm: values.encryptionAlgorithm,
-      kemAlgorithm: values.kemAlgorithm,
-      sigAlgorithm: values.sigAlgorithm,
-      headerObfuscatorSettings: values.headerObfuscatorSettings,
-      enrolPasskey: values.enrolPasskey ?? false,
-    });
+    // The same fields; enrolment is off unless the panel turned it on (it is Login-only there).
+    setSecuritySettings({ ...values, enrolPasskey: values.enrolPasskey ?? false });
     // SecuritySettings calls onComplete INSTEAD of onNext, so this is where Save closes the
     // panel; without it Save stored the values and left the user stranded on it.
     setShowSecuritySettings(false);
@@ -145,15 +146,16 @@ export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.El
               <div>
                 <CitadelLogo variant="mark" height={30} className="mb-3" />
                 <h2 className="text-xl font-bold text-foreground">Login to Workspace</h2>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  Enter your credentials to connect
+                <p className="text-sm text-muted-foreground mt-0.5" data-testid={notice === undefined ? undefined : 'login-notice'}>
+                  {notice ?? 'Enter your credentials to connect'}
                 </p>
               </div>
             </div>
           </CardHeader>
 
-          <form onSubmit={handleLogin}>
+          <form onSubmit={scopedSubmit(scope, handleLogin)}>
             <CardContent className="space-y-4 max-h-[calc(100dvh-16rem)] overflow-y-auto">
+              <SignInScopeLine scope={scope} />
               {/* Username */}
               <div className="space-y-1.5">
                 <label htmlFor="username" className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
@@ -164,8 +166,8 @@ export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.El
                   <Input
                     id="username"
                     autoComplete="username"
-                    aria-invalid={invalidField === 'username' ? true : undefined}
-                    aria-describedby={error ? 'login-error' : undefined}
+                    aria-invalid={invalidField === 'username' || elsewhere ? true : undefined}
+                    aria-describedby={scopeDescribedBy(scope, error)}
                     placeholder="Enter your username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
@@ -174,9 +176,7 @@ export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.El
                 </div>
               </div>
 
-              {passkeyAccounts.length > 0 && (
-                <PasskeySignIn accounts={passkeyAccounts} onUse={signInAs} disabled={loading} />
-              )}
+              <SignInAccounts scope={scope} onUse={signInAs} disabled={loading} />
               {keyNext !== null && keyNext === username.trim() && mode === 'password' && (
                 <p className="text-sm text-muted-foreground" data-testid="login-key-next">{PASSWORD_THEN_KEY}</p>
               )}
@@ -223,7 +223,9 @@ export function Login({ onNext, onCancel, initialUsername }: LoginProps): JSX.El
                 type="submit"
                 data-testid="login-submit"
                 className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-11 rounded-lg shadow-lg shadow-primary-accent/20 transition-all gap-2"
+                // Not disabled for another server's username: Enter or a press then moves to the notice's choice.
                 disabled={loading}
+                aria-describedby={elsewhere ? 'login-wrong-server' : undefined}
               >
                 {loading ? (
                   <>

@@ -46,8 +46,8 @@ describe('opening a media session for a peer', () => {
     );
     const m: CallManagerInternals = internals(openSession);
 
-    const first: Promise<void> = openSessionFor(m, PEER);
-    const second: Promise<void> = openSessionFor(m, PEER);
+    const first: Promise<void> = openSessionFor(m, PEER, null);
+    const second: Promise<void> = openSessionFor(m, PEER, null);
     release();
     await Promise.all([first, second]);
 
@@ -61,7 +61,7 @@ describe('opening a media session for a peer', () => {
     const openSession: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue(undefined);
     const m: CallManagerInternals = internals(openSession);
 
-    await Promise.all([openSessionFor(m, 5n), openSessionFor(m, 6n)]);
+    await Promise.all([openSessionFor(m, 5n, null), openSessionFor(m, 6n, null)]);
 
     expect(openSession).toHaveBeenCalledTimes(2);
   });
@@ -72,9 +72,9 @@ describe('opening a media session for a peer', () => {
     const openSession: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue(undefined);
     const m: CallManagerInternals = internals(openSession);
 
-    await openSessionFor(m, PEER);
+    await openSessionFor(m, PEER, null);
     m.openSessions.delete(PEER);
-    await openSessionFor(m, PEER);
+    await openSessionFor(m, PEER, null);
 
     expect(openSession).toHaveBeenCalledTimes(2);
   });

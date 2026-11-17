@@ -70,20 +70,12 @@ export enum MessageType {
 // This replaces the local enum to maintain type compatibility with generated GroupMessage
 export type { GroupMessageType } from 'citadel-workspace-client-ts';
 
-// Group message read status
-export interface GroupMessageReadBy {
-  user_id: string;
-  user_name: string;
-  read_at: number;
-}
-
 // Extend generated GroupMessage with local-only fields
 import type { GroupMessage as GeneratedGroupMessage } from 'citadel-workspace-client-ts';
 import type { GroupFileShare } from './group-file-share';
 export interface GroupMessage extends GeneratedGroupMessage {
-  read_by?: GroupMessageReadBy[];
   /** A file shared into a peer group; local-only, see types/group-file-share. */
   file_share?: GroupFileShare;
-  /** Peer groups only: kept in the stored transcript; see lib/reactions. */
+  /** A node channel's come from the server (the same shape); a peer group keeps its own in the stored transcript. See lib/reactions. */
   reactions?: import('@/lib/reactions/reaction-state').MessageReaction[];
 }

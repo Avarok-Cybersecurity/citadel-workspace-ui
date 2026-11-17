@@ -5,7 +5,7 @@
  */
 
 import type { SessionSecuritySettings as GeneratedSessionSecuritySettings } from '@avarok/citadel-protocol-types';
-import { getDefaultSecuritySettings, type SessionSecuritySettings } from '../security-utils';
+import type { SessionSecuritySettings } from '../security-utils';
 import { TIMEOUT, POLLING } from '../timeout-constants';
 
 /** LocalDB key for auto-accept setting */
@@ -38,9 +38,6 @@ export const PEER_REGISTER_TIMEOUT_MS: number = 10000;
 
 /** Timeout for CID resolution via IndexedDB (ms) */
 export const CID_RESOLUTION_TIMEOUT_MS: number = 500;
-
-/** Default session security settings for P2P (from shared utils) */
-export const DEFAULT_SESSION_SECURITY: SessionSecuritySettings = getDefaultSecuritySettings();
 
 /**
  * Adapts a locally-defined SessionSecuritySettings to the WASM-generated type.

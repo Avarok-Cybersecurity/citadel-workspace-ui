@@ -16,6 +16,8 @@ const METHODS: readonly string[] = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HE
 const MAX_LOCATIONS: number = 4;
 const MAX_GITHUB_PATH_BYTES: number = 256;
 const MAX_ARTIFACT_BYTES: number = 8 * 1024 * 1024;
+/** The kernel's storage.node.authored quota (MAX_STORAGE_NODE_AUTHORED_BYTES); manifest-cases.json holds the two equal. */
+const MAX_STORAGE_NODE_AUTHORED_BYTES: number = 256 * 1024;
 
 export const distinct = (items: readonly string[]): boolean => new Set(items).size === items.length;
 
@@ -69,6 +71,7 @@ export function limitsProblem(limits: AppLimits, requests: readonly CapabilityRe
     ['frame_budget_ms', within(limits.frame_budget_ms, 1000)],
     ['storage_user_bytes', limits.storage_user_bytes <= 1024 * 1024],
     ['storage_scope_bytes', limits.storage_scope_bytes <= 8 * 1024 * 1024],
+    ['storage_node_authored_bytes', limits.storage_node_authored_bytes === undefined || limits.storage_node_authored_bytes <= MAX_STORAGE_NODE_AUTHORED_BYTES],
     ['close_grace_ms', within(limits.close_grace_ms, MAX_CLOSE_GRACE_MS)],
   ];
   return checks.find(([, ok]) => !ok)?.[0] ?? peerLimitsProblem(limits, requests);

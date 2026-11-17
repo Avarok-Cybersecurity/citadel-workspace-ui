@@ -113,7 +113,7 @@ function referencePorts(log: string[], maxReplyBytes: number, remote: IhttpRemot
         kv.set(key, value);
         return { ok: null };
       }),
-      KvSetMany: () => unavailable, KvDelete: () => unavailable, KvList: () => unavailable,
+      KvSetMany: () => unavailable, KvDelete: () => unavailable, KvList: () => unavailable, KvListAuthored: () => unavailable,
     },
     ...(remote === undefined ? {} : { ihttp: ihttpRemote(remote) }),
     log: { LogWrite: ({ message }): PortAnswer<null> => { log.push(message); return { ok: null }; } },

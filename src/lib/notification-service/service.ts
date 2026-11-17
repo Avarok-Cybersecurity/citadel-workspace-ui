@@ -10,7 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { debugLog, errorLog } from '@/lib/debug-config';
 import type { Notification, NotificationHandler, UnreadCountChange } from './types';
 import { NotificationType, NotificationPriority, notificationBelongsTo } from './types';
-import { belongingTo, everything, messagesFrom, type ReadPredicate } from './read-state';
+import { belongingTo, everything, messagesFrom, messagesInGroup, type ReadPredicate } from './read-state';
 import { unreadCountFor, unreadCountsByCid } from './unread-counts';
 import { peerRegistrationNotification, withRosterName } from './peer-registration-notification';
 import { memberDisplayName } from '@/lib/member-names';
@@ -47,7 +47,7 @@ export class NotificationService {
     // Whether the window is in front is read NOW, as the notification arrives; the
     // delivery (who owns it, the OS surface, the chime) loads with the first one, off
     // the landing page's critical path (check-bundle-budget.mjs).
-    if (mayInterruptTheOs()) {
+    if (fullNotification.inAppOnly !== true && mayInterruptTheOs()) {
       void this.deliverToOs(fullNotification)
         .catch((error: unknown): void => { errorLog('NotificationService', 'could not reach the OS notification surface', error); });
     }
@@ -158,6 +158,8 @@ export class NotificationService {
   public markMessageNotificationsAsReadBySender(senderId: string): void {
     this.markRead(messagesFrom(senderId), { notifyHandlers: false });
   }
+  /** A channel's messages are on screen: its bell entries are read. */
+  public markGroupNotificationsAsRead(groupId: string): void { this.markRead(messagesInGroup(groupId)); }
 
   public removeNotification(notificationId: string): void {
     const notification: Notification | undefined = this.notifications.get(notificationId);

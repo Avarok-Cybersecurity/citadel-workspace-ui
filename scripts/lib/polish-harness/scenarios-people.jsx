@@ -9,6 +9,7 @@ import { MemberListItem } from '@/pages/MemberListItem';
 import { UserProfileCard } from '@/pages/UserProfileCard';
 import NotificationItem from '@/components/notification/NotificationItem';
 import { NotificationPriority, NotificationType } from '@/lib/notification-service/types';
+import { MEMBERS_FILTER_SCENARIOS } from './scenarios-members-filter.jsx';
 
 const PICTURE = `data:image/svg+xml;utf8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="#d9822b"/><circle cx="32" cy="26" r="12" fill="#fff"/></svg>')}`;
 export const ADA = { id: 'ada', username: 'ada', displayName: 'Ada Lovelace', role: 'member', isOnline: true, avatarUrl: PICTURE };
@@ -36,4 +37,4 @@ function People() {
   );
 }
 
-export const PEOPLE_SCENARIOS = { people: People };
+export const PEOPLE_SCENARIOS = { people: People, ...MEMBERS_FILTER_SCENARIOS };

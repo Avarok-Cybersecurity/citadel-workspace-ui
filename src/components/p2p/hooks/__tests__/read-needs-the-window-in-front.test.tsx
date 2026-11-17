@@ -15,6 +15,8 @@ import { P2PMessengerManager, type P2PMessage } from '@/lib/p2p';
 import { ConfirmDialogProvider } from '@/components/shared/confirm-dialog';
 import { useP2PMessages } from '../useP2PMessages';
 import { installHostingAgent, settle, PEER, OWN, type HostingAgent } from './hosting-agent';
+import { peerTransportFor } from '@/components/p2p/__tests__/doubles/peer-transport';
+import type { ChatTransport } from '@/lib/chat/transport/chat-transport';
 
 const onUnreadMessage: () => void = (): void => {};
 
@@ -23,15 +25,17 @@ function mount(tab: string, pinned: boolean = true): ReturnType<typeof renderHoo
   const activeTabIdRef: { current: string } = { current: tab };
   const pinnedRef: { current: boolean } = { current: pinned };
   return renderHook(() => useP2PMessages({
-    peerCid: PEER, activeTabIdRef, scrollRef: { current: null }, pinnedRef, onUnreadMessage,
+    transport, activeTabIdRef, scrollRef: { current: null }, pinnedRef, onUnreadMessage,
   }), { wrapper: ConfirmDialogProvider });
 }
 
 let agent: HostingAgent;
+let transport: ChatTransport;
 const markReads = (): unknown[] => agent.markReads();
 
 beforeEach(async () => {
   agent = await installHostingAgent();
+  transport = peerTransportFor({ cid: PEER, name: 'Alice' }, OWN);
 });
 afterEach(() => vi.restoreAllMocks());
 

@@ -53,7 +53,9 @@ const SRC = join(UI, 'src');
  * gate that reads its own subject's comments as usage is a mistake this
  * repository has made twice.
  */
-const READS_FAILURE = /\bPeerRegisterFailure\s*[?.[]|'PeerRegisterFailure'/;
+// `msg.PeerRegisterFailure` handed on whole counts too: registration.ts read it
+// that way, matched neither alternative, and its substring test went unchecked.
+const READS_FAILURE = /\bPeerRegisterFailure\s*[?.[]|'PeerRegisterFailure'|\.PeerRegisterFailure\b/;
 /**
  * The shared predicate, `lib/peer-registration-store/already-registered.ts`.
  *

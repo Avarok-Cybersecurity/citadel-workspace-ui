@@ -10,7 +10,7 @@ import { useShareLauncher, type ShareLauncher } from '../use-share-launcher';
 
 function launcherWithOpenDocument(nodeId: string): { launcher: () => ShareLauncher; asked: string[]; close: () => void } {
   const asked: string[] = [];
-  const close: () => void = registerDocumentSync(nodeId, (): Promise<void> => { asked.push(nodeId); return Promise.resolve(); });
+  const close: () => void = registerDocumentSync({ nodeId, chatDoc: null }, (): Promise<void> => { asked.push(nodeId); return Promise.resolve(); });
   const view: RenderHookResult<ShareLauncher, unknown> = renderHook(useShareLauncher);
   return { launcher: (): ShareLauncher => view.result.current, asked, close };
 }

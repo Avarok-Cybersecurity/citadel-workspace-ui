@@ -58,9 +58,14 @@ export function useStickToBottom<T extends { readonly id: string }>(
     const el: HTMLElement | null = attached.current;
     if (!el) return;
     const result: StickStep = step(state.current, event);
-    const hadUnseen: boolean = state.current.unseen > 0;
+    const before: number = state.current.unseen;
+    const hadUnseen: boolean = before > 0;
     state.current = result.state;
-    setUnseen(result.state.unseen);
+    // Only a change is written. `items` can be a new array with nothing new in it (React re-applies a
+    // later update over an older one still waiting to render), and a same-value write from the layout
+    // effect is not dropped while that update waits: it forced a render that re-applied the update
+    // again, a new array, this effect again, until "Maximum update depth exceeded".
+    if (result.state.unseen !== before) setUnseen(result.state.unseen);
     if (linksRef.current) linksRef.current.pinnedRef.current = result.state.pinned;
     if (hadUnseen && result.state.unseen === 0) linksRef.current?.onCaughtUp();
     if (result.scroll) el.scrollTo({ top: el.scrollHeight, behavior: preferredScrollBehavior() });

@@ -69,7 +69,7 @@ const editorOrigin = (base: StoredBase | null, origin: ChatDocumentOrigin): Edit
     : origin.kind === 'migrated' ? { kind: 'snapshot', snapshot: origin.snapshot } : { kind: 'blank' };
 
 /** The creator's text, typed into the new blank replica: a paragraph per line. */
-async function seed(editor: EditorController, text: string): Promise<void> {
+export async function seed(editor: EditorController, text: string): Promise<void> {
   for (const [index, line] of text.split(/\r?\n/).entries()) {
     if (index > 0) await editor.execute({ name: 'splitParagraph' });
     if (line.length > 0) await editor.execute({ name: 'insertText', text: line });

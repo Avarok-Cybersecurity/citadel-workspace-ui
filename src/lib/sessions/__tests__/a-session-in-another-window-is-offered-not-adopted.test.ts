@@ -73,7 +73,7 @@ describe('switching to it', () => {
     h.holder = 'another-connection';
     const confirm: ReturnType<typeof vi.fn> = vi.fn(async (): Promise<boolean> => true);
     const signInAs: ReturnType<typeof vi.fn> = vi.fn();
-    await switchToSession(target, { navigate: vi.fn(), toast: vi.fn(), confirm, signInAs });
+    await switchToSession(target, { navigate: vi.fn(), toast: vi.fn(), confirm, signInAs, signInAgain: vi.fn() });
 
     expect(confirm).toHaveBeenCalledWith(takeoverPrompt('alice0924', false));
     expect(takeoverPrompt('alice0924', false).title).toBe('alice0924 is open in another browser window');
@@ -84,7 +84,7 @@ describe('switching to it', () => {
   it('does nothing further on no', async () => {
     h.holder = 'another-connection';
     const signInAs: ReturnType<typeof vi.fn> = vi.fn();
-    await switchToSession(target, { navigate: vi.fn(), toast: vi.fn(), confirm: async (): Promise<boolean> => false, signInAs });
+    await switchToSession(target, { navigate: vi.fn(), toast: vi.fn(), confirm: async (): Promise<boolean> => false, signInAs, signInAgain: vi.fn() });
     expect(signInAs).not.toHaveBeenCalled();
     expect(h.selected).toBe(0);
   });
@@ -101,7 +101,7 @@ describe('switching between two accounts in this browser', () => {
     const signInAs: ReturnType<typeof vi.fn> = vi.fn();
     await switchToSession(
       { cid: 7n, username: 'mia0924', server_address: 'bench.work.avarok.net', workspaceName: 'Bench', storedSessionIndex: -1 },
-      { navigate, toast: vi.fn(), confirm: async (): Promise<boolean> => false, signInAs },
+      { navigate, toast: vi.fn(), confirm: async (): Promise<boolean> => false, signInAs, signInAgain: vi.fn() },
     );
 
     expect(signInAs).not.toHaveBeenCalled();

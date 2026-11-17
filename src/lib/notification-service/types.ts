@@ -38,6 +38,7 @@ export interface Notification {
   timestamp: number;
   actionButtons?: NotificationAction[];
   data?: Record<string, unknown>; // Additional data specific to the notification type
+  inAppOnly?: boolean; // Never the system's notification centre or its chime, only the page's list
 }
 
 export interface NotificationAction {

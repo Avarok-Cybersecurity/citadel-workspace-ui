@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { typeInto } from '../../collab/__tests__/doubles/real-replicas';
-import { CHAT_SYNC } from '../chat-config';
+import { CHAT_SYNC, ENVELOPE_HEADROOM_BYTES } from '../chat-config';
 import { ALICE, BLANK, BOB, newWorld, openSide, sameDocument, settle, textOf, type ChatSide, type World } from './doubles/chat-pair';
 import { FakeAgentLocalDb } from './doubles/fake-agent-local-db';
 import { Rng } from './doubles/rng';
@@ -17,6 +17,17 @@ async function bothOpen(world: World): Promise<{ alice: ChatSide; bob: ChatSide 
   const bob: ChatSide = await openSide(world, BOB, ALICE, new FakeAgentLocalDb(), BLANK);
   await settle(world, [alice, bob]);
   return { alice, bob };
+}
+
+/**
+ * `count` paragraphs of `text(i)`, each its own update. Every edit lays out the whole paragraph
+ * it lands in, so one paragraph holding all of it makes each later apply pay for all of it.
+ */
+async function writeParagraphs(side: ChatSide, count: number, text: (i: number) => string): Promise<void> {
+  for (let i: number = 0; i < count; i += 1) {
+    await side.editor().execute({ name: 'splitParagraph' });
+    await side.editor().execute({ name: 'insertText', text: text(i) });
+  }
 }
 
 describe('a chat document between two peers', () => {
@@ -62,8 +73,8 @@ describe('a chat document between two peers', () => {
   it('converges when the link drops in the middle of a chunked catch-up and comes back', async () => {
     const world: World = newWorld();
     const alice: ChatSide = await openSide(world, ALICE, BOB, new FakeAgentLocalDb(), BLANK);
-    // Enough text that the catch-up is several chunks.
-    for (let i: number = 0; i < 16; i += 1) await alice.editor().execute({ name: 'insertText', text: `${'paragraph '.repeat(1_200)}${i}` });
+    // Enough text that the catch-up is several chunks, in paragraphs of their own (see writeParagraphs).
+    await writeParagraphs(alice, 16, (i: number): string => `${'paragraph '.repeat(1_200)}${i}`);
     await settle(world, [alice]);
     const bob: ChatSide = await openSide(world, BOB, ALICE, new FakeAgentLocalDb(), BLANK);
     await bob.sync().settled();
@@ -87,7 +98,7 @@ describe('a chat document between two peers', () => {
   it('asks again, with no reconnect, when a lost chunk left the rest waiting', async () => {
     const world: World = newWorld();
     const alice: ChatSide = await openSide(world, ALICE, BOB, new FakeAgentLocalDb(), BLANK);
-    for (let i: number = 0; i < 16; i += 1) await alice.editor().execute({ name: 'insertText', text: `${'line '.repeat(2_400)}${i}` });
+    await writeParagraphs(alice, 16, (i: number): string => `${'line '.repeat(2_400)}${i}`);
     await settle(world, [alice]);
     const bob: ChatSide = await openSide(world, BOB, ALICE, new FakeAgentLocalDb(), BLANK);
     await bob.sync().settled();
@@ -102,14 +113,18 @@ describe('a chat document between two peers', () => {
   });
 
   it('never puts a message over the wire bound: batched updates, and one too large for any message', async () => {
+    // Sized from the bound, just past it: two updates that each fit one message but not
+    // together, and one paste that fits none.
+    const room: number = CHAT_SYNC.maxMessageBytes - ENVELOPE_HEADROOM_BYTES;
     const world: World = newWorld();
     const { alice, bob } = await bothOpen(world);
-    for (let i: number = 0; i < 4; i += 1) await alice.editor().execute({ name: 'insertText', text: 'x'.repeat(20_000) });
-    // One paste larger than a message: never sent as an update; Bob is asked to request it, chunked.
-    await bob.editor().execute({ name: 'insertText', text: 'y'.repeat(150_000) });
+    await writeParagraphs(alice, 2, (): string => 'x'.repeat(Math.ceil(room * 0.6)));
+    // Never sent as an update; Bob is asked to request it, chunked.
+    await bob.editor().execute({ name: 'insertText', text: 'y'.repeat(CHAT_SYNC.maxMessageBytes) });
     await settle(world, [alice, bob]);
-    const kinds: Set<string> = new Set(world.channel.sent.map((s): string => s.kind));
-    expect([...kinds].sort()).toEqual(['awareness', 'diff', 'hello', 'update']);
+    const sent = (from: bigint, kind: string): number => world.channel.sent.filter((s): boolean => s.from === from && s.kind === kind).length;
+    expect({ aliceUpdates: sent(ALICE, 'update'), bobUpdates: sent(BOB, 'update') }).toEqual({ aliceUpdates: 2, bobUpdates: 0 });
+    expect(sent(BOB, 'diff')).toBeGreaterThan(1);
     expect(Math.max(...world.channel.sent.map((s): number => s.bytes))).toBeLessThanOrEqual(CHAT_SYNC.maxMessageBytes);
     expect(await sameDocument(alice.editor(), bob.editor())).toEqual({ snapshots: true, models: true });
     expect([...alice.problems, ...bob.problems]).toEqual([]);

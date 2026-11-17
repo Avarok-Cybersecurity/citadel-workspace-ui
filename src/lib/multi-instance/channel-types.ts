@@ -6,6 +6,9 @@
 
 import type { ProxyResponseData } from './outbound-queue';
 import type { ChannelEnvelope } from './channel-envelope';
+import type { CALL_TAKEN } from '@/lib/call/call-taken-elsewhere';
+import type { RINGING_ELSEWHERE } from '@/lib/call/ringing-hand-off';
+import type { CALL_DEPARTED } from '@/lib/call/call-departure';
 
 export const CHANNEL_NAME: "citadel-instance-channel" = 'citadel-instance-channel';
 
@@ -30,7 +33,14 @@ export type ChannelMessageType =
   // A session was claimed on the leader's connection; see claim-relay.ts.
   | 'session-claimed'
   // Whether anything shows the agent's notices changed; see notices-heard-relay.ts.
-  | 'notices-heard';
+  | 'notices-heard'
+  // A follower's encoded media frame for the leader's socket; see media-frame-relay.ts.
+  | 'media-frame-out'
+  // Call coordination between tabs, put on the receiving tab's bus unchanged;
+  // see call-taken-elsewhere.ts, ringing-hand-off.ts and call-departure.ts.
+  | typeof CALL_TAKEN
+  | typeof RINGING_ELSEWHERE
+  | typeof CALL_DEPARTED;
 
 export interface ChannelMessage {
   type: ChannelMessageType;

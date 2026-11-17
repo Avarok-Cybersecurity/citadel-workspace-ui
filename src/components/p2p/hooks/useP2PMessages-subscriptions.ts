@@ -1,165 +1,118 @@
 /**
  * Event subscription wiring for useP2PMessages.
  *
- * Owns the fan-in from the messenger and the global event emitter into the
- * hook's conversation state: new/updated/deleted messages, status changes,
- * typing, connection, presence and registration. Split from useP2PMessages.ts
- * (beside useP2PMessages-types.ts) so the hook keeps loading, pagination and
- * actions while the nine-listener wiring lives in one place.
+ * Owns the fan-in from the conversation's transport into the hook's state: arrivals, status
+ * changes, edits, deletions, clears and expiry from the history port; typing, connection and
+ * presence from the status port; and the counterpart's acceptance. The transport has already
+ * scoped every event to this conversation (lib/chat/transport), so nothing here filters by peer.
  */
 
 import type { Dispatch, SetStateAction } from 'react';
-import type { P2PMessengerManager, P2PMessage, PeerPresence } from '@/lib/p2p';
-import { p2pAutoConnectService } from '@/lib/p2p-auto-connect-service';
-import { eventEmitter } from '@/lib/event-emitter';
+import type { PeerPresence } from '@/lib/p2p';
 import { readableNow } from './useP2PMessages-read-gate';
 import { debugLog } from '@/lib/debug-config';
-import type { P2PConversation } from '@/lib/p2p/p2p-types';
-import { retained, MESSAGES_EXPIRED_EVENT, type MessagesExpired } from '@/lib/p2p/retention';
+import { retained } from '@/lib/p2p/retention';
+import type { ChatMessage, ChatTransport, HistoryEvent, StatusChange } from '@/lib/chat/transport/chat-transport';
 
 export interface ConversationSubscriptionParams {
-  messenger: P2PMessengerManager;
-  peerCid: bigint;
+  transport: ChatTransport;
   activeTabIdRef: React.RefObject<string>;
   /** Whether the reader is at the bottom of the chat (see useStickToBottom). */
   pinnedRef: { readonly current: boolean };
   onUnreadMessage: () => void;
-  setMessages: Dispatch<SetStateAction<P2PMessage[]>>;
-  setPeerTyping: Dispatch<SetStateAction<boolean>>;
+  setMessages: Dispatch<SetStateAction<ChatMessage[]>>;
+  setTyping: Dispatch<SetStateAction<readonly string[]>>;
   setIsConnected: Dispatch<SetStateAction<boolean>>;
   setPeerPresence: Dispatch<SetStateAction<PeerPresence | null>>;
   setIsRegistered: Dispatch<SetStateAction<boolean>>;
 }
 
+const appended = (prev: ChatMessage[], message: ChatMessage): ChatMessage[] =>
+  prev.some((m: ChatMessage): boolean => m.id === message.id) ? prev : [...prev, message].sort((a, b) => a.timestamp - b.timestamp);
+
+const holds = (prev: readonly ChatMessage[], id: string): boolean => prev.some((m: ChatMessage): boolean => m.id === id);
+
+/** The local copy becomes the transport's; if the transport's copy is already shown, the local one goes. */
+const replaced = (prev: ChatMessage[], localId: string, message: ChatMessage): ChatMessage[] => {
+  if (!prev.some((m: ChatMessage): boolean => m.id === localId)) return appended(prev, message);
+  const shown: boolean = prev.some((m: ChatMessage): boolean => m.id === message.id);
+  return shown
+    ? prev.filter((m: ChatMessage): boolean => m.id !== localId)
+    : prev.map((m: ChatMessage): ChatMessage => (m.id === localId ? message : m));
+};
+
 /** Wires every conversation-scoped listener; returns one combined unsubscribe. */
 export function subscribeToConversationEvents({
-  messenger,
-  peerCid,
+  transport,
   activeTabIdRef,
   pinnedRef,
   onUnreadMessage,
   setMessages,
-  setPeerTyping,
+  setTyping,
   setIsConnected,
   setPeerPresence,
   setIsRegistered,
 }: ConversationSubscriptionParams): () => void {
-  const unsubscribeMessage: () => void = messenger.onMessage((message): void => {
-    if (message.senderCid === peerCid || message.recipientCid === peerCid) {
-      setMessages(prev => {
-        if (prev.some(m => m.id === message.id)) return prev;
-        return [...prev, message].sort((a, b) => a.timestamp - b.timestamp);
-      });
-
-      if (message.senderCid === peerCid) {
+  const onHistory = (event: HistoryEvent): void => {
+    switch (event.kind) {
+      case 'arrived':
+        setMessages((prev: ChatMessage[]): ChatMessage[] => appended(prev, event.message));
+        if (!event.incoming) return;
         if (activeTabIdRef.current !== 'messages') onUnreadMessage();
         if (readableNow(activeTabIdRef, pinnedRef)) {
-          messenger.markMessagesAsRead(peerCid, [message.id]).catch(err => debugLog('UseP2PMessages', 'Error:', err));
+          transport.history.markRead([event.message.id]).catch((err: unknown) => debugLog('UseP2PMessages', 'Error:', err));
         }
-      }
+        return;
+      case 'recorded':
+        setMessages((prev: ChatMessage[]): ChatMessage[] => appended(prev, event.message));
+        return;
+      case 'status':
+        setMessages((prev: ChatMessage[]): ChatMessage[] => {
+          // `prev.map` always allocates, so this changed the array identity for a status
+          // transition in ANY conversation -- and the chat's scroll effect keys on `messages`,
+          // so every sent/delivered/read anywhere threw a reader who had scrolled up back down.
+          if (!holds(prev, event.messageId)) return prev;
+          return prev.map((m: ChatMessage): ChatMessage => (m.id === event.messageId ? { ...m, status: event.status } : m));
+        });
+        return;
+      // Like 'status': a message this view does not hold changes nothing, so the array is kept.
+      case 'updated':
+        setMessages((prev: ChatMessage[]): ChatMessage[] => (holds(prev, event.message.id)
+          ? prev.map((m: ChatMessage): ChatMessage => (m.id === event.message.id ? { ...m, ...event.message } : m))
+          : prev));
+        return;
+      // Deletion removes the message rather than tombstoning it, matching group chat.
+      case 'removed':
+        setMessages((prev: ChatMessage[]): ChatMessage[] => (holds(prev, event.messageId) ? prev.filter((m: ChatMessage): boolean => m.id !== event.messageId) : prev));
+        return;
+      case 'replaced':
+        setMessages((prev: ChatMessage[]): ChatMessage[] => replaced(prev, event.localId, event.message));
+        return;
+      case 'cleared':
+        setMessages((prev: ChatMessage[]): ChatMessage[] => (prev.length === 0 ? prev : []));
+        return;
+      // Retention removed messages older than the cutoff from storage; the open view drops them too.
+      case 'expired':
+        setMessages((prev: ChatMessage[]): ChatMessage[] => {
+          const kept: ChatMessage[] = retained(prev, event.cutoff);
+          return kept.length === prev.length ? prev : kept;
+        });
+        return;
     }
-  });
-
-  const unsubscribeStatusChange: () => void = messenger.onMessageStatusChange((messageId, status): void => {
-    setMessages(prev => {
-      // `prev.map` always allocates, so this changed the array identity for a
-      // status transition in ANY conversation — and the chat's scroll effect
-      // keys on `messages`, so every sent/delivered/read anywhere in the
-      // messenger threw a reader who had scrolled up back to the bottom.
-      if (!prev.some(m => m.id === messageId)) return prev;
-      return prev.map(m => (m.id === messageId ? { ...m, status } : m));
-    });
-  });
-
-  const unsubscribeMessageUpdate: () => void = eventEmitter.on('p2p:message-updated', (updatedMessage: P2PMessage): void => {
-    if (updatedMessage.senderCid === peerCid || updatedMessage.recipientCid === peerCid) {
-      setMessages(prev => prev.map(m => m.id === updatedMessage.id ? { ...m, ...updatedMessage } : m));
-    }
-  });
-
-  // Deletion removes the message rather than tombstoning it, matching group
-  // chat. Scoped to this conversation so an unrelated peer's delete cannot
-  // drop a message from the one on screen.
-  const unsubscribeMessageDeleted: () => void = eventEmitter.on(
-    'p2p:message-deleted',
-    ({ peerCid: fromCid, messageId }: { peerCid: bigint; messageId: string }) => {
-      if (fromCid !== peerCid) return;
-      setMessages(prev => prev.filter(m => m.id !== messageId));
-    },
-  );
-
-  // Scoped like the delete above: clearing one conversation must not empty a
-  // different peer's thread that happens to be on screen.
-  const unsubscribeCleared: () => void = eventEmitter.on(
-    'p2p:conversation-cleared',
-    ({ peerCid: clearedCid }: { peerCid: bigint }) => {
-      if (clearedCid !== peerCid) return;
-      setMessages([]);
-    },
-  );
-
-  // Retention removed this chat's messages older than the cutoff from storage
-  // and the cache; the open view drops them too, or they stay until a reload.
-  const unsubscribeExpired: () => void = eventEmitter.on(
-    MESSAGES_EXPIRED_EVENT,
-    ({ peerCid: expiredCid, cutoff }: MessagesExpired) => {
-      if (expiredCid !== peerCid) return;
-      setMessages(prev => {
-        const kept: P2PMessage[] = retained(prev, cutoff);
-        return kept.length === prev.length ? prev : kept;
-      });
-    },
-  );
-
-  const unsubscribeTyping: () => void = messenger.onTyping((cid, isTyping): void => {
-    if (cid === peerCid) setPeerTyping(isTyping);
-  });
-
-  const unsubscribeConnection: () => void = messenger.onConnectionChange((cid, connected): void => {
-    if (cid === peerCid) setIsConnected(connected);
-  });
-
-  const unsubscribePresence: () => void = messenger.onPresenceChange((cid, presence): void => {
-    if (cid === peerCid) setPeerPresence(presence);
-  });
-
-  const unsubscribeRegistration: () => void = eventEmitter.on('p2p:peer-registered', ({ peer }: { peer: { cid: bigint } }): void => {
-    if (peer.cid === peerCid) {
-      setIsRegistered(true);
-      p2pAutoConnectService.poll();
-    }
-  });
-
-  // NOTE: This handles messages from non-messenger sources (file transfers, etc.)
-  // that emit 'p2p:message-received' but NOT messenger.onMessage().
-  // The dedup check (prev.some(m => m.id === ...)) prevents double-processing
-  // when both paths fire for the same message.
-  const unsubscribeMessageReceived: () => void = eventEmitter.on('p2p:message-received', (eventData: { peerCid: bigint; messageId: string; message?: P2PMessage }): void => {
-    const { peerCid: messagePeerCid, messageId, message: eventMessage } = eventData;
-    if (messagePeerCid === peerCid) {
-      setMessages(prev => {
-        if (prev.some(m => m.id === messageId)) return prev;
-        const newMessage: P2PMessage | undefined = eventMessage || ((): P2PMessage | undefined => {
-          const conversation: P2PConversation | undefined = messenger.getConversation(peerCid);
-          return conversation?.messages.find(m => m.id === messageId);
-        })();
-        if (newMessage) return [...prev, newMessage].sort((a, b) => a.timestamp - b.timestamp);
-        return prev;
-      });
-    }
-  });
-
-  return () => {
-    unsubscribeCleared();
-    unsubscribeExpired();
-    unsubscribeMessage();
-    unsubscribeStatusChange();
-    unsubscribeMessageUpdate();
-    unsubscribeMessageDeleted();
-    unsubscribeTyping();
-    unsubscribeConnection();
-    unsubscribePresence();
-    unsubscribeRegistration();
-    unsubscribeMessageReceived();
   };
+
+  const onStatus = (change: StatusChange): void => {
+    switch (change.kind) {
+      case 'typing': setTyping(change.typing); return;
+      case 'connected': setIsConnected(change.connected); return;
+      case 'presence': setPeerPresence(change.presence); return;
+    }
+  };
+
+  const stops: (() => void)[] = [
+    transport.history.subscribe(onHistory),
+    transport.status?.subscribe(onStatus) ?? ((): void => undefined),
+    transport.status?.acceptance?.onAccepted((): void => setIsRegistered(true)) ?? ((): void => undefined),
+  ];
+  return (): void => { for (const stop of stops) stop(); };
 }

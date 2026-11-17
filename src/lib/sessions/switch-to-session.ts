@@ -10,7 +10,9 @@
 // Imported for its side effect: the listener for the 'session:activated' emitted below.
 // See __tests__/every-session-activation-has-a-listener.test.ts.
 import '@/lib/session-startup-service';
-import { claimSessionForThisTab, type ClaimOutcome } from './claim-session';
+import { claimSessionForThisTab, isGoneFromTheAgent, type ClaimOutcome } from './claim-session';
+import { signedOutSignIn, type SignedOutSignIn } from './sign-in-request';
+import { sessionHost } from './same-server';
 import type { TakeoverCallbacks } from './takeover';
 import { sessionSwitchToasts, type SessionSwitchToasts } from './session-switch-toasts';
 import { readLastLocation } from './last-location';
@@ -31,6 +33,8 @@ export interface SwitchTarget {
   cid: bigint;
   username: string;
   server_address: string;
+  /** The host as typed, where the agent reports it: `server_address` may be a resolved address. */
+  server_host?: string | null;
   workspaceName: string;
   storedSessionIndex: number;
 }
@@ -39,6 +43,8 @@ export interface SwitchCallbacks extends TakeoverCallbacks {
   navigate: (path: string) => void;
   /** The `toast` from useToast(); typed from its own options so the two cannot drift. */
   toast: (opts: ToastOptions) => unknown;
+  /** Open sign-in for an account the agent no longer holds: nothing else brings it back. */
+  signInAgain: (request: SignedOutSignIn) => void;
 }
 
 export async function switchToSession(session: SwitchTarget, callbacks: SwitchCallbacks): Promise<void> {
@@ -51,7 +57,16 @@ export async function switchToSession(session: SwitchTarget, callbacks: SwitchCa
 
     toast(notices.progress);
 
-    const outcome: ClaimOutcome = await claimSessionForThisTab(session.cid);
+    let outcome: ClaimOutcome;
+    try {
+      outcome = await claimSessionForThisTab(session.cid);
+    } catch (error: unknown) {
+      if (!isGoneFromTheAgent(error)) throw error;
+      // Signed out, deleted elsewhere, or ended by an agent restart after the list was read.
+      toast(notices.signedOut);
+      callbacks.signInAgain(signedOutSignIn(session.username, sessionHost(session)));
+      return;
+    }
     if (outcome.status === 'owned-by-another-tab') {
       toast(notices.ownedElsewhere);
       return;

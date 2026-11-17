@@ -20,7 +20,6 @@
   "src/hooks/use-registered-peers.ts": 1,
   "src/lib/connection-service/service.ts": 1,
   "src/lib/file-transfer/protocol-offer-correlation.ts": 2,
-  "src/lib/file-transfer/service.ts": 1,
   "src/lib/file-transfer/types.ts": 7,
   "src/lib/group-conversations/group-requests.ts": 1,
   "src/lib/live-document-store/types.ts": 2,

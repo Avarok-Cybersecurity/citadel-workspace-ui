@@ -39,7 +39,7 @@ jobs:
   # neither Docker, apt nor sudo: the typecheck matrix routes only its
   # integration-tests leg, because the citadel-workspaces leg builds WASM in
   # `docker compose` and installs Chromium with apt. Unset, the org variable sends
-  # every one of them back to ubuntu-latest. The same-repo clause is mandatory:
+  # every one of them back to ubuntu-24.04. The same-repo clause is mandatory:
   # this repository is public, and a fork's pull request must never execute on
   # that machine. The parent's scripts/check-mac-runner-is-fork-safe.mjs, run by
   # the lint job below, refuses any other spelling.
@@ -62,7 +62,7 @@ jobs:
       ${{ vars.CITADEL_MAC_RUNNER == '1'
           && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
           && fromJSON('["self-hosted","macOS","ARM64","apple-48gb-metal"]')
-          || 'ubuntu-latest' }}
+          || 'ubuntu-24.04' }}
     outputs:
       ref: ${{ steps.pick.outputs.ref }}
     steps:
@@ -100,7 +100,7 @@ jobs:
     # timeouts, reply budgets), and the Mac is shared with other jobs and other organisations.
     # A 1.4 s test hit its 5 s timeout there at load 76 (2026-10-16). Owner: "anything perf
     # sensitive should be on a github runner".
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: parent
@@ -171,6 +171,10 @@ jobs:
         # The whole command, not a script name to splice in: check-every-gate-is-invoked.mjs
         # reads the workflow text for `npm run <gate>`, and this is the text each leg runs.
           - { name: Chat polish geometry, run: 'npm run check:chat-polish' }
+          # The chat's pictures, viewer and always-accept question at 375px too, under Full and Lite motion.
+          - { name: Chat files geometry, run: 'npm run check:chat-files' }
+          # The switcher's signed-out account row and the sign-in it opens, at 375px too, under Full and Lite motion.
+          - { name: Account switch geometry, run: 'npm run check:account-switch' }
           - { name: UI sweep geometry, run: 'npm run check:ui-sweep' }
           # Text sharpness on pixels: the shipped editor at 1x and 2x, against fillText.
           - { name: Docs text crispness, run: 'npm run check:docs-crispness' }
@@ -181,6 +185,9 @@ jobs:
           # SDK's hello-canvas): the canvas is the zone at 1x and 2x and the app's card covers it;
           # a release that fails its check shows the host's words over the zone instead.
           - { name: App zone geometry, run: 'npm run check:app-zone' }
+          # The Calendar's grids and views on the shipped engine: every day reached by keyboard through
+          # one roving tab stop, 44px targets and no sideways scroll at 375px, axe clean at rest.
+          - { name: Calendar grid and views, run: 'npm run check:calendar-grid' }
           # Frame times scrolling the 500-page bench document at 1x on a GitHub runner (never the
           # shared Mac), ONLYOFFICE's own condition: at most its 5% of frames past 16.7 ms and its
           # p95 of 16.8 ms. A traced second pass is uploaded per frame (the step after the gate).
@@ -193,7 +200,7 @@ jobs:
     # Its own job, not a step of the typecheck job: that job is capped at 15 minutes for a
     # sub-minute typecheck, and this step cut it off.
     timeout-minutes: 15
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: parent
@@ -257,7 +264,7 @@ jobs:
           && vars.CITADEL_MAC_RUNNER == '1'
           && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
           && fromJSON('["self-hosted","macOS","ARM64","apple-48gb-metal"]')
-          || 'ubuntu-latest' }}
+          || 'ubuntu-24.04' }}
     strategy:
       fail-fast: false
       matrix:
@@ -472,7 +479,7 @@ jobs:
     needs: [parent-ref, typecheck]
     name: PWA and layout checks in Chromium
     timeout-minutes: 15
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: parent
@@ -550,7 +557,7 @@ jobs:
       ${{ vars.CITADEL_MAC_RUNNER == '1'
           && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
           && fromJSON('["self-hosted","macOS","ARM64","apple-48gb-metal"]')
-          || 'ubuntu-latest' }}
+          || 'ubuntu-24.04' }}
     strategy:
       fail-fast: false
       matrix:
@@ -737,7 +744,7 @@ jobs:
     name: Integration stack - ${{ matrix.service }}
     # The parent's leg: the agent's release compile is 16m43s; this bounds a hang.
     timeout-minutes: 45
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -843,7 +850,7 @@ jobs:
     # Observed the same work as the parent job, 41m there; this bounds a hang, not performance.
     # Without it a stuck job holds a runner for GitHub's 360-minute default.
     timeout-minutes: 80
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -1009,7 +1016,7 @@ jobs:
     # Observed the same work as the parent job, 26m there; this bounds a hang, not performance.
     # Without it a stuck job holds a runner for GitHub's 360-minute default.
     timeout-minutes: 55
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -1083,6 +1090,8 @@ jobs:
             artifact: reconnect-p2p-one-c2s
           - test: test:reconnect-p2p-only
             artifact: reconnect-p2p-only
+          - test: test:reconnect-chat-level
+            artifact: reconnect-chat-level
           - test: test:file-manager
             artifact: file-manager
           - test: test:native-file-picker

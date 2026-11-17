@@ -33,7 +33,7 @@ import type { CallManagerInternals, CallManagerOptions } from './call-manager-in
 export type { CallManagerOptions } from './call-manager-internals';
 import { CallLivenessBinding } from './call-liveness-binding';
 import { announceSelfMedia, announceSendCodec, handleInboundSignal } from './call-signal-handling';
-import { closeAllSessions, openSessionFor } from './media-session-lifecycle';
+import { closeAllSessions, openSessionFor, reopenAllSessions } from './media-session-lifecycle';
 import type { CallStatus, CallParticipant } from '@/lib/call/call-state';
 
 export { MEDIA_WIRE_VERSION, RING_TIMEOUT_MS } from './call-constants';
@@ -137,6 +137,8 @@ export class CallManager {
     return handleInboundSignal(this.internals(), from, username, signal);
   }
 
+  /** Another tab took over the browser's connection; see reopenAllSessions. */
+  async reopenMedia(): Promise<void> { return reopenAllSessions(this.internals()); }
 
   /** Answer the ringing call. */
   async accept(media: CallMediaKinds, videoSendCodec: string | null): Promise<void> {
@@ -175,7 +177,7 @@ export class CallManager {
     // any co-invitee whose accept already arrived. The rest get their session
     // when their CallAccept lands.
     const ready: CallParticipant[] = peers.filter((p): boolean => p.status === 'connecting' || p.status === 'active');
-    await Promise.all(ready.map((p) => openSessionFor(this.internals(), p.cid)));
+    await Promise.all(ready.map((p) => openSessionFor(this.internals(), p.cid, null)));
   }
 
   async decline(reason: CallDeclineReason): Promise<void> {

@@ -37,8 +37,8 @@ describe('the op table', () => {
     expect(findOp('canvas', 0)).toBeUndefined();
   });
 
-  it('carries the SDK capability list: 32, storage.files and the P2P and topic planes in, presence out', () => {
-    expect(CAPABILITIES.length).toBe(32);
+  it('carries the SDK capability list: 33, storage.files and the P2P and topic planes in, presence out', () => {
+    expect(CAPABILITIES.length).toBe(33);
     expect(CAPABILITIES).toEqual(expect.arrayContaining(['ihttp.p2p.serve', 'ihttp.p2p.call', 'group.topic.subscribe', 'group.topic.publish']));
     expect(CAPABILITIES).toContain('storage.files');
     expect(CAPABILITIES as readonly string[]).not.toContain('presence');

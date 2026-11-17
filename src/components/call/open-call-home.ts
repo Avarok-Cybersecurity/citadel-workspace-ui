@@ -9,7 +9,7 @@
  * was bounced to /workspace with the call still running and no way back.
  */
 import { getWorkspacePath } from '@/lib/workspace-navigation';
-import { rememberTab } from '@/components/office/office-tab-memory';
+import { rememberTab } from '@/lib/node-tabs/tab-memory';
 import type { CallHome, CallParticipant } from '@/lib/call/call-state';
 
 export function openCallHome(
@@ -21,7 +21,7 @@ export function openCallHome(
 ): void {
   switch (home.kind) {
     case 'node':
-      rememberTab(home.roomId, 'chat');
+      rememberTab(home.nodeId, 'chat');
       navigate(getWorkspacePath({ nodeId: home.nodeId }));
       return;
     case 'group':

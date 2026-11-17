@@ -1,7 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { IncomingCallCard } from './IncomingCallCard';
 import { useCall } from '@/lib/call/call-context';
-import { useIsLeaderTab } from './use-leader-tab';
 import { useRosterName } from './use-roster-name';
 import { callRoomId, type CallParticipant } from '@/lib/call/call-state';
 import { getChannelNames, roomNameFor, subscribeToChannelNames } from '@/lib/call/room-names';
@@ -16,18 +15,14 @@ import type { GroupConversation } from '@/types/group';
  */
 export function RingingCall(): JSX.Element | null {
   const { call, accept, decline } = useCall();
-  // Exactly one tab rings, and it is the one that can actually answer. A
-  // follower has no WebSocket client, so accepting there opened no media
-  // session and the caller heard nothing -- while the leader tab, which could
-  // have taken the call, rang alongside it.
-  const isLeaderTab: boolean = useIsLeaderTab();
+  // Rings in the tab the invite was routed to: the one whose session is called
+  // (routed by cid), leader or not. Answering there keeps the media there.
   const caller: CallParticipant | undefined = call ? [...call.participants.values()][0] : undefined;
   // Named as the sidebar names them, not as the signal froze them. See use-roster-name.
   const callerName: string = useRosterName(caller?.cid ?? null, caller?.username ?? '');
   const channels: ReadonlyMap<string, string> = useSyncExternalStore(subscribeToChannelNames, getChannelNames);
   const groups: GroupConversation[] = useSyncExternalStore(subscribeToGroups, getGroups);
 
-  if (!isLeaderTab) return null;
   if (!call || call.status !== 'ringing-in') return null;
   if (!caller) return null;
   const roomId: string | null = callRoomId(call.home);

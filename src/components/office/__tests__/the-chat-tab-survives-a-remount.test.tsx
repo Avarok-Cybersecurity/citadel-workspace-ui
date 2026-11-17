@@ -1,7 +1,7 @@
 /**
  * A remount used to take the reader out of the conversation.
  *
- * `OfficeChatTabs` rendered `<Tabs defaultValue="content">`, which keeps the
+ * The office tabs (now `NodeTabs`) rendered `<Tabs defaultValue="content">`, which keeps the
  * selection in the component instance — and `BaseOffice` is keyed on the node
  * id precisely so React remounts it. Every one of those remounts put a user who
  * was reading a room's chat back on the Content document, mid-sentence, with no
@@ -16,10 +16,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { forgetAllTabs } from '../office-tab-memory';
+import { forgetAllTabs } from '@/lib/node-tabs/tab-memory';
 
-vi.mock('@/components/chat/GroupChatView', () => ({
-  default: (): JSX.Element => <div data-testid="group-message-input" />,
+// The chat itself is not what is under test here: whether its tab is still selected is.
+vi.mock('../NodeChat', () => ({
+  NodeChat: (): JSX.Element => <div data-testid="group-message-input" />,
 }));
 vi.mock('@/components/call/GroupCallControls', () => ({
   GroupCallControls: (): JSX.Element => <div />,
@@ -36,19 +37,10 @@ vi.mock('@/hooks/use-permission', () => ({
   }),
 }));
 
-const { OfficeChatTabs } = await import('../OfficeChatTabs');
+const { ChatTabs } = await import('../tabs/__tests__/doubles/chat-tabs');
 
-function renderTabs(chatChannelId: string): ReturnType<typeof render> {
-  return render(
-    <OfficeChatTabs
-      contentView={<div data-testid="the-document" />}
-      chatChannelId={chatChannelId}
-      nodeId="n1"
-      roomName="Random"
-      currentUserId="1"
-      currentUserName="alice"
-    />,
-  );
+function renderTabs(nodeId: string): ReturnType<typeof render> {
+  return render(<ChatTabs nodeId={nodeId} chatChannelId={`ch-${nodeId}`} />);
 }
 
 describe('the office chat tab', () => {

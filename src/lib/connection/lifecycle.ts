@@ -11,6 +11,8 @@ import type { ConnectionIO } from './io';
 import type { StoredSession } from '@/types/session-types';
 import { storeSession } from './session-management';
 import { debugLog } from '@/lib/debug-config';
+import { storedSessionServer } from './stored-server';
+import { connectionStoredServerIO } from './stored-server-io';
 
 /**
  * Handle a successful connection by updating state and notifying services.
@@ -172,10 +174,12 @@ export async function switchAccount(
       );
     }
 
+    const serverAddress: string = await storedSessionServer(session, connectionStoredServerIO(state, io));
     const requestId: `${string}-${string}-${string}-${string}-${string}` = crypto.randomUUID();
     await io.connect({
       requestId,
       username: session.username,
+      serverAddress,
       password: session.password,
       sessionSecuritySettings: session.sessionSecuritySettings,
     });

@@ -187,6 +187,7 @@ export const FilesSection: () => JSX.Element = (): JSX.Element => {
         file={selectedFile}
         isOpen={isPreviewOpen}
         onClose={handleClosePreview}
+        failure={null}
       />
     </>
   );

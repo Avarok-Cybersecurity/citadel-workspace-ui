@@ -30,6 +30,7 @@ import { broadcastChannelService } from '../broadcast-channel-service';
 import { instanceManager, instanceInboundRouter } from '../multi-instance';
 import type { InternalServiceResponse, ResponseType } from 'citadel-workspace-client-ts';
 import { eventEmitter } from '../event-emitter';
+import { arrivesAtFrameRate, getMessageType } from '../multi-instance/routing-rules';
 
 /**
  * Every message off the wire, on the leader, BEFORE routing.
@@ -52,7 +53,9 @@ export function leaderInboundHandler(
   forward?: (message: unknown) => void,
 ): (message: InternalServiceResponse) => void {
   return (message: InternalServiceResponse): void => {
-    debugLog('WebSocketInit', 'Message received from WASM client', message);
+    // Not per frame: see arrivesAtFrameRate.
+    const perFrame: boolean = arrivesAtFrameRate(getMessageType(message));
+    if (!perFrame) debugLog('WebSocketInit', 'Message received from WASM client', message);
 
     let deliveredByRouter: boolean = false;
     if (instanceManager.isLeader) {
@@ -69,7 +72,7 @@ export function leaderInboundHandler(
       // Only what the router did NOT deliver. See the header.
       if (!deliveredByRouter) {
         broadcastChannelService.broadcastWorkspaceResponse(message);
-      } else {
+      } else if (!perFrame) {
         const messageType: ResponseType | undefined = Object.keys(message)[0] as
           | ResponseType
           | undefined;

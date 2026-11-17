@@ -77,7 +77,7 @@ const COMMON_ARGS = [
 /* ── Helper: create a fully authenticated user session ── */
 
 
-async function createUserSession(label: string): Promise<UserSession> {
+export async function createUserSession(label: string): Promise<UserSession> {
     const browser = await chromium.launch({
         headless: !isHeaded,
         slowMo: isHeaded ? 50 : 0,

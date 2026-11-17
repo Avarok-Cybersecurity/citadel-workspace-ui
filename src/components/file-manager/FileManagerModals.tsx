@@ -58,6 +58,7 @@ export function FileManagerModals({ fm, v }: { fm: UseFileManagerContentResult; 
         file={fm.shownFile}
         isOpen={fm.shownFile !== null}
         onClose={() => fm.setShownFile(null)}
+        failure={null}
       />
     </>
   );

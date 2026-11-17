@@ -18,6 +18,8 @@ interface ChatTabBarProps {
   onTabClose: (tabId: string) => void;
   /** Renames the document behind a tab; rejects with the reason when the title is refused. */
   onTabRename: (documentId: string, title: string) => Promise<void>;
+  /** Whether a document's rename is carried: no rename is offered for one that would refuse it. */
+  renamable: (documentId: string) => boolean;
 }
 
 interface TabProps {
@@ -101,7 +103,7 @@ function Tab({ tab, active, onSelect, onClose, onRename }: TabProps): JSX.Elemen
   );
 }
 
-export function ChatTabBar({ tabs, activeTabId, onTabSelect, onTabClose, onTabRename }: ChatTabBarProps): JSX.Element {
+export function ChatTabBar({ tabs, activeTabId, onTabSelect, onTabClose, onTabRename, renamable }: ChatTabBarProps): JSX.Element {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const renaming: ChatTab | undefined = tabs.find((t) => t.id === renamingId);
   return (
@@ -113,7 +115,7 @@ export function ChatTabBar({ tabs, activeTabId, onTabSelect, onTabClose, onTabRe
           active={tab.id === activeTabId}
           onSelect={() => onTabSelect(tab.id)}
           onClose={tab.type === 'live_document' ? (): void => onTabClose(tab.id) : undefined}
-          onRename={tab.type === 'live_document' ? (): void => setRenamingId(tab.id) : undefined}
+          onRename={tab.type === 'live_document' && tab.documentId !== undefined && renamable(tab.documentId) ? (): void => setRenamingId(tab.id) : undefined}
         />
       ))}
       <RenameDocumentDialog

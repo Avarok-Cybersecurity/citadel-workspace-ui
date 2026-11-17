@@ -5,7 +5,11 @@ import { debugLog } from '@/lib/debug-config';
 import { getFileIcon, formatBytes, getStatusContent } from './file-transfer-helpers';
 import type { StatusContent } from '@/components/p2p/bubbles/file-transfer-helpers';
 import { useTransferView } from '../hooks/useTransferView';
+import { TransferProgressBar } from './TransferProgressBar';
 import type { TransferView } from '@/lib/file-transfer/transfer-view';
+import { safeThumbnail } from '@/lib/received-files/image-preview';
+import { TransferPicture } from './TransferPicture';
+import { ResendLostFile } from './ResendLostFile';
 
 /**
  * FileTransferBubble - Displays file transfer messages with state-dependent UI
@@ -23,7 +27,7 @@ import type { TransferView } from '@/lib/file-transfer/transfer-view';
  * States (receiver view):
  * - pending: Accept/Decline buttons
  * - transferring: "Downloading..." + progress bar
- * - complete: "Downloaded" (clickable to open)
+ * - complete: "Downloaded" (clickable: the browser downloads the original)
  * - declined: "You declined this file"
  * - cancelled: "Sender cancelled transfer"
  */
@@ -55,7 +59,9 @@ export function FileTransferBubble({
   const fileSize: number = message.file_size || 0;
   const fileType: string = message.file_type || 'application/octet-stream';
 
-  const status: StatusContent = getStatusContent(state, isOwn, view.reason);
+  const status: StatusContent = getStatusContent(state, isOwn, view.reason, view.resuming);
+  // The offer's thumbnail is the sender's string: drawn only when it is an inline raster picture.
+  const thumbnail: string | null = safeThumbnail(message.file_thumbnail);
 
   const handleClick = (): void => {
     // By transfer, not by path: a direct P2P transfer has no virtual_path, so the
@@ -90,9 +96,9 @@ export function FileTransferBubble({
         <div className="flex items-start gap-3 mb-2">
           {/* File icon with thumbnail support */}
           <div className="p-2 rounded bg-foreground/10 flex-shrink-0">
-            {message.file_thumbnail ? (
+            {thumbnail !== null ? (
               <img
-                src={message.file_thumbnail}
+                src={thumbnail}
                 alt={fileName}
                 className="h-10 w-10 object-cover rounded"
               />
@@ -119,11 +125,12 @@ export function FileTransferBubble({
       className={`${BUBBLE_MAX_WIDTH} rounded-lg px-3 py-2 ${bubbleStyles}`}
     >
       <div>
+        <TransferPicture message={message} isOwn={isOwn} />
         {/* File info header. A button only when a finished download can be opened: the bubble
             used to be a role="button" in every state, around the Accept/Decline/Cancel buttons
             (a button inside a button, and a focus stop that did nothing). */}
         {status.clickable ? (
-          <button type="button" onClick={handleClick} className="w-full text-left cursor-pointer hover:opacity-90 transition-opacity">
+          <button type="button" onClick={handleClick} data-testid="file-transfer-open" className="w-full text-left cursor-pointer hover:opacity-90 transition-opacity">
             {header}
           </button>
         ) : header}
@@ -136,26 +143,7 @@ export function FileTransferBubble({
 
         {/* Progress bar */}
         {status.showProgress && (
-          <div className="mb-2">
-            <div
-            role="progressbar"
-            aria-valuenow={Math.round(progress)}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-label={`Transfer of ${fileName}`}
-            aria-valuetext={`${Math.round(progress)} percent`}
-            className={`h-1.5 rounded-full overflow-hidden ${isOwn ? 'bg-primary-foreground/25' : 'bg-foreground/10'}`}
-          >
-              <div
-                className={`h-full rounded-full transition-all duration-300 ${isOwn ? 'bg-primary-foreground' : 'bg-primary-accent'}`}
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <div className="flex justify-between text-xs mt-1">
-              <span>{progress}%</span>
-              <span>{formatBytes(fileSize * progress / 100)} / {formatBytes(fileSize)}</span>
-            </div>
-          </div>
+          <TransferProgressBar percent={progress} doneBytes={fileSize * progress / 100} totalBytes={fileSize} label={`Transfer of ${fileName}`} onPrimary={isOwn} />
         )}
 
         {/* Action buttons */}
@@ -198,9 +186,11 @@ export function FileTransferBubble({
           </div>
         )}
 
+        {isOwn && view.resendable && message.transfer_id && <ResendLostFile transferId={message.transfer_id} />}
+
         {/* Click hint for completed downloads */}
         {status.clickable && (
-          <p className="text-xs mt-1">Click to see where it was saved</p>
+          <p className="text-xs mt-1">Click to download</p>
         )}
       </div>
 

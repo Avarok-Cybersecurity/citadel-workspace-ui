@@ -14,6 +14,23 @@ import { debugLog } from '@/lib/debug-config';
 import type { ActiveSessionsResult } from '@/lib/connection/queries';
 import { BASE_DELAY, MAX_DELAY , type ConnectionAttempt } from './types';
 import { passwordOnly } from '@/lib/sign-in/factors';
+import { signInNeededFor } from '@/lib/sessions/sign-in-needed';
+import { isStoredServerUnknown, storedSessionServer, type StoredServerIO } from '@/lib/connection/stored-server';
+
+/** stored-server.ts's I/O here: the agent's account list, the manager's store, the sign-in hand-off. */
+async function autoConnectStoredServerIO(): Promise<StoredServerIO> {
+  const [{ connectionManager }, { askStoredAccounts }, { readAccountHosts }] = await Promise.all([
+    import('@/lib/connection'), import('@/lib/stored-accounts'), import('@/lib/admission/account-servers'),
+  ]);
+  return {
+    agentAccounts: () => askStoredAccounts(readAccountHosts),
+    backfill: async (filled: StoredSession): Promise<void> => {
+      await connectionManager.storeSession(filled);
+      await connectionManager.removeSession(filled.username, '');
+    },
+    signInNeeded: (username: string): void => { signInNeededFor.set(username); },
+  };
+}
 
 /**
  * Generate a unique key for a session.
@@ -131,15 +148,23 @@ export async function attemptReconnect(
       return;
     }
 
+    const serverAddress: string = await storedSessionServer(session, await autoConnectStoredServerIO());
     await websocketService.connect(
       uuidv4(),
       session.username,
+      serverAddress,
       // Unattended: no window is there to touch a key, so none is offered.
       passwordOnly(session.password),
       session.sessionSecuritySettings
     );
     // Success handled by event listener
   } catch (error) {
+    // No server to name: retrying cannot help, and a sign-in was asked for. The entry
+    // stays, so the scheduler does not pick this session up again.
+    if (isStoredServerUnknown(error)) {
+      attempt.lastError = error.message;
+      return;
+    }
     const delay: number = Math.min(BASE_DELAY * Math.pow(2, attempt.attempts), MAX_DELAY);
     attempt.attempts++;
     attempt.lastError = error instanceof Error ? error.message : String(error);

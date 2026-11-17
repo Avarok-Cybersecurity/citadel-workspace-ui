@@ -33,7 +33,9 @@ describe('held sends, wired', () => {
 
     eventEmitter.emit('p2p:channel-ready', { peerCid: 42n });
     await vi.waitFor(() => expect(executeIntent).toHaveBeenCalledWith(expect.objectContaining({ type: 'send-transfer-request', offerAlreadyShown: true })));
-    expect(await sendQueuePort.take('h1')).toBeUndefined();
+    // Still kept: it is dropped when the transfer ends (the next case), so a
+    // reload before the agent confirms the send can send it again.
+    expect(await sendQueuePort.take('h1')).toBeDefined();
   });
 
   it('drop the kept File when the send ends another way (expired, cancelled)', async () => {

@@ -14,9 +14,17 @@ import {
 } from '@/lib/p2p/chat-advanced-settings';
 import { changeChatLevel, chatLevelStatus, type ChatLevelResult } from '@/lib/p2p/chat-level-change';
 import { peerLink, peerPauseStore } from '@/lib/p2p-pause';
+import { p2pAutoConnectService } from '@/lib/p2p-auto-connect-service';
 import { getCurrentCid } from '@/lib/p2p/current-cid';
 import { retentionChanged } from '@/lib/p2p/retention-sweep';
 import { tellAgentAccountSettings } from '@/lib/p2p/tell-agent-settings';
+
+/**
+ * How long the Advanced tab waits to say the chat is back at its new level: a fresh P2P
+ * handshake after a drop, as a file send allows (FILE_SEND_CONNECT_TIMEOUT_MS). Past it the
+ * tab says the change is saved and pending, rather than "Saving…" with no end.
+ */
+const LEVEL_RECONNECT_WAIT_MS: number = 15_000;
 
 export interface ChatAdvancedControls {
   /** Null until the saved settings have been read. */
@@ -81,6 +89,7 @@ export function useChatAdvancedSettings(isOpen: boolean, peerCid: bigint): ChatA
         tellAgent: tellAgentAccountSettings,
         pauseStatus: (own: bigint, peer: bigint) => peerPauseStore.status(own, peer),
         link: peerLink,
+        confirmUp: (peer: bigint): Promise<boolean> => p2pAutoConnectService.waitForPeerConnected(peer, LEVEL_RECONNECT_WAIT_MS),
       }, await ownCid(), peerCid, level);
       setSettings(result.settings);
       setStatus(chatLevelStatus(result));

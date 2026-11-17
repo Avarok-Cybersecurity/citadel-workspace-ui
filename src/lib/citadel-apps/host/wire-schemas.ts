@@ -47,6 +47,7 @@ export const route: Schema<Route> = struct<Route>({ method: httpMethod, path: st
 
 export const kvBackend: Schema<KvBackend> = tagged<KvBackend>(['user', 'scope', 'local'], {
   node: struct<{ node_id: string }>({ node_id: str }),
+  node_authored: struct<{ node_id: string; author: string | null }>({ node_id: str, author: nullable(str) }),
 });
 
 export const httpRequest: Schema<HttpRequest> = struct<HttpRequest>({ method: httpMethod, url: str, headers, body: bytes });

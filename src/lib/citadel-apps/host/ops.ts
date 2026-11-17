@@ -44,7 +44,7 @@ const BINDINGS: { readonly [N in OpName]: Binding } = {
   FilesList: server('files'), FilesRead: server('files'), FilesWrite: server('files'), FilesDelete: server('files'),
   ChatRecent: server('chat'), ChatSend: server('chat'),
   MembersList: server('members'),
-  KvGet: kv, KvSet: kv, KvSetMany: kv, KvDelete: kv, KvList: kv,
+  KvGet: kv, KvSet: kv, KvSetMany: kv, KvDelete: kv, KvList: kv, KvListAuthored: server('storage'),
   BlobPut: server('blob'), BlobGet: server('blob'), BlobDelete: server('blob'),
   StoreFileWrite: server('storeFiles'), StoreFileRead: server('storeFiles'), StoreFileList: server('storeFiles'),
   HostFetch: { port: 'hostNet', server: false, clock: 'host_net' },
@@ -82,9 +82,10 @@ function planeAdmits(name: OpName, args: CborMap, held: ReadonlySet<Capability>)
   return true;
 }
 
-/** The capability a Kv* op's backend names, from KV_BACKEND_CAPABILITY. */
+/** The capability a Kv* op's backend names, from KV_BACKEND_CAPABILITY, by the backend's tag. */
 export function kvCapability(backend: KvBackend): Capability {
-  return KV_BACKEND_CAPABILITY[typeof backend === 'string' ? backend : 'node'];
+  if (typeof backend === 'string') return KV_BACKEND_CAPABILITY[backend];
+  return 'node' in backend ? KV_BACKEND_CAPABILITY.node : KV_BACKEND_CAPABILITY.node_authored;
 }
 
 const entries: OpEntry[] = OPS.map((o): OpEntry => {
@@ -99,9 +100,17 @@ const entries: OpEntry[] = OPS.map((o): OpEntry => {
 });
 
 const BY_KEY: ReadonlyMap<string, OpEntry> = new Map(entries.map((e: OpEntry) => [`${e.group}/${e.op}`, e]));
+const BY_NAME: ReadonlyMap<OpName, OpEntry> = new Map(entries.map((e: OpEntry) => [e.name, e]));
 
 export function findOp(group: AbiGroup, op: number): OpEntry | undefined {
   return BY_KEY.get(`${group}/${op}`);
+}
+
+/** The entry of a generated op name; every generated name has one (op-table.test.ts). */
+export function findOpByName(name: OpName): OpEntry {
+  const entry: OpEntry | undefined = BY_NAME.get(name);
+  if (entry === undefined) throw new Error(`${name} is not an op of this ABI`);
+  return entry;
 }
 
 /** Internal links only: anything classifyDocumentLink does not call internal is refused. */

@@ -21,6 +21,7 @@ import {
   REQUEST_TRACKING_TIMEOUT_MS,
   getMessageType,
   shouldBroadcast,
+  arrivesAtFrameRate,
 } from './routing-rules';
 import { extractRequestId } from './message-routing';
 import { OrphanBuffer } from './orphan-buffer';
@@ -30,7 +31,6 @@ debugLog('InstanceInboundRouter', '[ILM-Router] Module loading...');
 class InstanceInboundRouter {
   private static instance: InstanceInboundRouter;
 
-  private isActive: boolean = false;
   private pendingRequestMap: Map<string, PendingRequest> = new Map();
   private cleanupInterval: ReturnType<typeof setInterval> | null = null;
   /**
@@ -65,9 +65,10 @@ class InstanceInboundRouter {
   // ── Event Listeners ──────────────────────────────────────────────────
 
   private setupEventListeners(): void {
+    // Leadership is read from instanceManager when asked, never copied here: the election flips
+    // the manager before emitting, and a listener running ahead of this one saw the copy stale.
     eventEmitter.on('instance:leader-changed', (data: { isLeader: boolean; leaderId: string }) => {
-      this.isActive = data.isLeader;
-      if (this.isActive) {
+      if (data.isLeader) {
         debugLog('InstanceInboundRouter', '[ILM-Router] Activated as leader');
       } else {
         debugLog('InstanceInboundRouter', '[ILM-Router] Deactivated (no longer leader)');
@@ -80,8 +81,8 @@ class InstanceInboundRouter {
     });
 
     eventEmitter.on('channel:outbound-request', (data: { requestId?: string; senderInstanceId: string; payload?: unknown }) => {
-      debugLog('InstanceInboundRouter', `[ILM-Router] channel:outbound-request requestId=${data.requestId}, sender=${data.senderInstanceId}, active=${this.isActive}`);
-      if (this.isActive && data.requestId) {
+      debugLog('InstanceInboundRouter', `[ILM-Router] channel:outbound-request requestId=${data.requestId}, sender=${data.senderInstanceId}, active=${instanceManager.isLeader}`);
+      if (instanceManager.isLeader && data.requestId) {
         this.registerPendingRequest(data.requestId, data.senderInstanceId);
       }
     });
@@ -150,14 +151,14 @@ class InstanceInboundRouter {
    * types someone remembered to add, is what stops that list drifting again.
    */
   routeMessage(message: Record<string, unknown>): boolean {
-    if (!this.isActive) {
+    if (!instanceManager.isLeader) {
       debugLog('InstanceInboundRouter', '[ILM-Router] routeMessage called but not leader');
       return false;
     }
 
     const messageType: ReturnType<typeof getMessageType> = getMessageType(message);
     const requestId: string | null = extractRequestId(message);
-    debugLog('InstanceInboundRouter',
+    if (!arrivesAtFrameRate(messageType)) debugLog('InstanceInboundRouter',
       `[ILM-Router] routeMessage: type=${messageType}, requestId=${requestId}, pendingMapSize=${this.pendingRequestMap.size}`
     );
 
@@ -203,7 +204,7 @@ class InstanceInboundRouter {
   }
 
   isRouterActive(): boolean {
-    return this.isActive;
+    return instanceManager.isLeader;
   }
 }
 

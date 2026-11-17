@@ -8,6 +8,7 @@
  */
 
 import type { RealProtocolIORouter } from './real-protocol-io-router';
+import type { SendFileResult } from './io-router-types';
 import type { FileTransfer, SendTransferRequestIntent } from './types';
 import { debugLog } from '@/lib/debug-config';
 import { buildTransferAnnouncement } from './transfer-announcement';
@@ -63,7 +64,7 @@ export async function executeSendTransferRequest(
   // by the time the protocol notification and progress ticks arrive.
   await announceTransfer(transfer, intent.offerAlreadyShown);
 
-  await router.sendFile({
+  const sent: SendFileResult = await router.sendFile({
     source: file,
     stagedUploadId,
     cid: BigInt(transfer.senderCid),
@@ -77,6 +78,9 @@ export async function executeSendTransferRequest(
       expiresAt: transfer.expiresAt,
     },
   });
+  // The agent holds the send now, and names this id on every tick of it: what
+  // a reload needs to follow it again rather than send it twice.
+  transfer.tickRequestId = sent.requestId;
 }
 
 /**

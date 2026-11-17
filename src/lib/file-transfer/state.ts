@@ -86,6 +86,7 @@ export class FileTransferState {
   /** The shape a peer gets when nothing has been saved for them. */
   static readonly DEFAULT_SETTINGS: FileTransferSettings = {
     autoAccept: false,
+    autoAcceptAnswered: false,
     maxFileSize: FILE_TRANSFER_DEFAULT_MAX_SIZE_BYTES,
     allowRevfsStorage: true, // Default to true for RE-VFS file browser functionality
     revfsQuota: REVFS_DEFAULT_QUOTA_BYTES,

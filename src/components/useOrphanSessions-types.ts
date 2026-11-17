@@ -5,6 +5,7 @@
  * shape is exactly the cohesive unit the length gate asks for rather than
  * compressed prose.
  */
+import type { SignInRequest } from '@/lib/sessions/sign-in-request';
 import type { Dispatch, SetStateAction } from 'react';
 import type { ActiveSession } from '@/types/session-types';
 import type { DisconnectAction } from './DisconnectConfirmModal';
@@ -25,7 +26,7 @@ export interface UseOrphanSessionsResult {
   handleConfirmDisconnect: (action: DisconnectAction) => Promise<void>;
   handleLoadingComplete: () => void;
   notificationService: typeof notificationService;
-  /** The account whose session another browser window holds, being signed in to move it here. */
-  takeoverUsername: string | null;
+  /** The sign-in open from this bar: a session held in another window, or one the agent no longer holds. */
+  signInRequest: SignInRequest | null;
   clearTakeover: () => void;
 }

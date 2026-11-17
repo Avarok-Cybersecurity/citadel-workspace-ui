@@ -151,7 +151,7 @@ describe('adding a member', () => {
 
   it('sends the edits this device holds of the place once the server accepts', async () => {
     const asked: string[] = [];
-    const close: () => void = registerDocumentSync('doc-7', (): Promise<void> => { asked.push('doc-7'); return Promise.resolve(); });
+    const close: () => void = registerDocumentSync({ nodeId: 'doc-7', chatDoc: null }, (): Promise<void> => { asked.push('doc-7'); return Promise.resolve(); });
     answer.current = { Success: 'Member added successfully' };
     const onClose: ReturnType<typeof vi.fn> = vi.fn();
     await submitAdd('bob', onClose, 'doc-7');
@@ -162,7 +162,7 @@ describe('adding a member', () => {
 
   it('sends nothing of the place when the server refuses', async () => {
     const asked: string[] = [];
-    const close: () => void = registerDocumentSync('doc-8', (): Promise<void> => { asked.push('doc-8'); return Promise.resolve(); });
+    const close: () => void = registerDocumentSync({ nodeId: 'doc-8', chatDoc: null }, (): Promise<void> => { asked.push('doc-8'); return Promise.resolve(); });
     answer.current = { Error: "Failed to add member: No account named 'bobb' exists on this workspace" };
     await submitAdd('bobb', vi.fn(), 'doc-8');
     await screen.findByTestId('entity-modal-error');

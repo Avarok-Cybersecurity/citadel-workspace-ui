@@ -37,7 +37,12 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
  * the component is actually mounted, so the claim can be checked.
  */
 const RENDERED_INDIRECTLY = new Map([
-  // (empty — every component in the tree is rendered somewhere findable)
+  // A first-party glue app's tab: src/lib/citadel-apps/first-party/registry.ts GLUE_TABS loads it
+  // by import() under its app id, and AppTabPane.tsx's GlueTabHost renders it as `<loaded.Tab`.
+  ['CalendarMount', 'first-party/registry.ts GLUE_TABS, rendered by AppTabPane.tsx as <loaded.Tab'],
+  // Loaded by import() after first paint so neither is on a critical path, and rendered from state.
+  ['PageCalendarBackground', 'calendar/background/CalendarInBackground.tsx imports it, rendered as <Background /> in AppLayout'],
+  ['CalendarNotificationsHere', 'settings/NotificationsSettingsTab.tsx loadCalendar imports it, rendered as <Calendar />'],
 ]);
 
 const isTest = (file) => file.includes('__tests__') || /\.test\.tsx?$/.test(file);

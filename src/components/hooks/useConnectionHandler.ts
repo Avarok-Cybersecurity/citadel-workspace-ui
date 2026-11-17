@@ -26,7 +26,8 @@ import { runAsyncSetup } from '@/lib/utils/async-utils';
 import { postAuthSetup } from '@/lib/post-auth-setup';
 import { getCurrentCid } from '@/lib/p2p/current-cid';
 import { openPeerChannelViaAutoConnect } from '@/lib/file-transfer/open-peer-channel';
-import { debugLog } from '@/lib/debug-config';
+import { debugLog, errorLog } from '@/lib/debug-config';
+import { welcomeOnce, WELCOME_TITLE, WELCOME_BODY } from '@/lib/welcome/welcome-once';
 import { makeSessionAlreadyConnectedHandler } from './session-already-connected';
 import { useSessionLostWithAgent } from './use-session-lost-with-agent';
 import type { StoredSession } from '@/types/session-types';
@@ -177,12 +178,9 @@ export function useConnectionHandler(): { showConnectionRetry: boolean; connecti
           .catch(error => debugLog('WorkspaceApp', 'Error loading user registration info:', error));
 
         setTimeout(() => {
-          notificationService.addSystemNotification(
-            'Welcome to Citadel Workspaces',
-            'Your secure workspace is ready. Explore the features and connect with your team.',
-            NotificationPriority.NORMAL,
-            cidString
-          );
+          welcomeOnce(websocketService, cidBigInt, () => {
+            notificationService.addSystemNotification(WELCOME_TITLE, WELCOME_BODY, NotificationPriority.NORMAL, cidString);
+          }).catch((error: unknown) => errorLog('WorkspaceApp', 'could not tell whether this account was welcomed', error));
         }, 2000);
       }
     });

@@ -66,11 +66,12 @@ export const SPACING_CHECKS = {
   noCollisionsInTheConversation: checkScenario('p2p-conversation', '[data-message-id]'),
   noCollisionsInTheSidebarMembers: checkScenario('sidebar-members', '[data-testid^="member-row-"]'),
   noCollisionsAmongPeople: checkScenario('people', '[data-avatar]'),
-  noCollisionsInGroupChat: checkScenario('group-chat', '[data-testid="message-item"]'),
+  noCollisionsInTheNodeChat: checkScenario('node-chat', '[data-message-id]'),
   noCollisionsInSettings: checkScenario('settings', '[role="dialog"]'),
   noCollisionsInConnectionSettings: checkScenario('settings-connections', '[role="dialog"]'),
   noCollisionsInAppearanceSettings: checkScenario('settings-appearance', '[role="dialog"]'),
   noCollisionsInPrivacySettings: checkScenario('settings-privacy', '[role="dialog"]'),
+  noCollisionsInNotificationSettings: checkScenario('settings-notifications', '[data-testid="settings-notifications"]'),
   noCollisionsOnTheLandingPage: checkScenario('landing', 'h1'),
   noCollisionsInTheOfficeHeader: checkScenario('office-header', '[data-testid="hierarchy-breadcrumbs"]'),
 };

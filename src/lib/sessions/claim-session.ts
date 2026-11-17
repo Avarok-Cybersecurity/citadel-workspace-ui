@@ -50,6 +50,15 @@ export function isEndedByTheAgent(error: unknown): error is Error {
   return error instanceof Error && Boolean(error.message?.includes('is not claimable'));
 }
 
+/**
+ * Any refusal meaning the agent holds no session for the CID: the one above, or
+ * "Session <cid> not found" from ClaimSession and AttachSession -- what an account
+ * signed out, deleted elsewhere, or ended by an agent restart answers.
+ */
+export function isGoneFromTheAgent(error: unknown): boolean {
+  return isEndedByTheAgent(error) || (error instanceof Error && /\bSession \d+ not found\b/.test(error.message));
+}
+
 /** The agent's refusal meaning a DIFFERENT localhost connection holds the session. */
 function isHeldByAnotherConnection(error: unknown): boolean {
   return error instanceof Error && Boolean(error.message?.includes('in use by another connection'));

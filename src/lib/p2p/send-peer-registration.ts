@@ -1,7 +1,58 @@
+import type { InternalServiceRequest } from 'citadel-workspace-client-ts';
 import { peerRegistrationStore } from '@/lib/peer-registration-store';
+import type { OutgoingPeerRequest } from '@/lib/peer-registration-store/types';
 import { websocketService } from '@/lib/websocket-service';
 import { getDefaultSecuritySettings } from '@/lib/security-utils';
+import { toGeneratedSecuritySettings } from '@/lib/p2p-registration-service/constants';
 import { debugLog } from '@/lib/debug-config';
+
+export type PeerRegisterRequest = Extract<InternalServiceRequest, { PeerRegister: unknown }>;
+
+/**
+ * The PeerRegister request. Built here and nowhere else
+ * (`__tests__/peer-register-has-one-builder.test.ts`): five copies had drifted
+ * -- string CIDs in one, a request that was never recorded in another.
+ *
+ * `connect_after_register` is false on every path: the UI dials the peer itself
+ * once they have answered (auto-connect), and an agent-side connect would race it.
+ */
+export function peerRegisterRequest(requestId: string, ownCid: bigint, peerCid: bigint): PeerRegisterRequest {
+  return {
+    PeerRegister: {
+      request_id: requestId,
+      cid: ownCid,
+      peer_cid: peerCid,
+      session_security_settings: toGeneratedSecuritySettings(getDefaultSecuritySettings()),
+      connect_after_register: false,
+      peer_session_password: null,
+    },
+  };
+}
+
+/**
+ * Send it through the tab's own route: a follower proxies via the leader, and
+ * either way the answer is routed back to this tab by its request id.
+ */
+export async function sendPeerRegisterRequest(requestId: string, ownCid: bigint, peerCid: bigint): Promise<void> {
+  await websocketService.sendMessage(peerRegisterRequest(requestId, ownCid, peerCid));
+}
+
+/**
+ * Resend a recorded request under its original id, as the session that made it.
+ *
+ * Straight to the client rather than through `sendMessage`: only the leader's
+ * poll resends, and `sendMessage` would register the id to the leader tab, so
+ * the answer to a follower's request would stop reaching the follower that
+ * made it. Unregistered, it is routed by the session it names.
+ */
+export async function resendPeerRegistration(request: OutgoingPeerRequest): Promise<void> {
+  const client: ReturnType<typeof websocketService.getClient> = websocketService.getClient();
+  if (!client) throw new Error('No WebSocket client available');
+
+  await websocketService.claimSession(request.fromCid);
+  await client.sendDirectToInternalService(peerRegisterRequest(request.id, request.fromCid, request.toCid));
+  debugLog('SendPeerRegistration', 'Resent PeerRegister to', request.peerUsername);
+}
 
 /**
  * Send a peer registration request, and record it so it can be resent.
@@ -81,16 +132,7 @@ export async function sendPeerRegistration(
     );
   }
 
-  await websocketService.sendMessage({
-    PeerRegister: {
-      request_id: requestId,
-      cid: ownCid,
-      peer_cid: peerCid,
-      session_security_settings: getDefaultSecuritySettings(),
-      connect_after_register: false,
-      peer_session_password: null,
-    },
-  });
+  await sendPeerRegisterRequest(requestId, ownCid, peerCid);
 
   if (!recorded) {
     // Said out loud rather than left implicit: without the record the poll

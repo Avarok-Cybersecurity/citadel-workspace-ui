@@ -27,10 +27,15 @@ export function joinFieldErrors(
   formData: JoinFormData,
   touched: Record<string, boolean>,
   submitAttempted: boolean,
+  /**
+   * Why this device cannot hold the typed username here (another server's account has it,
+   * known-accounts.ts), or null. Shown at once, untouched or not: it is not a typing slip.
+   */
+  held: string | null,
 ): JoinFieldErrorsResult {
   const rawErrors: { fullName: string | null; username: string | null; password: string | null; confirmPassword: string | null; } = {
     fullName: validateFullName(formData.fullName),
-    username: validateUsername(formData.username),
+    username: validateUsername(formData.username) ?? held,
     password: validatePassword(formData.password),
     confirmPassword:
       formData.confirmPassword && formData.password !== formData.confirmPassword
@@ -45,7 +50,7 @@ export function joinFieldErrors(
     rawErrors,
     fieldErrors: {
       fullName: visible("fullName"),
-      username: visible("username"),
+      username: visible("username") ?? held,
       password: visible("password"),
       confirmPassword: visible("confirmPassword"),
     },

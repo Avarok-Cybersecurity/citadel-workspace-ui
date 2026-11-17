@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { requestDocumentSync } from '@/lib/document-sync-requests';
 
 export function syncForNewReaders(nodeId: string, name: string): void {
-  void requestDocumentSync(nodeId).catch((error: unknown): void => {
+  void requestDocumentSync({ nodeId, chatDoc: null }).catch((error: unknown): void => {
     toast.error(`Your unsent edits to ${name} are still only on this device. ${error instanceof Error ? error.message : String(error)}`);
   });
 }

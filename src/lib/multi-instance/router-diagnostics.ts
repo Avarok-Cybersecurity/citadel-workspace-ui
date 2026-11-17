@@ -9,6 +9,7 @@
 import { debugLog, debugEnabled } from '@/lib/debug-config';
 import { describeForwarded } from '@/lib/p2p/message-fingerprint';
 import { holdUntilP2PHandlerAttached } from '@/lib/p2p/p2p-handler-ready';
+import { arrivesAtFrameRate, getMessageType } from './routing-rules';
 
 /**
  * Record an emit and how many handlers were actually listening.
@@ -30,6 +31,7 @@ export function logEmit(listeners: number, message: unknown): void {
   // transfer cap that is close to a second of main-thread time per tab, for a
   // logger production compiles away.
   if (!debugEnabled) return;
+  if (arrivesAtFrameRate(getMessageType(message))) return;
 
   if (listeners === 0) {
     debugLog(

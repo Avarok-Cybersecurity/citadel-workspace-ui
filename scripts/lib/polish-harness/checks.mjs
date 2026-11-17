@@ -1,5 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { AxeBuilder } from '@axe-core/playwright';
+import { MOTION_CHECKS } from './checks-motion.mjs';
 
 const overlaps = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
 
@@ -15,12 +16,25 @@ async function tooltipLeavesNeighboursReachable({ page, url }) {
   const count = await rows.count();
   assert.ok(count >= 3, `expected at least 3 member rows, found ${count}`);
   const centre = (box) => ({ x: box.x + box.width / 2, y: box.y + box.height / 2 });
+  let left = null;
   for (let i = count - 1; i >= 0; i -= 1) {
     const at = centre(await rows.nth(i).boundingBox());
-    await page.mouse.move(at.x, at.y);
-    const card = page.locator('[data-radix-popper-content-wrapper]').first();
+    // Radix keeps a card open while the pointer is "in transit" toward it, so a jump from one row to the next
+    // left the last row's card up and this row's never opened: the check measured the wrong card. Leave each
+    // row straight left, away from its card, see the card go, then come in from the left along this row.
+    const cards = page.locator('[data-radix-popper-content-wrapper]');
+    if (left !== null) {
+      await page.mouse.move(0, left.y, { steps: 8 });
+      await cards.first().waitFor({ state: 'detached', timeout: 3000 });
+    }
+    await page.mouse.move(0, at.y);
+    await page.mouse.move(at.x, at.y, { steps: 8 });
+    left = at;
+    const handle = (await rows.nth(i).getAttribute('data-testid')).slice('member-row-'.length);
+    const card = cards.filter({ hasText: `@${handle}` });
     await card.waitFor({ state: 'visible', timeout: 3000 });
     const cardBox = await card.boundingBox();
+    assert.ok(cardBox, `row ${i}'s card closed while the pointer was still on its row`);
     for (let j = 0; j < count; j += 1) {
       if (j === i) continue;
       const other = await rows.nth(j).boundingBox();
@@ -41,19 +55,22 @@ const MIN_ROW_GAP = 8;
  * The row after a live-document bubble and the row after a message that carries reactions are the
  * two pinches users reported.
  */
-async function messageRowsAreSeparated({ page, url }) {
-  await page.goto(url('p2p-conversation'));
+const rowsAreSeparated = (scenario, expected) => async ({ page, url }) => {
+  await page.goto(url(scenario));
   const rows = page.locator('[data-message-id]');
   await rows.first().waitFor({ state: 'visible' });
   const count = await rows.count();
-  assert.equal(count, 6, 'the scenario renders six message rows');
+  assert.equal(count, expected, `the scenario renders ${expected} message rows`);
   const boxes = [];
   for (let i = 0; i < count; i += 1) boxes.push(await rows.nth(i).boundingBox());
   for (let i = 1; i < count; i += 1) {
     const gap = boxes[i].y - (boxes[i - 1].y + boxes[i - 1].height);
     assert.ok(gap >= MIN_ROW_GAP, `row ${i} sits ${gap}px under row ${i - 1} (needs ${MIN_ROW_GAP})`);
   }
-}
+};
+const messageRowsAreSeparated = rowsAreSeparated('p2p-conversation', 6);
+/** The same rows in a node channel, whose messages name their senders and carry a system line. */
+const nodeChatRowsAreSeparated = rowsAreSeparated('node-chat', 6);
 
 const within = (inner, outer) => inner.x >= outer.x - 0.5 && inner.y >= outer.y - 0.5 && inner.x + inner.width <= outer.x + outer.width + 0.5 && inner.y + inner.height <= outer.y + outer.height + 0.5;
 
@@ -130,7 +147,10 @@ async function chatTextIsReadable({ page, url }) {
   await page.goto(url('p2p-conversation'));
   await page.locator('[data-message-id]').first().waitFor({ state: 'visible' });
   await readable(page, 'conversation bubbles');
-
+  // A channel's bubbles too, which include the reader's own markdown: dark in both themes.
+  await page.goto(url('node-chat'));
+  await page.locator('[data-message-id]').first().waitFor({ state: 'visible' });
+  await readable(page, 'node channel bubbles');
 }
 
 /** Where a drop cannot land the overlay says so inside the chat, goes away when the drag leaves, and nothing opens. */
@@ -156,4 +176,4 @@ async function aDropThatCannotLandSaysWhy({ page, url }) {
   assert.equal(await page.getByRole('dialog').count(), 0, 'a drop that cannot land opened a dialog');
 }
 
-export const CHECKS = { aDropThatCannotLandSaysWhy, chatTextIsReadable, tooltipLeavesNeighboursReachable, messageRowsAreSeparated, aDroppedFileGoesToTheSendPath, theHeaderDrawsThePeersPicture };
+export const CHECKS = { aDropThatCannotLandSaysWhy, chatTextIsReadable, tooltipLeavesNeighboursReachable, messageRowsAreSeparated, nodeChatRowsAreSeparated, aDroppedFileGoesToTheSendPath, theHeaderDrawsThePeersPicture, ...MOTION_CHECKS };

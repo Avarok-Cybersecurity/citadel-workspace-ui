@@ -216,8 +216,44 @@ const dist = join(root, 'dist');
  * secure link's: keeping `/workspace?app=…` at boot (citadel-apps/app-link-capture.ts, 339 B raw,
  * judged only when taken), the boot composition of both captures (boot-links.ts, 130 B), and the
  * response handler passing an Apps answer to its waiter (+53 B in app-services).
+ *
+ * 339 -> 340 (2026-11-15), for calls from any tab (fix/chat-files-calls): master measured 338.0,
+ * the files lane 338.2 (the picture bubble's CSS), the calls lane alone 339.8, the merge 340.0.
+ * What did not have to be on the landing path was moved off it: the media lifecycle imported one
+ * string from the failed-call copy and carried all of it (lib/call/lost-on-takeover.ts now holds
+ * the string; call-failure-detail.ts is listed in DEFERRED_MODULES), which took it to 339.7. What
+ * remains has to run in every tab from boot, because a call may now ring, be answered or end in
+ * any of them: the ringing hand-off (1,037 + 652 B raw by source map), the departure and
+ * taken-elsewhere notices (550 + 683, 455 + 335 B), and the follower's media-frame relay (693 B).
+ *
+ * 340 -> 341 (2026-11-15), for a Connect that names its server (fix/chat-files-calls-switch):
+ * the base measured 339.9, this 340.5. Resolving which server a sign-in names, the typed refusals
+ * and the registration form's held-username check load with their forms (sign-in-server.ts,
+ * connect-refusal.ts, join/use-held-username.ts), and the agent's account list loads when asked
+ * (io.ts agentAccounts), all off the path. What remains is what the reconnect paths need from
+ * boot: `server_address` on the Connect with its refusal to send an empty one (auth-operations.ts),
+ * and the stored record's server, taken from the agent and backfilled when the record has none,
+ * with the hand-off to a sign-in when nobody can say (connection/stored-server.ts, +0.5 KB).
+ *
+ * 341 -> 342 (2026-11-16), for the welcome, call-goodbye and dialog-footer fixes merged onto
+ * fix/chat-files-calls: measured 341.1. What each adds runs from boot (raw bytes by source map):
+ * the per-account "welcome shown" check made on every connection, including the reconnect a
+ * returning user boots into (welcome/welcome-once.ts, 343 B); the goodbye a tab sends before it
+ * lets a call's media go, since any tab may be closed mid-call (multi-instance/departure-steps.ts
+ * and release-holds.ts, 122 + 268 B); and the shared footer that wraps a dialog's answers so none
+ * is clipped at 390px (ui/footer-layout.ts, 97 B, used by Dialog and AlertDialog).
+ *
+ * 341 -> 344 (2026-11-15), for the Calendar release (fix/chat-files-calls-calendar): the batch
+ * at 341 merged with three lanes that each fit their own lane's headroom under 339, and the sum
+ * measured 343.7 (343.9 once the batch's 342 above merged too; 344 holds both). What the
+ * lanes put on the path runs from boot in every tab: a node's tabs, read
+ * when any node renders (node-tabs/tab-list.ts 1,072 + tab-memory.ts 535 + tab-keys.ts 62 B raw
+ * by source map, and the service's node-tabs-operations.ts 551); a node channel's reactions,
+ * receipts and typing, which arrive whatever page is open (group-conversations/channel-signals.ts
+ * 580, workspace-service/group-chat-signals.ts 626, response-handler/group-signal-handlers.ts 446,
+ * chat-attachments-event.ts 138); and the Members answer's booking guests (members-event.ts).
  */
-const BUDGET_KB = 339;
+const BUDGET_KB = 344;
 
 /**
  * Modules that must stay OFF the critical path, checked against the source
@@ -248,6 +284,9 @@ const DEFERRED_MODULES = [
   'src/lib/at-rest/agent-root-store.ts',
   // Its shapes and errors too: the kept-tree hook reads the lock lazily (hooks/use-kept-tree.ts).
   'src/lib/at-rest/at-rest-shape.ts',
+  // A failed call's copy loads with the call stage; the landing page's media lifecycle needs only
+  // the takeover reason (lib/call/lost-on-takeover.ts).
+  'src/lib/call/call-failure-detail.ts',
   // The kill switch loads only when /version.json pulls it (lib/pwa/watch-deployed-version.ts).
   'src/lib/pwa/kill-switch.ts',
   // Console capture for opt-in diagnostic logs: it runs while a workspace is open (TermsGate),
